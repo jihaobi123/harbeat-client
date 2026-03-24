@@ -99,9 +99,12 @@ export interface ImportPlaylistResult {
 export interface User {
   id: string
   username: string
-  nickname: string
+  nickname?: string
   avatar?: string
-  token: string
+  token?: string
+  danceStyle?: string
+  level?: string
+  favoriteStyle?: string
 }
 
 export interface LoginRequest {

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../core/audio/audio_player_service.dart';
 import '../core/network/api_repository.dart';
 
@@ -11,15 +11,33 @@ class CuePoint {
 }
 
 class PracticeState {
+  final int userId;
+  final int? sessionId;
   final Duration? pointA;
   final Duration? pointB;
   final List<CuePoint> cuePoints;
   final bool isPlaying;
 
-  PracticeState({this.pointA, this.pointB, this.cuePoints = const [], this.isPlaying = false});
+  PracticeState({
+    this.userId = 1,
+    this.sessionId,
+    this.pointA,
+    this.pointB,
+    this.cuePoints = const [],
+    this.isPlaying = false,
+  });
 
-  PracticeState copyWith({Duration? pointA, Duration? pointB, List<CuePoint>? cuePoints, bool? isPlaying}) {
+  PracticeState copyWith({
+    int? userId,
+    int? sessionId,
+    Duration? pointA,
+    Duration? pointB,
+    List<CuePoint>? cuePoints,
+    bool? isPlaying,
+  }) {
     return PracticeState(
+      userId: userId ?? this.userId,
+      sessionId: sessionId ?? this.sessionId,
       pointA: pointA ?? this.pointA,
       pointB: pointB ?? this.pointB,
       cuePoints: cuePoints ?? this.cuePoints,
@@ -32,26 +50,54 @@ class PracticeSessionNotifier extends Notifier<PracticeState> {
   @override
   PracticeState build() => PracticeState();
 
+  Future<void> initialize({
+    required int userId,
+    required int trackId,
+    required String mode,
+  }) async {
+    final api = ref.read(apiRepoProvider);
+    final sessionId = await api.startSession(userId: userId, mode: mode);
+    final storedCues = await api.fetchCuePoints(userId: userId, trackId: trackId);
+
+    state = state.copyWith(
+      userId: userId,
+      sessionId: sessionId,
+      cuePoints: storedCues
+          .map((cue) => CuePoint(
+                position: Duration(milliseconds: (cue.startTime * 1000).round()),
+                remark: cue.name ?? cue.cueType,
+              ))
+          .toList(),
+    );
+  }
+
   void setPointA(Duration position) {
     ref.read(audioPlayerProvider).setPointA(position);
     state = state.copyWith(pointA: position);
-    ref.read(apiRepoProvider).reportEvent(1, "set_A_visual", "time=${position.inSeconds}");
+
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      ref.read(apiRepoProvider).reportEvent(sessionId, 'set_A_visual', 'time=${position.inSeconds}');
+    }
   }
 
   void setPointB(Duration position, int trackId) {
     ref.read(audioPlayerProvider).setPointB(position);
     state = state.copyWith(pointB: position);
-    ref.read(apiRepoProvider).reportEvent(1, "set_B_visual", "time=${position.inSeconds}");
-    
+
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      ref.read(apiRepoProvider).reportEvent(sessionId, 'set_B_visual', 'time=${position.inSeconds}');
+    }
+
     if (state.pointA != null) {
-      // 修正 saveCuePoint 的调用方式
       ref.read(apiRepoProvider).saveCuePoint(
-        userId: 1,
+        userId: state.userId,
         trackId: trackId,
-        cueType: "ab_loop",
+        cueType: 'ab_loop',
         startTime: state.pointA!.inMilliseconds / 1000.0,
         endTime: position.inMilliseconds / 1000.0,
-        name: "A-B段",
+        name: 'A-B loop',
       );
     }
   }
@@ -61,13 +107,21 @@ class PracticeSessionNotifier extends Notifier<PracticeState> {
     final newCues = List<CuePoint>.from(state.cuePoints)..add(newCue);
     state = state.copyWith(cuePoints: newCues);
 
-    ref.read(apiRepoProvider).reportEvent(1, "mark_cue_visual", "time=${position.inSeconds},remark=$remark");
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      ref.read(apiRepoProvider).reportEvent(
+        sessionId,
+        'mark_cue_visual',
+        'time=${position.inSeconds},remark=$remark',
+      );
+    }
+
     ref.read(apiRepoProvider).saveCuePoint(
-      userId: 1,
+      userId: state.userId,
       trackId: trackId,
-      cueType: "cue",
+      cueType: 'cue',
       startTime: position.inMilliseconds / 1000.0,
-      name: remark, // 修正注释：这里将备注存为名称
+      name: remark,
     );
   }
 }

@@ -1,82 +1,25 @@
-import type { ApiResponse, LoginRequest, LoginResponse, User, ImportPlaylistResult, Playlist, Tag, DanceStyle } from '../types'
+import type {
+  ApiResponse,
+  ImportPlaylistResult,
+  Playlist,
+  Tag,
+  User,
+} from '../types'
 
-// 后端 API 基础地址，后续部署时替换为实际地址
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
-// 开发模式：设为 true 时跳过后端，用本地 mock 数据
-const DEV_MOCK = !import.meta.env.VITE_API_BASE_URL
-
-// ===== 通用请求封装 =====
-
-function getToken(): string | null {
-  try {
-    const stored = localStorage.getItem('harbeat_user')
-    if (stored) {
-      const user = JSON.parse(stored) as User
-      return user.token
-    }
-  } catch { /* ignore */ }
-  return null
+interface BackendResponse<T> {
+  code: number
+  message: string
+  data: T
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  const token = getToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`HTTP ${res.status}: ${text || res.statusText}`)
-  }
-
-  return res.json()
+export interface InitializeUserRequest {
+  username: string
+  dance_style: string
+  level: string
+  favorite_style: string
 }
-
-// ===== 认证相关 =====
-
-export async function login(params: LoginRequest): Promise<LoginResponse> {
-  if (DEV_MOCK) {
-    // 开发模式：任意用户名密码均可登录
-    const mockUser: User = {
-      id: 'dev-user-001',
-      username: params.username,
-      nickname: params.username,
-      token: 'dev-mock-token',
-    }
-    return { code: 0, message: 'ok', data: { user: mockUser, token: 'dev-mock-token' } }
-  }
-  const res = await request<{ user: User; token: string }>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  })
-  return {
-    code: res.code,
-    message: res.message,
-    data: res.data,
-  }
-}
-
-export async function getUserInfo(): Promise<ApiResponse<User>> {
-  if (DEV_MOCK) {
-    return { code: 0, message: 'ok', data: undefined }
-  }
-  return request<User>('/auth/me')
-}
-
-// ===== 歌单导入 =====
 
 export interface ImportPlaylistRequest {
   userId: string
@@ -86,73 +29,242 @@ export interface ImportPlaylistRequest {
     artist: string
     duration: number
     bpm: number | null
-    tags: DanceStyle[]    // 已有的舞种标签
-    fileHash?: string     // 可选，用于去重
+    tags: string[]
+    audioUrl?: string
   }>
 }
 
-export async function importPlaylist(
-  params: ImportPlaylistRequest
-): Promise<ApiResponse<ImportPlaylistResult>> {
-  if (DEV_MOCK) {
-    // 开发模式：模拟导入结果
-    const pendingCount = params.songList.filter((s) => s.tags.length === 0 && !s.bpm).length
-    const mockResult: ImportPlaylistResult = {
-      playlistId: `playlist-${Date.now()}`,
-      importCount: params.songList.length,
-      pendingAnalysisCount: pendingCount,
-    }
-    // 模拟保存到本地
-    const existing = JSON.parse(localStorage.getItem('harbeat_playlists') || '[]') as Playlist[]
-    existing.push({
-      id: mockResult.playlistId,
-      name: params.playlistName,
-      userId: params.userId,
-      songCount: params.songList.length,
-      createdAt: Date.now(),
-    })
-    localStorage.setItem('harbeat_playlists', JSON.stringify(existing))
-    return { code: 0, message: 'ok', data: mockResult }
-  }
-  return request<ImportPlaylistResult>('/playlists/import', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  })
+export interface PlaylistDetailResponse {
+  playlist: Playlist
+  songs: Array<{
+    songId: string
+    title: string
+    artist: string
+    audioUrl?: string
+    duration: number
+    bpm: number | null
+    tags: string[]
+    order: number
+  }>
 }
 
-// ===== 歌单管理 =====
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<BackendResponse<T>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  })
+
+  const payload = await response.json().catch(() => null) as BackendResponse<T> | null
+  if (!response.ok || !payload) {
+    throw new Error(payload?.message || `HTTP ${response.status}`)
+  }
+  return payload
+}
+
+function normalizeUser(raw: {
+  id: number
+  username: string
+  dance_style: string
+  level: string
+  favorite_style: string
+}): User {
+  return {
+    id: String(raw.id),
+    username: raw.username,
+    nickname: raw.username,
+    danceStyle: raw.dance_style,
+    level: raw.level,
+    favoriteStyle: raw.favorite_style,
+  }
+}
+
+export async function initializeUser(params: InitializeUserRequest): Promise<ApiResponse<User>> {
+  try {
+    const existing = await getUserByUsername(params.username)
+    return existing
+  } catch {
+    const created = await request<{ user_id: number }>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    })
+    const user = await getUserInfo(String(created.data.user_id))
+    return user
+  }
+}
+
+export async function getUserInfo(userId: string): Promise<ApiResponse<User>> {
+  const response = await request<{
+    id: number
+    username: string
+    dance_style: string
+    level: string
+    favorite_style: string
+  }>(`/api/users/${encodeURIComponent(userId)}`)
+
+  return {
+    code: response.code,
+    message: response.message,
+    data: normalizeUser(response.data),
+  }
+}
+
+export async function getUserByUsername(username: string): Promise<ApiResponse<User>> {
+  const response = await request<{
+    id: number
+    username: string
+    dance_style: string
+    level: string
+    favorite_style: string
+  }>(`/api/users/by-username/${encodeURIComponent(username)}`)
+
+  return {
+    code: response.code,
+    message: response.message,
+    data: normalizeUser(response.data),
+  }
+}
+
+export async function importPlaylist(params: ImportPlaylistRequest): Promise<ApiResponse<ImportPlaylistResult>> {
+  const response = await request<{
+    playlist_id: number
+    import_count: number
+    pending_analysis_count: number
+  }>('/api/playlists/import', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: Number(params.userId),
+      playlist_name: params.playlistName,
+      songs: params.songList.map((song) => ({
+        title: song.title,
+        artist: song.artist,
+        audio_url: song.audioUrl || undefined,
+        duration: song.duration || undefined,
+        bpm: song.bpm ?? undefined,
+        tags: song.tags,
+      })),
+      source_type: 'playlist_import',
+    }),
+  })
+
+  return {
+    code: response.code,
+    message: response.message,
+    data: {
+      playlistId: String(response.data.playlist_id),
+      importCount: response.data.import_count,
+      pendingAnalysisCount: response.data.pending_analysis_count,
+    },
+  }
+}
 
 export async function getPlaylists(userId: string): Promise<ApiResponse<Playlist[]>> {
-  if (DEV_MOCK) {
-    const all = JSON.parse(localStorage.getItem('harbeat_playlists') || '[]') as Playlist[]
-    return { code: 0, message: 'ok', data: all.filter((p) => p.userId === userId) }
+  const response = await request<{
+    playlists: Array<{
+      id: number
+      user_id: number
+      playlist_name: string
+      source_type: string
+      song_count: number
+    }>
+  }>(`/api/playlists?user_id=${encodeURIComponent(userId)}`)
+
+  return {
+    code: response.code,
+    message: response.message,
+    data: response.data.playlists.map((playlist) => ({
+      id: String(playlist.id),
+      name: playlist.playlist_name,
+      userId: String(playlist.user_id),
+      songCount: playlist.song_count,
+      createdAt: Date.now(),
+    })),
   }
-  return request<Playlist[]>(`/playlists?userId=${encodeURIComponent(userId)}`)
 }
 
-export async function getPlaylistDetail(playlistId: string): Promise<ApiResponse<{
-  playlist: Playlist
-  songs: Array<{ songId: string; title: string; artist: string; tags: Tag[]; order: number }>
-}>> {
-  return request(`/playlists/${encodeURIComponent(playlistId)}`)
+export async function getPlaylistDetail(playlistId: string): Promise<ApiResponse<PlaylistDetailResponse>> {
+  const response = await request<{
+    id: number
+    user_id: number
+    playlist_name: string
+    source_type: string
+    songs: Array<{
+      song_id: number
+      title: string
+      artist: string
+      audio_url?: string
+      duration?: number
+      bpm?: number
+      tags: string[]
+      order_index: number
+    }>
+  }>(`/api/playlists/${encodeURIComponent(playlistId)}`)
+
+  return {
+    code: response.code,
+    message: response.message,
+    data: {
+      playlist: {
+        id: String(response.data.id),
+        name: response.data.playlist_name,
+        userId: String(response.data.user_id),
+        songCount: response.data.songs.length,
+        createdAt: Date.now(),
+      },
+      songs: response.data.songs.map((song) => ({
+        songId: String(song.song_id),
+        title: song.title,
+        artist: song.artist,
+        audioUrl: song.audio_url,
+        duration: song.duration || 0,
+        bpm: song.bpm || null,
+        tags: song.tags || [],
+        order: song.order_index,
+      })),
+    },
+  }
 }
 
-// ===== 标签管理 =====
+export async function deletePlaylist(playlistId: string): Promise<ApiResponse<{ success: boolean }>> {
+  const response = await request<{ success: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+    method: 'DELETE',
+  })
+  return response
+}
 
-export async function getAllTags(): Promise<ApiResponse<Tag[]>> {
-  return request<Tag[]>('/tags')
+export async function updatePlaylistSongTags(
+  playlistId: string,
+  songId: string,
+  tags: string[],
+): Promise<ApiResponse<{ success: boolean }>> {
+  return request<{ success: boolean }>(
+    `/api/playlists/${encodeURIComponent(playlistId)}/songs/${encodeURIComponent(songId)}/tags`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ tags }),
+    }
+  )
 }
 
 export async function getTagsBySong(songId: string): Promise<ApiResponse<Tag[]>> {
-  return request<Tag[]>(`/songs/${encodeURIComponent(songId)}/tags`)
-}
+  const response = await request<{
+    id: number
+    title: string
+    artist: string
+    tags: string[]
+  }>(`/api/music/songs/${encodeURIComponent(songId)}`)
 
-export async function addTagToSong(
-  songId: string,
-  style: DanceStyle
-): Promise<ApiResponse<Tag>> {
-  return request<Tag>(`/songs/${encodeURIComponent(songId)}/tags`, {
-    method: 'POST',
-    body: JSON.stringify({ style }),
-  })
+  return {
+    code: response.code,
+    message: response.message,
+    data: response.data.tags.map((tag) => ({
+      id: `${songId}-${tag}`,
+      name: tag,
+      style: tag as Tag['style'],
+    })),
+  }
 }

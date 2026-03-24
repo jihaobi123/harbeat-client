@@ -1,6 +1,13 @@
 import { create } from 'zustand'
-import { Song, AudioFileInfo, Playlist, ImportPlaylistResult, DanceStyle } from '../types'
-import { type ImportPlaylistRequest } from '../services/api'
+
+import type { AudioFileInfo, DanceStyle, ImportPlaylistResult, Playlist, Song } from '../types'
+import {
+  deletePlaylist as apiDeletePlaylist,
+  getPlaylistDetail as apiGetPlaylistDetail,
+  getPlaylists as apiGetPlaylists,
+  importPlaylist as apiImportPlaylist,
+  type ImportPlaylistRequest,
+} from '../services/api'
 
 type ViewType = 'my-library' | 'platform' | 'recent' | 'playlist'
 type DisplayMode = 'list' | 'grid'
@@ -16,15 +23,12 @@ interface MusicStore {
   platformLibraryLoaded: boolean
   displayMode: DisplayMode
   tagFilter: DanceStyle | null
-
-  // 歌单相关
   playlists: Playlist[]
   currentPlaylistId: string | null
   currentPlaylistSongs: Song[]
   playlistImporting: boolean
   playlistImportError: string | null
   lastImportResult: ImportPlaylistResult | null
-
   addSongs: (files: AudioFileInfo[]) => Song[]
   removeSong: (id: string) => void
   selectSong: (id: string | null) => void
@@ -35,30 +39,73 @@ interface MusicStore {
   searchPlatform: (query: string) => Promise<void>
   loadPlatformLibrary: () => Promise<void>
   downloadSong: (songId: string) => Promise<void>
-
-  // 显示相关
   setDisplayMode: (mode: DisplayMode) => void
   setTagFilter: (tag: DanceStyle | null) => void
-
-  // 歌单管理
   importAndDownloadPlaylist: (
     userId: string,
     playlistName: string,
     songList: ImportPlaylistRequest['songList']
   ) => Promise<{ playlistId: string; success: string[]; failed: string[] } | null>
-  importPlaylist: (userId: string, playlistName: string, songList: ImportPlaylistRequest['songList']) => Promise<ImportPlaylistResult | null>
+  importPlaylist: (
+    userId: string,
+    playlistName: string,
+    songList: ImportPlaylistRequest['songList']
+  ) => Promise<ImportPlaylistResult | null>
   loadPlaylists: (userId?: string) => Promise<void>
   viewPlaylist: (playlistId: string) => Promise<void>
   deletePlaylist: (playlistId: string) => Promise<void>
   clearImportResult: () => void
-
-  // 歌单歌曲下载与分析
   fetchPlaylistSong: (songId: string) => Promise<void>
   fetchAllPlaylistSongs: (playlistId: string) => Promise<void>
 }
 
 let songIdCounter = 0
 const generateId = () => `song-${Date.now()}-${++songIdCounter}`
+const makeIdentity = (title: string, artist: string) => `${title}||${artist}`.toLowerCase()
+
+const mapLibrarySong = (song: any): Song => ({
+  id: String(song.id),
+  title: song.title,
+  artist: song.artist,
+  duration: song.duration || 0,
+  format: song.format || 'mp3',
+  fileSize: song.fileSize || 0,
+  sourceType: song.sourceType || 'internal_catalog',
+  sourcePath: song.sourcePath || '',
+  platformId: song.platformId,
+  platformUrl: song.platformUrl,
+  importStatus: 'ready',
+  downloadStatus: song.sourcePath ? 'downloaded' : 'none',
+  analysisStatus: song.bpm ? 'completed' : 'none',
+  bpm: song.bpm || null,
+  beatPoints: song.beatPoints || [],
+  cuePoints: song.cuePoints || [],
+  tags: (song.tags || []) as DanceStyle[],
+  playlistId: song.playlistId ? String(song.playlistId) : undefined,
+  createdAt: song.createdAt || Date.now(),
+})
+
+const syncSongToLibrary = async (song: Song) => {
+  try {
+    await window.electronAPI.addToPlatformLibrary({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      duration: song.duration,
+      format: song.format,
+      fileSize: song.fileSize,
+      sourceType: song.sourceType,
+      sourcePath: song.sourcePath,
+      platformId: song.platformId,
+      platformUrl: song.platformUrl,
+      bpm: song.bpm,
+      beatPoints: song.beatPoints,
+      cuePoints: song.cuePoints,
+      tags: song.tags,
+      createdAt: song.createdAt,
+    })
+  } catch {}
+}
 
 export const useMusicStore = create<MusicStore>((set, get) => ({
   songs: [],
@@ -71,8 +118,6 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
   platformLibraryLoaded: false,
   displayMode: 'list',
   tagFilter: null,
-
-  // 歌单相关初始状态
   playlists: [],
   currentPlaylistId: null,
   currentPlaylistSongs: [],
@@ -80,11 +125,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
   playlistImportError: null,
   lastImportResult: null,
 
-  addSongs: (files: AudioFileInfo[]) => {
-    const newSongs: Song[] = files.map((file) => ({
+  addSongs: (files) => {
+    const newSongs = files.map((file) => ({
       id: generateId(),
       title: file.name,
-      artist: file.artist || '未知艺术家',
+      artist: file.artist || 'Unknown Artist',
       duration: 0,
       format: file.format,
       fileSize: file.size,
@@ -99,261 +144,95 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
       createdAt: Date.now(),
     }))
     set((state) => ({ songs: [...state.songs, ...newSongs] }))
-
-    // Also persist each new song to the platform library
-    for (const song of newSongs) {
-      window.electronAPI.addToPlatformLibrary({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        duration: song.duration,
-        format: song.format,
-        fileSize: song.fileSize,
-        sourceType: song.sourceType,
-        sourcePath: song.sourcePath,
-        bpm: null,
-        beatPoints: [],
-        cuePoints: [],
-        createdAt: song.createdAt,
-      }).catch(() => {})
-    }
+    newSongs.forEach((song) => { void syncSongToLibrary(song) })
     return newSongs
   },
 
-  removeSong: (id: string) => {
+  removeSong: (id) => {
     set((state) => ({
-      songs: state.songs.filter((s) => s.id !== id),
+      songs: state.songs.filter((song) => song.id !== id),
       selectedSongId: state.selectedSongId === id ? null : state.selectedSongId,
     }))
   },
 
-  selectSong: (id: string | null) => set({ selectedSongId: id }),
+  selectSong: (id) => set({ selectedSongId: id }),
+  setView: (view) => set({ currentView: view, searchQuery: '', currentPlaylistId: null, currentPlaylistSongs: [], tagFilter: null }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
+  setDisplayMode: (mode) => set({ displayMode: mode }),
+  setTagFilter: (tag) => set({ tagFilter: tag }),
 
-  setView: (view: ViewType) => set({ currentView: view, searchQuery: '', currentPlaylistId: null, currentPlaylistSongs: [], tagFilter: null }),
-
-  setSearchQuery: (query: string) => set({ searchQuery: query }),
-
-  updateSong: (id: string, updates: Partial<Song>) => {
+  updateSong: (id, updates) => {
     set((state) => ({
-      songs: state.songs.map((s) => (s.id === id ? { ...s, ...updates } : s)),
-      platformSongs: state.platformSongs.map((s) =>
-        s.id === id ? { ...s, ...updates } : s
-      ),
+      songs: state.songs.map((song) => song.id === id ? { ...song, ...updates } : song),
+      platformSongs: state.platformSongs.map((song) => song.id === id ? { ...song, ...updates } : song),
+      currentPlaylistSongs: state.currentPlaylistSongs.map((song) => song.id === id ? { ...song, ...updates } : song),
     }))
-
-    // Sync analysis results to persistent library
-    if (updates.bpm !== undefined || updates.duration !== undefined) {
-      const song = get().songs.find((s) => s.id === id)
-      if (song) {
-        window.electronAPI.addToPlatformLibrary({
-          id: song.id,
-          title: song.title,
-          artist: song.artist,
-          duration: song.duration,
-          format: song.format,
-          fileSize: song.fileSize,
-          sourceType: song.sourceType,
-          sourcePath: song.sourcePath,
-          platformId: song.platformId,
-          platformUrl: song.platformUrl,
-          bpm: song.bpm,
-          beatPoints: song.beatPoints,
-          cuePoints: song.cuePoints,
-          createdAt: song.createdAt,
-        }).catch(() => {})
-      }
-    }
+    const song = get().songs.find((item) => item.id === id)
+    if (song) void syncSongToLibrary(song)
   },
 
-  addPlatformSongToLibrary: (songId: string) => {
-    const state = get()
-    const platformSong = state.platformSongs.find((s) => s.id === songId)
+  addPlatformSongToLibrary: (songId) => {
+    const platformSong = get().platformSongs.find((song) => song.id === songId)
     if (!platformSong) return
-    if (
-      state.songs.some(
-        (s) => s.title === platformSong.title && s.sourceType === 'internal_catalog'
-      )
-    )
-      return
-
-    const newSong: Song = {
-      ...platformSong,
-      id: generateId(),
-      createdAt: Date.now(),
-    }
-    set((state) => ({ songs: [...state.songs, newSong] }))
+    set((state) => {
+      const exists = state.songs.some((song) => makeIdentity(song.title, song.artist) === makeIdentity(platformSong.title, platformSong.artist))
+      if (exists) return state
+      return {
+        songs: [...state.songs, { ...platformSong, id: generateId(), createdAt: Date.now() }],
+      }
+    })
   },
 
   loadPlatformLibrary: async () => {
     try {
       const result = await window.electronAPI.getPlatformLibrary()
-      const libSongs: Song[] = (result.songs || []).map((s: any) => ({
-        id: s.id,
-        title: s.title,
-        artist: s.artist,
-        duration: s.duration || 0,
-        format: s.format || 'mp3',
-        fileSize: s.fileSize || 0,
-        sourceType: s.sourceType || 'internal_catalog',
-        sourcePath: s.sourcePath || '',
-        platformId: s.platformId,
-        platformUrl: s.platformUrl,
-        importStatus: 'ready' as const,
-        downloadStatus: s.sourcePath ? 'downloaded' as const : 'none' as const,
-        analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-        bpm: s.bpm || null,
-        beatPoints: s.beatPoints || [],
-        cuePoints: s.cuePoints || [],
-        tags: (s.tags || []) as DanceStyle[],
-        createdAt: s.createdAt || Date.now(),
-      }))
-
-      // Add downloaded songs from persistent library to "my library"
+      const librarySongs = (result.songs || []).map(mapLibrarySong)
       set((state) => {
-        const newSongs = [...state.songs]
-        for (const ls of libSongs) {
-          if (!ls.sourcePath) continue // only songs with local files
-          const exists = newSongs.some(
-            (s) => s.id === ls.id || (s.platformId && s.platformId === ls.platformId)
-          )
-          if (!exists) newSongs.push(ls)
+        const merged = [...state.songs]
+        const seen = new Set(merged.map((song) => song.id))
+        for (const song of librarySongs) {
+          if (!song.sourcePath || seen.has(song.id)) continue
+          merged.push(song)
         }
-        return { songs: newSongs, platformLibraryLoaded: true }
+        return {
+          songs: merged,
+          platformLibraryLoaded: true,
+          platformSongs: state.currentView === 'platform' && !state.searchQuery ? librarySongs : state.platformSongs,
+        }
       })
-
-      // If platform view and no search query, show the library
-      const state = get()
-      if (state.currentView === 'platform' && !state.searchQuery) {
-        set({ platformSongs: libSongs })
-      }
-    } catch (e) {
-      console.error('[loadPlatformLibrary]', e)
+    } catch (error) {
+      console.error('[loadPlatformLibrary]', error)
     }
   },
 
-  downloadSong: async (songId: string) => {
-    const state = get()
-    const song = state.platformSongs.find((s) => s.id === songId)
-    if (!song || !song.platformId) return
-
-    // Mark as downloading
-    set((state) => ({
-      platformSongs: state.platformSongs.map((s) =>
-        s.id === songId ? { ...s, downloadStatus: 'downloading' as const } : s
-      ),
-    }))
-
-    try {
-      const result = await window.electronAPI.downloadFromPlatform(
-        song.platformId,
-        song.title,
-        song.artist,
-      )
-
-      if (result.error) throw new Error(result.error)
-      if (!result.song) throw new Error('No song data returned')
-
-      const downloaded = result.song
-
-      const updatedSong: Song = {
-        ...song,
-        sourcePath: downloaded.sourcePath,
-        fileSize: downloaded.fileSize,
-        downloadStatus: 'downloaded' as const,
-        importStatus: 'ready' as const,
-      }
-
-      set((state) => {
-        // Update in platformSongs
-        const newPlatformSongs = state.platformSongs.map((s) =>
-          s.id === songId ? updatedSong : s
-        )
-
-        // Also add to songs (my library) if not already there
-        const alreadyInSongs = state.songs.some(
-          (s) => s.platformId === song.platformId || s.id === songId
-        )
-        const newSongs = alreadyInSongs
-          ? state.songs.map((s) =>
-              s.platformId === song.platformId || s.id === songId
-                ? { ...s, sourcePath: downloaded.sourcePath, fileSize: downloaded.fileSize, downloadStatus: 'downloaded' as const }
-                : s
-            )
-          : [...state.songs, updatedSong]
-
-        return { platformSongs: newPlatformSongs, songs: newSongs }
-      })
-    } catch (e) {
-      console.error('[downloadSong error]', e)
-      set((state) => ({
-        platformSongs: state.platformSongs.map((s) =>
-          s.id === songId ? { ...s, downloadStatus: 'error' as const } : s
-        ),
-      }))
-    }
-  },
-
-  searchPlatform: async (query: string) => {
+  searchPlatform: async (query) => {
     if (!query.trim()) {
-      // Empty query: load from persistent library
-      try {
-        const result = await window.electronAPI.getPlatformLibrary()
-        const libSongs: Song[] = (result.songs || []).map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          artist: s.artist,
-          duration: s.duration || 0,
-          format: s.format || 'mp3',
-          fileSize: s.fileSize || 0,
-          sourceType: s.sourceType || 'internal_catalog',
-          sourcePath: s.sourcePath || '',
-          platformId: s.platformId,
-          platformUrl: s.platformUrl,
-          importStatus: 'ready' as const,
-          downloadStatus: s.sourcePath ? 'downloaded' as const : 'none' as const,
-          analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-          bpm: s.bpm || null,
-          beatPoints: s.beatPoints || [],
-          cuePoints: s.cuePoints || [],
-          tags: (s.tags || []) as DanceStyle[],
-          createdAt: s.createdAt || Date.now(),
-        }))
-
-        // Also merge local songs
-        const state = get()
-        const merged: Song[] = []
-        const seen = new Set<string>()
-        for (const s of state.songs) {
-          const key = `${s.title}||${s.artist}`.toLowerCase()
-          if (!seen.has(key)) { seen.add(key); merged.push({ ...s }) }
+      const result = await window.electronAPI.getPlatformLibrary().catch(() => ({ songs: [] }))
+      const librarySongs = (result.songs || []).map(mapLibrarySong)
+      const merged = [...get().songs]
+      for (const song of librarySongs) {
+        if (!merged.some((item) => makeIdentity(item.title, item.artist) === makeIdentity(song.title, song.artist))) {
+          merged.push(song)
         }
-        for (const s of libSongs) {
-          const key = `${s.title}||${s.artist}`.toLowerCase()
-          if (!seen.has(key)) { seen.add(key); merged.push(s) }
-        }
-
-        set({ platformSongs: merged, platformSearchLoading: false, platformSearchError: null })
-      } catch (e) {
-        set({ platformSongs: get().songs.map((s) => ({ ...s })), platformSearchLoading: false, platformSearchError: null })
       }
+      set({ platformSongs: merged, platformSearchLoading: false, platformSearchError: null })
       return
     }
 
     set({ platformSearchLoading: true, platformSearchError: null })
-
     try {
-      const result = await window.electronAPI.searchPlatform(query)
-      const fangpiSongs: Song[] = (result.songs || []).map((s) => ({
-        id: `fangpi-${s.id}`,
-        title: s.title,
-        artist: s.artist,
+      const searchResult = await window.electronAPI.searchPlatform(query)
+      const platformSongs = (searchResult.songs || []).map((song) => ({
+        id: `fangpi-${song.id}`,
+        title: song.title,
+        artist: song.artist,
         duration: 0,
         format: 'mp3',
         fileSize: 0,
         sourceType: 'internal_catalog' as const,
         sourcePath: '',
-        platformId: s.id,
-        platformUrl: s.url,
+        platformId: song.id,
+        platformUrl: song.url,
         importStatus: 'ready' as const,
         downloadStatus: 'none' as const,
         analysisStatus: 'none' as const,
@@ -363,112 +242,60 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         tags: [],
         createdAt: Date.now(),
       }))
-
-      // Check which fangpi songs are already downloaded in the library
-      let libSongs: Song[] = []
-      try {
-        const libResult = await window.electronAPI.getPlatformLibrary()
-        libSongs = (libResult.songs || []).map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          artist: s.artist,
-          duration: s.duration || 0,
-          format: s.format || 'mp3',
-          fileSize: s.fileSize || 0,
-          sourceType: s.sourceType || 'internal_catalog',
-          sourcePath: s.sourcePath || '',
-          platformId: s.platformId,
-          platformUrl: s.platformUrl,
-          importStatus: 'ready' as const,
-          downloadStatus: s.sourcePath ? 'downloaded' as const : 'none' as const,
-          analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-          bpm: s.bpm || null,
-          beatPoints: s.beatPoints || [],
-          cuePoints: s.cuePoints || [],
-          tags: (s.tags || []) as DanceStyle[],
-          createdAt: s.createdAt || Date.now(),
-        }))
-      } catch {}
-
-      const libByPlatformId = new Map<string, Song>()
-      for (const s of libSongs) {
-        if (s.platformId) libByPlatformId.set(s.platformId, s)
-      }
-
-      set((state) => {
-        const merged: Song[] = []
-        const seen = new Set<string>()
-
-        // Local songs matching query first
-        for (const s of state.songs) {
-          const q = query.toLowerCase()
-          if (s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)) {
-            const key = `${s.title}||${s.artist}`.toLowerCase()
-            if (!seen.has(key)) { seen.add(key); merged.push({ ...s }) }
-          }
-        }
-
-        // Then fangpi results, replacing with downloaded version if available
-        for (const s of fangpiSongs) {
-          const key = `${s.title}||${s.artist}`.toLowerCase()
-          if (!seen.has(key)) {
-            seen.add(key)
-            // Replace with library version if already downloaded
-            const libVersion = s.platformId ? libByPlatformId.get(s.platformId) : undefined
-            merged.push(libVersion ? { ...libVersion } : s)
-          }
-        }
-
-        return {
-          platformSongs: merged,
-          platformSearchLoading: false,
-          platformSearchError: result.error || null,
-        }
-      })
-    } catch (e) {
-      set({
-        platformSearchLoading: false,
-        platformSearchError: String(e),
-      })
+      set({ platformSongs, platformSearchLoading: false, platformSearchError: null })
+    } catch (error) {
+      set({ platformSearchLoading: false, platformSearchError: String(error) })
     }
   },
 
-  // ===== 显示设置 =====
-  setDisplayMode: (mode: DisplayMode) => set({ displayMode: mode }),
-  setTagFilter: (tag: DanceStyle | null) => set({ tagFilter: tag }),
+  downloadSong: async (songId) => {
+    const song = get().platformSongs.find((item) => item.id === songId)
+    if (!song || !song.platformId) return
+    set((state) => ({
+      platformSongs: state.platformSongs.map((item) => item.id === songId ? { ...item, downloadStatus: 'downloading' } : item),
+    }))
+    try {
+      const result = await window.electronAPI.downloadFromPlatform(song.platformId, song.title, song.artist)
+      if (result.error || !result.song) throw new Error(result.error || 'download failed')
+      const updatedSong: Song = {
+        ...song,
+        sourcePath: result.song.sourcePath,
+        fileSize: result.song.fileSize || 0,
+        downloadStatus: 'downloaded',
+        importStatus: 'ready',
+      }
+      set((state) => {
+        const songs = state.songs.some((item) => item.platformId === song.platformId)
+          ? state.songs.map((item) => item.platformId === song.platformId ? { ...item, ...updatedSong } : item)
+          : [...state.songs, updatedSong]
+        return {
+          songs,
+          platformSongs: state.platformSongs.map((item) => item.id === songId ? updatedSong : item),
+        }
+      })
+      void syncSongToLibrary(updatedSong)
+    } catch (error) {
+      console.error('[downloadSong]', error)
+      set((state) => ({
+        platformSongs: state.platformSongs.map((item) => item.id === songId ? { ...item, downloadStatus: 'error' } : item),
+      }))
+    }
+  },
 
-  // ===== 歌单导入 =====
-  importAndDownloadPlaylist: async (userId: string, playlistName: string, songList: ImportPlaylistRequest['songList']) => {
+  importAndDownloadPlaylist: async (userId, playlistName, songList) => {
     set({ playlistImporting: true, playlistImportError: null, lastImportResult: null })
     try {
       if (songList.length === 0) {
-        set({ playlistImporting: false, playlistImportError: '没有可导入的歌曲' })
+        set({ playlistImporting: false, playlistImportError: 'no songs to import' })
         return null
       }
-
-      const playlistId = `playlist-${Date.now()}`
-      const storedSongs = songList.map((song, index) => ({
-        id: `${playlistId}-song-${index}`,
-        title: song.title,
-        artist: song.artist,
-        duration: song.duration,
-        bpm: song.bpm,
-        tags: song.tags as string[],
-        source: 'thirdparty' as const,
-        order: index,
-      }))
-
-      await window.electronAPI.savePlaylist({
-        id: playlistId,
-        name: playlistName,
-        userId,
-        songCount: storedSongs.length,
-        songs: storedSongs,
-        createdAt: Date.now(),
-      })
-
-      const newSongs: Song[] = storedSongs.map((song) => ({
-        id: song.id,
+      const importResponse = await apiImportPlaylist({ userId, playlistName, songList })
+      const playlistId = importResponse.data?.playlistId
+      if (!playlistId) throw new Error(importResponse.message || 'playlist import failed')
+      const detailResponse = await apiGetPlaylistDetail(playlistId)
+      const detailSongs = detailResponse.data?.songs || []
+      const newSongs = detailSongs.map((song) => ({
+        id: song.songId,
         title: song.title,
         artist: song.artist,
         duration: song.duration,
@@ -486,318 +313,163 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         playlistId,
         createdAt: Date.now(),
       }))
-
-      set((state) => ({
-        songs: [...state.songs, ...newSongs.filter((song) => !state.songs.some((existing) => existing.id === song.id))],
-      }))
-
+      set((state) => ({ songs: [...state.songs, ...newSongs.filter((song) => !state.songs.some((item) => item.id === song.id))] }))
       const success: string[] = []
       const failed: string[] = []
-      for (const song of storedSongs) {
+      for (const song of detailSongs) {
         try {
-          await get().fetchPlaylistSong(song.id)
-          const currentSong = get().songs.find((item) => item.id === song.id)
-          if (currentSong?.sourcePath) {
-            success.push(`${song.title} - ${song.artist}`)
-          } else {
-            failed.push(`${song.title} - ${song.artist}`)
-          }
+          await get().fetchPlaylistSong(song.songId)
+          const current = get().songs.find((item) => item.id === song.songId)
+          if (current?.sourcePath) success.push(`${song.title} - ${song.artist}`)
+          else failed.push(`${song.title} - ${song.artist}`)
         } catch {
           failed.push(`${song.title} - ${song.artist}`)
         }
       }
-
       await get().loadPlaylists(userId)
       set({ playlistImporting: false })
       return { playlistId, success, failed }
-    } catch (e) {
-      set({ playlistImporting: false, playlistImportError: String(e) })
+    } catch (error) {
+      set({ playlistImporting: false, playlistImportError: String(error) })
       return null
     }
   },
 
-  importPlaylist: async (userId: string, playlistName: string, songList: ImportPlaylistRequest['songList']) => {
+  importPlaylist: async (userId, playlistName, songList) => {
     set({ playlistImporting: true, playlistImportError: null, lastImportResult: null })
     try {
       if (songList.length === 0) {
-        set({ playlistImporting: false, playlistImportError: '没有可导入的歌曲' })
+        set({ playlistImporting: false, playlistImportError: 'no songs to import' })
         return null
       }
-
-      const playlistId = `playlist-${Date.now()}`
-      const songs = songList.map((s, i) => ({
-        id: `${playlistId}-song-${i}`,
-        title: s.title,
-        artist: s.artist,
-        duration: s.duration,
-        bpm: s.bpm,
-        tags: s.tags as string[],
-        source: 'thirdparty' as const,
-        order: i,
-      }))
-
-      // Save playlist to local database via Electron
-      await window.electronAPI.savePlaylist({
-        id: playlistId,
-        name: playlistName,
-        userId,
-        songCount: songs.length,
-        songs,
-        createdAt: Date.now(),
-      })
-
-      const pendingCount = songList.filter((s) => s.tags.length === 0 && !s.bpm).length
-      const result: ImportPlaylistResult = {
-        playlistId,
-        importCount: songList.length,
-        pendingAnalysisCount: pendingCount,
-      }
-
-      // Also add these songs to the store's songs array
-      const newSongs: Song[] = songList.map((s, i) => ({
-        id: songs[i].id,
-        title: s.title,
-        artist: s.artist,
-        duration: s.duration,
-        format: 'mp3',
-        fileSize: 0,
-        sourceType: 'internal_catalog' as const,
-        sourcePath: '',
-        importStatus: 'ready' as const,
-        analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-        bpm: s.bpm,
-        beatPoints: [],
-        cuePoints: [],
-        tags: s.tags,
-        playlistId,
-        createdAt: Date.now(),
-      }))
-
-      set((state) => ({
-        playlistImporting: false,
-        lastImportResult: result,
-        songs: [...state.songs, ...newSongs],
-      }))
-
-      // Refresh playlist list
+      const response = await apiImportPlaylist({ userId, playlistName, songList })
+      if (!response.data) throw new Error(response.message || 'playlist import failed')
+      set({ playlistImporting: false, lastImportResult: response.data })
       await get().loadPlaylists(userId)
-
-      // Auto-trigger download & analysis for all songs (fire-and-forget)
-      get().fetchAllPlaylistSongs(playlistId).catch((e) =>
-        console.error('[auto-fetch playlist songs]', e)
-      )
-
-      return result
-    } catch (e) {
-      set({ playlistImporting: false, playlistImportError: String(e) })
+      return response.data
+    } catch (error) {
+      set({ playlistImporting: false, playlistImportError: String(error) })
       return null
     }
   },
 
-  loadPlaylists: async (userId?: string) => {
+  loadPlaylists: async (userId) => {
+    if (!userId) {
+      set({ playlists: [] })
+      return
+    }
     try {
-      const res = await window.electronAPI.getAllPlaylists(userId)
-      const playlists: Playlist[] = (res.playlists || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        userId: p.userId,
-        songCount: p.songCount || p.songs?.length || 0,
-        createdAt: p.createdAt,
-      }))
-      set({ playlists })
+      const response = await apiGetPlaylists(userId)
+      set({ playlists: response.data || [] })
+    } catch (error) {
+      console.error('[loadPlaylists]', error)
+    }
+  },
 
-      // Also add playlist songs to the main songs array
-      const allPlaylistSongs: Song[] = []
-      for (const p of (res.playlists || []) as any[]) {
-        for (const s of (p.songs || []) as any[]) {
-          allPlaylistSongs.push({
-            id: s.id,
-            title: s.title,
-            artist: s.artist,
-            duration: s.duration || 0,
-            format: 'mp3',
-            fileSize: 0,
-            sourceType: 'internal_catalog' as const,
-            sourcePath: s.sourcePath || '',
-            importStatus: 'ready' as const,
-            analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-            bpm: s.bpm || null,
-            beatPoints: [],
-            cuePoints: [],
-            tags: (s.tags || []) as DanceStyle[],
-            playlistId: p.id,
-            createdAt: p.createdAt,
-          })
+  viewPlaylist: async (playlistId) => {
+    try {
+      const [playlistResponse, libraryResponse] = await Promise.all([
+        apiGetPlaylistDetail(playlistId),
+        window.electronAPI.getPlatformLibrary().catch(() => ({ songs: [] })),
+      ])
+      const detail = playlistResponse.data
+      if (!detail) return
+      const librarySongs = (libraryResponse.songs || []).map(mapLibrarySong)
+      const byIdentity = new Map(librarySongs.map((song) => [makeIdentity(song.title, song.artist), song]))
+      const currentPlaylistSongs = detail.songs.map((song) => {
+        const local = byIdentity.get(makeIdentity(song.title, song.artist))
+        return {
+          id: song.songId,
+          title: song.title,
+          artist: song.artist,
+          duration: local?.duration || song.duration || 0,
+          format: local?.format || 'mp3',
+          fileSize: local?.fileSize || 0,
+          sourceType: 'internal_catalog' as const,
+          sourcePath: local?.sourcePath || '',
+          platformId: local?.platformId,
+          platformUrl: local?.platformUrl,
+          importStatus: 'ready' as const,
+          downloadStatus: local?.sourcePath ? 'downloaded' as const : 'none' as const,
+          analysisStatus: (local?.bpm || song.bpm) ? 'completed' as const : 'none' as const,
+          bpm: local?.bpm || song.bpm || null,
+          beatPoints: local?.beatPoints || [],
+          cuePoints: local?.cuePoints || [],
+          tags: ((song.tags?.length ? song.tags : local?.tags || []) as DanceStyle[]),
+          playlistId,
+          createdAt: local?.createdAt || Date.now(),
         }
-      }
-      set((state) => {
-        const existingIds = new Set(state.songs.map((s) => s.id))
-        const newSongs = allPlaylistSongs.filter((s) => !existingIds.has(s.id))
-        if (newSongs.length === 0) return state
-        return { songs: [...state.songs, ...newSongs] }
       })
-    } catch (e) {
-      console.error('[loadPlaylists]', e)
+      set({ currentView: 'playlist', currentPlaylistId: playlistId, currentPlaylistSongs, searchQuery: '', tagFilter: null })
+      set((state) => ({ songs: [...state.songs, ...currentPlaylistSongs.filter((song) => !state.songs.some((item) => item.id === song.id))] }))
+      void get().fetchAllPlaylistSongs(playlistId)
+    } catch (error) {
+      console.error('[viewPlaylist]', error)
     }
   },
 
-  viewPlaylist: async (playlistId: string) => {
+  deletePlaylist: async (playlistId) => {
     try {
-      const res = await window.electronAPI.getPlaylistDetail(playlistId)
-      if (!res.playlist) return
-      const p = res.playlist
-      const songs: Song[] = (p.songs || []).map((s: any) => ({
-        id: s.id,
-        title: s.title,
-        artist: s.artist,
-        duration: s.duration || 0,
-        format: 'mp3',
-        fileSize: 0,
-        sourceType: 'internal_catalog' as const,
-        sourcePath: s.sourcePath || '',
-        importStatus: 'ready' as const,
-        downloadStatus: s.sourcePath ? 'downloaded' as const : 'none' as const,
-        analysisStatus: s.bpm ? 'completed' as const : 'none' as const,
-        bpm: s.bpm || null,
-        beatPoints: [],
-        cuePoints: [],
-        tags: (s.tags || []) as DanceStyle[],
-        playlistId,
-        createdAt: s.createdAt || p.createdAt,
-      }))
-      set({
-        currentView: 'playlist',
-        currentPlaylistId: playlistId,
-        currentPlaylistSongs: songs,
-        searchQuery: '',
-        tagFilter: null,
-      })
-
-      // Also sync playlist songs into the main songs array
-      set((state) => {
-        const existingIds = new Set(state.songs.map((s) => s.id))
-        const newSongs = songs.filter((s) => !existingIds.has(s.id))
-        if (newSongs.length === 0) return state
-        return { songs: [...state.songs, ...newSongs] }
-      })
-
-      // Auto-fetch undownloaded songs
-      get().fetchAllPlaylistSongs(playlistId).catch((e) =>
-        console.error('[auto-fetch on viewPlaylist]', e)
-      )
-    } catch (e) {
-      console.error('[viewPlaylist]', e)
-    }
-  },
-
-  deletePlaylist: async (playlistId: string) => {
-    try {
-      await window.electronAPI.deletePlaylist(playlistId)
+      await apiDeletePlaylist(playlistId)
       set((state) => ({
-        playlists: state.playlists.filter((p) => p.id !== playlistId),
-        songs: state.songs.filter((s) => s.playlistId !== playlistId),
+        playlists: state.playlists.filter((playlist) => playlist.id !== playlistId),
+        songs: state.songs.filter((song) => song.playlistId !== playlistId),
         currentPlaylistId: state.currentPlaylistId === playlistId ? null : state.currentPlaylistId,
         currentPlaylistSongs: state.currentPlaylistId === playlistId ? [] : state.currentPlaylistSongs,
         currentView: state.currentPlaylistId === playlistId ? 'my-library' : state.currentView,
       }))
-    } catch (e) {
-      console.error('[deletePlaylist]', e)
+    } catch (error) {
+      console.error('[deletePlaylist]', error)
     }
   },
 
-  clearImportResult: () => {
-    set({ lastImportResult: null, playlistImportError: null })
-  },
+  clearImportResult: () => set({ lastImportResult: null, playlistImportError: null }),
 
-  // ===== 歌单歌曲下载与分析 =====
-  fetchPlaylistSong: async (songId: string) => {
+  fetchPlaylistSong: async (songId) => {
     const state = get()
-    const song = state.songs.find((s) => s.id === songId)
-      || state.currentPlaylistSongs.find((s) => s.id === songId)
-    if (!song || song.sourcePath) return // already has file
+    const song = state.songs.find((item) => item.id === songId) || state.currentPlaylistSongs.find((item) => item.id === songId)
+    if (!song || song.sourcePath) return
 
-    const updateSongInState = (id: string, updates: Partial<Song>) => {
-      set((state) => ({
-        songs: state.songs.map((s) => s.id === id ? { ...s, ...updates } : s),
-        currentPlaylistSongs: state.currentPlaylistSongs.map((s) => s.id === id ? { ...s, ...updates } : s),
-      }))
+    const updateSong = (updates: Partial<Song>) => {
+      get().updateSong(songId, updates)
     }
 
-    // Mark as downloading
-    updateSongInState(songId, { downloadStatus: 'downloading' })
-
+    updateSong({ downloadStatus: 'downloading' })
     try {
-      const result = await window.electronAPI.fetchPlaylistSong(
-        songId,
-        song.playlistId || '',
-        song.title,
-        song.artist,
-      )
+      const result = await window.electronAPI.fetchPlaylistSong(songId, song.playlistId || '', song.title, song.artist)
       if (result.error) throw new Error(result.error)
-
-      updateSongInState(songId, {
+      updateSong({
         sourcePath: result.filePath || '',
         fileSize: result.fileSize || 0,
         platformId: result.platformId,
         platformUrl: result.platformUrl,
         downloadStatus: 'downloaded',
       })
-
-      // Auto-analyze
       if (result.filePath) {
-        updateSongInState(songId, { analysisStatus: 'analyzing' })
+        updateSong({ analysisStatus: 'analyzing' })
         try {
           const analysis = await window.electronAPI.analyzeAudio(result.filePath, song.duration)
-          if (!analysis.error && analysis.bpm) {
-            updateSongInState(songId, {
-              analysisStatus: 'completed',
-              bpm: analysis.bpm ?? null,
-              beatPoints: analysis.beatPoints ?? [],
-              cuePoints: (analysis.cuePoints ?? []).map((c, i) => ({
-                id: `cue-${songId}-${i}`,
-                ...c,
-              })),
-            })
-
-            // Persist BPM to platform library
-            window.electronAPI.addToPlatformLibrary({
-              id: songId,
-              title: song.title,
-              artist: song.artist,
-              duration: song.duration,
-              format: 'mp3',
-              fileSize: result.fileSize || 0,
-              sourceType: 'internal_catalog',
-              sourcePath: result.filePath,
-              platformId: result.platformId,
-              platformUrl: result.platformUrl,
-              bpm: analysis.bpm ?? null,
-              beatPoints: analysis.beatPoints ?? [],
-              cuePoints: (analysis.cuePoints ?? []).map((c, i) => ({
-                id: `cue-${songId}-${i}`,
-                ...c,
-              })),
-              createdAt: song.createdAt,
-            }).catch(() => {})
-          } else {
-            updateSongInState(songId, { analysisStatus: 'error' })
-          }
+          if (analysis.error) throw new Error(analysis.error)
+          updateSong({
+            analysisStatus: 'completed',
+            bpm: analysis.bpm ?? null,
+            beatPoints: analysis.beatPoints ?? [],
+            cuePoints: (analysis.cuePoints ?? []).map((cue, index) => ({ id: `cue-${songId}-${index}`, ...cue })),
+          })
         } catch {
-          updateSongInState(songId, { analysisStatus: 'error' })
+          updateSong({ analysisStatus: 'error' })
         }
       }
-    } catch (e) {
-      console.error('[fetchPlaylistSong error]', songId, e)
-      updateSongInState(songId, { downloadStatus: 'error' })
+      const updated = get().songs.find((item) => item.id === songId)
+      if (updated) void syncSongToLibrary(updated)
+    } catch (error) {
+      console.error('[fetchPlaylistSong]', error)
+      updateSong({ downloadStatus: 'error' })
     }
   },
 
-  fetchAllPlaylistSongs: async (playlistId: string) => {
-    const state = get()
-    const songs = state.songs.filter(
-      (s) => s.playlistId === playlistId && !s.sourcePath && s.downloadStatus !== 'downloading'
-    )
-    // Process sequentially to avoid overwhelming fangpi.net
+  fetchAllPlaylistSongs: async (playlistId) => {
+    const songs = get().songs.filter((song) => song.playlistId === playlistId && !song.sourcePath && song.downloadStatus !== 'downloading')
     for (const song of songs) {
       await get().fetchPlaylistSong(song.id)
     }

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
 from app.modules.users.schemas import UserCreateData, UserCreateRequest, UserData
-from app.modules.users.service import create_user, get_user_or_404
+from app.modules.users.service import create_user, get_user_by_username, get_user_or_404
 
 router = APIRouter()
 
@@ -18,4 +18,10 @@ def create_user_endpoint(payload: UserCreateRequest, db: Session = Depends(get_d
 @router.get("/{user_id}", response_model=APIResponse[UserData])
 def get_user_endpoint(user_id: int, db: Session = Depends(get_db)):
     user = get_user_or_404(db, user_id)
+    return APIResponse(data=UserData.model_validate(user))
+
+
+@router.get("/by-username/{username}", response_model=APIResponse[UserData])
+def get_user_by_username_endpoint(username: str, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, username)
     return APIResponse(data=UserData.model_validate(user))

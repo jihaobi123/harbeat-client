@@ -1,67 +1,57 @@
 import React, { useEffect, useMemo } from 'react'
 import { Music } from 'lucide-react'
-import { Sidebar } from './components/Sidebar'
-import { SongList } from './components/SongList'
-import { SongDetail } from './components/SongDetail'
+
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoginPage } from './components/LoginPage'
-import { useMusicStore } from './store/useMusicStore'
+import { Sidebar } from './components/Sidebar'
+import { SongDetail } from './components/SongDetail'
+import { SongList } from './components/SongList'
 import { useAuthStore } from './store/useAuthStore'
+import { useMusicStore } from './store/useMusicStore'
 
 const App: React.FC = () => {
-  const user = useAuthStore((s) => s.user)
-  const loadUser = useAuthStore((s) => s.loadUser)
-  const selectedSongId = useMusicStore((s) => s.selectedSongId)
-  const songs = useMusicStore((s) => s.songs)
-  const platformSongs = useMusicStore((s) => s.platformSongs)
-  const currentPlaylistSongs = useMusicStore((s) => s.currentPlaylistSongs)
-  const loadPlatformLibrary = useMusicStore((s) => s.loadPlatformLibrary)
-  const platformLibraryLoaded = useMusicStore((s) => s.platformLibraryLoaded)
-  const loadPlaylists = useMusicStore((s) => s.loadPlaylists)
+  const user = useAuthStore((state) => state.user)
+  const loadUser = useAuthStore((state) => state.loadUser)
+  const selectedSongId = useMusicStore((state) => state.selectedSongId)
+  const songs = useMusicStore((state) => state.songs)
+  const platformSongs = useMusicStore((state) => state.platformSongs)
+  const currentPlaylistSongs = useMusicStore((state) => state.currentPlaylistSongs)
+  const loadPlatformLibrary = useMusicStore((state) => state.loadPlatformLibrary)
+  const platformLibraryLoaded = useMusicStore((state) => state.platformLibraryLoaded)
+  const loadPlaylists = useMusicStore((state) => state.loadPlaylists)
 
-  // 启动时加载本地用户信息
   useEffect(() => {
-    loadUser()
+    void loadUser()
   }, [loadUser])
 
-  // Load persistent library on startup
   useEffect(() => {
     if (!platformLibraryLoaded) {
-      loadPlatformLibrary()
+      void loadPlatformLibrary()
     }
-  }, [platformLibraryLoaded, loadPlatformLibrary])
+  }, [loadPlatformLibrary, platformLibraryLoaded])
 
-  // 登录后加载歌单列表
   useEffect(() => {
     if (user) {
-      loadPlaylists(user.id)
+      void loadPlaylists(user.id)
     }
-  }, [user, loadPlaylists])
+  }, [loadPlaylists, user])
 
   const selectedSong = useMemo(
     () =>
-      songs.find((s) => s.id === selectedSongId) ||
-      platformSongs.find((s) => s.id === selectedSongId) ||
-      currentPlaylistSongs.find((s) => s.id === selectedSongId),
-    [songs, platformSongs, currentPlaylistSongs, selectedSongId]
+      songs.find((song) => song.id === selectedSongId) ||
+      platformSongs.find((song) => song.id === selectedSongId) ||
+      currentPlaylistSongs.find((song) => song.id === selectedSongId),
+    [currentPlaylistSongs, platformSongs, selectedSongId, songs]
   )
 
-  // 未登录时显示登录页
-  if (!user) {
-    return <LoginPage />
-  }
+  if (!user) return <LoginPage />
 
   return (
     <div className="flex h-screen bg-background text-white overflow-hidden">
-      {/* Left: Sidebar Navigation */}
       <Sidebar />
-
-      {/* Center: Song List / Search Results */}
       <div className="flex-1 border-r border-border min-w-[320px] max-w-[500px]">
         <SongList />
       </div>
-
-      {/* Right: Song Detail + Waveform + Player + Analysis */}
       <div className="flex-1 min-w-[400px] bg-background">
         {selectedSong ? (
           <ErrorBoundary key={selectedSong.id}>
@@ -72,10 +62,8 @@ const App: React.FC = () => {
             <div className="w-20 h-20 rounded-2xl bg-surface flex items-center justify-center mb-5">
               <Music size={36} className="text-slate-600" />
             </div>
-            <p className="text-slate-500 text-sm">选择一首歌曲查看详情</p>
-            <p className="text-slate-600 text-xs mt-1.5">
-              点击左侧列表中的歌曲，或先导入音频文件
-            </p>
+            <p className="text-slate-500 text-sm">Select a song to inspect details.</p>
+            <p className="text-slate-600 text-xs mt-1.5">Import local audio or open a playlist from the left side.</p>
           </div>
         )}
       </div>
