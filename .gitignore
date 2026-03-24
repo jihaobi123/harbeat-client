@@ -10,6 +10,14 @@ dist/
 dist-electron/
 build/
 
+# Local audio/test artifacts (must never commit)
+*.mp3
+*.wav
+music_library/
+temp_test_data/
+processed_library/
+test_bench/
+__pycache__/
 
 # 后端忽略
 backend/venv/
