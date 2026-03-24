@@ -5,8 +5,10 @@ import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { decryptNcm } from './ncmDecrypt'
 import { analyzeAudio as realAnalyzeAudio, computePeaks as realComputePeaks } from './audioAnalyzer'
-import { searchFangpi, downloadFangpiSong } from './fangpiService'
+import { searchFangpi, downloadFangpiSong, type FangpiSong } from './fangpiService'
+import { parsePlaylistUrl } from './playlistParser'
 import { initLibrary, getAllSongs, addSong, removeSong as removeLibrarySong, updateSong as updateLibrarySong, getMusicDir, PlatformSongRecord } from './platformLibrary'
+import { initPlaylistStore, savePlaylist, getAllPlaylists, getPlaylist, deletePlaylist, updatePlaylistSongTags, updatePlaylistSongSource, type StoredPlaylist, type StoredPlaylistSong } from './playlistStore'
 
 // Disable GPU to prevent native renderer crash (0xC0000005)
 app.disableHardwareAcceleration()
@@ -39,6 +41,73 @@ const AUDIO_MIME: Record<string, string> = {
 const allowedPaths = new Set<string>()
 
 let audioServerPort = 0
+
+function normalizeFangpiText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[()（）\[\]【】'"`]/g, ' ')
+    .replace(/feat\.?|ft\.?/gi, ' ')
+    .replace(/\s+\/\s+.+$/g, ' ')
+    .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function buildPlaylistSearchQueries(title: string, artist: string): string[] {
+  const normalizedTitle = title.trim()
+  const normalizedArtist = artist.split('/')[0].split(' / ')[0].trim()
+  const titleWithoutParen = normalizedTitle.replace(/\s*[（(].*?[)）]\s*/g, ' ').replace(/\s+/g, ' ').trim()
+
+  return Array.from(new Set([
+    normalizedTitle,
+    titleWithoutParen,
+    `${normalizedTitle} ${normalizedArtist}`.trim(),
+    `${titleWithoutParen} ${normalizedArtist}`.trim(),
+  ].filter((query) => query.length > 0)))
+}
+
+function scoreFangpiCandidate(song: FangpiSong, title: string, artist: string): number {
+  const targetTitle = normalizeFangpiText(title)
+  const targetArtist = normalizeFangpiText(artist)
+  const songTitle = normalizeFangpiText(song.title)
+  const songArtist = normalizeFangpiText(song.artist)
+
+  let score = 0
+  if (songTitle === targetTitle) score += 100
+  else if (songTitle.includes(targetTitle) || targetTitle.includes(songTitle)) score += 65
+
+  if (targetArtist && songArtist === targetArtist) score += 50
+  else if (targetArtist && (songArtist.includes(targetArtist) || targetArtist.includes(songArtist))) score += 25
+
+  return score
+}
+
+async function findBestFangpiCandidates(title: string, artist: string): Promise<FangpiSong[]> {
+  const candidates = new Map<string, FangpiSong>()
+  const queries = buildPlaylistSearchQueries(title, artist)
+
+  for (const query of queries) {
+    try {
+      const results = await searchFangpi(query)
+      for (const result of results) {
+        if (!candidates.has(result.id)) {
+          candidates.set(result.id, result)
+        }
+      }
+      if (results.length > 0 && query === title.trim()) {
+        break
+      }
+    } catch (error) {
+      console.warn('[fangpi search fallback]', query, error)
+    }
+  }
+
+  return Array.from(candidates.values()).sort(
+    (left, right) => scoreFangpiCandidate(right, title, artist) - scoreFangpiCandidate(left, title, artist)
+  )
+}
 
 // Start a local HTTP server to serve audio files safely
 function startAudioServer(): Promise<number> {
@@ -124,7 +193,7 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: http://127.0.0.1:* http://localhost:* ws://localhost:*"
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: http://127.0.0.1:* http://localhost:* ws://localhost:* https:"
         ],
       },
     })
@@ -147,6 +216,7 @@ app.whenReady().then(async () => {
   const dbDir = path.join(__dirname, '..', 'database')
   if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
   initLibrary(dbDir)
+  initPlaylistStore(dbDir)
   audioServerPort = await startAudioServer()
 
   // Register all previously downloaded music files as allowed for audio server
@@ -319,6 +389,151 @@ ipcMain.handle('platform:download', async (_event, musicId: string, title: strin
     return { song: saved }
   } catch (e) {
     console.error('[platform:download error]', e)
+    return { error: String(e) }
+  }
+})
+
+// IPC: Parse third-party playlist URL (NetEase / QQ Music)
+ipcMain.handle('playlist:parse', async (_event, text: string) => {
+  try {
+    console.log('[playlist:parse]', text.substring(0, 80))
+    const result = await parsePlaylistUrl(text)
+    console.log('[playlist:parse] done:', result.name, result.tracks.length, 'tracks')
+    return { playlist: result }
+  } catch (e) {
+    console.error('[playlist:parse error]', e)
+    return { error: String(e) }
+  }
+})
+
+// IPC: Save a playlist with its songs to local database
+ipcMain.handle('playlist:save', async (_event, playlist: StoredPlaylist) => {
+  try {
+    const saved = savePlaylist(playlist)
+    // Also add songs to platform library for unified access
+    for (const song of playlist.songs) {
+      if (song.sourcePath) {
+        addSong({
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          duration: song.duration,
+          format: song.sourcePath ? song.sourcePath.split('.').pop() || 'mp3' : 'mp3',
+          fileSize: 0,
+          sourceType: song.sourcePath ? 'local_file' : 'internal_catalog',
+          sourcePath: song.sourcePath || '',
+          platformId: song.platformId,
+          platformUrl: song.platformUrl,
+          bpm: song.bpm,
+          beatPoints: [],
+          cuePoints: [],
+          createdAt: Date.now(),
+        })
+        allowedPaths.add(song.sourcePath)
+      }
+    }
+    return { playlist: saved }
+  } catch (e) {
+    console.error('[playlist:save error]', e)
+    return { error: String(e) }
+  }
+})
+
+// IPC: Get all playlists
+ipcMain.handle('playlist:getAll', async (_event, userId?: string) => {
+  try {
+    return { playlists: getAllPlaylists(userId) }
+  } catch (e) {
+    console.error('[playlist:getAll error]', e)
+    return { playlists: [], error: String(e) }
+  }
+})
+
+// IPC: Get a single playlist with songs
+ipcMain.handle('playlist:getDetail', async (_event, playlistId: string) => {
+  try {
+    const playlist = getPlaylist(playlistId)
+    return { playlist: playlist || null }
+  } catch (e) {
+    console.error('[playlist:getDetail error]', e)
+    return { playlist: null, error: String(e) }
+  }
+})
+
+// IPC: Delete a playlist
+ipcMain.handle('playlist:delete', async (_event, playlistId: string) => {
+  try {
+    const success = deletePlaylist(playlistId)
+    return { success }
+  } catch (e) {
+    console.error('[playlist:delete error]', e)
+    return { success: false, error: String(e) }
+  }
+})
+
+// IPC: Update song tags within a playlist
+ipcMain.handle('playlist:updateSongTags', async (_event, playlistId: string, songId: string, tags: string[]) => {
+  try {
+    const success = updatePlaylistSongTags(playlistId, songId, tags)
+    return { success }
+  } catch (e) {
+    console.error('[playlist:updateSongTags error]', e)
+    return { success: false, error: String(e) }
+  }
+})
+
+// IPC: Search fangpi.net for a song, download it, and update the playlist DB
+ipcMain.handle('playlist:fetchSong', async (_event, songId: string, playlistId: string, title: string, artist: string) => {
+  try {
+    console.log('[playlist:fetchSong]', title, artist)
+    const candidates = await findBestFangpiCandidates(title, artist)
+    if (candidates.length === 0) return { error: '未找到匹配歌曲' }
+
+    const destDir = getMusicDir()
+    let lastError: unknown = null
+
+    for (const candidate of candidates) {
+      try {
+        const { filePath, fileSize } = await downloadFangpiSong(candidate.id, title, artist, destDir)
+
+        allowedPaths.add(filePath)
+
+        const platformId = candidate.id
+        const platformUrl = candidate.url || `https://www.fangpi.net/music/${candidate.id}`
+
+        addSong({
+          id: songId,
+          title,
+          artist,
+          duration: 0,
+          format: 'mp3',
+          fileSize,
+          sourceType: 'internal_catalog',
+          sourcePath: filePath,
+          platformId,
+          platformUrl,
+          bpm: null,
+          beatPoints: [],
+          cuePoints: [],
+          createdAt: Date.now(),
+        })
+
+        if (playlistId) {
+          updatePlaylistSongSource(playlistId, songId, { sourcePath: filePath, platformId, platformUrl })
+        }
+
+        console.log('[playlist:fetchSong] matched:', candidate.title, candidate.artist, candidate.id)
+        console.log('[playlist:fetchSong] done:', filePath)
+        return { filePath, fileSize, platformId, platformUrl }
+      } catch (error) {
+        lastError = error
+        console.warn('[playlist:fetchSong candidate failed]', candidate.id, candidate.title, candidate.artist, error)
+      }
+    }
+
+    return { error: String(lastError || '未找到可下载的匹配歌曲') }
+  } catch (e) {
+    console.error('[playlist:fetchSong error]', e)
     return { error: String(e) }
   }
 })
