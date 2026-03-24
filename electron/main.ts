@@ -6,7 +6,14 @@ import { fileURLToPath } from 'node:url'
 import { decryptNcm } from './ncmDecrypt'
 import { analyzeAudio as realAnalyzeAudio, computePeaks as realComputePeaks } from './audioAnalyzer'
 import { searchFangpi, downloadFangpiSong } from './fangpiService'
-import { initLibrary, getAllSongs, addSong, removeSong as removeLibrarySong, updateSong as updateLibrarySong, getMusicDir, PlatformSongRecord } from './platformLibrary'
+import {
+  initLibrary,
+  getAllSongs,
+  addSong,
+  removeSong as removeLibrarySong,
+  getMusicDir,
+  PlatformSongRecord,
+} from './platformLibrary'
 
 // Disable GPU to prevent native renderer crash (0xC0000005)
 app.disableHardwareAcceleration()
@@ -146,12 +153,16 @@ app.whenReady().then(async () => {
   // Use project folder for database and music files
   const dbDir = path.join(__dirname, '..', 'database')
   if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
-  initLibrary(dbDir)
+  await initLibrary(dbDir)
   audioServerPort = await startAudioServer()
 
   // Register all previously downloaded music files as allowed for audio server
-  for (const song of getAllSongs()) {
-    if (song.sourcePath) allowedPaths.add(song.sourcePath)
+  try {
+    for (const song of await getAllSongs()) {
+      if (song.sourcePath) allowedPaths.add(song.sourcePath)
+    }
+  } catch (e) {
+    console.error('[library bootstrap error]', e)
   }
 
   createWindow()
@@ -257,7 +268,7 @@ ipcMain.handle('platform:search', async (_event, query: string) => {
 // IPC: Get all songs from persistent platform library
 ipcMain.handle('platform:getLibrary', async () => {
   try {
-    return { songs: getAllSongs() }
+    return { songs: await getAllSongs() }
   } catch (e) {
     console.error('[platform:getLibrary error]', e)
     return { songs: [], error: String(e) }
@@ -267,7 +278,7 @@ ipcMain.handle('platform:getLibrary', async () => {
 // IPC: Add a song to the persistent platform library (e.g. from local import)
 ipcMain.handle('platform:addToLibrary', async (_event, songData: PlatformSongRecord) => {
   try {
-    const saved = addSong(songData)
+    const saved = await addSong(songData)
     if (saved.sourcePath) allowedPaths.add(saved.sourcePath)
     return { song: saved }
   } catch (e) {
@@ -279,7 +290,7 @@ ipcMain.handle('platform:addToLibrary', async (_event, songData: PlatformSongRec
 // IPC: Remove a song from the persistent platform library
 ipcMain.handle('platform:removeFromLibrary', async (_event, songId: string) => {
   try {
-    removeLibrarySong(songId)
+    await removeLibrarySong(songId)
     return { success: true }
   } catch (e) {
     console.error('[platform:removeFromLibrary error]', e)
@@ -314,7 +325,7 @@ ipcMain.handle('platform:download', async (_event, musicId: string, title: strin
       cuePoints: [],
       createdAt: Date.now(),
     }
-    const saved = addSong(songRecord)
+    const saved = await addSong(songRecord)
     console.log('[platform:download] saved:', saved.id, filePath)
     return { song: saved }
   } catch (e) {

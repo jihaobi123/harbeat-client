@@ -18,3 +18,23 @@ temp_test_data/
 processed_library/
 test_bench/
 __pycache__/
+
+# 后端忽略
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/uploads/
+*.pyc
+
+# 前端忽略
+client/.dart_tool/
+client/.flutter-plugins
+client/.flutter-plugins-dependencies
+client/.pub-cache/
+client/.pub/
+client/build/
+client/windows/flutter/ephemeral/
+
+# 系统环境
+.DS_Store
+.vscode/
