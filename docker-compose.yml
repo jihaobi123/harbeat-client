@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    container_name: street-dance-api
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16
+    container_name: street-dance-postgres
+    environment:
+      POSTGRES_DB: street_dance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: street-dance-redis
+    ports:
+      - "6379:6379"
+
+  nginx:
+    image: nginx:1.27
+    container_name: street-dance-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres_data:
+
