@@ -41,3 +41,41 @@ services:
 volumes:
   postgres_data:
 
+
+
+
+
+
+
+
+
+
+
+#包含两个服务：1. PostgreSQL 15，设置默认用户名、密码和数据库名为 dance_db；2. Redis 最新版。请将它们的端口映射到宿主机，并添加数据卷挂载以持久化数据。”
+#补全.env版本
+services:
+  postgres:
+    image: postgres:15
+    container_name: dance_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dance_db
+      POSTGRES_PASSWORD: dance_db
+      POSTGRES_DB: dance_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: dance_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
