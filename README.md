@@ -54,7 +54,7 @@ cp .env.example .env
 2. 按实际数据库修改 `.env`
 
 ```env
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/street_dance
+DATABASE_URL=postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism
 REDIS_URL=redis://localhost:6379/0
 ```
 
