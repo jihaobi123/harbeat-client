@@ -4,14 +4,25 @@ import { Sidebar } from './components/Sidebar'
 import { SongList } from './components/SongList'
 import { SongDetail } from './components/SongDetail'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { LoginPage } from './components/LoginPage'
 import { useMusicStore } from './store/useMusicStore'
+import { useAuthStore } from './store/useAuthStore'
 
 const App: React.FC = () => {
+  const user = useAuthStore((s) => s.user)
+  const loadUser = useAuthStore((s) => s.loadUser)
   const selectedSongId = useMusicStore((s) => s.selectedSongId)
   const songs = useMusicStore((s) => s.songs)
   const platformSongs = useMusicStore((s) => s.platformSongs)
+  const currentPlaylistSongs = useMusicStore((s) => s.currentPlaylistSongs)
   const loadPlatformLibrary = useMusicStore((s) => s.loadPlatformLibrary)
   const platformLibraryLoaded = useMusicStore((s) => s.platformLibraryLoaded)
+  const loadPlaylists = useMusicStore((s) => s.loadPlaylists)
+
+  // 启动时加载本地用户信息
+  useEffect(() => {
+    loadUser()
+  }, [loadUser])
 
   // Load persistent library on startup
   useEffect(() => {
@@ -20,12 +31,25 @@ const App: React.FC = () => {
     }
   }, [platformLibraryLoaded, loadPlatformLibrary])
 
+  // 登录后加载歌单列表
+  useEffect(() => {
+    if (user) {
+      loadPlaylists(user.id)
+    }
+  }, [user, loadPlaylists])
+
   const selectedSong = useMemo(
     () =>
       songs.find((s) => s.id === selectedSongId) ||
-      platformSongs.find((s) => s.id === selectedSongId),
-    [songs, platformSongs, selectedSongId]
+      platformSongs.find((s) => s.id === selectedSongId) ||
+      currentPlaylistSongs.find((s) => s.id === selectedSongId),
+    [songs, platformSongs, currentPlaylistSongs, selectedSongId]
   )
+
+  // 未登录时显示登录页
+  if (!user) {
+    return <LoginPage />
+  }
 
   return (
     <div className="flex h-screen bg-background text-white overflow-hidden">

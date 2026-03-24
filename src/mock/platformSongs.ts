@@ -29,6 +29,7 @@ export const platformSongs: Song[] = [
       { id: 'cue-p1-3', time: 96, label: 'Chorus', color: '#ef4444' },
       { id: 'cue-p1-4', time: 180, label: 'Outro', color: '#64748b' },
     ],
+    tags: [],
     createdAt: Date.now() - 86400000 * 7,
   },
   {
@@ -49,6 +50,7 @@ export const platformSongs: Song[] = [
       { id: 'cue-p2-2', time: 16, label: 'Build Up', color: '#f59e0b' },
       { id: 'cue-p2-3', time: 48, label: 'Drop', color: '#ef4444' },
     ],
+    tags: [],
     createdAt: Date.now() - 86400000 * 3,
   },
   {
@@ -68,6 +70,7 @@ export const platformSongs: Song[] = [
       { id: 'cue-p3-1', time: 0, label: 'Intro', color: '#22c55e' },
       { id: 'cue-p3-2', time: 24, label: 'Main Theme', color: '#3b82f6' },
     ],
+    tags: [],
     createdAt: Date.now() - 86400000,
   },
   {
@@ -89,6 +92,7 @@ export const platformSongs: Song[] = [
       { id: 'cue-p4-3', time: 80, label: 'Bridge', color: '#f59e0b' },
       { id: 'cue-p4-4', time: 200, label: 'Outro', color: '#64748b' },
     ],
+    tags: [],
     createdAt: Date.now() - 86400000 * 5,
   },
   {
@@ -105,6 +109,7 @@ export const platformSongs: Song[] = [
     bpm: null,
     beatPoints: [],
     cuePoints: [],
+    tags: [],
     createdAt: Date.now() - 86400000 * 2,
   },
 ]

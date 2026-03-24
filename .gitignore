@@ -1,40 +1,32 @@
-.venv/
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.pyc
-.env
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 dist-electron/
-build/
 
-# Local audio/test artifacts (must never commit)
-*.mp3
-*.wav
-music_library/
-temp_test_data/
-processed_library/
-test_bench/
-__pycache__/
+# Database & downloaded music
+database/
 
-# 后端忽略
-backend/venv/
-backend/__pycache__/
-backend/.pytest_cache/
-backend/uploads/
-*.pyc
-
-# 前端忽略
-client/.dart_tool/
-client/.flutter-plugins
-client/.flutter-plugins-dependencies
-client/.pub-cache/
-client/.pub/
-client/build/
-client/windows/flutter/ephemeral/
-
-# 系统环境
-.DS_Store
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files (optional - uncomment if you want to exclude)
+# package-lock.json

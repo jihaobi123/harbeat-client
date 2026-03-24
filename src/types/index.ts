@@ -15,6 +15,8 @@ export interface Song {
   bpm: number | null
   beatPoints: number[] // timestamps in seconds
   cuePoints: CuePoint[]
+  tags: DanceStyle[]
+  playlistId?: string      // 所属歌单ID
   createdAt: number // timestamp ms
 }
 
@@ -43,4 +45,81 @@ export interface AudioFileInfo {
   artist?: string
   originalPath?: string
   error?: string
+}
+
+// ===== 舞种标签 =====
+export type DanceStyle =
+  | 'hiphop'
+  | 'jazz'
+  | 'breaking'
+  | 'popping'
+  | 'locking'
+  | 'waacking'
+  | 'house'
+  | 'krump'
+  | 'funk'
+  | 'urban'
+  | 'afro'
+  | 'dancehall'
+  | 'other'
+
+export interface Tag {
+  id: string
+  name: string
+  style: DanceStyle
+}
+
+// ===== 歌单 =====
+export interface Playlist {
+  id: string
+  name: string
+  userId: string
+  songCount: number
+  createdAt: number
+}
+
+export interface PlaylistSong {
+  playlistId: string
+  songId: string
+  order: number
+}
+
+export interface PlaylistWithSongs extends Playlist {
+  songs: Song[]
+}
+
+// ===== 导入歌单结果 =====
+export interface ImportPlaylistResult {
+  playlistId: string
+  importCount: number
+  pendingAnalysisCount: number
+}
+
+// ===== 用户认证 =====
+export interface User {
+  id: string
+  username: string
+  nickname: string
+  avatar?: string
+  token: string
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  code: number
+  message: string
+  data?: {
+    user: User
+    token: string
+  }
+}
+
+export interface ApiResponse<T = any> {
+  code: number
+  message: string
+  data?: T
 }
