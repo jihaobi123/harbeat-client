@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'ui/dj_mixer_screen.dart';
 
 // 引入我们刚刚写好的 UI 界面
 import 'ui/practice_player_screen.dart';
@@ -25,7 +26,8 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.black,
       ),
       // 👇 这就是所谓的“挂载到根路由”！将首页指定为我们的练习播放器界面
-      home: const PracticePlayerScreen(), 
+      //home: const PracticePlayerScreen(), 
+      home: const DjMixerScreen(), 
     );
   }
 }
