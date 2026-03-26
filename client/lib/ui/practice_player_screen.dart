@@ -1,19 +1,27 @@
 import 'dart:io' as io;
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/audio/audio_player_service.dart';
+import '../core/network/api_repository.dart';
 import '../providers/practice_session_provider.dart';
 
 class PracticePlayerScreen extends ConsumerStatefulWidget {
-  final int trackId = 1;
-  final String networkUrl = 'http://10.0.2.2:8000/uploads/raw/test.mp3';
+  final int userId;
+  final int trackId;
+  final String mode;
 
-  const PracticePlayerScreen({super.key});
+  const PracticePlayerScreen({
+    super.key,
+    this.userId = 1,
+    this.trackId = 1,
+    this.mode = 'practice',
+  });
 
   @override
   ConsumerState<PracticePlayerScreen> createState() => _PracticePlayerScreenState();
@@ -22,7 +30,8 @@ class PracticePlayerScreen extends ConsumerStatefulWidget {
 class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
   late final PlayerController _waveController;
   bool _isWaveLoaded = false;
-  String _localPath = "";
+  String _localPath = '';
+  TrackDto? _track;
 
   @override
   void initState() {
@@ -39,24 +48,37 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
 
   Future<void> _prepareAudioAndWaveform() async {
     try {
+      final api = ref.read(apiRepoProvider);
+      final track = await api.fetchTrack(widget.trackId);
+      final networkUrl = api.resolveMediaUrl(track.originalUrl);
+
       final appDocDir = await getApplicationDocumentsDirectory();
-      _localPath = p.join(appDocDir.path, "temp_test.mp3");
+      _localPath = p.join(appDocDir.path, 'track_${widget.trackId}_${p.basename(track.originalUrl)}');
 
       if (!await io.File(_localPath).exists()) {
-        await Dio().download(widget.networkUrl, _localPath);
+        await Dio().download(networkUrl, _localPath);
       }
 
-      await ref.read(audioPlayerProvider).loadAudio(widget.networkUrl);
+      await ref.read(audioPlayerProvider).loadAudio(networkUrl);
+      await ref.read(practiceProvider.notifier).initialize(
+        userId: widget.userId,
+        trackId: widget.trackId,
+        mode: widget.mode,
+      );
 
-      // 准备波形播放器
       await _waveController.preparePlayer(
         path: _localPath,
         shouldExtractWaveform: true,
       );
-      
-      if (mounted) setState(() => _isWaveLoaded = true);
+
+      if (mounted) {
+        setState(() {
+          _track = track;
+          _isWaveLoaded = true;
+        });
+      }
     } catch (e) {
-      debugPrint("准备波形失败: $e");
+      debugPrint('prepare waveform failed: $e');
     }
   }
 
@@ -66,7 +88,7 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
     final audioPlayerService = ref.read(audioPlayerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('DJ 练习室 P2')),
+      appBar: AppBar(title: Text(_track?.filename ?? 'Practice Player')),
       body: Container(
         color: Colors.black,
         child: Column(
@@ -89,19 +111,15 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
                     ),
                   )
                 : const Center(child: CircularProgressIndicator(color: Colors.tealAccent)),
-
             const SizedBox(height: 20),
-
-            // 显示当前播放进度
             StreamBuilder<int>(
               stream: _waveController.onCurrentDurationChanged,
               builder: (context, snapshot) {
                 final current = Duration(milliseconds: snapshot.data ?? 0);
                 return Column(
                   children: [
-                    Text('当前时间: ${current.inSeconds}秒', style: const TextStyle(color: Colors.white70)),
+                    Text('Current time: ${current.inSeconds}s', style: const TextStyle(color: Colors.white70)),
                     const SizedBox(height: 10),
-                    // 显示 A/B 点状态
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -114,10 +132,7 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
                 );
               },
             ),
-
             const SizedBox(height: 20),
-
-            // 播放控制
             IconButton(
               iconSize: 64,
               icon: Icon(_waveController.playerState.isPlaying ? Icons.pause_circle : Icons.play_circle),
@@ -133,34 +148,32 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
                 setState(() {});
               },
             ),
-
             const Divider(color: Colors.white24),
-            
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
-                  const Text("交互选点", style: TextStyle(color: Colors.white, fontSize: 18)),
+                  const Text('Interactive Markers', style: TextStyle(color: Colors.white, fontSize: 18)),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 10,
                     children: [
                       ActionChip(
-                        label: const Text('设为 A 点'),
+                        label: const Text('Set A'),
                         onPressed: () async {
                           final pos = Duration(milliseconds: await _waveController.getDuration(DurationType.current));
                           ref.read(practiceProvider.notifier).setPointA(pos);
                         },
                       ),
                       ActionChip(
-                        label: const Text('设为 B 点'),
+                        label: const Text('Set B'),
                         onPressed: () async {
                           final pos = Duration(milliseconds: await _waveController.getDuration(DurationType.current));
                           ref.read(practiceProvider.notifier).setPointB(pos, widget.trackId);
                         },
                       ),
                       ActionChip(
-                        label: const Text('打 Cue 点'),
+                        label: const Text('Add Cue'),
                         onPressed: () async {
                           final pos = Duration(milliseconds: await _waveController.getDuration(DurationType.current));
                           _showCueRemarkDialog(context, pos, widget.trackId);
@@ -173,7 +186,7 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
                     ListTile(
                       leading: const Icon(Icons.bookmark, color: Colors.purpleAccent),
                       title: Text(cue.remark, style: const TextStyle(color: Colors.white)),
-                      subtitle: Text('${cue.position.inSeconds}秒', style: const TextStyle(color: Colors.white54)),
+                      subtitle: Text('${cue.position.inSeconds}s', style: const TextStyle(color: Colors.white54)),
                     ),
                 ],
               ),
@@ -189,16 +202,19 @@ class _PracticePlayerScreenState extends ConsumerState<PracticePlayerScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('标记在 ${pos.inSeconds}s'),
-        content: TextField(controller: controller, decoration: const InputDecoration(hintText: '备注内容')),
+        title: Text('Mark at ${pos.inSeconds}s'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Remark'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
               ref.read(practiceProvider.notifier).addCuePoint(pos, controller.text, trackId);
               Navigator.pop(context);
             },
-            child: const Text('保存'),
+            child: const Text('Save'),
           ),
         ],
       ),

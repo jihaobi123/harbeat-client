@@ -22,3 +22,7 @@ class UserCreateData(BaseModel):
     user_id: int
     profile_status: str = "basic_created"
 
+
+class UserLookupData(UserData):
+    pass
+

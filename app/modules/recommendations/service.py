@@ -29,7 +29,8 @@ def recommend_songs(
             continue
 
         score = 0
-        if profile.favorite_style and tags.style == profile.favorite_style:
+        style_tokens = [token.strip() for token in (tags.style or "").split(",") if token.strip()]
+        if profile.favorite_style and profile.favorite_style in style_tokens:
             score += 3
         if target_energy and tags.energy == target_energy:
             score += 3

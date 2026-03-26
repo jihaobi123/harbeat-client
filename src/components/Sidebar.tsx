@@ -1,39 +1,48 @@
 import React, { useState } from 'react'
-import { Library, Globe, Clock, Upload, ListMusic, LogOut, User, ChevronRight, Trash2, Music } from 'lucide-react'
-import { useMusicStore } from '../store/useMusicStore'
-import { useAuthStore } from '../store/useAuthStore'
+import {
+  Clock,
+  Globe,
+  Library,
+  ListMusic,
+  LogOut,
+  Music,
+  Trash2,
+  Upload,
+  User,
+} from 'lucide-react'
+
 import { getAudioDuration } from '../utils/format'
+import { useAuthStore } from '../store/useAuthStore'
+import { useMusicStore } from '../store/useMusicStore'
 import { PlaylistImportModal } from './PlaylistImportModal'
 
 const navItems = [
-  { id: 'my-library' as const, label: '我的曲库', icon: Library },
-  { id: 'platform' as const, label: '平台曲库', icon: Globe },
-  { id: 'recent' as const, label: '最近导入', icon: Clock },
+  { id: 'my-library' as const, label: 'My Library', icon: Library },
+  { id: 'platform' as const, label: 'Platform', icon: Globe },
+  { id: 'recent' as const, label: 'Recent', icon: Clock },
 ]
 
 export const Sidebar: React.FC = () => {
-  const currentView = useMusicStore((s) => s.currentView)
-  const setView = useMusicStore((s) => s.setView)
-  const songsCount = useMusicStore((s) => s.songs.length)
-  const playlists = useMusicStore((s) => s.playlists)
-  const currentPlaylistId = useMusicStore((s) => s.currentPlaylistId)
-  const viewPlaylist = useMusicStore((s) => s.viewPlaylist)
-  const deletePlaylistAction = useMusicStore((s) => s.deletePlaylist)
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
+  const currentView = useMusicStore((state) => state.currentView)
+  const setView = useMusicStore((state) => state.setView)
+  const songsCount = useMusicStore((state) => state.songs.length)
+  const playlists = useMusicStore((state) => state.playlists)
+  const currentPlaylistId = useMusicStore((state) => state.currentPlaylistId)
+  const viewPlaylist = useMusicStore((state) => state.viewPlaylist)
+  const deletePlaylistAction = useMusicStore((state) => state.deletePlaylist)
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
   const [showPlaylistImport, setShowPlaylistImport] = useState(false)
 
   const handleImport = async () => {
     const files = await window.electronAPI.openAudioFiles()
     if (!files || files.length === 0) return
 
-    // Filter out files that failed to decrypt
-    const validFiles = files.filter((f) => !f.error)
+    const validFiles = files.filter((file) => !file.error)
     if (validFiles.length === 0) return
 
     const newSongs = useMusicStore.getState().addSongs(validFiles)
 
-    // Get duration for each imported song via local HTTP server
     for (const song of newSongs) {
       try {
         const url = await window.electronAPI.getAudioUrl(song.sourcePath)
@@ -52,22 +61,21 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div className="w-56 bg-surface border-r border-border flex flex-col h-full flex-shrink-0">
-      {/* Logo */}
       <div className="px-5 py-4 border-b border-border">
         <h1 className="text-lg font-bold text-white flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-            <span className="text-primary text-base">♪</span>
+            <span className="text-primary text-base">H</span>
           </div>
-          AudioLab
+          Harbeat
         </h1>
-        <p className="text-[11px] text-slate-500 mt-1 ml-[42px]">音频曲库管理</p>
+        <p className="text-[11px] text-slate-500 mt-1 ml-[42px]">Unified workspace</p>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 py-3 overflow-y-auto">
         <p className="px-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">
-          导航
+          Navigation
         </p>
+
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = currentView === item.id
@@ -92,36 +100,35 @@ export const Sidebar: React.FC = () => {
           )
         })}
 
-        {/* 歌单列表 */}
         {playlists.length > 0 && (
           <>
             <p className="px-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2 mt-4">
-              我的歌单
+              Playlists
             </p>
-            {playlists.map((pl) => {
-              const isActive = currentView === 'playlist' && currentPlaylistId === pl.id
+            {playlists.map((playlist) => {
+              const isActive = currentView === 'playlist' && currentPlaylistId === playlist.id
               return (
                 <div
-                  key={pl.id}
+                  key={playlist.id}
                   className={`w-full flex items-center gap-2.5 px-5 py-2 text-sm transition-all group cursor-pointer ${
                     isActive
                       ? 'bg-primary/10 text-primary border-r-2 border-primary font-medium'
                       : 'text-slate-400 hover:bg-hover hover:text-slate-200 border-r-2 border-transparent'
                   }`}
-                  onClick={() => viewPlaylist(pl.id)}
+                  onClick={() => viewPlaylist(playlist.id)}
                 >
                   <Music size={16} className="flex-shrink-0" />
-                  <span className="truncate flex-1">{pl.name}</span>
+                  <span className="truncate flex-1">{playlist.name}</span>
                   <span className="text-[10px] text-slate-600 flex-shrink-0">
-                    {pl.songCount}
+                    {playlist.songCount}
                   </span>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      deletePlaylistAction(pl.id)
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      deletePlaylistAction(playlist.id)
                     }}
                     className="p-0.5 rounded text-slate-600 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                    title="删除歌单"
+                    title="Delete playlist"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -132,14 +139,13 @@ export const Sidebar: React.FC = () => {
         )}
       </nav>
 
-      {/* Import Button */}
       <div className="p-4 border-t border-border space-y-2">
         <button
           onClick={handleImport}
           className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-lg text-sm font-medium transition-all active:scale-[0.97]"
         >
           <Upload size={16} />
-          导入音频
+          Import Audio
         </button>
         {user && (
           <button
@@ -147,32 +153,32 @@ export const Sidebar: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 bg-surface-dark hover:bg-hover border border-border text-slate-300 py-2.5 px-4 rounded-lg text-sm font-medium transition-all active:scale-[0.97]"
           >
             <ListMusic size={16} />
-            导入歌单
+            Import Playlist
           </button>
         )}
         <p className="text-[10px] text-slate-600 text-center mt-2">
-          支持 MP3 / FLAC / OGG / NCM / WAV 等
+          Supports MP3 / FLAC / OGG / NCM / WAV
         </p>
       </div>
 
-      {/* User Info */}
       {user && (
         <div className="px-4 py-3 border-t border-border flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
             <User size={14} className="text-primary" />
           </div>
-          <span className="text-xs text-slate-300 truncate flex-1">{user.nickname || user.username}</span>
+          <span className="text-xs text-slate-300 truncate flex-1">
+            {user.nickname || user.username}
+          </span>
           <button
             onClick={logout}
             className="p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
-            title="退出登录"
+            title="Logout"
           >
             <LogOut size={14} />
           </button>
         </div>
       )}
 
-      {/* Playlist Import Modal */}
       <PlaylistImportModal
         visible={showPlaylistImport}
         onClose={() => setShowPlaylistImport(false)}

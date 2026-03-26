@@ -19,6 +19,15 @@ def _pick_most_common(values: list[Optional[str]], fallback: Optional[str] = Non
     return Counter(filtered).most_common(1)[0][0]
 
 
+def _expand_styles(values: list[Optional[str]]) -> list[str]:
+    expanded: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        expanded.extend([item.strip() for item in value.split(",") if item.strip()])
+    return expanded
+
+
 def generate_profile(db: Session, user_id: int) -> UserProfileData:
     user = get_user_or_404(db, user_id)
 
@@ -38,7 +47,7 @@ def generate_profile(db: Session, user_id: int) -> UserProfileData:
             avg_bpm = int(sum(bpm_values) / len(bpm_values))
 
     profile_data = UserProfileData(
-        favorite_style=_pick_most_common([row.style for row in rows], fallback=user.favorite_style)
+        favorite_style=_pick_most_common(_expand_styles([row.style for row in rows]), fallback=user.favorite_style)
         or user.favorite_style,
         avg_bpm_preference=avg_bpm,
         energy_preference=_pick_most_common([row.energy for row in rows]),

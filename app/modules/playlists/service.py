@@ -4,7 +4,14 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.modules.playlists.models import Playlist, PlaylistSong, Song
-from app.modules.playlists.schemas import PlaylistImportRequest
+from app.modules.playlists.models import SongTag
+from app.modules.playlists.schemas import (
+    PlaylistDetailData,
+    PlaylistImportRequest,
+    PlaylistListData,
+    PlaylistSongData,
+    PlaylistSummaryData,
+)
 from app.modules.users.service import get_user_or_404
 
 
@@ -31,11 +38,32 @@ def import_playlist(db: Session, payload: PlaylistImportRequest) -> tuple[Playli
             song = Song(
                 title=item.title,
                 artist=item.artist,
-                audio_url=str(item.audio_url),
+                audio_url=str(item.audio_url) if item.audio_url else None,
                 duration=item.duration,
             )
             db.add(song)
             db.flush()
+            if item.bpm is not None or item.tags:
+                db.add(
+                    SongTag(
+                        song_id=song.id,
+                        bpm=item.bpm,
+                        style=",".join(item.tags) if item.tags else None,
+                    )
+                )
+        elif (item.bpm is not None or item.tags) and song.tags is None:
+            db.add(
+                SongTag(
+                    song_id=song.id,
+                    bpm=item.bpm,
+                    style=",".join(item.tags) if item.tags else None,
+                )
+            )
+        elif song.tags is not None:
+            if item.bpm is not None:
+                song.tags.bpm = item.bpm
+            if item.tags:
+                song.tags.style = ",".join(item.tags)
 
         relation = PlaylistSong(
             playlist_id=playlist.id,
@@ -58,3 +86,82 @@ def import_playlist(db: Session, payload: PlaylistImportRequest) -> tuple[Playli
 
     db.refresh(playlist)
     return playlist, pending_analysis_count
+
+
+def list_playlists(db: Session, user_id: int) -> PlaylistListData:
+    get_user_or_404(db, user_id)
+    playlists = (
+        db.query(Playlist)
+        .filter(Playlist.user_id == user_id)
+        .order_by(Playlist.created_at.desc())
+        .all()
+    )
+    return PlaylistListData(
+        playlists=[
+            PlaylistSummaryData(
+                id=playlist.id,
+                user_id=playlist.user_id,
+                playlist_name=playlist.playlist_name,
+                source_type=playlist.source_type,
+                song_count=len(playlist.songs),
+            )
+            for playlist in playlists
+        ]
+    )
+
+
+def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
+
+    songs = (
+        db.query(PlaylistSong)
+        .filter(PlaylistSong.playlist_id == playlist_id)
+        .order_by(PlaylistSong.order_index.asc())
+        .all()
+    )
+    return PlaylistDetailData(
+        id=playlist.id,
+        user_id=playlist.user_id,
+        playlist_name=playlist.playlist_name,
+        source_type=playlist.source_type,
+        songs=[
+            PlaylistSongData(
+                song_id=item.song.id,
+                title=item.song.title,
+                artist=item.song.artist,
+                audio_url=item.song.audio_url,
+                duration=item.song.duration,
+                bpm=item.song.tags.bpm if item.song.tags else None,
+                tags=[part for part in (item.song.tags.style or "").split(",") if part] if item.song.tags else [],
+                order_index=item.order_index,
+            )
+            for item in songs
+        ],
+    )
+
+
+def delete_playlist(db: Session, playlist_id: int) -> None:
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
+    db.delete(playlist)
+    db.commit()
+
+
+def update_playlist_song_tags(db: Session, playlist_id: int, song_id: int, tags: list[str]) -> None:
+    relation = (
+        db.query(PlaylistSong)
+        .filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song_id)
+        .first()
+    )
+    if not relation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist song not found")
+
+    tag = relation.song.tags
+    if tag is None:
+        tag = SongTag(song_id=song_id)
+        db.add(tag)
+    tag.style = ",".join(tags) if tags else None
+    db.commit()

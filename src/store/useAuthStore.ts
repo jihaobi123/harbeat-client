@@ -1,15 +1,15 @@
 import { create } from 'zustand'
+
 import type { User } from '../types'
-import { login as apiLogin, getUserInfo } from '../services/api'
+import { getUserInfo, initializeUser, type InitializeUserRequest } from '../services/api'
 
 interface AuthStore {
   user: User | null
   loading: boolean
   error: string | null
-
-  login: (username: string, password: string) => Promise<boolean>
+  initialize: (payload: InitializeUserRequest) => Promise<boolean>
   logout: () => void
-  loadUser: () => void
+  loadUser: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -17,24 +17,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
   loading: false,
   error: null,
 
-  login: async (username: string, password: string) => {
+  initialize: async (payload) => {
     set({ loading: true, error: null })
     try {
-      const res = await apiLogin({ username, password })
-      if (res.code === 0 && res.data) {
-        const user: User = {
-          ...res.data.user,
-          token: res.data.token,
-        }
-        localStorage.setItem('harbeat_user', JSON.stringify(user))
-        set({ user, loading: false, error: null })
+      const response = await initializeUser(payload)
+      if (response.code === 0 && response.data) {
+        localStorage.setItem('harbeat_user', JSON.stringify(response.data))
+        set({ user: response.data, loading: false, error: null })
         return true
-      } else {
-        set({ loading: false, error: res.message || '登录失败' })
-        return false
       }
-    } catch (e) {
-      set({ loading: false, error: String(e) })
+      set({ loading: false, error: response.message || 'user initialization failed' })
+      return false
+    } catch (error) {
+      set({ loading: false, error: String(error) })
       return false
     }
   },
@@ -44,20 +39,27 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: null, error: null })
   },
 
-  loadUser: () => {
+  loadUser: async () => {
     try {
       const stored = localStorage.getItem('harbeat_user')
-      if (stored) {
-        const user = JSON.parse(stored) as User
-        set({ user })
-        // 有后端 API 时才校验 token
-        if (import.meta.env.VITE_API_BASE_URL) {
-          getUserInfo().catch(() => {
-            localStorage.removeItem('harbeat_user')
-            set({ user: null })
-          })
-        }
+      if (!stored) return
+      const cached = JSON.parse(stored) as User
+      const fresh = await getUserInfo(cached.id)
+      if (fresh.data) {
+        localStorage.setItem('harbeat_user', JSON.stringify(fresh.data))
+        set({ user: fresh.data, error: null })
+      } else {
+        set({ user: cached })
       }
-    } catch { /* ignore */ }
+    } catch {
+      const stored = localStorage.getItem('harbeat_user')
+      if (!stored) return
+      try {
+        set({ user: JSON.parse(stored) as User })
+      } catch {
+        localStorage.removeItem('harbeat_user')
+        set({ user: null })
+      }
+    }
   },
 }))
