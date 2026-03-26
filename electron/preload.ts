@@ -10,8 +10,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPeaks: (filePath: string, numBars: number): Promise<number[] | null> =>
     ipcRenderer.invoke('audio:getPeaks', filePath, numBars),
   analyzeAudio: (filePath: string, duration: number): Promise<{
-    bpm?: number; beatPoints?: number[]; cuePoints?: { time: number; label: string; color: string }[]; error?: string
+    bpm?: number; key?: string; camelotKey?: string; beatPoints?: number[]; cuePoints?: { time: number; label: string; color: string }[]; error?: string
   }> => ipcRenderer.invoke('audio:analyze', filePath, duration),
+  separateStems: (filePath: string): Promise<{
+    stems?: { vocals: string; drums: string; bass: string; other: string }; error?: string
+  }> => ipcRenderer.invoke('audio:separateStems', filePath),
   searchPlatform: (query: string): Promise<{
     songs: Array<{ id: string; title: string; artist: string; url: string }>; error?: string
   }> => ipcRenderer.invoke('platform:search', query),

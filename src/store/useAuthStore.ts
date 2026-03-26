@@ -44,6 +44,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const stored = localStorage.getItem('harbeat_user')
       if (!stored) return
       const cached = JSON.parse(stored) as User
+      // Validate that cached id is a numeric string (backend expects int)
+      if (!cached.id || isNaN(Number(cached.id))) {
+        localStorage.removeItem('harbeat_user')
+        set({ user: null })
+        return
+      }
       const fresh = await getUserInfo(cached.id)
       if (fresh.data) {
         localStorage.setItem('harbeat_user', JSON.stringify(fresh.data))

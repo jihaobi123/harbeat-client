@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react'
+import { MapPin, Pause, Play, Repeat, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react'
 
-import type { Song } from '../types'
+import type { CuePoint, Song } from '../types'
+import { useMusicStore } from '../store/useMusicStore'
 import { formatDuration } from '../utils/format'
 
 interface Props {
@@ -10,7 +11,17 @@ interface Props {
 
 const NUM_BARS = 200
 
-function drawWaveform(canvas: HTMLCanvasElement, peaks: number[], progress: number) {
+const CUE_COLORS = ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b']
+
+function drawWaveform(
+  canvas: HTMLCanvasElement,
+  peaks: number[],
+  progress: number,
+  cuePoints: CuePoint[],
+  duration: number,
+  loopA: number | null,
+  loopB: number | null,
+) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const dpr = window.devicePixelRatio || 1
@@ -21,6 +32,15 @@ function drawWaveform(canvas: HTMLCanvasElement, peaks: number[], progress: numb
   ctx.scale(dpr, dpr)
   ctx.clearRect(0, 0, width, height)
 
+  // Draw A-B loop region
+  if (duration > 0 && loopA != null && loopB != null) {
+    const aX = (loopA / duration) * width
+    const bX = (loopB / duration) * width
+    ctx.fillStyle = 'rgba(20, 184, 166, 0.08)'
+    ctx.fillRect(aX, 0, bX - aX, height)
+  }
+
+  // Draw waveform bars
   const barWidth = Math.max(1, (width / peaks.length) * 0.7)
   const gap = width / peaks.length
 
@@ -35,6 +55,52 @@ function drawWaveform(canvas: HTMLCanvasElement, peaks: number[], progress: numb
     ctx.roundRect(x, y, barWidth, barHeight, 1)
     ctx.fill()
   }
+
+  // Draw cue markers
+  if (duration > 0) {
+    for (const cue of cuePoints) {
+      const x = (cue.time / duration) * width
+      ctx.strokeStyle = cue.color
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([3, 3])
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, height)
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      // Label
+      ctx.fillStyle = cue.color
+      ctx.font = '9px sans-serif'
+      ctx.fillText(cue.label, Math.min(x + 2, width - 30), 10)
+    }
+  }
+
+  // Draw A/B markers
+  if (duration > 0 && loopA != null) {
+    const x = (loopA / duration) * width
+    ctx.strokeStyle = '#22c55e'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, height)
+    ctx.stroke()
+    ctx.fillStyle = '#22c55e'
+    ctx.font = 'bold 10px sans-serif'
+    ctx.fillText('A', x + 2, height - 3)
+  }
+  if (duration > 0 && loopB != null) {
+    const x = (loopB / duration) * width
+    ctx.strokeStyle = '#ef4444'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, height)
+    ctx.stroke()
+    ctx.fillStyle = '#ef4444'
+    ctx.font = 'bold 10px sans-serif'
+    ctx.fillText('B', x + 2, height - 3)
+  }
 }
 
 export const WaveformPlayer: React.FC<Props> = ({ song }) => {
@@ -42,6 +108,10 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const peaksRef = useRef<number[]>([])
   const rafRef = useRef<number>(0)
+  const loopARef = useRef<number | null>(null)
+  const loopBRef = useRef<number | null>(null)
+
+  const updateSong = useMusicStore((state) => state.updateSong)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -51,20 +121,53 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
   const [isMuted, setIsMuted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // A-B loop
+  const [loopA, setLoopA] = useState<number | null>(null)
+  const [loopB, setLoopB] = useState<number | null>(null)
+  const [loopEnabled, setLoopEnabled] = useState(false)
+
+  // BPM sync
+  const [targetBpm, setTargetBpm] = useState<string>('')
+  const [playbackRate, setPlaybackRate] = useState(1)
+
+  // DJ fade
+  const [fadeIn, setFadeIn] = useState(0)
+  const [fadeOut, setFadeOut] = useState(0)
+
+  // Keep refs in sync for animation loop
+  useEffect(() => { loopARef.current = loopA }, [loopA])
+  useEffect(() => { loopBRef.current = loopB }, [loopB])
+
   const startAnimationLoop = useCallback(() => {
     const render = () => {
       const audio = audioRef.current
       const canvas = canvasRef.current
       if (audio && canvas && peaksRef.current.length) {
+        // A-B loop enforcement
+        if (loopARef.current != null && loopBRef.current != null && audio.currentTime >= loopBRef.current) {
+          audio.currentTime = loopARef.current
+        }
+
+        // DJ fade volume control
+        const baseVol = volume
+        let effectiveVol = baseVol
+        if (fadeIn > 0 && audio.currentTime < fadeIn) {
+          effectiveVol = (audio.currentTime / fadeIn) * baseVol
+        }
+        if (fadeOut > 0 && audio.duration > 0 && (audio.duration - audio.currentTime) < fadeOut) {
+          effectiveVol = Math.min(effectiveVol, ((audio.duration - audio.currentTime) / fadeOut) * baseVol)
+        }
+        if (!isMuted) audio.volume = Math.max(0, Math.min(1, effectiveVol))
+
         const progress = audio.duration > 0 ? audio.currentTime / audio.duration : 0
         setCurrentTime(audio.currentTime)
-        drawWaveform(canvas, peaksRef.current, progress)
+        drawWaveform(canvas, peaksRef.current, progress, song.cuePoints, audio.duration, loopARef.current, loopBRef.current)
       }
       rafRef.current = requestAnimationFrame(render)
     }
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(render)
-  }, [])
+  }, [volume, isMuted, fadeIn, fadeOut, song.cuePoints])
 
   useEffect(() => {
     if (!song.sourcePath) {
@@ -78,6 +181,10 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
     setCurrentTime(0)
     setDuration(0)
     setIsPlaying(false)
+    setLoopA(null)
+    setLoopB(null)
+    setTargetBpm('')
+    setPlaybackRate(1)
 
     let destroyed = false
 
@@ -101,7 +208,7 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
           if (destroyed) return
           setDuration(audio.duration)
           setIsLoading(false)
-          if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0)
+          if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cuePoints, audio.duration, null, null)
         })
 
         audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
@@ -141,6 +248,19 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
       }
     }
   }, [song.id, song.sourcePath, startAnimationLoop, volume])
+
+  // BPM sync: adjust playback rate when targetBpm changes
+  useEffect(() => {
+    const parsed = parseFloat(targetBpm)
+    if (song.bpm && parsed > 0) {
+      const rate = Math.max(0.25, Math.min(4, parsed / song.bpm))
+      setPlaybackRate(rate)
+      if (audioRef.current) audioRef.current.playbackRate = rate
+    } else {
+      setPlaybackRate(1)
+      if (audioRef.current) audioRef.current.playbackRate = 1
+    }
+  }, [targetBpm, song.bpm])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -187,6 +307,42 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
     audio.currentTime = ratio * audio.duration
   }, [])
 
+  // Feature 3: Add cue at current position
+  const handleAddCue = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const time = Math.round(audio.currentTime * 100) / 100
+    const nextIndex = song.cuePoints.length
+    const newCue: CuePoint = {
+      id: `cue-${song.id}-manual-${Date.now()}`,
+      time,
+      label: `Cue ${nextIndex + 1}`,
+      color: CUE_COLORS[nextIndex % CUE_COLORS.length],
+    }
+    updateSong(song.id, {
+      cuePoints: [...song.cuePoints, newCue].sort((a, b) => a.time - b.time),
+    })
+  }, [song.id, song.cuePoints, updateSong])
+
+  // Feature 4: A-B loop
+  const handleSetA = useCallback(() => {
+    const audio = audioRef.current
+    if (audio) setLoopA(Math.round(audio.currentTime * 100) / 100)
+  }, [])
+
+  const handleSetB = useCallback(() => {
+    const audio = audioRef.current
+    if (audio) {
+      const b = Math.round(audio.currentTime * 100) / 100
+      if (loopA != null && b > loopA) setLoopB(b)
+    }
+  }, [loopA])
+
+  const handleClearLoop = useCallback(() => {
+    setLoopA(null)
+    setLoopB(null)
+  }, [])
+
   return (
     <div className="bg-surface rounded-xl p-5">
       <h3 className="text-sm font-semibold text-white mb-3">Waveform</h3>
@@ -204,6 +360,7 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
         <canvas ref={canvasRef} className="w-full h-full cursor-pointer" onClick={handleSeek} />
       </div>
 
+      {/* Transport controls */}
       <div className="flex items-center gap-4 mt-4">
         <div className="flex items-center gap-1">
           <button onClick={skipBack} className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-hover">
@@ -233,6 +390,83 @@ export const WaveformPlayer: React.FC<Props> = ({ song }) => {
             {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
           <input type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume} onChange={handleVolumeChange} className="w-16 accent-primary" />
+        </div>
+      </div>
+
+      {/* Extended controls: Cue · A-B Loop · BPM Sync · Fade */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 pt-3 border-t border-border/30 text-xs">
+        {/* Cue */}
+        <button
+          onClick={handleAddCue}
+          className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors"
+        >
+          <MapPin size={13} /> Add Cue
+        </button>
+
+        {/* A-B Loop */}
+        <div className="flex items-center gap-1.5">
+          <Repeat size={13} className={loopA != null && loopB != null ? 'text-primary' : 'text-slate-500'} />
+          <button onClick={handleSetA} className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors">
+            A{loopA != null ? ` ${formatDuration(loopA)}` : ''}
+          </button>
+          <button onClick={handleSetB} disabled={loopA == null} className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40">
+            B{loopB != null ? ` ${formatDuration(loopB)}` : ''}
+          </button>
+          {(loopA != null || loopB != null) && (
+            <button onClick={handleClearLoop} className="text-slate-500 hover:text-slate-300 transition-colors">
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* BPM Sync */}
+        {song.bpm && (
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span>BPM:</span>
+            <input
+              type="number"
+              min="40"
+              max="300"
+              placeholder={String(song.bpm)}
+              value={targetBpm}
+              onChange={(e) => setTargetBpm(e.target.value)}
+              className="w-14 px-1.5 py-0.5 bg-surface-dark border border-border/50 rounded text-white text-center text-xs focus:outline-none focus:border-primary"
+            />
+            {playbackRate !== 1 && (
+              <span className="text-primary font-medium">{playbackRate.toFixed(2)}x</span>
+            )}
+          </div>
+        )}
+
+        {/* DJ Fade */}
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <span>Fade:</span>
+          <label className="flex items-center gap-0.5">
+            In
+            <input
+              type="number"
+              min="0"
+              max="30"
+              step="0.5"
+              value={fadeIn || ''}
+              onChange={(e) => setFadeIn(parseFloat(e.target.value) || 0)}
+              className="w-10 px-1 py-0.5 bg-surface-dark border border-border/50 rounded text-white text-center text-xs focus:outline-none focus:border-primary"
+            />
+            s
+          </label>
+          <label className="flex items-center gap-0.5">
+            Out
+            <input
+              type="number"
+              min="0"
+              max="30"
+              step="0.5"
+              value={fadeOut || ''}
+              onChange={(e) => setFadeOut(parseFloat(e.target.value) || 0)}
+              className="w-10 px-1 py-0.5 bg-surface-dark border border-border/50 rounded text-white text-center text-xs focus:outline-none focus:border-primary"
+            />
+            s
+          </label>
         </div>
       </div>
     </div>

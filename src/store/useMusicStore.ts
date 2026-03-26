@@ -55,6 +55,7 @@ interface MusicStore {
   viewPlaylist: (playlistId: string) => Promise<void>
   deletePlaylist: (playlistId: string) => Promise<void>
   clearImportResult: () => void
+  addPlaylistSongToLibrary: (songId: string) => void
   fetchPlaylistSong: (songId: string) => Promise<void>
   fetchAllPlaylistSongs: (playlistId: string) => Promise<void>
 }
@@ -78,8 +79,11 @@ const mapLibrarySong = (song: any): Song => ({
   downloadStatus: song.sourcePath ? 'downloaded' : 'none',
   analysisStatus: song.bpm ? 'completed' : 'none',
   bpm: song.bpm || null,
+  key: song.key || null,
+  camelotKey: song.camelotKey || null,
   beatPoints: song.beatPoints || [],
   cuePoints: song.cuePoints || [],
+  stems: song.stems || null,
   tags: (song.tags || []) as DanceStyle[],
   playlistId: song.playlistId ? String(song.playlistId) : undefined,
   createdAt: song.createdAt || Date.now(),
@@ -99,8 +103,11 @@ const syncSongToLibrary = async (song: Song) => {
       platformId: song.platformId,
       platformUrl: song.platformUrl,
       bpm: song.bpm,
+      key: song.key,
+      camelotKey: song.camelotKey,
       beatPoints: song.beatPoints,
       cuePoints: song.cuePoints,
+      stems: song.stems,
       tags: song.tags,
       createdAt: song.createdAt,
     })
@@ -138,8 +145,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
       importStatus: 'importing' as const,
       analysisStatus: 'none' as const,
       bpm: null,
+      key: null,
+      camelotKey: null,
       beatPoints: [],
       cuePoints: [],
+      stems: null,
       tags: [],
       createdAt: Date.now(),
     }))
@@ -237,8 +247,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         downloadStatus: 'none' as const,
         analysisStatus: 'none' as const,
         bpm: null,
+        key: null,
+        camelotKey: null,
         beatPoints: [],
         cuePoints: [],
+        stems: null,
         tags: [],
         createdAt: Date.now(),
       }))
@@ -307,8 +320,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         downloadStatus: 'none' as const,
         analysisStatus: song.bpm ? 'completed' as const : 'none' as const,
         bpm: song.bpm,
+        key: null,
+        camelotKey: null,
         beatPoints: [],
         cuePoints: [],
+        stems: null,
         tags: song.tags as DanceStyle[],
         playlistId,
         createdAt: Date.now(),
@@ -393,8 +409,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
           downloadStatus: local?.sourcePath ? 'downloaded' as const : 'none' as const,
           analysisStatus: (local?.bpm || song.bpm) ? 'completed' as const : 'none' as const,
           bpm: local?.bpm || song.bpm || null,
+          key: local?.key || null,
+          camelotKey: local?.camelotKey || null,
           beatPoints: local?.beatPoints || [],
           cuePoints: local?.cuePoints || [],
+          stems: local?.stems || null,
           tags: ((song.tags?.length ? song.tags : local?.tags || []) as DanceStyle[]),
           playlistId,
           createdAt: local?.createdAt || Date.now(),
@@ -424,6 +443,24 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
   },
 
   clearImportResult: () => set({ lastImportResult: null, playlistImportError: null }),
+
+  addPlaylistSongToLibrary: (songId) => {
+    const song = get().currentPlaylistSongs.find((item) => item.id === songId) || get().songs.find((item) => item.id === songId)
+    if (!song) return
+    set((state) => {
+      const exists = state.songs.find((item) => item.id === songId)
+      const songs = exists
+        ? state.songs.map((item) => item.id === songId ? { ...item, playlistId: undefined } : item)
+        : [...state.songs, { ...song, playlistId: undefined }]
+      return {
+        songs,
+        currentPlaylistSongs: state.currentPlaylistSongs.map((item) => item.id === songId ? { ...item, playlistId: undefined } : item),
+      }
+    })
+    const updated = get().songs.find((item) => item.id === songId)
+    if (updated) void syncSongToLibrary(updated)
+    if (!song.sourcePath) void get().fetchPlaylistSong(songId)
+  },
 
   fetchPlaylistSong: async (songId) => {
     const state = get()

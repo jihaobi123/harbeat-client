@@ -378,6 +378,65 @@ function dpBeatTrack(onset: Float64Array, bpm: number, totalDuration: number): n
     .filter((t) => t >= 0 && t < totalDuration)
 }
 
+// ──────────────── Key Detection (Krumhansl-Schmuckler) ────────────────
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+const MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
+
+const CAMELOT_MAP: Record<string, string> = {
+  'C major': '8B', 'C# major': '3B', 'D major': '10B', 'D# major': '5B',
+  'E major': '12B', 'F major': '7B', 'F# major': '2B', 'G major': '9B',
+  'G# major': '4B', 'A major': '11B', 'A# major': '6B', 'B major': '1B',
+  'C minor': '5A', 'C# minor': '12A', 'D minor': '7A', 'D# minor': '2A',
+  'E minor': '9A', 'F minor': '4A', 'F# minor': '11A', 'G minor': '6A',
+  'G# minor': '1A', 'A minor': '8A', 'A# minor': '3A', 'B minor': '10A',
+}
+
+function computeChromagram(spectrogram: Float64Array[]): Float64Array {
+  const chroma = new Float64Array(12)
+  const halfN = spectrogram[0].length
+  for (const frame of spectrogram) {
+    for (let k = 1; k < halfN; k++) {
+      const freq = (k * SAMPLE_RATE) / FFT_SIZE
+      if (freq < 65 || freq > 2000) continue
+      const midiNote = 12 * Math.log2(freq / 440) + 69
+      const pitchClass = ((Math.round(midiNote) % 12) + 12) % 12
+      chroma[pitchClass] += frame[k]
+    }
+  }
+  let norm = 0
+  for (let i = 0; i < 12; i++) norm += chroma[i] * chroma[i]
+  norm = Math.sqrt(norm) + 1e-9
+  for (let i = 0; i < 12; i++) chroma[i] /= norm
+  return chroma
+}
+
+function detectKey(spectrogram: Float64Array[]): { key: string; camelotKey: string } {
+  const chroma = computeChromagram(spectrogram)
+  let majorNorm = 0, minorNorm = 0
+  for (let i = 0; i < 12; i++) {
+    majorNorm += MAJOR_PROFILE[i] * MAJOR_PROFILE[i]
+    minorNorm += MINOR_PROFILE[i] * MINOR_PROFILE[i]
+  }
+  majorNorm = Math.sqrt(majorNorm)
+  minorNorm = Math.sqrt(minorNorm)
+  let bestScore = -Infinity, bestNote = 'C', bestMode = 'major'
+  for (let i = 0; i < 12; i++) {
+    let majorScore = 0, minorScore = 0
+    for (let j = 0; j < 12; j++) {
+      majorScore += chroma[j] * MAJOR_PROFILE[(j - i + 12) % 12]
+      minorScore += chroma[j] * MINOR_PROFILE[(j - i + 12) % 12]
+    }
+    majorScore /= majorNorm
+    minorScore /= minorNorm
+    if (majorScore > bestScore) { bestScore = majorScore; bestNote = NOTE_NAMES[i]; bestMode = 'major' }
+    if (minorScore > bestScore) { bestScore = minorScore; bestNote = NOTE_NAMES[i]; bestMode = 'minor' }
+  }
+  const key = `${bestNote} ${bestMode}`
+  return { key, camelotKey: CAMELOT_MAP[key] || '1A' }
+}
+
 // ──────────────── Section Detection ────────────────
 
 /**
@@ -496,6 +555,8 @@ function detectSections(
 
 export interface AnalysisResult {
   bpm: number
+  key: string
+  camelotKey: string
   beatPoints: number[]
   cuePoints: { time: number; label: string; color: string }[]
   duration: number
@@ -530,6 +591,11 @@ export function analyzeAudio(filePath: string, totalDuration?: number): Analysis
   const bpm = estimateTempo(onset)
   console.log('[analyzer] detected BPM:', bpm)
 
+  // 3.5. Key detection via Krumhansl-Schmuckler
+  console.log('[analyzer] detecting key...')
+  const keyResult = detectKey(spectrogram)
+  console.log('[analyzer] detected key:', keyResult.key, '(', keyResult.camelotKey, ')')
+
   // 4. DP Beat Tracking (on full song onset if possible)
   console.log('[analyzer] DP beat tracking...')
   let fullOnset = onset
@@ -547,5 +613,5 @@ export function analyzeAudio(filePath: string, totalDuration?: number): Analysis
   const cuePoints = detectSections(samples, dur)
   console.log('[analyzer] found', cuePoints.length, 'cue points')
 
-  return { bpm, beatPoints, cuePoints, duration: dur }
+  return { bpm, key: keyResult.key, camelotKey: keyResult.camelotKey, beatPoints, cuePoints, duration: dur }
 }

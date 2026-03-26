@@ -13,8 +13,11 @@ export interface PlatformSongRecord {
   platformId?: string      // fangpi music id
   platformUrl?: string     // fangpi music page URL
   bpm: number | null
+  key: string | null
+  camelotKey: string | null
   beatPoints: number[]
   cuePoints: { id: string; time: number; label: string; color: string }[]
+  stems: { vocals: string; drums: string; bass: string; other: string } | null
   createdAt: number
 }
 

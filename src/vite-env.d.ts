@@ -2,6 +2,8 @@
 
 interface AnalysisResult {
   bpm?: number
+  key?: string
+  camelotKey?: string
   beatPoints?: number[]
   cuePoints?: { time: number; label: string; color: string }[]
   error?: string
@@ -12,6 +14,9 @@ interface ElectronAPI {
   getAudioUrl: (filePath: string) => Promise<string>
   getPeaks: (filePath: string, numBars: number) => Promise<number[] | null>
   analyzeAudio: (filePath: string, duration: number) => Promise<AnalysisResult>
+  separateStems: (filePath: string) => Promise<{
+    stems?: { vocals: string; drums: string; bass: string; other: string }; error?: string
+  }>
   searchPlatform: (query: string) => Promise<{
     songs: Array<{ id: string; title: string; artist: string; url: string }>
     error?: string

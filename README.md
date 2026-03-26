@@ -1,10 +1,11 @@
-# AudioLab — 音频导入解析与平台内曲库搜索
+# HarBeat — DJ 音频曲库管理与分析工具
 
-> Electron + React + TypeScript 桌面端音频曲库管理与分析工具
+> Electron + React + TypeScript 桌面端 + FastAPI 后端
 
 ![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.116-009688?logo=fastapi&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)
 
 ---
@@ -13,137 +14,128 @@
 
 | 功能 | 说明 |
 |------|------|
-| 🎵 **本地音频导入** | 支持 MP3/AAC/M4A/WAV/FLAC/OGG/WMA/AIFF/APE/OPUS 等 ~20 种格式 |
+| 🎵 **本地音频导入** | 支持 MP3/AAC/M4A/WAV/FLAC/OGG/WMA/AIFF/APE/OPUS/NCM 等 ~20 种格式 |
 | 🔐 **NCM 解密** | 自动识别并解密网易云 `.ncm` 加密文件 |
-| 📊 **波形可视化** | Canvas 自绘波形条，支持点击/拖拽跳转播放位置 |
-| ▶️ **音频播放** | 播放/暂停、快进/快退 5 秒、音量调节、静音 |
+| 📊 **波形可视化** | Canvas 自绘波形条，支持点击/拖拽跳转 |
+| ▶️ **音频播放** | 播放/暂停、快进/快退、音量调节 |
 | 🔍 **在线搜索** | 接入 fangpi.net 平台，实时搜索歌曲 |
-| ⬇️ **在线下载** | 一键下载搜索到的歌曲到本地曲库，支持播放与分析 |
-| 📈 **专业音频分析** | FFmpeg 解码 → Spectral Flux → Cooley-Tukey FFT → 自相关节拍估计 → DP Beat Tracking (Ellis 2007) |
-| 🎯 **BPM / Beat / Cue** | 精确 BPM 检测、逐拍定位、自动段落识别（Cue Points） |
-| 💾 **持久化曲库** | 本地 JSON 数据库，关闭应用后歌曲信息与分析结果不丢失 |
-| 🌙 **深色主题** | DAW 风格暗色 UI |
+| ⬇️ **在线下载** | 一键下载在线歌曲到本地曲库 |
+| 📈 **BPM / Key 分析** | FFmpeg 解码 → Spectral Flux → DP Beat Tracking → Krumhansl-Schmuckler 调性检测 |
+| 🎯 **Cue Points** | 自动段落识别 + 手动标记/删除 Cue 点 |
+| 🔁 **A-B Loop** | 标记 A/B 点循环播放片段 |
+| 🎚️ **BPM Sync** | 调整播放速率匹配目标 BPM |
+| 🎛️ **DJ Fade** | Fade In / Fade Out 渐入渐出 |
+| 🎼 **声轨分离** | 基于 Demucs 的人声/鼓/贝斯/其他四轨分离 |
+| 📋 **歌单管理** | 链接导入歌单（网易云等）、添加到曲库 |
+| 💾 **持久化** | 本地 JSON 数据库 + PostgreSQL 后端 |
 
 ---
 
-## 快速开始
+## 环境要求
 
-### 环境要求
+| 工具 | 最低版本 | 说明 |
+|------|---------|------|
+| **Python** | 3.10+ | 后端 + 声轨分离 |
+| **Node.js** | 18+ | 前端 + Electron |
+| **npm** | 9+ | 包管理 |
+| **Git** | 任意 | 克隆仓库 |
 
-- **Node.js** ≥ 18
-- **npm** ≥ 9
-- **Windows** (已测试)
+> 仅需安装 Python 和 Node.js，其余依赖由脚本自动安装。
 
-### 安装与运行
+---
 
-```bash
-# 克隆仓库
-git clone https://github.com/wwwxxx0501/music_demo_xyw.git
-cd music_demo_xyw
+## 一键启动
 
-# 安装依赖
-npm install
+```powershell
+# 1. 克隆仓库
+git clone <repo-url>
+cd harbeat-client
 
-# 国内用户如遇 Electron 下载慢，设置镜像：
-# Windows CMD:
-#   set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-# PowerShell:
-#   $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+# 2. 一键启动（首次会自动安装所有依赖）
+.\start.ps1
 
-# 启动开发模式
-npm run dev
-
-# 生产构建
-npm run build
+# 3. 停止所有服务
+.\stop.ps1
 ```
 
-启动后会自动打开桌面窗口，即可开始使用。
+### `start.ps1` 做了什么？
+
+| 步骤 | 说明 |
+|------|------|
+| ① 检查环境 | 确认 Python、Node.js 已安装 |
+| ② 配置 .env | 从 `.env.example` 自动创建 |
+| ③ Python 虚拟环境 | 自动创建 `.venv/`，安装 FastAPI、demucs、PyTorch 等 |
+| ④ Node 依赖 | 自动运行 `npm install` |
+| ⑤ 启动后端 | FastAPI on http://localhost:8000 |
+| ⑥ 启动前端 | Electron 桌面窗口自动弹出 |
+
+> 首次运行需要下载 PyTorch (~200MB) 和 npm 包，请确保网络畅通。
+> 国内用户 Electron 下载慢时，脚本已自动设置 npmmirror 镜像。
 
 ---
 
 ## 使用说明
 
 ### 1. 导入本地音频
+点击侧边栏 **「导入音频」** → 选择音频文件 → 自动出现在曲库中。支持 `.ncm` 自动解密。
 
-1. 点击左侧边栏的 **「导入音频」** 按钮
-2. 在弹出的系统文件对话框中选择一个或多个音频文件
-3. 支持的格式：MP3、AAC、M4A、WAV、FLAC、OGG、WMA、AIFF、APE、OPUS、NCM 等
-4. 选中的文件会自动出现在 **「我的曲库」** 列表中
-5. 如果选择了 `.ncm` 文件，系统会自动解密并转换为可播放的 MP3
+### 2. 链接导入歌单
+点击侧边栏 **「导入歌单」** → 粘贴网易云歌单链接 → 解析后一键导入 → 自动搜索并下载全部歌曲。
 
-### 2. 播放音频
+### 3. 搜索与下载
+切换到 **「平台曲库」** → 搜索歌曲 → 点击 ⬇️ 下载到本地曲库。
 
-1. 在歌曲列表中点击任意一首歌曲，右侧会展示歌曲详情
-2. **波形区域**：显示整首歌曲的波形图，可点击任意位置跳转播放
-3. **播放控制**：
-   - ▶️ / ⏸ — 播放 / 暂停
-   - ⏪ / ⏩ — 快退 / 快进 5 秒
-   - 🔊 — 音量滑块调节
-   - 🔇 — 点击静音/取消静音
+### 4. 音频分析
+选中歌曲后在右侧详情页点击 **「分析」**，自动检测：
+- **BPM** — 节拍速度
+- **Key** — 调性 + Camelot 编号
+- **Beat Points** — 逐拍时间戳
+- **Cue Points** — 段落标记（可手动添加/删除）
 
-### 3. 搜索在线歌曲
+### 5. DJ 工具
+- **A-B Loop** — 标记循环片段
+- **BPM Sync** — 调整播放速率匹配目标 BPM
+- **DJ Fade** — 渐入/渐出
 
-1. 点击左侧边栏切换到 **「平台曲库」** 视图
-2. 在顶部搜索框输入歌曲名或歌手名（如「周杰伦」「七里香」）
-3. 系统会自动搜索 fangpi.net 并展示搜索结果列表
-4. 点击搜索结果中的歌曲可查看详情
+### 6. 声轨分离
+分析面板中点击 **「Separate Stems」**，使用 Demucs 分离为人声/鼓/贝斯/其他四轨。
+首次使用会下载 htdemucs 模型 (~80MB)，CPU 模式下处理一首歌约需几分钟。
 
-### 4. 下载在线歌曲
-
-1. 在平台曲库搜索结果中，点击歌曲右侧的 **⬇️ 下载按钮**
-2. 系统会自动获取音频源并下载到本地 `database/music-files/` 目录
-3. 下载完成后，歌曲将同时出现在 **「我的曲库」** 中
-4. 下载过的歌曲会显示 **「已下载」** 标识，避免重复下载
-
-### 5. 音频分析（BPM / Beat / Cue）
-
-1. 在歌曲详情页，点击 **「分析」** 按钮
-2. 系统使用 FFmpeg 解码音频，然后执行以下分析流程：
-   - **STFT 短时傅里叶变换** — 将音频转换到频域
-   - **Spectral Flux** — 计算频谱差异检测节拍起始点
-   - **自相关估计** — 从频谱变化推算 BPM
-   - **DP Beat Tracking** — 基于 Ellis 2007 算法精确定位每一个节拍
-   - **段落识别** — 自动检测歌曲各段（前奏、主歌、副歌等）的起始 Cue Point
-3. 分析完成后，详情页将展示：
-   - **BPM** — 每分钟节拍数
-   - **Beat Points** — 节拍时间戳列表
-   - **Cue Points** — 段落标记点及其时间
-4. 分析结果会自动保存到本地数据库，下次打开无需重新分析
-5. **本地导入的歌曲和在线下载的歌曲都可以进行分析**
-
-### 6. 管理曲库
-
-- **我的曲库**：显示所有本地导入和已下载的歌曲
-- **平台曲库**：搜索在线歌曲，空搜索框时显示已收藏的歌曲
-- 歌曲信息、分析结果等数据持久化存储在项目的 `database/` 目录下
+### 7. 添加到曲库
+在歌单视图中，点击歌曲右侧 📚 按钮可将歌曲添加到主曲库，歌单删除后歌曲仍保留。
 
 ---
 
 ## 技术架构
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    Electron Main                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │ File Dialog   │  │ HTTP Audio   │  │ FFmpeg Audio │ │
-│  │ IPC Handlers  │  │ Server       │  │ Analyzer     │ │
-│  │ NCM Decrypt   │  │ (127.0.0.1)  │  │ (DSP/BPM)   │ │
-│  └──────────────┘  └──────────────┘  └─────────────┘ │
-│  ┌──────────────┐  ┌──────────────────────────────┐   │
-│  │ fangpi.net   │  │ Platform Library (JSON DB)   │   │
-│  │ Search & DL   │  │ database/platform-library.json│  │
-│  └──────────────┘  └──────────────────────────────┘   │
-├──────────────────────────────────────────────────────┤
-│               contextBridge (Preload)                 │
-├──────────────────────────────────────────────────────┤
-│                   Renderer (React)                    │
-│  ┌──────────┐ ┌──────────┐ ┌───────────────────────┐ │
-│  │ Sidebar   │ │ SongList │ │ SongDetail            │ │
-│  │ (导航)    │ │ (列表)    │ │ ├ WaveformPlayer     │ │
-│  │           │ │          │ │ └ AnalysisPanel       │ │
-│  └──────────┘ └──────────┘ └───────────────────────┘ │
-│                  Zustand Store                        │
-└──────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                     Electron Main Process                   │
+│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐ │
+│  │ File Dialog  │ │ HTTP Audio   │ │ FFmpeg Audio         │ │
+│  │ IPC Handlers │ │ Server       │ │ Analyzer (DSP/BPM/   │ │
+│  │ NCM Decrypt  │ │ (127.0.0.1)  │ │ Key Detection)       │ │
+│  └─────────────┘ └──────────────┘ └──────────────────────┘ │
+│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐ │
+│  │ fangpi.net  │ │ Platform     │ │ Demucs Stem          │ │
+│  │ Search & DL │ │ Library JSON │ │ Separation (.venv)   │ │
+│  └─────────────┘ └──────────────┘ └──────────────────────┘ │
+├────────────────────────────────────────────────────────────┤
+│                 contextBridge (Preload)                      │
+├────────────────────────────────────────────────────────────┤
+│                   Renderer (React + Zustand)                │
+│  ┌──────────┐ ┌──────────┐ ┌────────────────────────────┐  │
+│  │ Sidebar   │ │ SongList │ │ SongDetail                 │  │
+│  │ (Nav)     │ │ (List)   │ │ ├ WaveformPlayer (A-B/Cue) │  │
+│  │           │ │          │ │ ├ AnalysisPanel (BPM/Key)  │  │
+│  │           │ │          │ │ └ StemPlayer (4-track)      │  │
+│  └──────────┘ └──────────┘ └────────────────────────────┘  │
+├────────────────────────────────────────────────────────────┤
+│               FastAPI Backend (port 8000)                    │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐    │
+│  │ Users API │ │Playlists │ │ PostgreSQL (Aliyun RDS)  │    │
+│  └──────────┘ └──────────┘ └──────────────────────────┘    │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -151,42 +143,51 @@ npm run build
 ## 项目结构
 
 ```
-music_demo_xyw/
-├── electron/
-│   ├── main.ts              # 主进程：窗口、IPC、HTTP 音频服务
-│   ├── preload.ts           # 预加载脚本：contextBridge API
-│   ├── audioAnalyzer.ts     # 音频分析：FFmpeg + Spectral Flux + DP Beat Tracking
-│   ├── fangpiService.ts     # fangpi.net 搜索、音频 URL 获取、下载
-│   ├── ncmDecrypt.ts        # 网易云 NCM 文件解密
-│   └── platformLibrary.ts   # 持久化 JSON 曲库数据库
-├── src/
-│   ├── components/
-│   │   ├── Sidebar.tsx       # 左侧导航 + 导入按钮
-│   │   ├── SongList.tsx      # 歌曲列表（支持下载状态图标）
-│   │   ├── SongDetail.tsx    # 歌曲详情卡片（下载/分析入口）
-│   │   ├── WaveformPlayer.tsx# Canvas 波形 + Audio 播放器
-│   │   ├── AnalysisPanel.tsx # BPM / Beat / Cue 分析面板
-│   │   ├── SearchBar.tsx     # 搜索输入框（500ms 防抖）
-│   │   └── ErrorBoundary.tsx # 错误边界
-│   ├── store/
-│   │   └── useMusicStore.ts  # Zustand 状态管理
-│   ├── types/
-│   │   └── index.ts          # TypeScript 类型定义
-│   ├── utils/
-│   │   └── format.ts         # 格式化工具函数
-│   ├── styles/
-│   │   └── global.css        # 全局样式 + Tailwind
-│   ├── App.tsx               # 根组件（三栏布局）
-│   └── main.tsx              # React 入口
-├── database/                  # 运行时生成，已 gitignore
-│   ├── platform-library.json  # 曲库数据库
-│   └── music-files/           # 下载的音频文件
-├── index.html
-├── package.json
+harbeat-client/
+├── start.ps1                # 一键启动脚本（配置环境 + 启动服务）
+├── stop.ps1                 # 一键停止脚本
+├── requirements.txt         # Python 依赖（FastAPI + demucs + torch）
+├── package.json             # Node.js 依赖
+├── .env.example             # 环境变量模板
+│
+├── app/                     # FastAPI 后端
+│   ├── main.py              # 应用入口 + CORS + 异常处理
+│   ├── shared/              # 数据库连接、配置、响应格式
+│   └── modules/             # 业务模块
+│       ├── users/           # 用户 CRUD
+│       └── playlists/       # 歌单导入、管理
+│
+├── electron/                # Electron 主进程
+│   ├── main.ts              # 窗口管理、IPC handlers、音频服务
+│   ├── preload.ts           # contextBridge API
+│   ├── audioAnalyzer.ts     # BPM/Key/Beat/Cue 分析 (FFmpeg + DSP)
+│   ├── fangpiService.ts     # fangpi.net 搜索与下载
+│   ├── ncmDecrypt.ts        # 网易云 NCM 解密
+│   ├── platformLibrary.ts   # 本地 JSON 曲库
+│   ├── playlistParser.ts    # 歌单链接解析
+│   └── playlistStore.ts     # 歌单本地存储
+│
+├── src/                     # React 前端
+│   ├── App.tsx              # 根组件（三栏布局）
+│   ├── components/          # UI 组件
+│   │   ├── Sidebar.tsx      # 导航 + 导入
+│   │   ├── SongList.tsx     # 歌曲列表
+│   │   ├── SongDetail.tsx   # 歌曲详情
+│   │   ├── WaveformPlayer.tsx # 波形 + Cue + A-B Loop + BPM Sync + Fade
+│   │   ├── AnalysisPanel.tsx  # 分析面板 + 声轨分离
+│   │   └── PlaylistImportModal.tsx # 歌单导入弹窗
+│   ├── store/               # Zustand 状态管理
+│   ├── services/            # API 调用层
+│   └── types/               # TypeScript 类型
+│
+├── database/                # 运行时数据（gitignore）
+│   ├── platform-library.json
+│   ├── music-files/
+│   └── stems/
+│
 ├── vite.config.ts
 ├── tsconfig.json
-├── tailwind.config.js
-└── README.md
+└── tailwind.config.js
 ```
 
 ---

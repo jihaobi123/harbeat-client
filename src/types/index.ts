@@ -15,6 +15,14 @@ export interface Song {
   bpm: number | null
   beatPoints: number[] // timestamps in seconds
   cuePoints: CuePoint[]
+  key: string | null
+  camelotKey: string | null
+  stems: {
+    vocals: string
+    drums: string
+    bass: string
+    other: string
+  } | null
   tags: DanceStyle[]
   playlistId?: string      // 所属歌单ID
   createdAt: number // timestamp ms

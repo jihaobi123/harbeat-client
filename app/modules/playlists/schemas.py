@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class SongImportItem(BaseModel):
     title: str
     artist: str
-    audio_url: Optional[HttpUrl] = None
+    audio_url: Optional[str] = None
     duration: Optional[float] = None
-    bpm: Optional[int] = None
+    bpm: Optional[float] = None
     tags: list[str] = []
 
 

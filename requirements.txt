@@ -1,6 +1,14 @@
+# === Backend (FastAPI) ===
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
 sqlalchemy==2.0.43
 psycopg2-binary==2.9.11
 redis==6.4.0
 pydantic-settings==2.10.1
+
+# === Stem Separation (demucs) ===
+# Pin torch/torchaudio to 2.6.x to avoid torchcodec/FFmpeg DLL issues on Windows
+torch==2.6.0
+torchaudio==2.6.0
+soundfile==0.13.1
+demucs==4.0.1

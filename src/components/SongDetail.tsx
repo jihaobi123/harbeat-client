@@ -33,6 +33,7 @@ export const SongDetail: React.FC<Props> = ({ song }) => {
               {song.format && <span>{song.format.toUpperCase()}</span>}
               {song.fileSize > 0 && <span>{formatFileSize(song.fileSize)}</span>}
               {song.bpm && <span className="text-primary font-medium">{song.bpm} BPM</span>}
+              {song.key && <span className="text-violet-400 font-medium">{song.camelotKey} ({song.key})</span>}
               <span className="flex items-center gap-1">
                 <Calendar size={11} />
                 {new Date(song.createdAt).toLocaleDateString('en-CA')}

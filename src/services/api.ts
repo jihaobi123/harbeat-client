@@ -130,6 +130,10 @@ export async function getUserByUsername(username: string): Promise<ApiResponse<U
 }
 
 export async function importPlaylist(params: ImportPlaylistRequest): Promise<ApiResponse<ImportPlaylistResult>> {
+  const userId = parseInt(params.userId, 10)
+  if (isNaN(userId)) {
+    throw new Error('Invalid user id')
+  }
   const response = await request<{
     playlist_id: number
     import_count: number
@@ -137,7 +141,7 @@ export async function importPlaylist(params: ImportPlaylistRequest): Promise<Api
   }>('/api/playlists/import', {
     method: 'POST',
     body: JSON.stringify({
-      user_id: Number(params.userId),
+      user_id: userId,
       playlist_name: params.playlistName,
       songs: params.songList.map((song) => ({
         title: song.title,

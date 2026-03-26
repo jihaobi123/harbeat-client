@@ -304,9 +304,71 @@ ipcMain.handle('audio:analyze', async (_event, filePath: string, totalDuration: 
     console.log('[analyze] start:', filePath)
     const result = realAnalyzeAudio(filePath, totalDuration || undefined)
     console.log('[analyze] done. BPM:', result.bpm, 'beats:', result.beatPoints.length, 'cues:', result.cuePoints.length)
-    return { bpm: result.bpm, beatPoints: result.beatPoints, cuePoints: result.cuePoints }
+    return { bpm: result.bpm, key: result.key, camelotKey: result.camelotKey, beatPoints: result.beatPoints, cuePoints: result.cuePoints }
   } catch (e) {
     console.error('[analyze error]', e)
+    return { error: String(e) }
+  }
+})
+
+// IPC: Separate stems using demucs
+ipcMain.handle('audio:separateStems', async (_event, filePath: string) => {
+  try {
+    if (!allowedPaths.has(filePath)) return { error: 'File not allowed' }
+    console.log('[stems] start:', filePath)
+    const stemsBaseDir = path.join(__dirname, '..', 'database', 'stems')
+    if (!fs.existsSync(stemsBaseDir)) fs.mkdirSync(stemsBaseDir, { recursive: true })
+
+    const baseName = path.basename(filePath, path.extname(filePath))
+    const stemsDir = path.join(stemsBaseDir, 'htdemucs', baseName)
+    const stemNames = ['vocals', 'drums', 'bass', 'other'] as const
+
+    // Check if already separated
+    if (stemNames.every(s => fs.existsSync(path.join(stemsDir, `${s}.wav`)))) {
+      console.log('[stems] using cached stems')
+      const stems: Record<string, string> = {}
+      for (const s of stemNames) {
+        const p = path.join(stemsDir, `${s}.wav`)
+        allowedPaths.add(p)
+        stems[s] = p
+      }
+      return { stems }
+    }
+
+    // Run demucs subprocess
+    const { execFileSync } = await import('node:child_process')
+
+    // Find python executable (prefer venv)
+    const venvPython = process.platform === 'win32'
+      ? path.join(__dirname, '..', '.venv', 'Scripts', 'python.exe')
+      : path.join(__dirname, '..', '.venv', 'bin', 'python')
+    const pythonCmd = fs.existsSync(venvPython) ? venvPython : 'python'
+    console.log('[stems] __dirname:', __dirname)
+    console.log('[stems] pythonCmd:', pythonCmd, 'exists:', fs.existsSync(pythonCmd))
+
+    try {
+      execFileSync(pythonCmd, ['-m', 'demucs', '-n', 'htdemucs', '-o', stemsBaseDir, filePath], {
+        timeout: 600_000,
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (procError: any) {
+      const stderr = procError?.stderr?.toString() || ''
+      console.error('[stems] demucs process error:', procError.message)
+      console.error('[stems] stderr:', stderr)
+      return { error: `Stem separation failed: ${stderr || procError.message}` }
+    }
+
+    console.log('[stems] demucs done')
+    const stems: Record<string, string> = {}
+    for (const s of stemNames) {
+      const p = path.join(stemsDir, `${s}.wav`)
+      allowedPaths.add(p)
+      stems[s] = p
+    }
+    return { stems }
+  } catch (e) {
+    console.error('[stems error]', e)
     return { error: String(e) }
   }
 })

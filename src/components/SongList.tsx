@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { CheckCircle, Download, FileAudio, Globe, LayoutGrid, LayoutList, Loader2, Music, Plus } from 'lucide-react'
+import { CheckCircle, Download, FileAudio, Globe, LayoutGrid, LayoutList, Library, Loader2, Music, Plus } from 'lucide-react'
 
 import type { DanceStyle, Song } from '../types'
 import { useMusicStore } from '../store/useMusicStore'
@@ -19,6 +19,7 @@ export const SongList: React.FC = () => {
   const platformSongs = useMusicStore((state) => state.platformSongs)
   const searchQuery = useMusicStore((state) => state.searchQuery)
   const addPlatformSongToLibrary = useMusicStore((state) => state.addPlatformSongToLibrary)
+  const addPlaylistSongToLibrary = useMusicStore((state) => state.addPlaylistSongToLibrary)
   const downloadSong = useMusicStore((state) => state.downloadSong)
   const platformSearchLoading = useMusicStore((state) => state.platformSearchLoading)
   const platformSearchError = useMusicStore((state) => state.platformSearchError)
@@ -176,6 +177,21 @@ export const SongList: React.FC = () => {
                       className="p-1.5 rounded-md text-slate-500 hover:text-primary hover:bg-primary/10 transition-all"
                     >
                       <Plus size={14} />
+                    </button>
+                  )}
+                  {isPlaylistView && song.playlistId === undefined && (
+                    <span className="text-[10px] text-green-400">已入库</span>
+                  )}
+                  {isPlaylistView && song.playlistId !== undefined && (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        addPlaylistSongToLibrary(song.id)
+                      }}
+                      className="p-1.5 rounded-md text-slate-500 hover:text-green-400 hover:bg-green-500/10 transition-all"
+                      title="添加到曲库"
+                    >
+                      <Library size={14} />
                     </button>
                   )}
                 </div>
