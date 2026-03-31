@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
-import { getStreamUrl } from '../api/client'
+import { useAuthStore } from '../store/useAuthStore'
+import { getStreamUrl, logInteraction } from '../api/client'
 
 function formatTime(sec: number): string {
   if (!sec || sec < 0) return '0:00'
@@ -11,10 +12,28 @@ function formatTime(sec: number): string {
 
 export default function AudioPlayer() {
   const { playingSong, isPlaying, volume, togglePlay, setVolume } = useMusicStore()
+  const { user } = useAuthStore()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
+  const playStartRef = useRef<{ songId: string; startTime: number } | null>(null)
+
+  // Log interaction when song changes or playback ends
+  const flushInteraction = useCallback((action: string) => {
+    const info = playStartRef.current
+    if (!info || !user) return
+    const dur = (Date.now() - info.startTime) / 1000
+    const audioDur = audioRef.current?.duration || 0
+    logInteraction({
+      user_id: user.id,
+      track_id: info.songId,
+      action_type: action,
+      play_duration_sec: dur,
+      completion_rate: audioDur > 0 ? Math.min(1, dur / audioDur) : 0,
+    }).catch(() => {})
+    playStartRef.current = null
+  }, [user])
 
   // Sync play/pause
   useEffect(() => {
@@ -31,8 +50,13 @@ export default function AudioPlayer() {
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !playingSong) return
+    // Log previous song as 'skip' if switching
+    if (playStartRef.current && playStartRef.current.songId !== playingSong.id) {
+      flushInteraction('skip')
+    }
     audio.src = getStreamUrl(playingSong.id)
     audio.load()
+    playStartRef.current = { songId: playingSong.id, startTime: Date.now() }
     if (isPlaying) {
       audio.play().catch(() => {})
     }
@@ -83,7 +107,7 @@ export default function AudioPlayer() {
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoaded}
-        onEnded={() => useMusicStore.getState().togglePlay()}
+        onEnded={() => { flushInteraction('complete'); useMusicStore.getState().togglePlay() }}
       />
 
       {/* Song info */}

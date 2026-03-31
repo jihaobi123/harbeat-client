@@ -255,3 +255,45 @@ export async function separateStems(songId: string) {
     `/api/library/songs/${songId}/separate-stems`, { method: 'POST' }
   )
 }
+
+// ---- Sessions / Interaction Logs ----
+export interface InteractionLogPayload {
+  user_id: number
+  track_id: string
+  action_type: string
+  listen_mode?: string
+  current_dance_style?: string
+  play_duration_sec?: number
+  completion_rate?: number
+  skip_timestamp?: number | null
+  drum_boost_enabled?: boolean
+  bpm_adjusted_to?: number | null
+  ab_loop_used?: boolean
+  cue_points_added?: number
+  rewind_count?: number
+}
+
+export async function logInteraction(payload: InteractionLogPayload) {
+  return request<{ success: boolean }>(
+    '/api/sessions/log-interaction', { method: 'POST', body: JSON.stringify(payload) }
+  )
+}
+
+export interface PracticeTrack {
+  id: string
+  title: string
+  artist: string
+  bpm: number | null
+  camelot_key: string | null
+  energy: number | null
+  duration: number
+}
+
+export async function generatePracticeList(userId: number, targetDuration: number = 30, danceStyle?: string) {
+  return request<{ user_id: number; target_duration: number; tracks: PracticeTrack[] }>(
+    '/api/sessions/generate-practice-list', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, target_duration: targetDuration, dance_style: danceStyle })
+    }
+  )
+}

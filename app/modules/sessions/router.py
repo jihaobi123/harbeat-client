@@ -4,13 +4,22 @@ from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
 from app.modules.sessions.schemas import (
+    InteractionLogRequest,
+    PracticeListData,
+    PracticeListRequest,
     SessionEndRequest,
     SessionEventRequest,
     SessionStartData,
     SessionStartRequest,
     SuccessData,
 )
-from app.modules.sessions.service import create_session_event, end_session, start_session
+from app.modules.sessions.service import (
+    create_session_event,
+    end_session,
+    generate_practice_list,
+    log_interaction,
+    start_session,
+)
 
 router = APIRouter()
 
@@ -37,3 +46,26 @@ def create_session_event_endpoint(payload: SessionEventRequest, db: Session = De
 def end_session_endpoint(payload: SessionEndRequest, db: Session = Depends(get_db)):
     end_session(db, payload.session_id)
     return APIResponse(data=SuccessData())
+
+
+@router.post("/log-interaction", response_model=APIResponse[SuccessData])
+def log_interaction_endpoint(payload: InteractionLogRequest, db: Session = Depends(get_db)):
+    log_interaction(db, payload)
+    return APIResponse(data=SuccessData())
+
+
+@router.post("/generate-practice-list", response_model=APIResponse[PracticeListData])
+def generate_practice_list_endpoint(payload: PracticeListRequest, db: Session = Depends(get_db)):
+    tracks = generate_practice_list(
+        db,
+        user_id=payload.user_id,
+        target_duration=payload.target_duration,
+        dance_style=payload.dance_style,
+    )
+    return APIResponse(
+        data=PracticeListData(
+            user_id=payload.user_id,
+            target_duration=payload.target_duration,
+            tracks=tracks,
+        )
+    )

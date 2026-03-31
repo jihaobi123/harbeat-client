@@ -1,7 +1,8 @@
-import { useState
-} from 'react'
+import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
+import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
+import type { PracticeTrack } from '../api/client'
 
 const MODES = [
   { value: 'freeplay', label: '自由练习', desc: '随心所欲，自由练舞' },
@@ -19,6 +20,7 @@ interface SessionEvent {
 
 export default function SessionPanel() {
   const { user } = useAuthStore()
+  const { playSong, songs } = useMusicStore()
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [mode, setMode] = useState('freeplay')
   const [events, setEvents] = useState<SessionEvent[]>([])
@@ -28,6 +30,9 @@ export default function SessionPanel() {
   const [eventValue, setEventValue] = useState('')
   const [startTime, setStartTime] = useState<Date | null>(null)
   const [elapsed, setElapsed] = useState('')
+  const [practiceList, setPracticeList] = useState<PracticeTrack[]>([])
+  const [practiceLoading, setPracticeLoading] = useState(false)
+  const [practiceDuration, setPracticeDuration] = useState(30)
 
   // Timer for elapsed time
   useState(() => {
@@ -88,6 +93,25 @@ export default function SessionPanel() {
 
   const quickEvents = ['切歌', '暂停', '调整BPM', '切换风格', '即兴solo', '互动']
 
+  const handleGeneratePractice = async () => {
+    if (!user) return
+    setPracticeLoading(true)
+    setError('')
+    try {
+      const res = await api.generatePracticeList(user.id, practiceDuration)
+      setPracticeList(res.tracks)
+    } catch (e: any) {
+      setError(e.message || '生成失败')
+    } finally {
+      setPracticeLoading(false)
+    }
+  }
+
+  const handlePlayPracticeTrack = (track: PracticeTrack) => {
+    const song = songs.find(s => s.id === track.id)
+    if (song) playSong(song)
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       <div className="px-5 py-4 border-b border-gray-700">
@@ -96,6 +120,69 @@ export default function SessionPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* 智能练舞歌单生成 */}
+        <div className="bg-surface-light rounded-xl p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-white">🎯 智能练舞歌单</h3>
+          <p className="text-xs text-gray-500">基于 Camelot 和谐混音 + BPM 兼容算法，自动编排适合连续练习的歌单</p>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-gray-400">目标时长</label>
+            <select
+              value={practiceDuration}
+              onChange={e => setPracticeDuration(Number(e.target.value))}
+              className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
+            >
+              <option value={15}>15 分钟</option>
+              <option value={30}>30 分钟</option>
+              <option value={45}>45 分钟</option>
+              <option value={60}>60 分钟</option>
+              <option value={90}>90 分钟</option>
+            </select>
+            <button
+              onClick={handleGeneratePractice}
+              disabled={practiceLoading}
+              className="bg-primary hover:bg-primary-dark disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition"
+            >
+              {practiceLoading ? '生成中...' : '生成歌单'}
+            </button>
+          </div>
+          {practiceList.length > 0 && (
+            <div className="space-y-1 mt-2">
+              <div className="flex items-center gap-3 text-xs text-gray-500 px-2">
+                <span className="w-6">#</span>
+                <span className="flex-1">歌曲</span>
+                <span className="w-16 text-right">BPM</span>
+                <span className="w-12 text-right">Key</span>
+                <span className="w-14 text-right">能量</span>
+              </div>
+              {practiceList.map((t, i) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter cursor-pointer transition"
+                  onClick={() => handlePlayPracticeTrack(t)}
+                >
+                  <span className="w-6 text-xs text-gray-500">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-white truncate">{t.title}</div>
+                    <div className="text-xs text-gray-500 truncate">{t.artist}</div>
+                  </div>
+                  <span className="w-16 text-xs text-gray-400 text-right">{t.bpm ? Math.round(t.bpm) : '-'}</span>
+                  <span className="w-12 text-xs text-gray-400 text-right">{t.camelot_key || '-'}</span>
+                  <span className="w-14 text-xs text-gray-400 text-right">
+                    {t.energy != null ? (
+                      <span className="inline-block w-full bg-gray-700 rounded-full h-1.5">
+                        <span className="block bg-primary rounded-full h-1.5" style={{ width: `${Math.round(t.energy * 100)}%` }} />
+                      </span>
+                    ) : '-'}
+                  </span>
+                </div>
+              ))}
+              <div className="text-xs text-gray-500 pt-2">
+                共 {practiceList.length} 首 · 预计 {Math.round(practiceList.reduce((s, t) => s + (t.duration || 180), 0) / 60)} 分钟
+              </div>
+            </div>
+          )}
+        </div>
+
         {!sessionId ? (
           /* Start session view */
           <div className="bg-surface-light rounded-xl p-5 space-y-4">
