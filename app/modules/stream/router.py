@@ -113,3 +113,64 @@ def stream_audio(
             "Content-Length": str(file_size),
         },
     )
+
+
+@router.get("/{song_id}/stem/{stem_name}")
+def stream_stem(
+    song_id: str,
+    stem_name: str,
+    request: Request,
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Stream a separated stem audio file."""
+    current_user = _get_user_from_request(request, db, token)
+
+    if stem_name not in ("vocals", "drums", "bass", "other"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid stem name")
+
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+
+    if not song.stems or stem_name not in song.stems:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="stem not available")
+
+    file_path = song.stems[stem_name]
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="stem file not found on disk")
+
+    file_size = os.path.getsize(file_path)
+    content_type = "audio/wav"
+
+    range_header = request.headers.get("range")
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if not m:
+            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+        start = int(m.group(1))
+        end = int(m.group(2)) if m.group(2) else file_size - 1
+        end = min(end, file_size - 1)
+        if start > end or start >= file_size:
+            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+
+        content_length = end - start + 1
+        return StreamingResponse(
+            _iter_file(file_path, start, end),
+            status_code=206,
+            media_type=content_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(content_length),
+            },
+        )
+
+    return StreamingResponse(
+        _iter_file(file_path, 0, file_size - 1),
+        media_type=content_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(file_size),
+        },
+    )

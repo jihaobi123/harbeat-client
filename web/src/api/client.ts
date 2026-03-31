@@ -92,9 +92,12 @@ export async function deleteSong(songId: string) {
 
 export function getStreamUrl(songId: string): string {
   const token = getToken()
-  // The audio element will use this URL; we attach token as query param for convenience
-  // (the backend also accepts Authorization header, but <audio> can't set headers)
   return `${BASE}/api/stream/${songId}?token=${token || ''}`
+}
+
+export function getStemStreamUrl(songId: string, stemName: string): string {
+  const token = getToken()
+  return `${BASE}/api/stream/${songId}/stem/${stemName}?token=${token || ''}`
 }
 
 // ---- Playlists ----

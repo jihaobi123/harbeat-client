@@ -25,7 +25,7 @@ from app.shared.responses import APIResponse
 
 router = APIRouter()
 
-ALLOWED_FORMATS = {"mp3", "flac", "wav", "ogg", "aac", "m4a", "opus", "wma"}
+ALLOWED_FORMATS = {"mp3", "flac", "wav", "ogg", "aac", "m4a", "opus", "wma", "ncm"}
 MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 
 
@@ -102,6 +102,27 @@ def upload_audio_endpoint(
     if not title:
         title = file.filename.rsplit(".", 1)[0] if "." in file.filename else file.filename
 
+    # Handle NCM (NetEase encrypted) files
+    if ext == "ncm":
+        try:
+            from app.modules.library.ncm_decrypt import decrypt_ncm
+            ncm_result = decrypt_ncm(file_path, output_dir=user_dir)
+            # Use decrypted file instead
+            os.remove(file_path)
+            file_path = ncm_result["audio_path"]
+            ext = ncm_result["format"]
+            size = os.path.getsize(file_path)
+            if not title or title == file.filename.rsplit(".", 1)[0]:
+                title = ncm_result["title"]
+            if artist == "Unknown Artist":
+                artist = ncm_result["artist"]
+        except Exception as e:
+            os.remove(file_path)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"NCM decryption failed: {e}",
+            )
+
     from app.modules.library.schemas import LibrarySongCreateRequest
     from datetime import datetime
 
@@ -161,10 +182,23 @@ def analyze_library_song_endpoint(
         from app.modules.library.analysis import analyze_audio_file
         result = analyze_audio_file(song.source_path)
     except Exception as e:
+        song.analysis_status = "error"
+        db.commit()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"analysis failed: {e}")
 
     song.bpm = result["bpm"]
     song.duration = result["duration"]
+    song.key = result.get("key")
+    song.camelot_key = result.get("camelot_key")
+    song.energy = result.get("energy")
+    song.beat_points = result.get("beat_points", [])
+    # Add IDs to cue points for frontend
+    raw_cues = result.get("cue_points", [])
+    song.cue_points = [
+        {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
+        for i, c in enumerate(raw_cues)
+    ]
+    song.analysis_status = "completed"
     db.commit()
     db.refresh(song)
     return APIResponse(data=LibrarySongData.model_validate(song))
@@ -200,6 +234,8 @@ def separate_stems_endpoint(
     # Check if already separated
     if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
         stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
+        song.stems = stems
+        db.commit()
         return APIResponse(data={"stems": stems})
 
     # Run demucs
@@ -230,4 +266,6 @@ def separate_stems_endpoint(
         )
 
     stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
+    song.stems = stems
+    db.commit()
     return APIResponse(data={"stems": stems})

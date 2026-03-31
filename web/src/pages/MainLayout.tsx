@@ -8,9 +8,11 @@ import SongDetail from '../components/SongDetail'
 import AudioPlayer from '../components/AudioPlayer'
 import UploadModal from '../components/UploadModal'
 import PlaylistImportModal from '../components/PlaylistImportModal'
+import PlatformSearch from '../components/PlatformSearch'
 import RecommendPanel from '../components/RecommendPanel'
 import SessionPanel from '../components/SessionPanel'
 import ProfilePanel from '../components/ProfilePanel'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export default function MainLayout() {
   const { user } = useAuthStore()
@@ -39,6 +41,8 @@ export default function MainLayout() {
 
   const renderMainContent = () => {
     switch (currentView) {
+      case 'platform':
+        return <PlatformSearch />
       case 'recommend':
         return <RecommendPanel />
       case 'session':
@@ -95,7 +99,9 @@ export default function MainLayout() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-        {renderMainContent()}
+        <ErrorBoundary>
+          {renderMainContent()}
+        </ErrorBoundary>
       </div>
 
       {/* Bottom player */}

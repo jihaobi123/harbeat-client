@@ -19,3 +19,6 @@ torch==2.6.0
 torchaudio==2.6.0
 soundfile==0.13.1
 demucs==4.0.1
+
+# === NCM Decryption ===
+pycryptodome==3.23.0

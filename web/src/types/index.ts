@@ -19,8 +19,13 @@ export interface LibrarySong {
   platform_id: string | null
   platform_url: string | null
   bpm: number | null
+  key: string | null
+  camelot_key: string | null
+  energy: number | null
+  analysis_status: string
   beat_points: number[]
   cue_points: CuePoint[]
+  stems: { vocals: string; drums: string; bass: string; other: string } | null
   created_at: string
   updated_at: string
 }

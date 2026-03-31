@@ -24,8 +24,13 @@ class LibrarySongBase(BaseModel):
     platform_id: str | None = None
     platform_url: str | None = None
     bpm: float | None = None
+    key: str | None = None
+    camelot_key: str | None = None
+    energy: float | None = None
+    analysis_status: str = "none"
     beat_points: list[float] = Field(default_factory=list)
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
+    stems: dict | None = None
     created_at: datetime
 
 
@@ -44,8 +49,13 @@ class LibrarySongUpdateRequest(BaseModel):
     platform_id: str | None = None
     platform_url: str | None = None
     bpm: float | None = None
+    key: str | None = None
+    camelot_key: str | None = None
+    energy: float | None = None
+    analysis_status: str | None = None
     beat_points: list[float] | None = None
     cue_points: list[LibraryCuePoint] | None = None
+    stems: dict | None = None
 
 
 class LibrarySongData(LibrarySongBase):

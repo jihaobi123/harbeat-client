@@ -23,8 +23,13 @@ class LibrarySong(Base):
     platform_id: Mapped[str | None] = mapped_column(String(255))
     platform_url: Mapped[str | None] = mapped_column(String(1024))
     bpm: Mapped[float | None] = mapped_column(Float)
+    key: Mapped[str | None] = mapped_column(String(50))
+    camelot_key: Mapped[str | None] = mapped_column(String(10))
+    energy: Mapped[float | None] = mapped_column(Float)
+    analysis_status: Mapped[str] = mapped_column(String(50), default="none", nullable=False)
     beat_points: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
     cue_points: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    stems: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
