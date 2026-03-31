@@ -9,471 +9,377 @@ interface Props {
   onClose: () => void
 }
 
-interface SongItem {
+interface TrackItem {
   key: string
   title: string
   artist: string
+  album: string
   duration: number
-  bpm: number | null
+  selected: boolean
+  fangpiId: string | null
+  fangpiTitle: string | null
+  fangpiArtist: string | null
+  searchStatus: 'pending' | 'found' | 'not-found'
   tags: DanceStyle[]
+  downloadStatus: 'pending' | 'downloading' | 'done' | 'failed'
 }
 
-type SourceTab = 'link' | 'local' | 'platform'
+type Stage = 'parse' | 'select' | 'search' | 'tag' | 'downloading' | 'done'
 
 export default function PlaylistImportModal({ onClose }: Props) {
   const { user } = useAuthStore()
-  const { songs, importPlaylistFromSongs, loadSongs } = useMusicStore()
-  const [tab, setTab] = useState<SourceTab>('link')
+  const { loadSongs, loadPlaylists } = useMusicStore()
+
+  const [stage, setStage] = useState<Stage>('parse')
   const [playlistName, setPlaylistName] = useState('')
-  const [stage, setStage] = useState<'source' | 'downloading' | 'tag'>('source')
-  const [songItems, setSongItems] = useState<SongItem[]>([])
-  const [importing, setImporting] = useState(false)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [statusMessage, setStatusMessage] = useState('')
-
-  // Link tab
   const [linkText, setLinkText] = useState('')
+  const [tracks, setTracks] = useState<TrackItem[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [progress, setProgress] = useState({ current: 0, total: 0, label: '' })
 
-  // Local tab
-  const [searchQ, setSearchQ] = useState('')
-  const [selectedSongIds, setSelectedSongIds] = useState<Set<string>>(new Set())
-
-  // Platform tab (fangpi.net)
-  const [platformQuery, setPlatformQuery] = useState('')
-  const [platformResults, setPlatformResults] = useState<{ id: string; title: string; artist: string; url: string }[]>([])
-
-  // Download results
-  const [downloadResult, setDownloadResult] = useState<{ success: string[]; failed: string[] } | null>(null)
-
-  const filteredSongs = searchQ.trim()
-    ? songs.filter(s => s.title.toLowerCase().includes(searchQ.toLowerCase()) || s.artist.toLowerCase().includes(searchQ.toLowerCase()))
-    : songs
-
-  const addSongs = (items: SongItem[]) => {
-    setSongItems(prev => {
-      const seen = new Set(prev.map(s => `${s.title}||${s.artist}`.toLowerCase()))
-      const additions = items.filter(s => !seen.has(`${s.title}||${s.artist}`.toLowerCase()))
-      return [...prev, ...additions]
-    })
-  }
-
-  const removeSong = (key: string) => {
-    setSongItems(prev => prev.filter(s => s.key !== key))
-  }
-
-  // ── Link tab: parse NetEase / QQ Music playlist URL ──
-  const handleParseLink = async () => {
+  const handleParse = async () => {
     if (!linkText.trim()) return
     setBusy(true)
-    setStatusMessage('')
+    setError('')
     try {
       const result = await api.parsePlaylistUrl(linkText.trim())
       if (result.tracks.length === 0) throw new Error('歌单为空或解析失败')
       if (!playlistName.trim()) setPlaylistName(result.name)
-      addSongs(result.tracks.map((t, i) => ({
-        key: `link-${Date.now()}-${i}`,
+      setTracks(result.tracks.map((t, i) => ({
+        key: `${i}-${t.title}`,
         title: t.title,
         artist: t.artist,
+        album: t.album,
         duration: t.duration,
-        bpm: null,
+        selected: true,
+        fangpiId: null,
+        fangpiTitle: null,
+        fangpiArtist: null,
+        searchStatus: 'pending' as const,
         tags: [],
+        downloadStatus: 'pending' as const,
       })))
-      setStatusMessage(`✅ 已添加 ${result.tracks.length} 首歌曲（${result.platform === 'netease' ? '网易云音乐' : 'QQ音乐'}）`)
-      setLinkText('')
+      setStage('select')
     } catch (e: any) {
-      setStatusMessage(`❌ ${e.message || '解析失败'}`)
+      setError(e.message || '解析失败')
     } finally {
       setBusy(false)
     }
   }
 
-  // ── Local tab: add from library ──
-  const toggleSong = (id: string) => {
-    setSelectedSongIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const toggleTrack = (key: string) => {
+    setTracks(prev => prev.map(t => t.key === key ? { ...t, selected: !t.selected } : t))
+  }
+  const toggleAll = (val: boolean) => {
+    setTracks(prev => prev.map(t => ({ ...t, selected: val })))
   }
 
-  const addSelectedLocal = () => {
-    const selected = songs.filter(s => selectedSongIds.has(s.id))
-    addSongs(selected.map(s => ({
-      key: `local-${s.id}`,
-      title: s.title,
-      artist: s.artist,
-      duration: s.duration,
-      bpm: s.bpm,
-      tags: [],
-    })))
-    setSelectedSongIds(new Set())
-    setStatusMessage(`✅ 已添加 ${selected.length} 首`)
-  }
-
-  // ── Platform tab: search fangpi.net ──
-  const handlePlatformSearch = async () => {
-    if (!platformQuery.trim()) return
+  const handleBatchSearch = async () => {
+    const selected = tracks.filter(t => t.selected)
+    if (selected.length === 0) { setError('请至少选择一首歌曲'); return }
+    if (!playlistName.trim()) { setError('请输入歌单名称'); return }
+    setStage('search')
     setBusy(true)
-    setStatusMessage('')
+    setError('')
+    setProgress({ current: 0, total: selected.length, label: '正在搜索歌曲资源...' })
+
     try {
-      const result = await api.searchFangpi(platformQuery.trim())
-      setPlatformResults(result.songs)
-      if (result.songs.length === 0) setStatusMessage('未找到结果')
+      const result = await api.batchSearchFangpi(
+        selected.map(t => ({ title: t.title, artist: t.artist }))
+      )
+      setTracks(prev => {
+        const updated = [...prev]
+        let resultIdx = 0
+        for (let i = 0; i < updated.length; i++) {
+          if (!updated[i].selected) continue
+          const r = result.results[resultIdx]
+          resultIdx++
+          if (r && r.found && r.candidates.length > 0) {
+            const best = r.candidates[0]
+            updated[i] = { ...updated[i], fangpiId: best.id, fangpiTitle: best.title, fangpiArtist: best.artist, searchStatus: 'found' }
+          } else {
+            updated[i] = { ...updated[i], searchStatus: 'not-found' }
+          }
+        }
+        return updated
+      })
+      setStage('tag')
     } catch (e: any) {
-      setStatusMessage(`❌ ${e.message || '搜索失败'}`)
+      setError(e.message || '搜索失败')
+      setStage('select')
     } finally {
       setBusy(false)
     }
   }
 
-  const addPlatformSong = (song: { id: string; title: string; artist: string }) => {
-    addSongs([{
-      key: `platform-${song.id}`,
-      title: song.title,
-      artist: song.artist,
-      duration: 0,
-      bpm: null,
-      tags: [],
-    }])
-  }
-
-  // ── Download from fangpi.net and then tag ──
-  const startImport = async () => {
-    if (!user || songItems.length === 0 || !playlistName.trim()) return
-    setStage('downloading')
-    setError('')
-
-    const success: string[] = []
-    const failed: string[] = []
-
-    // Step 1: Try to download songs that don't have local files
-    for (const item of songItems) {
-      try {
-        // Search and download from fangpi.net
-        const searchResult = await api.searchFangpi(`${item.title} ${item.artist}`)
-        if (searchResult.songs.length > 0) {
-          const best = searchResult.songs[0]
-          await api.downloadFangpi(best.id, item.title, item.artist)
-          success.push(`${item.title} - ${item.artist}`)
-        } else {
-          failed.push(`${item.title} - ${item.artist}`)
-        }
-      } catch {
-        failed.push(`${item.title} - ${item.artist}`)
-      }
-    }
-
-    setDownloadResult({ success, failed })
-    loadSongs() // refresh library
-    setStage('tag')
-  }
-
-  // ── Save playlist with tags ──
-  const handleSaveTags = async () => {
-    if (!user) return
-    setImporting(true)
-    setError('')
-    try {
-      await importPlaylistFromSongs(
-        user.id,
-        playlistName.trim(),
-        songItems.map(item => ({
-          title: item.title,
-          artist: item.artist,
-          duration: item.duration,
-          bpm: item.bpm ?? undefined,
-          tags: item.tags,
-        }))
-      )
-      onClose()
-    } catch (e: any) {
-      setError(e.message || '导入失败')
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  // ── Quick import without downloading ──
-  const handleQuickImport = async () => {
-    if (!user) return
-    setImporting(true)
-    setError('')
-    try {
-      await importPlaylistFromSongs(
-        user.id,
-        playlistName.trim(),
-        songItems.map(item => ({
-          title: item.title,
-          artist: item.artist,
-          duration: item.duration,
-          bpm: item.bpm ?? undefined,
-          tags: item.tags,
-        }))
-      )
-      onClose()
-    } catch (e: any) {
-      setError(e.message || '导入失败')
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  const toggleTag = (idx: number, tag: DanceStyle) => {
-    setSongItems(prev => prev.map((item, i) => {
-      if (i !== idx) return item
-      const tags = item.tags.includes(tag) ? item.tags.filter(t => t !== tag) : [...item.tags, tag]
-      return { ...item, tags }
+  const toggleTag = (key: string, tag: DanceStyle) => {
+    setTracks(prev => prev.map(t => {
+      if (t.key !== key) return t
+      const tags = t.tags.includes(tag) ? t.tags.filter(x => x !== tag) : [...t.tags, tag]
+      return { ...t, tags }
     }))
   }
 
+  const applyTagToAll = (tag: DanceStyle) => {
+    setTracks(prev => prev.map(t => {
+      if (!t.selected || t.searchStatus !== 'found') return t
+      const tags = t.tags.includes(tag) ? t.tags.filter(x => x !== tag) : [...t.tags, tag]
+      return { ...t, tags }
+    }))
+  }
+
+  const handleDownloadAndSave = async () => {
+    if (!user) return
+    const foundTracks = tracks.filter(t => t.selected && t.searchStatus === 'found' && t.fangpiId)
+    if (foundTracks.length === 0) { setError('没有可下载的歌曲'); return }
+
+    setStage('downloading')
+    setProgress({ current: 0, total: foundTracks.length, label: '' })
+
+    const failed: string[] = []
+    for (let i = 0; i < foundTracks.length; i++) {
+      const t = foundTracks[i]
+      setProgress({ current: i + 1, total: foundTracks.length, label: `${t.title} - ${t.artist}` })
+      setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'downloading' } : x))
+      try {
+        await api.downloadFangpi(t.fangpiId!, t.title, t.artist)
+        setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'done' } : x))
+      } catch {
+        failed.push(t.title)
+        setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'failed' } : x))
+      }
+    }
+
+    await loadSongs()
+    try {
+      const allSelected = tracks.filter(t => t.selected)
+      await useMusicStore.getState().importPlaylistFromSongs(
+        user.id,
+        playlistName.trim(),
+        allSelected.map(item => ({ title: item.title, artist: item.artist, duration: item.duration, tags: item.tags }))
+      )
+    } catch { /* playlist creation failed but downloads done */ }
+    if (user) loadPlaylists(user.id)
+    setStage('done')
+    setError(failed.length > 0 ? `以下歌曲下载失败: ${failed.join(', ')}` : '')
+  }
+
+  const selectedCount = tracks.filter(t => t.selected).length
+  const foundCount = tracks.filter(t => t.selected && t.searchStatus === 'found').length
+  const notFoundCount = tracks.filter(t => t.selected && t.searchStatus === 'not-found').length
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-surface-light rounded-2xl w-full max-w-[760px] mx-4 max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface-light rounded-2xl w-full max-w-[800px] mx-4 max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <span className="text-lg">📋</span>
             <h2 className="text-base font-semibold text-white">
-              {stage === 'downloading' ? '下载歌曲中...' : stage === 'tag' ? '设置风格标签' : '导入歌单'}
+              {stage === 'parse' && '导入歌单'}
+              {stage === 'select' && '选择歌曲'}
+              {stage === 'search' && '搜索音源中...'}
+              {stage === 'tag' && '设置标签并下载'}
+              {stage === 'downloading' && '下载中...'}
+              {stage === 'done' && '导入完成'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl transition">×</button>
+          <div className="flex items-center gap-1.5">
+            {['解析', '选曲', '标签', '下载'].map((label, i) => (
+              <div key={label} className="flex items-center gap-1">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium transition ${
+                  i <= ['parse', 'select', 'tag', 'downloading', 'done'].indexOf(stage) ? 'bg-primary text-white' : 'bg-gray-700 text-gray-500'
+                }`}>{i + 1}</div>
+                <span className={`text-[10px] ${i <= ['parse', 'select', 'tag', 'downloading', 'done'].indexOf(stage) ? 'text-gray-300' : 'text-gray-600'}`}>{label}</span>
+                {i < 3 && <span className="text-gray-700 mx-0.5">›</span>}
+              </div>
+            ))}
+            <button onClick={onClose} className="text-gray-500 hover:text-white text-xl ml-3 transition">×</button>
+          </div>
         </div>
 
-        {stage === 'downloading' ? (
-          <div className="px-8 py-12 flex flex-col items-center">
-            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-white">正在从 fangpi.net 匹配下载歌曲...</p>
-            <p className="text-xs text-gray-500 mt-2">下载完成后可以设置舞种标签</p>
-          </div>
-        ) : stage === 'tag' ? (
-          <>
-            {/* Tag assignment stage */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
-              {downloadResult && downloadResult.failed.length > 0 && (
-                <div className="mb-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-xs text-yellow-400">
-                  以下歌曲未找到音源: {downloadResult.failed.join(' / ')}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {stage === 'parse' && (
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">歌单名称</label>
+                <input type="text" placeholder="自动从链接获取，或手动输入" value={playlistName}
+                  onChange={e => setPlaylistName(e.target.value)}
+                  className="w-full bg-surface rounded-lg px-4 py-2 text-white border border-gray-600 focus:border-primary focus:outline-none text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">歌单链接</label>
+                <div className="flex gap-2">
+                  <input value={linkText} onChange={e => setLinkText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleParse()}
+                    placeholder="粘贴网易云音乐 / QQ音乐歌单链接..."
+                    className="flex-1 bg-surface rounded-lg px-3 py-2.5 text-white border border-gray-600 focus:border-primary focus:outline-none text-sm" />
+                  <button onClick={handleParse} disabled={busy || !linkText.trim()}
+                    className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 text-white px-5 py-2.5 rounded-lg text-sm transition whitespace-nowrap">
+                    {busy ? '解析中...' : '解析歌单'}
+                  </button>
                 </div>
-              )}
-              <p className="text-xs text-gray-500 mb-3">为歌单中的歌曲设置舞蹈风格标签（可选）</p>
-              <div className="space-y-3">
-                {songItems.map((item, idx) => (
-                  <div key={item.key} className="bg-surface rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-white">{item.title}</span>
-                      <span className="text-xs text-gray-500">- {item.artist}</span>
+                <p className="text-xs text-gray-600 mt-1.5">支持：music.163.com / y.qq.com 歌单链接</p>
+              </div>
+            </div>
+          )}
+
+          {stage === 'select' && (
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-300">
+                  共 <span className="text-white font-medium">{tracks.length}</span> 首，
+                  已选 <span className="text-primary font-medium">{selectedCount}</span> 首
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => toggleAll(true)} className="text-xs text-gray-400 hover:text-white transition">全选</button>
+                  <button onClick={() => toggleAll(false)} className="text-xs text-gray-400 hover:text-white transition">全不选</button>
+                </div>
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto border border-gray-700 rounded-lg divide-y divide-gray-700/50">
+                {tracks.map((t, idx) => (
+                  <label key={t.key} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-lighter cursor-pointer transition">
+                    <input type="checkbox" checked={t.selected} onChange={() => toggleTrack(t.key)} className="accent-primary w-4 h-4" />
+                    <span className="text-xs text-gray-600 w-6">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{t.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{t.artist}{t.album ? ` · ${t.album}` : ''}</p>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {DANCE_STYLES.map(style => (
-                        <button
-                          key={style}
-                          onClick={() => toggleTag(idx, style)}
-                          className="px-2 py-0.5 rounded text-xs transition"
-                          style={{
-                            backgroundColor: item.tags.includes(style) ? DANCE_STYLE_COLORS[style] + '30' : 'transparent',
-                            color: item.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
-                            border: `1px solid ${item.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
-                          }}
-                        >
-                          {DANCE_STYLE_LABELS[style]}
-                        </button>
-                      ))}
+                    {t.duration > 0 && (
+                      <span className="text-xs text-gray-600 tabular-nums">{Math.floor(t.duration / 60)}:{String(t.duration % 60).padStart(2, '0')}</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stage === 'search' && (
+            <div className="px-8 py-16 flex flex-col items-center">
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-white">正在搜索 fangpi.net 音源...</p>
+              <p className="text-xs text-gray-500 mt-2">共 {progress.total} 首歌曲，请耐心等待</p>
+            </div>
+          )}
+
+          {stage === 'tag' && (
+            <div className="p-5 space-y-3">
+              <div className="flex gap-3">
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-400 flex-1">
+                  ✅ 找到音源: {foundCount} 首
+                </div>
+                {notFoundCount > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 text-xs text-yellow-400 flex-1">
+                    ⚠️ 未找到: {notFoundCount} 首
+                  </div>
+                )}
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">批量设置标签（应用到所有找到音源的歌曲）</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {DANCE_STYLES.map(style => (
+                    <button key={style} onClick={() => applyTagToAll(style)}
+                      className="px-2.5 py-1 rounded text-xs transition border"
+                      style={{ borderColor: DANCE_STYLE_COLORS[style] + '60', color: DANCE_STYLE_COLORS[style] }}>
+                      {DANCE_STYLE_LABELS[style]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="max-h-[40vh] overflow-y-auto space-y-2">
+                {tracks.filter(t => t.selected).map(t => (
+                  <div key={t.key} className={`rounded-lg p-3 ${t.searchStatus === 'found' ? 'bg-surface' : 'bg-surface opacity-60'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${t.searchStatus === 'found' ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                      <span className="text-sm text-white truncate">{t.title}</span>
+                      <span className="text-xs text-gray-500">- {t.artist}</span>
+                      {t.searchStatus === 'not-found' && <span className="text-xs text-yellow-500 ml-auto">未找到音源</span>}
                     </div>
+                    {t.searchStatus === 'found' && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {DANCE_STYLES.map(style => (
+                          <button key={style} onClick={() => toggleTag(t.key, style)}
+                            className="px-2 py-0.5 rounded text-[10px] transition"
+                            style={{
+                              backgroundColor: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] + '30' : 'transparent',
+                              color: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
+                              border: `1px solid ${t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
+                            }}>
+                            {DANCE_STYLE_LABELS[style]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-            {error && <div className="px-5 text-sm text-red-400">{error}</div>}
-            <div className="px-5 py-4 border-t border-gray-700 flex justify-between">
-              <button onClick={() => setStage('source')} className="text-gray-400 hover:text-white text-sm transition">← 返回</button>
-              <button
-                onClick={handleSaveTags}
-                disabled={importing}
-                className="bg-primary hover:bg-primary-dark disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm transition"
-              >
-                {importing ? '保存中...' : `保存歌单 (${songItems.length} 首)`}
+          )}
+
+          {stage === 'downloading' && (
+            <div className="p-5 space-y-3">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-white text-sm">下载中 {progress.current}/{progress.total}</p>
+              </div>
+              <p className="text-xs text-gray-400 truncate">{progress.label}</p>
+              <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }} />
+              </div>
+              <div className="max-h-[40vh] overflow-y-auto space-y-1 mt-3">
+                {tracks.filter(t => t.selected && t.searchStatus === 'found').map(t => (
+                  <div key={t.key} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                    {t.downloadStatus === 'done' && <span className="text-green-400">✓</span>}
+                    {t.downloadStatus === 'downloading' && <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+                    {t.downloadStatus === 'failed' && <span className="text-red-400">✕</span>}
+                    {t.downloadStatus === 'pending' && <span className="text-gray-600">○</span>}
+                    <span className="text-gray-300 truncate">{t.title} - {t.artist}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stage === 'done' && (
+            <div className="px-8 py-12 flex flex-col items-center">
+              <div className="text-4xl mb-4">✅</div>
+              <p className="text-lg text-white font-medium mb-2">导入完成！</p>
+              <p className="text-sm text-gray-400">歌单「{playlistName}」已创建</p>
+              {error && <p className="text-xs text-yellow-400 mt-3 text-center max-w-md">{error}</p>}
+            </div>
+          )}
+        </div>
+
+        {error && stage !== 'done' && <div className="px-5 pb-2 text-sm text-red-400">{error}</div>}
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-gray-700 flex justify-between">
+          {stage === 'parse' && <><span /><button onClick={onClose} className="text-gray-400 hover:text-white text-sm transition">取消</button></>}
+          {stage === 'select' && (
+            <>
+              <button onClick={() => setStage('parse')} className="text-gray-400 hover:text-white text-sm transition">← 返回</button>
+              <button onClick={handleBatchSearch} disabled={selectedCount === 0 || busy}
+                className="bg-primary hover:bg-primary-dark disabled:opacity-40 text-white px-5 py-2 rounded-lg text-sm transition">
+                搜索音源 ({selectedCount} 首)
               </button>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Source selection stage */}
-            <div className="px-5 pt-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-              {/* Playlist name */}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">歌单名称</label>
-                <input
-                  type="text"
-                  placeholder="例如: 练习用歌单"
-                  value={playlistName}
-                  onChange={e => setPlaylistName(e.target.value)}
-                  className="w-full bg-surface rounded-lg px-4 py-2 text-white border border-gray-600 focus:border-primary focus:outline-none text-sm"
-                />
-              </div>
-
-              {/* Tabs: Link / Local / Platform */}
-              <div className="flex gap-1 bg-surface rounded-lg p-1">
-                <button onClick={() => setTab('link')} className={`flex-1 py-2 text-xs rounded-md transition ${tab === 'link' ? 'bg-primary/20 text-primary' : 'text-gray-400 hover:text-white'}`}>
-                  🔗 歌单链接
-                </button>
-                <button onClick={() => setTab('local')} className={`flex-1 py-2 text-xs rounded-md transition ${tab === 'local' ? 'bg-primary/20 text-primary' : 'text-gray-400 hover:text-white'}`}>
-                  📁 从本地库
-                </button>
-                <button onClick={() => setTab('platform')} className={`flex-1 py-2 text-xs rounded-md transition ${tab === 'platform' ? 'bg-primary/20 text-primary' : 'text-gray-400 hover:text-white'}`}>
-                  🔍 搜索下载
-                </button>
-              </div>
-
-              {/* Link tab */}
-              {tab === 'link' && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">粘贴网易云音乐或QQ音乐歌单链接，自动解析歌曲列表</p>
-                  <div className="flex gap-2">
-                    <input
-                      value={linkText}
-                      onChange={e => setLinkText(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleParseLink()}
-                      placeholder="粘贴歌单链接..."
-                      className="flex-1 bg-surface rounded-lg px-3 py-2 text-white border border-gray-600 focus:border-primary focus:outline-none text-sm"
-                    />
-                    <button
-                      onClick={handleParseLink}
-                      disabled={busy || !linkText.trim()}
-                      className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-sm transition"
-                    >
-                      {busy ? '解析中...' : '解析'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    支持：music.163.com / y.qq.com / i.y.qq.com 歌单链接
-                  </p>
-                </div>
-              )}
-
-              {/* Local tab */}
-              {tab === 'local' && (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="搜索本地歌曲..."
-                    value={searchQ}
-                    onChange={e => setSearchQ(e.target.value)}
-                    className="w-full bg-surface rounded-lg px-3 py-1.5 text-white border border-gray-600 focus:border-primary focus:outline-none text-xs"
-                  />
-                  <div className="max-h-[200px] overflow-y-auto border border-gray-700 rounded-lg divide-y divide-gray-700/50">
-                    {filteredSongs.map(s => (
-                      <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-surface-lighter cursor-pointer transition">
-                        <input type="checkbox" checked={selectedSongIds.has(s.id)} onChange={() => toggleSong(s.id)} className="accent-primary" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-white truncate">{s.title}</div>
-                          <div className="text-xs text-gray-500 truncate">{s.artist}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                  {selectedSongIds.size > 0 && (
-                    <button onClick={addSelectedLocal} className="bg-primary/20 text-primary px-3 py-1.5 rounded-lg text-xs hover:bg-primary/30 transition">
-                      添加选中的 {selectedSongIds.size} 首
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Platform tab: fangpi.net search */}
-              {tab === 'platform' && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">搜索 fangpi.net 歌曲，歌曲会下载到本地音乐库</p>
-                  <div className="flex gap-2">
-                    <input
-                      value={platformQuery}
-                      onChange={e => setPlatformQuery(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handlePlatformSearch()}
-                      placeholder="搜索歌曲名称或艺术家..."
-                      className="flex-1 bg-surface rounded-lg px-3 py-2 text-white border border-gray-600 focus:border-primary focus:outline-none text-sm"
-                    />
-                    <button
-                      onClick={handlePlatformSearch}
-                      disabled={busy || !platformQuery.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-sm transition"
-                    >
-                      {busy ? '搜索中...' : '搜索'}
-                    </button>
-                  </div>
-                  <div className="max-h-[200px] overflow-y-auto border border-gray-700 rounded-lg divide-y divide-gray-700/50">
-                    {platformResults.map(s => (
-                      <button
-                        key={s.id}
-                        onClick={() => addPlatformSong(s)}
-                        className="w-full text-left px-3 py-2 hover:bg-surface-lighter transition"
-                      >
-                        <p className="text-sm text-white truncate">{s.title}</p>
-                        <p className="text-xs text-gray-500 truncate">{s.artist}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Status */}
-              {statusMessage && (
-                <div className="text-xs text-gray-300 bg-surface rounded-lg px-3 py-2">{statusMessage}</div>
-              )}
-
-              {/* Current song list */}
-              {songItems.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-1.5">歌单歌曲 ({songItems.length} 首)</p>
-                  <div className="max-h-[200px] overflow-y-auto border border-gray-700 rounded-lg divide-y divide-gray-700/50">
-                    {songItems.map(item => (
-                      <div key={item.key} className="flex items-center gap-3 px-3 py-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white truncate">{item.title}</p>
-                          <p className="text-xs text-gray-500 truncate">{item.artist}</p>
-                        </div>
-                        <button onClick={() => removeSong(item.key)} className="p-1 text-gray-600 hover:text-red-400 transition">×</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {error && <div className="px-5 text-sm text-red-400">{error}</div>}
-
-            {/* Footer */}
-            <div className="px-5 py-4 border-t border-gray-700 flex justify-between">
-              <p className="text-xs text-gray-500 self-center">
-                支持网易云/QQ音乐歌单链接、本地库、fangpi.net搜索
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (!playlistName.trim()) { setError('请输入歌单名称'); return }
-                    if (songItems.length === 0) { setError('请至少添加一首歌曲'); return }
-                    setError('')
-                    setStage('tag')
-                  }}
-                  className="bg-surface hover:bg-surface-lighter text-gray-300 px-4 py-2 rounded-lg text-sm border border-gray-600 transition"
-                >
-                  直接设置标签
-                </button>
-                <button
-                  onClick={() => {
-                    if (!playlistName.trim()) { setError('请输入歌单名称'); return }
-                    if (songItems.length === 0) { setError('请至少添加一首歌曲'); return }
-                    setError('')
-                    startImport()
-                  }}
-                  className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm transition"
-                >
-                  下载并导入
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+          {stage === 'tag' && (
+            <>
+              <button onClick={() => setStage('select')} className="text-gray-400 hover:text-white text-sm transition">← 返回选择</button>
+              <button onClick={handleDownloadAndSave} disabled={foundCount === 0}
+                className="bg-primary hover:bg-primary-dark disabled:opacity-40 text-white px-5 py-2 rounded-lg text-sm transition">
+                下载并创建歌单 ({foundCount} 首)
+              </button>
+            </>
+          )}
+          {stage === 'done' && (
+            <><span /><button onClick={onClose} className="bg-primary hover:bg-primary-dark text-white px-5 py-2 rounded-lg text-sm transition">完成</button></>
+          )}
+        </div>
       </div>
     </div>
   )

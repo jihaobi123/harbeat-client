@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
+import * as api from '../api/client'
 
 export type NavView = 'library' | 'platform' | 'recommend' | 'session' | 'profile'
 
@@ -18,7 +20,19 @@ const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
 
 export default function Sidebar({ currentView, onViewChange }: Props) {
   const { user, doLogout } = useAuthStore()
-  const { playlists, playlistsLoading, selectPlaylist, selectedPlaylist, clearSelectedPlaylist, deletePlaylist, loadSongs } = useMusicStore()
+  const { playlists, playlistsLoading, selectPlaylist, selectedPlaylist, clearSelectedPlaylist, deletePlaylist, loadSongs, loadPlaylists } = useMusicStore()
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false)
+  const [newPlaylistName, setNewPlaylistName] = useState('')
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return
+    try {
+      await api.createPlaylist(newPlaylistName.trim())
+      if (user) loadPlaylists(user.id)
+    } catch { /* ignore */ }
+    setNewPlaylistName('')
+    setCreatingPlaylist(false)
+  }
 
   return (
     <div className="w-56 bg-surface-light border-r border-gray-700 flex flex-col shrink-0 overflow-hidden">
@@ -44,7 +58,31 @@ export default function Sidebar({ currentView, onViewChange }: Props) {
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">歌单</h3>
+          <button
+            className="text-gray-500 hover:text-primary text-lg leading-none transition"
+            onClick={() => setCreatingPlaylist(true)}
+            title="新建歌单"
+          >
+            +
+          </button>
         </div>
+        {creatingPlaylist && (
+          <div className="flex gap-1 mb-2">
+            <input
+              autoFocus
+              className="flex-1 bg-surface-lighter text-white text-xs px-2 py-1 rounded border border-gray-600 focus:border-primary outline-none"
+              placeholder="歌单名称"
+              value={newPlaylistName}
+              onChange={(e) => setNewPlaylistName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreatePlaylist()
+                if (e.key === 'Escape') setCreatingPlaylist(false)
+              }}
+            />
+            <button className="text-xs text-primary hover:text-white transition" onClick={handleCreatePlaylist}>✓</button>
+            <button className="text-xs text-gray-500 hover:text-white transition" onClick={() => setCreatingPlaylist(false)}>✕</button>
+          </div>
+        )}
         {playlistsLoading ? (
           <div className="text-xs text-gray-500 px-3">加载中...</div>
         ) : playlists.length === 0 ? (

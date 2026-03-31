@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
+from app.modules.auth.dependencies import get_current_user
+from app.modules.users.models import User
 from app.modules.playlists.schemas import (
     PlaylistDetailData,
     PlaylistImportData,
@@ -11,6 +14,8 @@ from app.modules.playlists.schemas import (
     PlaylistSongTagUpdateRequest,
 )
 from app.modules.playlists.service import (
+    create_empty_playlist,
+    add_library_songs_to_playlist,
     delete_playlist,
     get_playlist_detail,
     import_playlist,
@@ -19,6 +24,14 @@ from app.modules.playlists.service import (
 )
 
 router = APIRouter()
+
+
+class CreatePlaylistRequest(BaseModel):
+    name: str
+
+
+class AddSongsRequest(BaseModel):
+    library_song_ids: list[str]
 
 
 @router.post("/import", response_model=APIResponse[PlaylistImportData])
@@ -58,3 +71,29 @@ def update_playlist_song_tags_endpoint(
 ):
     update_playlist_song_tags(db, playlist_id, song_id, payload.tags)
     return APIResponse(data={"success": True})
+
+
+@router.post("/create", response_model=APIResponse[dict])
+def create_playlist_endpoint(
+    payload: CreatePlaylistRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create an empty playlist."""
+    playlist = create_empty_playlist(db, current_user.id, payload.name)
+    return APIResponse(data={
+        "id": playlist.id,
+        "playlist_name": playlist.playlist_name,
+    })
+
+
+@router.post("/{playlist_id}/add-songs", response_model=APIResponse[dict])
+def add_songs_to_playlist_endpoint(
+    playlist_id: int,
+    payload: AddSongsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add library songs to a playlist."""
+    count = add_library_songs_to_playlist(db, playlist_id, current_user.id, payload.library_song_ids)
+    return APIResponse(data={"added": count})

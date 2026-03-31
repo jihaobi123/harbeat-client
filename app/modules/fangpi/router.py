@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
-from app.modules.fangpi.service import download_fangpi_song, search_fangpi
+from app.modules.fangpi.service import download_fangpi_song, search_fangpi, smart_search_fangpi
 from app.modules.fangpi.playlist_parser import parse_playlist_url
 from app.modules.library.schemas import LibrarySongCreateRequest, LibrarySongData
 from app.modules.library.service import create_or_replace_library_song
@@ -93,3 +93,27 @@ async def parse_playlist_endpoint(payload: ParsePlaylistRequest):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return APIResponse(data=result)
+
+
+class BatchSearchItem(BaseModel):
+    title: str
+    artist: str
+
+
+class BatchSearchRequest(BaseModel):
+    songs: list[BatchSearchItem]
+
+
+@router.post("/batch-search")
+async def fangpi_batch_search(payload: BatchSearchRequest):
+    """Search fangpi for multiple songs. Returns {results: [{title, artist, found: bool, candidates: [...]}]}."""
+    results = []
+    for item in payload.songs:
+        candidates = await smart_search_fangpi(item.title, item.artist)
+        results.append({
+            "title": item.title,
+            "artist": item.artist,
+            "found": len(candidates) > 0,
+            "candidates": candidates[:5],  # Top 5 per song
+        })
+    return APIResponse(data={"results": results})

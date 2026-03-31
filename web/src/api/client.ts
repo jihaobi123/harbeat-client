@@ -225,6 +225,30 @@ export async function parsePlaylistUrl(url: string) {
   )
 }
 
+export async function batchSearchFangpi(songs: { title: string; artist: string }[]) {
+  return request<{
+    results: {
+      title: string; artist: string; found: boolean;
+      candidates: { id: string; title: string; artist: string; url: string }[]
+    }[]
+  }>(
+    '/api/fangpi/batch-search', { method: 'POST', body: JSON.stringify({ songs }) }
+  )
+}
+
+// ---- Playlists (create / add songs) ----
+export async function createPlaylist(name: string) {
+  return request<{ id: number; playlist_name: string }>(
+    '/api/playlists/create', { method: 'POST', body: JSON.stringify({ name }) }
+  )
+}
+
+export async function addSongsToPlaylist(playlistId: number, librarySongIds: string[]) {
+  return request<{ added: number }>(
+    `/api/playlists/${playlistId}/add-songs`, { method: 'POST', body: JSON.stringify({ library_song_ids: librarySongIds }) }
+  )
+}
+
 // ---- Stem Separation ----
 export async function separateStems(songId: string) {
   return request<{ stems: { vocals: string; drums: string; bass: string; other: string } }>(

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.playlists.models import Playlist, PlaylistSong, Song
 from app.modules.playlists.models import SongTag
+from app.modules.library.models import LibrarySong
 from app.modules.playlists.schemas import (
     PlaylistDetailData,
     PlaylistImportRequest,
@@ -165,3 +166,77 @@ def update_playlist_song_tags(db: Session, playlist_id: int, song_id: int, tags:
         db.add(tag)
     tag.style = ",".join(tags) if tags else None
     db.commit()
+
+
+def create_empty_playlist(db: Session, user_id: int, name: str) -> Playlist:
+    """Create an empty playlist."""
+    playlist = Playlist(
+        user_id=user_id,
+        playlist_name=name,
+        source_type="manual",
+    )
+    db.add(playlist)
+    db.commit()
+    db.refresh(playlist)
+    return playlist
+
+
+def add_library_songs_to_playlist(
+    db: Session, playlist_id: int, user_id: int, library_song_ids: list[str]
+) -> int:
+    """Add library songs to a playlist. Returns the count of newly added songs."""
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
+    if playlist.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your playlist")
+
+    # Get current max order_index
+    max_order = (
+        db.query(PlaylistSong.order_index)
+        .filter(PlaylistSong.playlist_id == playlist_id)
+        .order_by(PlaylistSong.order_index.desc())
+        .first()
+    )
+    next_order = (max_order[0] + 1) if max_order else 0
+
+    added = 0
+    for lib_song_id in library_song_ids:
+        lib_song = db.get(LibrarySong, lib_song_id)
+        if not lib_song or lib_song.user_id != user_id:
+            continue
+
+        # Get or create the Song record
+        song = (
+            db.query(Song)
+            .filter(Song.title == lib_song.title, Song.artist == lib_song.artist)
+            .first()
+        )
+        if not song:
+            song = Song(
+                title=lib_song.title,
+                artist=lib_song.artist,
+                duration=lib_song.duration,
+            )
+            db.add(song)
+            db.flush()
+
+        # Check for duplicate
+        existing = (
+            db.query(PlaylistSong)
+            .filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song.id)
+            .first()
+        )
+        if existing:
+            continue
+
+        db.add(PlaylistSong(
+            playlist_id=playlist_id,
+            song_id=song.id,
+            order_index=next_order,
+        ))
+        next_order += 1
+        added += 1
+
+    db.commit()
+    return added

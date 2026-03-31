@@ -19,13 +19,29 @@ async def search_fangpi(query: str) -> list[dict]:
     """Search songs on fangpi.net by keyword. Returns list of {id, title, artist, url}."""
     if not query.strip():
         return []
-    encoded = urllib.parse.quote(query.strip())
-    url = f"https://www.fangpi.net/s/{encoded}"
+    # Use httpx params to avoid encoding issues; fangpi accepts path segments
+    search_url = f"https://www.fangpi.net/s/{urllib.parse.quote(query.strip())}"
 
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
-        resp = await client.get(url, headers=_HEADERS)
-        resp.raise_for_status()
-        html = resp.text
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+            resp = await client.get(search_url, headers=_HEADERS)
+            resp.raise_for_status()
+            html = resp.text
+    except httpx.HTTPStatusError:
+        # Try alternative approach: use the search form endpoint
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=20) as client:
+                resp = await client.get(
+                    "https://www.fangpi.net/s",
+                    params={"keyword": query.strip()},
+                    headers=_HEADERS,
+                )
+                resp.raise_for_status()
+                html = resp.text
+        except Exception:
+            return []
+    except Exception:
+        return []
 
     return _parse_search_results(html)
 
@@ -70,6 +86,32 @@ def _decode_html(s: str) -> str:
         .replace("&quot;", '"')
         .replace("&#039;", "'")
     )
+
+
+async def smart_search_fangpi(title: str, artist: str) -> list[dict]:
+    """Search fangpi with multiple strategies to maximize match rate.
+
+    Tries: 1) "title artist"  2) title only  3) artist only (if title has no results)
+    """
+    # Strategy 1: title + artist combined
+    query1 = f"{title} {artist}".strip()
+    results = await search_fangpi(query1)
+    if results:
+        return results
+
+    # Strategy 2: title only
+    results = await search_fangpi(title.strip())
+    if results:
+        return results
+
+    # Strategy 3: simplified title (remove parenthetical content)
+    simple_title = re.sub(r"[（(].*?[)）]", "", title).strip()
+    if simple_title and simple_title != title.strip():
+        results = await search_fangpi(simple_title)
+        if results:
+            return results
+
+    return []
 
 
 async def get_fangpi_audio_url(music_id: str) -> str:
