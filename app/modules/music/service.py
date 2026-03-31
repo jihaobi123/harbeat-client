@@ -39,6 +39,18 @@ def list_songs(db: Session) -> list[SongData]:
     return [serialize_song(song) for song in songs]
 
 
+def search_songs(db: Session, query: str) -> list[SongData]:
+    pattern = f"%{query}%"
+    songs = (
+        db.query(Song)
+        .filter((Song.title.ilike(pattern)) | (Song.artist.ilike(pattern)))
+        .order_by(Song.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [serialize_song(song) for song in songs]
+
+
 def get_song_or_404(db: Session, song_id: int) -> Song:
     song = db.query(Song).filter(Song.id == song_id).first()
     if not song:

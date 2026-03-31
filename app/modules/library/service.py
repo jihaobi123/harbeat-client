@@ -16,6 +16,20 @@ def list_library_songs(db: Session, user_id: int) -> list[LibrarySong]:
     )
 
 
+def search_library_songs(db: Session, user_id: int, query: str) -> list[LibrarySong]:
+    pattern = f"%{query}%"
+    return (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            (LibrarySong.title.ilike(pattern)) | (LibrarySong.artist.ilike(pattern)),
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+
 def create_or_replace_library_song(
     db: Session,
     payload: LibrarySongCreateRequest,

@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: street-dance-api
+    container_name: harbeat-api
     env_file:
       - .env
     ports:
@@ -9,14 +9,16 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - music_data:/app/data/music-files
 
   postgres:
     image: postgres:16
-    container_name: street-dance-postgres
+    container_name: harbeat-postgres
     environment:
-      POSTGRES_DB: street_dance
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rhythm_prism
+      POSTGRES_USER: harbeat
+      POSTGRES_PASSWORD: Hb12345678
     ports:
       - "5432:5432"
     volumes:
@@ -24,13 +26,13 @@ services:
 
   redis:
     image: redis:7
-    container_name: street-dance-redis
+    container_name: harbeat-redis
     ports:
       - "6379:6379"
 
   nginx:
     image: nginx:1.27
-    container_name: street-dance-nginx
+    container_name: harbeat-nginx
     ports:
       - "80:80"
     depends_on:
@@ -40,6 +42,7 @@ services:
 
 volumes:
   postgres_data:
+  music_data:
 
 
 

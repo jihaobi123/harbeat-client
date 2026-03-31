@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.modules import models  # noqa: F401
 from app.modules.router import api_router
@@ -28,6 +30,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(api_router)
+
+# Serve the web frontend (built into web/dist)
+_web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+if _web_dist.is_dir():
+    app.mount("/", StaticFiles(directory=str(_web_dist), html=True), name="web")
 
 
 @app.exception_handler(HTTPException)

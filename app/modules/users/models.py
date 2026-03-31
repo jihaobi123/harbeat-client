@@ -14,6 +14,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     dance_style: Mapped[str] = mapped_column(String(100), nullable=False)
     level: Mapped[str] = mapped_column(String(50), nullable=False)
     favorite_style: Mapped[str] = mapped_column(String(100), nullable=False)

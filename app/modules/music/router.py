@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.modules.music.schemas import CueCreateRequest, CueData, SongData, SongListData, SongTagUpdateRequest
-from app.modules.music.service import create_cue, get_song_or_404, list_cues, list_songs, serialize_song, update_song_tags
+from app.modules.music.service import create_cue, get_song_or_404, list_cues, list_songs, search_songs, serialize_song, update_song_tags
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
 
@@ -12,6 +12,11 @@ router = APIRouter()
 @router.get("/songs", response_model=APIResponse[SongListData])
 def list_songs_endpoint(db: Session = Depends(get_db)):
     return APIResponse(data=SongListData(songs=list_songs(db)))
+
+
+@router.get("/songs/search", response_model=APIResponse[SongListData])
+def search_songs_endpoint(q: str = Query("", min_length=1), db: Session = Depends(get_db)):
+    return APIResponse(data=SongListData(songs=search_songs(db, q)))
 
 
 @router.get("/songs/{song_id}", response_model=APIResponse[SongData])

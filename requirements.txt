@@ -5,6 +5,13 @@ sqlalchemy==2.0.43
 psycopg2-binary==2.9.11
 redis==6.4.0
 pydantic-settings==2.10.1
+PyJWT==2.9.0
+python-multipart==0.0.20
+httpx==0.28.1
+
+# === Audio Analysis ===
+librosa==0.10.2.post1
+numpy<2
 
 # === Stem Separation (demucs) ===
 # Pin torch/torchaudio to 2.6.x to avoid torchcodec/FFmpeg DLL issues on Windows
