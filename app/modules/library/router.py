@@ -159,7 +159,7 @@ def delete_library_song_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    delete_library_song(db, song_id)
+    delete_library_song(db, song_id, current_user.id)
     return APIResponse(data={"success": True})
 
 

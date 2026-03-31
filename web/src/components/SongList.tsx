@@ -18,7 +18,7 @@ function formatSize(bytes: number): string {
 }
 
 function SongRow({ song }: { song: LibrarySong }) {
-  const { selectSong, selectedSong, playSong, playingSong, playlists, loadPlaylists } = useMusicStore()
+  const { selectSong, selectedSong, playSong, playingSong, playlists, loadPlaylists, deleteSong } = useMusicStore()
   const { user } = useAuthStore()
   const isSelected = selectedSong?.id === song.id
   const isPlaying = playingSong?.id === song.id
@@ -60,6 +60,11 @@ function SongRow({ song }: { song: LibrarySong }) {
       if (user) loadPlaylists(user.id)
     } catch { /* ignore */ }
     setShowMenu(false)
+  }
+
+  const handleDeleteSong = async () => {
+    if (!confirm(`确定删除「${song.title}」？此操作不可恢复。`)) return
+    await deleteSong(song.id)
   }
 
   return (
@@ -127,6 +132,13 @@ function SongRow({ song }: { song: LibrarySong }) {
         className="fixed z-50 bg-surface border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px]"
         style={{ left: menuPos.x, top: menuPos.y }}
       >
+        <button
+          className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/15 hover:text-red-300 transition"
+          onClick={() => { setShowMenu(false); handleDeleteSong() }}
+        >
+          🗑 删除歌曲
+        </button>
+        <div className="border-t border-gray-700 my-1" />
         <div className="px-3 py-1.5 text-xs text-gray-500">添加到歌单</div>
         {playlists.map((pl) => (
           <button
