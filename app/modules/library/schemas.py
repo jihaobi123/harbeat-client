@@ -31,6 +31,7 @@ class LibrarySongBase(BaseModel):
     beat_points: list[float] = Field(default_factory=list)
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
     stems: dict | None = None
+    song_id: int | None = None
     created_at: datetime
 
 

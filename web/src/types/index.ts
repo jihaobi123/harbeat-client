@@ -91,6 +91,7 @@ export interface RecommendedSong {
   song_id: number
   title: string
   artist: string
+  in_library: boolean
 }
 
 export interface UserProfile {
@@ -98,7 +99,6 @@ export interface UserProfile {
   avg_bpm_preference: number | null
   energy_preference: string | null
   vocal_preference: string | null
-  era_preference: string | null
   groove_preference: string | null
 }
 

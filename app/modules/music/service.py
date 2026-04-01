@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.modules.music.models import SongCue
-from app.modules.music.schemas import CueCreateRequest, SongData, SongTagUpdateRequest
+from app.modules.music.schemas import CueCreateRequest, SongData, SongTagUpdateRequest, UpsertSongRequest
 from app.modules.playlists.models import Song, SongTag
 from app.modules.users.service import get_user_or_404
 
@@ -73,6 +73,41 @@ def update_song_tags(db: Session, song_id: int, payload: SongTagUpdateRequest) -
     for key in ("bpm", "energy", "style", "vocal_type", "era_tag", "groove_tag", "difficulty_fit"):
         if values.get(key) is not None:
             setattr(tag, key, values[key])
+
+    db.commit()
+    db.refresh(song)
+    return serialize_song(song)
+
+
+def upsert_song_with_tags(db: Session, payload: UpsertSongRequest) -> SongData:
+    """Find or create a Song by (title, artist) and accumulate tags from all users."""
+    song = db.query(Song).filter(Song.title == payload.title, Song.artist == payload.artist).first()
+    if song is None:
+        song = Song(title=payload.title, artist=payload.artist)
+        db.add(song)
+        db.flush()
+
+    tag = song.tags
+    if tag is None:
+        tag = SongTag(song_id=song.id)
+        db.add(tag)
+        db.flush()
+
+    # Accumulate tags (union with existing) instead of replacing
+    if payload.tags:
+        existing_styles = {t.strip() for t in (tag.style or "").split(",") if t.strip()}
+        existing_styles.update(payload.tags)
+        tag.style = ",".join(sorted(existing_styles))
+    if payload.energy:
+        existing_energy = {e.strip() for e in (tag.energy or "").split(",") if e.strip()}
+        existing_energy.update(payload.energy)
+        tag.energy = ",".join(sorted(existing_energy))
+    if payload.scenes:
+        existing_scenes = {s.strip() for s in (tag.groove_tag or "").split(",") if s.strip()}
+        existing_scenes.update(payload.scenes)
+        tag.groove_tag = ",".join(sorted(existing_scenes))
+    if payload.bpm is not None:
+        tag.bpm = payload.bpm
 
     db.commit()
     db.refresh(song)

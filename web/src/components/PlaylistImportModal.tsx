@@ -19,8 +19,11 @@ interface TrackItem {
   fangpiId: string | null
   fangpiTitle: string | null
   fangpiArtist: string | null
+  fangpiSource: string | null
   searchStatus: 'pending' | 'found' | 'not-found'
   tags: DanceStyle[]
+  energy: string[]
+  scenes: string[]
   downloadStatus: 'pending' | 'downloading' | 'done' | 'failed'
 }
 
@@ -56,8 +59,11 @@ export default function PlaylistImportModal({ onClose }: Props) {
         fangpiId: null,
         fangpiTitle: null,
         fangpiArtist: null,
+        fangpiSource: null,
         searchStatus: 'pending' as const,
         tags: [],
+        energy: [],
+        scenes: [],
         downloadStatus: 'pending' as const,
       })))
       setStage('select')
@@ -97,7 +103,7 @@ export default function PlaylistImportModal({ onClose }: Props) {
           resultIdx++
           if (r && r.found && r.candidates.length > 0) {
             const best = r.candidates[0]
-            updated[i] = { ...updated[i], fangpiId: best.id, fangpiTitle: best.title, fangpiArtist: best.artist, searchStatus: 'found' }
+            updated[i] = { ...updated[i], fangpiId: best.id, fangpiTitle: best.title, fangpiArtist: best.artist, fangpiSource: best.source || 'fangpi', searchStatus: 'found' }
           } else {
             updated[i] = { ...updated[i], searchStatus: 'not-found' }
           }
@@ -121,11 +127,43 @@ export default function PlaylistImportModal({ onClose }: Props) {
     }))
   }
 
+  const toggleEnergy = (key: string, val: string) => {
+    setTracks(prev => prev.map(t => {
+      if (t.key !== key) return t
+      const energy = t.energy.includes(val) ? t.energy.filter(x => x !== val) : [...t.energy, val]
+      return { ...t, energy }
+    }))
+  }
+
+  const toggleScene = (key: string, val: string) => {
+    setTracks(prev => prev.map(t => {
+      if (t.key !== key) return t
+      const scenes = t.scenes.includes(val) ? t.scenes.filter(x => x !== val) : [...t.scenes, val]
+      return { ...t, scenes }
+    }))
+  }
+
   const applyTagToAll = (tag: DanceStyle) => {
     setTracks(prev => prev.map(t => {
       if (!t.selected || t.searchStatus !== 'found') return t
       const tags = t.tags.includes(tag) ? t.tags.filter(x => x !== tag) : [...t.tags, tag]
       return { ...t, tags }
+    }))
+  }
+
+  const applyEnergyToAll = (val: string) => {
+    setTracks(prev => prev.map(t => {
+      if (!t.selected || t.searchStatus !== 'found') return t
+      const energy = t.energy.includes(val) ? t.energy.filter(x => x !== val) : [...t.energy, val]
+      return { ...t, energy }
+    }))
+  }
+
+  const applySceneToAll = (val: string) => {
+    setTracks(prev => prev.map(t => {
+      if (!t.selected || t.searchStatus !== 'found') return t
+      const scenes = t.scenes.includes(val) ? t.scenes.filter(x => x !== val) : [...t.scenes, val]
+      return { ...t, scenes }
     }))
   }
 
@@ -138,13 +176,18 @@ export default function PlaylistImportModal({ onClose }: Props) {
     setProgress({ current: 0, total: foundTracks.length, label: '' })
 
     const failed: string[] = []
+    const succeeded: TrackItem[] = []
     for (let i = 0; i < foundTracks.length; i++) {
       const t = foundTracks[i]
       setProgress({ current: i + 1, total: foundTracks.length, label: `${t.title} - ${t.artist}` })
       setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'downloading' } : x))
       try {
-        await api.downloadFangpi(t.fangpiId!, t.title, t.artist)
+        const tagData = (t.tags.length || t.energy.length || t.scenes.length)
+          ? { tags: t.tags as string[], energy: t.energy, scenes: t.scenes }
+          : undefined
+        await api.downloadFangpi(t.fangpiId!, t.title, t.artist, tagData, t.fangpiSource || undefined)
         setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'done' } : x))
+        succeeded.push(t)
       } catch {
         failed.push(t.title)
         setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'failed' } : x))
@@ -152,14 +195,16 @@ export default function PlaylistImportModal({ onClose }: Props) {
     }
 
     await loadSongs()
-    try {
-      const allSelected = tracks.filter(t => t.selected)
-      await useMusicStore.getState().importPlaylistFromSongs(
-        user.id,
-        playlistName.trim(),
-        allSelected.map(item => ({ title: item.title, artist: item.artist, duration: item.duration, tags: item.tags }))
-      )
-    } catch { /* playlist creation failed but downloads done */ }
+    // Only add successfully downloaded songs to the playlist
+    if (succeeded.length > 0) {
+      try {
+        await useMusicStore.getState().importPlaylistFromSongs(
+          user.id,
+          playlistName.trim(),
+          succeeded.map(item => ({ title: item.title, artist: item.artist, duration: item.duration, tags: item.tags }))
+        )
+      } catch { /* playlist creation failed but downloads done */ }
+    }
     if (user) loadPlaylists(user.id)
     setStage('done')
     setError(failed.length > 0 ? `以下歌曲下载失败: ${failed.join(', ')}` : '')
@@ -276,18 +321,43 @@ export default function PlaylistImportModal({ onClose }: Props) {
                   </div>
                 )}
               </div>
-              <div className="bg-surface rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-2">批量设置标签（应用到所有找到音源的歌曲）</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {DANCE_STYLES.map(style => (
-                    <button key={style} onClick={() => applyTagToAll(style)}
-                      className="px-2.5 py-1 rounded text-xs transition border"
-                      style={{ borderColor: DANCE_STYLE_COLORS[style] + '60', color: DANCE_STYLE_COLORS[style] }}>
-                      {DANCE_STYLE_LABELS[style]}
+
+              {/* Batch apply */}
+              <div className="bg-surface rounded-lg p-3 space-y-2">
+                <p className="text-xs text-gray-500 mb-1">批量设置（应用到所有已找到音源的歌曲）</p>
+                <div>
+                  <span className="text-[10px] text-gray-600 mr-2">舞种:</span>
+                  <span className="inline-flex flex-wrap gap-1">
+                    {DANCE_STYLES.map(style => (
+                      <button key={style} onClick={() => applyTagToAll(style)}
+                        className="px-2 py-0.5 rounded text-[10px] transition border"
+                        style={{ borderColor: DANCE_STYLE_COLORS[style] + '60', color: DANCE_STYLE_COLORS[style] }}>
+                        {DANCE_STYLE_LABELS[style]}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-600 mr-2">能量:</span>
+                  {['low', 'medium', 'high'].map(v => (
+                    <button key={v} onClick={() => applyEnergyToAll(v)}
+                      className="px-2 py-0.5 rounded text-[10px] border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition mr-1">
+                      {v === 'low' ? '🔋低' : v === 'medium' ? '⚡中' : '🔥高'}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-600 mr-2">场景:</span>
+                  {[{v:'freeplay',l:'🎧自由'},{v:'cypher',l:'🔄Cypher'},{v:'battle',l:'⚔️Battle'},{v:'showcase',l:'🎭Showcase'},{v:'training',l:'📚训练'}].map(({v,l}) => (
+                    <button key={v} onClick={() => applySceneToAll(v)}
+                      className="px-2 py-0.5 rounded text-[10px] border border-gray-600 text-gray-400 hover:text-primary hover:border-primary transition mr-1">
+                      {l}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* Per-song tags */}
               <div className="max-h-[40vh] overflow-y-auto space-y-2">
                 {tracks.filter(t => t.selected).map(t => (
                   <div key={t.key} className={`rounded-lg p-3 ${t.searchStatus === 'found' ? 'bg-surface' : 'bg-surface opacity-60'}`}>
@@ -298,18 +368,45 @@ export default function PlaylistImportModal({ onClose }: Props) {
                       {t.searchStatus === 'not-found' && <span className="text-xs text-yellow-500 ml-auto">未找到音源</span>}
                     </div>
                     {t.searchStatus === 'found' && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {DANCE_STYLES.map(style => (
-                          <button key={style} onClick={() => toggleTag(t.key, style)}
-                            className="px-2 py-0.5 rounded text-[10px] transition"
-                            style={{
-                              backgroundColor: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] + '30' : 'transparent',
-                              color: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
-                              border: `1px solid ${t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
-                            }}>
-                            {DANCE_STYLE_LABELS[style]}
-                          </button>
-                        ))}
+                      <div className="space-y-1.5 mt-1">
+                        {/* Dance style */}
+                        <div className="flex flex-wrap gap-1">
+                          {DANCE_STYLES.map(style => (
+                            <button key={style} onClick={() => toggleTag(t.key, style)}
+                              className="px-2 py-0.5 rounded text-[10px] transition"
+                              style={{
+                                backgroundColor: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] + '30' : 'transparent',
+                                color: t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
+                                border: `1px solid ${t.tags.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
+                              }}>
+                              {DANCE_STYLE_LABELS[style]}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Energy */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-600 mr-1">能量:</span>
+                          {['low', 'medium', 'high'].map(v => (
+                            <button key={v} onClick={() => toggleEnergy(t.key, v)}
+                              className={`px-2 py-0.5 rounded text-[10px] transition border ${
+                                t.energy.includes(v) ? 'bg-primary/20 text-primary border-primary' : 'border-gray-700 text-gray-500'
+                              }`}>
+                              {v === 'low' ? '🔋低' : v === 'medium' ? '⚡中' : '🔥高'}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Scene */}
+                        <div className="flex items-center flex-wrap gap-1">
+                          <span className="text-[10px] text-gray-600 mr-1">场景:</span>
+                          {[{v:'freeplay',l:'🎧自由'},{v:'cypher',l:'🔄Cypher'},{v:'battle',l:'⚔️Battle'},{v:'showcase',l:'🎭Showcase'},{v:'training',l:'📚训练'}].map(({v,l}) => (
+                            <button key={v} onClick={() => toggleScene(t.key, v)}
+                              className={`px-2 py-0.5 rounded text-[10px] transition border ${
+                                t.scenes.includes(v) ? 'bg-primary/20 text-primary border-primary' : 'border-gray-700 text-gray-500'
+                              }`}>
+                              {l}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

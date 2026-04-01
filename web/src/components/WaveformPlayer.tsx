@@ -21,6 +21,8 @@ function drawWaveform(
   duration: number,
   loopA: number | null,
   loopB: number | null,
+  fadeInSec: number = 0,
+  fadeOutSec: number = 0,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -38,6 +40,24 @@ function drawWaveform(
     const bX = (loopB / duration) * width
     ctx.fillStyle = 'rgba(99, 102, 241, 0.08)'
     ctx.fillRect(aX, 0, bX - aX, height)
+  }
+
+  // Fade zones visualization
+  if (duration > 0 && fadeInSec > 0) {
+    const fadeInX = (fadeInSec / duration) * width
+    const grad = ctx.createLinearGradient(0, 0, fadeInX, 0)
+    grad.addColorStop(0, 'rgba(34, 197, 94, 0.25)')
+    grad.addColorStop(1, 'rgba(34, 197, 94, 0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, fadeInX, height)
+  }
+  if (duration > 0 && fadeOutSec > 0) {
+    const fadeOutX = ((duration - fadeOutSec) / duration) * width
+    const grad = ctx.createLinearGradient(fadeOutX, 0, width, 0)
+    grad.addColorStop(0, 'rgba(239, 68, 68, 0)')
+    grad.addColorStop(1, 'rgba(239, 68, 68, 0.25)')
+    ctx.fillStyle = grad
+    ctx.fillRect(fadeOutX, 0, width - fadeOutX, height)
   }
 
   // Waveform bars
@@ -145,9 +165,9 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
   const [targetBpm, setTargetBpm] = useState('')
   const [playbackRate, setPlaybackRate] = useState(1)
 
-  // DJ fade
-  const [fadeIn, setFadeIn] = useState(0)
-  const [fadeOut, setFadeOut] = useState(0)
+  // DJ fade — default 3s for noticeable effect
+  const [fadeIn, setFadeIn] = useState(3)
+  const [fadeOut, setFadeOut] = useState(3)
 
   useEffect(() => { loopARef.current = loopA }, [loopA])
   useEffect(() => { loopBRef.current = loopB }, [loopB])
@@ -161,20 +181,23 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
         if (loopARef.current != null && loopBRef.current != null && audio.currentTime >= loopBRef.current) {
           audio.currentTime = loopARef.current
         }
-        // DJ fade
+        // DJ fade — exponential curve for more natural/noticeable effect
         const baseVol = volume
         let effectiveVol = baseVol
         if (fadeIn > 0 && audio.currentTime < fadeIn) {
-          effectiveVol = (audio.currentTime / fadeIn) * baseVol
+          const t = audio.currentTime / fadeIn // 0→1
+          effectiveVol = Math.pow(t, 2) * baseVol // exponential ease-in
         }
         if (fadeOut > 0 && audio.duration > 0 && (audio.duration - audio.currentTime) < fadeOut) {
-          effectiveVol = Math.min(effectiveVol, ((audio.duration - audio.currentTime) / fadeOut) * baseVol)
+          const t = (audio.duration - audio.currentTime) / fadeOut // 1→0
+          const fadeOutVol = Math.pow(t, 2) * baseVol // exponential ease-out
+          effectiveVol = Math.min(effectiveVol, fadeOutVol)
         }
         if (!isMuted) audio.volume = Math.max(0, Math.min(1, effectiveVol))
 
         const progress = audio.duration > 0 ? audio.currentTime / audio.duration : 0
         setCurrentTime(audio.currentTime)
-        drawWaveform(canvas, peaksRef.current, progress, song.cue_points, audio.duration, loopARef.current, loopBRef.current)
+        drawWaveform(canvas, peaksRef.current, progress, song.cue_points, audio.duration, loopARef.current, loopBRef.current, fadeIn, fadeOut)
       }
       rafRef.current = requestAnimationFrame(render)
     }
@@ -211,7 +234,7 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
         if (destroyed) return
         setDuration(audio.duration)
         setIsLoading(false)
-        if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null)
+        if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
       })
       audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
       audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
@@ -373,29 +396,32 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
           </div>
         )}
 
-        {/* DJ Fade */}
+        {/* DJ Fade — green=fade in, red=fade out */}
         <div className="flex items-center gap-1.5 text-gray-400">
-          <span>淡入淡出:</span>
+          <span>🎚️ 淡入淡出:</span>
           <label className="flex items-center gap-0.5">
-            入
+            <span className="text-green-400">入</span>
             <input
               type="number" min={0} max={30} step={0.5}
               value={fadeIn || ''}
               onChange={(e) => setFadeIn(parseFloat(e.target.value) || 0)}
-              className="w-10 px-1 py-0.5 bg-surface border border-gray-600 rounded text-white text-center text-xs focus:outline-none focus:border-primary"
+              className="w-10 px-1 py-0.5 bg-surface border border-green-600/50 rounded text-white text-center text-xs focus:outline-none focus:border-green-400"
             />
-            s
+            <span>s</span>
           </label>
           <label className="flex items-center gap-0.5">
-            出
+            <span className="text-red-400">出</span>
             <input
               type="number" min={0} max={30} step={0.5}
               value={fadeOut || ''}
               onChange={(e) => setFadeOut(parseFloat(e.target.value) || 0)}
-              className="w-10 px-1 py-0.5 bg-surface border border-gray-600 rounded text-white text-center text-xs focus:outline-none focus:border-primary"
+              className="w-10 px-1 py-0.5 bg-surface border border-red-600/50 rounded text-white text-center text-xs focus:outline-none focus:border-red-400"
             />
-            s
+            <span>s</span>
           </label>
+          {(fadeIn > 0 || fadeOut > 0) && (
+            <span className="text-gray-500 text-[10px]">波形绿区=渐入 红区=渐出</span>
+          )}
         </div>
       </div>
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import DateTime, Float, Integer, JSON, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, Float, Integer, JSON, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database import Base
 
@@ -13,6 +14,9 @@ class LibrarySong(Base):
 
     id: Mapped[str] = mapped_column(String(100), primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    song_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("songs.id"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     artist: Mapped[str] = mapped_column(String(255), nullable=False)
     duration: Mapped[float] = mapped_column(Float, default=0, nullable=False)
@@ -37,3 +41,6 @@ class LibrarySong(Base):
         onupdate=datetime.utcnow,
         nullable=False,
     )
+
+    # Relationship to catalog Song (for tags/recommendations)
+    song = relationship("Song", foreign_keys=[song_id], lazy="joined")

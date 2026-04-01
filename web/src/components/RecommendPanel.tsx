@@ -17,10 +17,16 @@ const ENERGY_LEVELS = [
   { value: 'high', label: '高能量' },
 ]
 
+const SOURCES = [
+  { value: 'library', label: '我的曲库', desc: '从你已下载的歌曲中推荐' },
+  { value: 'server', label: '服务器曲池', desc: '从所有用户的歌曲中推荐' },
+]
+
 export default function RecommendPanel() {
   const { user } = useAuthStore()
   const [mode, setMode] = useState('freeplay')
   const [targetEnergy, setTargetEnergy] = useState('')
+  const [source, setSource] = useState('library')
   const [songs, setSongs] = useState<RecommendedSong[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -35,6 +41,7 @@ export default function RecommendPanel() {
         user_id: user.id,
         mode,
         target_energy: targetEnergy || undefined,
+        source,
       })
       setSongs(res.songs)
       setHasResult(true)
@@ -55,6 +62,27 @@ export default function RecommendPanel() {
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {/* Settings */}
         <div className="bg-surface-light rounded-xl p-4 space-y-4">
+          {/* Source selector */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">推荐来源</label>
+            <div className="flex gap-2">
+              {SOURCES.map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => { setSource(s.value); setHasResult(false) }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm transition text-left ${
+                    source === s.value
+                      ? 'bg-primary/20 text-primary border border-primary/50'
+                      : 'bg-surface text-gray-400 hover:bg-surface-lighter border border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium">{s.label}</div>
+                  <div className="text-xs opacity-70 mt-0.5">{s.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm text-gray-400 mb-2">场景模式</label>
             <div className="flex flex-wrap gap-2">
@@ -103,9 +131,16 @@ export default function RecommendPanel() {
         {/* Results */}
         {hasResult && (
           <div className="bg-surface-light rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-white mb-3">推荐结果 ({songs.length} 首)</h3>
+            <h3 className="text-sm font-semibold text-white mb-3">
+              推荐结果 ({songs.length} 首)
+              {source === 'server' && <span className="text-xs text-gray-500 ml-2">· 服务器曲池</span>}
+            </h3>
             {songs.length === 0 ? (
-              <p className="text-gray-500 text-sm">暂无推荐结果，请先导入更多歌曲并生成用户画像</p>
+              <p className="text-gray-500 text-sm">
+                {source === 'library'
+                  ? '暂无推荐结果，请先下载歌曲并添加标签'
+                  : '暂无推荐结果，请先导入更多歌曲并生成用户画像'}
+              </p>
             ) : (
               <div className="space-y-1">
                 {songs.map((song, idx) => (
@@ -115,6 +150,15 @@ export default function RecommendPanel() {
                       <div className="text-sm text-white truncate">{song.title}</div>
                       <div className="text-xs text-gray-500 truncate">{song.artist}</div>
                     </div>
+                    {source === 'server' && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                        song.in_library
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400'
+                      }`}>
+                        {song.in_library ? '已有' : '未下载'}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

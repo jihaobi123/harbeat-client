@@ -38,7 +38,6 @@ export default function ProfilePanel() {
     { label: '平均 BPM 偏好', value: profile.avg_bpm_preference ? `${profile.avg_bpm_preference} BPM` : '未知', icon: '🎵' },
     { label: '能量偏好', value: profile.energy_preference || '未知', icon: '⚡' },
     { label: '人声偏好', value: profile.vocal_preference || '未知', icon: '🎤' },
-    { label: '年代偏好', value: profile.era_preference || '未知', icon: '📅' },
     { label: '律动偏好', value: profile.groove_preference || '未知', icon: '🎸' },
   ] : []
 

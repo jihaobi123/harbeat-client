@@ -52,7 +52,6 @@ def generate_profile(db: Session, user_id: int) -> UserProfileData:
         avg_bpm_preference=avg_bpm,
         energy_preference=_pick_most_common([row.energy for row in rows]),
         vocal_preference=_pick_most_common([row.vocal_type for row in rows]),
-        era_preference=_pick_most_common([row.era_tag for row in rows], fallback=user.favorite_style),
         groove_preference=_pick_most_common([row.groove_tag for row in rows]),
     )
 

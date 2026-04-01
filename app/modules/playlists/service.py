@@ -97,6 +97,8 @@ def list_playlists(db: Session, user_id: int) -> PlaylistListData:
         .order_by(Playlist.created_at.desc())
         .all()
     )
+
+    # In server-centric model, all songs are available on server
     return PlaylistListData(
         playlists=[
             PlaylistSummaryData(
@@ -122,6 +124,8 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
         .order_by(PlaylistSong.order_index.asc())
         .all()
     )
+
+    # In server-centric model, show all songs (not filtered by local library)
     return PlaylistDetailData(
         id=playlist.id,
         user_id=playlist.user_id,
@@ -220,6 +224,10 @@ def add_library_songs_to_playlist(
             )
             db.add(song)
             db.flush()
+
+        # Link library_song → catalog song if not already linked
+        if lib_song.song_id != song.id:
+            lib_song.song_id = song.id
 
         # Check for duplicate
         existing = (

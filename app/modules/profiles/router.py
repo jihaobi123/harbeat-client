@@ -24,7 +24,6 @@ def get_profile_endpoint(user_id: int, db: Session = Depends(get_db)):
             avg_bpm_preference=profile.avg_bpm_preference,
             energy_preference=profile.energy_preference,
             vocal_preference=profile.vocal_preference,
-            era_preference=profile.era_preference,
             groove_preference=profile.groove_preference,
         )
     )

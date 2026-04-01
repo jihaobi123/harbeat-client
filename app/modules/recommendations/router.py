@@ -20,5 +20,6 @@ def get_recommendations_endpoint(
         mode=payload.mode,
         current_song_id=payload.current_song_id,
         target_energy=payload.target_energy,
+        source=payload.source,
     )
     return APIResponse(data=RecommendationData(songs=songs))

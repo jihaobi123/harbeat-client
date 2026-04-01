@@ -3,6 +3,8 @@ import { useMusicStore } from '../store/useMusicStore'
 import WaveformPlayer from './WaveformPlayer'
 import * as api from '../api/client'
 import { getStemStreamUrl } from '../api/client'
+import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
+import type { DanceStyle } from '../types'
 
 function formatDuration(sec: number): string {
   if (!sec || sec <= 0) return '--:--'
@@ -121,12 +123,171 @@ function StemPlayer({ songId }: { songId: string }) {
   )
 }
 
+/* ─── Song Tag Editor ─── */
+const ENERGY_OPTIONS = [
+  { value: 'low', label: '🔋 低' },
+  { value: 'medium', label: '⚡ 中' },
+  { value: 'high', label: '🔥 高' },
+]
+const SCENE_OPTIONS = [
+  { value: 'freeplay', label: '🎧 自由' },
+  { value: 'cypher', label: '🔄 Cypher' },
+  { value: 'battle', label: '⚔️ Battle' },
+  { value: 'showcase', label: '🎭 Showcase' },
+  { value: 'training', label: '📚 训练' },
+]
+
+function SongTagEditor({ title, artist }: { title: string; artist: string }) {
+  const [styles, setStyles] = useState<DanceStyle[]>([])
+  const [energy, setEnergy] = useState<string[]>([])
+  const [scenes, setScenes] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+
+  const toggleItem = <T extends string>(list: T[], item: T): T[] =>
+    list.includes(item) ? list.filter(x => x !== item) : [...list, item]
+
+  const toggleStyle = (s: DanceStyle) => {
+    setStyles(prev => toggleItem(prev, s))
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.upsertSongTags({
+        title,
+        artist,
+        tags: styles,
+        energy: energy.length ? energy : undefined,
+        scenes: scenes.length ? scenes : undefined,
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      // silently fail
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const hasAnyTag = styles.length > 0 || energy.length > 0 || scenes.length > 0
+
+  return (
+    <div className="bg-surface rounded-xl p-4">
+      <button
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <h4 className="text-sm font-semibold text-white">🏷️ 标签管理</h4>
+        <span className="text-xs text-gray-500">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-3">
+          {/* Dance styles */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1 block">舞种风格</label>
+            <div className="flex flex-wrap gap-1">
+              {DANCE_STYLES.map(style => (
+                <button
+                  key={style}
+                  onClick={() => toggleStyle(style)}
+                  className="px-2 py-0.5 rounded-full text-[11px] font-medium transition"
+                  style={{
+                    background: styles.includes(style) ? DANCE_STYLE_COLORS[style] + '33' : 'transparent',
+                    color: styles.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
+                    border: `1px solid ${styles.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
+                  }}
+                >
+                  {DANCE_STYLE_LABELS[style]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Energy */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1 block">能量等级（可多选）</label>
+            <div className="flex gap-1.5">
+              {ENERGY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setEnergy(prev => toggleItem(prev, opt.value)); setSaved(false) }}
+                  className={`px-2.5 py-0.5 rounded-lg text-[11px] transition ${
+                    energy.includes(opt.value)
+                      ? 'bg-primary/20 text-primary border border-primary'
+                      : 'bg-surface-lighter text-gray-500 border border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scene */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1 block">适用场景（可多选）</label>
+            <div className="flex flex-wrap gap-1.5">
+              {SCENE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setScenes(prev => toggleItem(prev, opt.value)); setSaved(false) }}
+                  className={`px-2.5 py-0.5 rounded-lg text-[11px] transition ${
+                    scenes.includes(opt.value)
+                      ? 'bg-primary/20 text-primary border border-primary'
+                      : 'bg-surface-lighter text-gray-500 border border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Save */}
+          <button
+            onClick={handleSave}
+            disabled={!hasAnyTag || saving}
+            className={`w-full py-1.5 rounded-lg text-xs font-medium transition ${
+              saved
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40'
+            }`}
+          >
+            {saved ? '✓ 已保存' : saving ? '保存中...' : '💾 保存标签'}
+          </button>
+          <p className="text-[10px] text-gray-600">标签用于智能推荐和练习列表生成</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main SongDetail ─── */
 export default function SongDetail() {
   const { selectedSong, playSong, analyzeSong, deleteSong, updateLibrarySongLocal } = useMusicStore()
   const [analyzing, setAnalyzing] = useState(false)
   const [separating, setSeparating] = useState(false)
   const [stemError, setStemError] = useState('')
+
+  // Auto-poll when analysis is in progress
+  useEffect(() => {
+    if (!selectedSong) return
+    const inProgress = selectedSong.analysis_status === 'pending' || selectedSong.analysis_status === 'analyzing'
+    if (!inProgress) return
+    const timer = setInterval(async () => {
+      try {
+        const updated = await api.getLibrarySong(selectedSong.id)
+        if (updated && updated.analysis_status !== selectedSong.analysis_status) {
+          updateLibrarySongLocal(selectedSong.id, updated)
+        }
+      } catch { /* ignore polling errors */ }
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [selectedSong?.id, selectedSong?.analysis_status, updateLibrarySongLocal])
 
   if (!selectedSong) return null
   const song = selectedSong
@@ -161,9 +322,11 @@ export default function SongDetail() {
   }
 
   const analysisCompleted = song.analysis_status === 'completed'
+  const analysisInProgress = song.analysis_status === 'pending' || song.analysis_status === 'analyzing'
   const analysisText = {
     completed: '分析完成',
-    analyzing: '分析中...',
+    analyzing: '⏳ 分析中...',
+    pending: '⏳ 处理中...',
     error: '分析失败',
     none: '未分析',
   }[song.analysis_status] || '未分析'
@@ -209,6 +372,9 @@ export default function SongDetail() {
             </div>
           </div>
         )}
+
+        {/* Tag editor */}
+        <SongTagEditor title={song.title} artist={song.artist} />
       </div>
 
       {/* Waveform player */}
@@ -218,7 +384,18 @@ export default function SongDetail() {
 
       {/* Stem separation */}
       <div className="px-5 mt-4 space-y-3">
-        {!song.stems && (
+        {!song.stems && analysisInProgress && (
+          <div className="bg-surface rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-white">🎛️ 音轨分离</h4>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                自动处理中...
+              </div>
+            </div>
+          </div>
+        )}
+        {!song.stems && !analysisInProgress && (
           <div className="bg-surface rounded-xl p-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-white">🎛️ 音轨分离</h4>
@@ -250,13 +427,20 @@ export default function SongDetail() {
           onClick={() => playSong(song)}
           className="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition"
         >▶ 播放</button>
-        <button
-          onClick={handleAnalyze}
-          disabled={analyzing}
-          className="w-full bg-surface hover:bg-surface-lighter disabled:opacity-50 text-gray-300 text-sm py-2 rounded-lg border border-gray-600 transition"
-        >
-          {analyzing ? '⏳ 分析中...' : analysisCompleted ? '🔄 重新分析' : '🔍 分析 BPM / Key'}
-        </button>
+        {analysisInProgress ? (
+          <div className="w-full bg-surface text-gray-400 text-sm py-2 rounded-lg border border-gray-600 text-center flex items-center justify-center gap-2">
+            <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            自动分析处理中...
+          </div>
+        ) : (
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="w-full bg-surface hover:bg-surface-lighter disabled:opacity-50 text-gray-300 text-sm py-2 rounded-lg border border-gray-600 transition"
+          >
+            {analyzing ? '⏳ 分析中...' : analysisCompleted ? '🔄 重新分析' : '🔍 分析 BPM / Key'}
+          </button>
+        )}
         <button
           onClick={() => { if (confirm('确定删除此歌曲？')) deleteSong(song.id) }}
           className="w-full text-gray-500 hover:text-red-400 text-sm py-2 transition"

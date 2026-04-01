@@ -10,12 +10,14 @@ class RecommendationRequest(BaseModel):
     mode: str
     current_song_id: Optional[int] = None
     target_energy: Optional[str] = None
+    source: str = "library"  # "library" or "server"
 
 
 class RecommendedSongItem(BaseModel):
     song_id: int
     title: str
     artist: str
+    in_library: bool = False
 
 
 class RecommendationData(BaseModel):

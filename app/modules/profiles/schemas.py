@@ -14,5 +14,4 @@ class UserProfileData(BaseModel):
     avg_bpm_preference: Optional[int] = None
     energy_preference: Optional[str] = None
     vocal_preference: Optional[str] = None
-    era_preference: Optional[str] = None
     groove_preference: Optional[str] = None

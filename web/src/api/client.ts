@@ -70,6 +70,10 @@ export async function getLibrarySongs() {
   return request<{ songs: import('../types').LibrarySong[] }>('/api/library/songs')
 }
 
+export async function getLibrarySong(songId: string) {
+  return request<import('../types').LibrarySong>(`/api/library/songs/${songId}`)
+}
+
 export async function searchLibrarySongs(q: string) {
   return request<{ songs: import('../types').LibrarySong[] }>(`/api/library/songs/search?q=${encodeURIComponent(q)}`)
 }
@@ -151,6 +155,14 @@ export async function updateSongTags(songId: number, tags: {
   )
 }
 
+export async function upsertSongTags(data: {
+  title: string; artist: string; tags?: string[]; energy?: string[]; scenes?: string[]; bpm?: number
+}) {
+  return request<import('../types').CatalogSong>(
+    '/api/music/songs/upsert', { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
 export async function createCue(songId: number, data: {
   user_id: number; song_id: number; cue_type: string; start_time: number;
   end_time?: number; label?: string
@@ -166,7 +178,7 @@ export async function getCues(songId: number, userId: number) {
 
 // ---- Recommendations ----
 export async function getRecommendations(data: {
-  user_id: number; mode: string; current_song_id?: number; target_energy?: string
+  user_id: number; mode: string; current_song_id?: number; target_energy?: string; source?: string
 }) {
   return request<{ songs: import('../types').RecommendedSong[] }>(
     '/api/recommendations/for-user', { method: 'POST', body: JSON.stringify(data) }
@@ -208,14 +220,14 @@ export async function endSession(sessionId: number) {
 
 // ---- Fangpi.net ----
 export async function searchFangpi(query: string) {
-  return request<{ songs: { id: string; title: string; artist: string; url: string }[] }>(
+  return request<{ songs: { id: string; title: string; artist: string; url: string; source?: string }[] }>(
     '/api/fangpi/search', { method: 'POST', body: JSON.stringify({ query }) }
   )
 }
 
-export async function downloadFangpi(musicId: string, title: string, artist: string) {
+export async function downloadFangpi(musicId: string, title: string, artist: string, tags?: { tags?: string[]; energy?: string[]; scenes?: string[] }, source?: string) {
   return request<import('../types').LibrarySong>(
-    '/api/fangpi/download', { method: 'POST', body: JSON.stringify({ music_id: musicId, title, artist }) }
+    '/api/fangpi/download', { method: 'POST', body: JSON.stringify({ music_id: musicId, title, artist, ...tags, source: source || 'fangpi' }) }
   )
 }
 
@@ -229,7 +241,7 @@ export async function batchSearchFangpi(songs: { title: string; artist: string }
   return request<{
     results: {
       title: string; artist: string; found: boolean;
-      candidates: { id: string; title: string; artist: string; url: string }[]
+      candidates: { id: string; title: string; artist: string; url: string; source?: string }[]
     }[]
   }>(
     '/api/fangpi/batch-search', { method: 'POST', body: JSON.stringify({ songs }) }

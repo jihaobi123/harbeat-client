@@ -48,6 +48,21 @@ def search_library_songs_endpoint(
     return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
 
 
+@router.get("/songs/{song_id}", response_model=APIResponse[LibrarySongData])
+def get_library_song_endpoint(
+    song_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.modules.library.models import LibrarySong
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    return APIResponse(data=LibrarySongData.model_validate(song))
+
+
 @router.post("/songs", response_model=APIResponse[LibrarySongData])
 def create_library_song_endpoint(
     payload: LibrarySongCreateRequest,

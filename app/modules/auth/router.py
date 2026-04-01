@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -8,11 +10,13 @@ from app.modules.users.models import User
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/register", response_model=APIResponse[TokenData])
 def register_endpoint(payload: RegisterRequest, db: Session = Depends(get_db)):
+    logger.warning("[REGISTER] username=%s", payload.username)
     user = register_user(
         db,
         username=payload.username,
@@ -27,6 +31,7 @@ def register_endpoint(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=APIResponse[TokenData])
 def login_endpoint(payload: LoginRequest, db: Session = Depends(get_db)):
+    logger.warning("[LOGIN] username=%s", payload.username)
     user = authenticate_user(db, payload.username, payload.password)
     token = create_access_token(user.id, user.username)
     return APIResponse(data=TokenData(access_token=token, user_id=user.id, username=user.username))

@@ -16,6 +16,15 @@ class SongTagUpdateRequest(BaseModel):
     tags: list[str] = []
 
 
+class UpsertSongRequest(BaseModel):
+    title: str
+    artist: str
+    bpm: Optional[int] = None
+    energy: list[str] = []
+    scenes: list[str] = []
+    tags: list[str] = []
+
+
 class CueCreateRequest(BaseModel):
     user_id: int
     song_id: int
