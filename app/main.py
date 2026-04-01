@@ -16,7 +16,45 @@ from app.shared.database import Base, engine
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Auto-analyze songs that have files but were never analyzed
+    _schedule_pending_analyses()
     yield
+
+
+def _schedule_pending_analyses():
+    """Find songs with analysis_status='none' that have actual files, and queue analysis."""
+    import os
+    import threading
+    from app.shared.database import SessionLocal
+    from app.modules.library.models import LibrarySong
+    from app.modules.playlists.models import Song, SongTag  # noqa: F401 — ensure models loaded
+
+    db = SessionLocal()
+    try:
+        pending = db.query(LibrarySong).filter(LibrarySong.analysis_status == "none").all()
+        to_analyze = [s.id for s in pending if s.source_path and os.path.isfile(s.source_path)]
+        db.close()
+    except Exception:
+        db.close()
+        return
+
+    if not to_analyze:
+        return
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[startup] Queuing analysis for %d unanalyzed songs", len(to_analyze))
+
+    def _run_all(song_ids: list[str]):
+        from app.modules.library.background_tasks import run_analysis_and_separation
+        for sid in song_ids:
+            try:
+                run_analysis_and_separation(sid)
+            except Exception:
+                logger.exception("[startup] analysis failed for %s", sid)
+
+    thread = threading.Thread(target=_run_all, args=(to_analyze,), daemon=True)
+    thread.start()
 
 
 settings = get_settings()

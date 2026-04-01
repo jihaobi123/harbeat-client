@@ -173,13 +173,8 @@ export default function PlaylistImportModal({ onClose }: Props) {
     if (foundTracks.length === 0) { setError('没有可下载的歌曲'); return }
 
     setStage('downloading')
-    setProgress({ current: 0, total: foundTracks.length, label: '' })
 
-    const failed: string[] = []
-    const succeeded: TrackItem[] = []
-    for (let i = 0; i < foundTracks.length; i++) {
-      const t = foundTracks[i]
-      setProgress({ current: i + 1, total: foundTracks.length, label: `${t.title} - ${t.artist}` })
+    const downloadOne = async (t: TrackItem): Promise<boolean> => {
       setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'downloading' } : x))
       try {
         const tagData = (t.tags.length || t.energy.length || t.scenes.length)
@@ -187,12 +182,49 @@ export default function PlaylistImportModal({ onClose }: Props) {
           : undefined
         await api.downloadFangpi(t.fangpiId!, t.title, t.artist, tagData, t.fangpiSource || undefined)
         setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'done' } : x))
-        succeeded.push(t)
+        return true
       } catch {
-        failed.push(t.title)
         setTracks(prev => prev.map(x => x.key === t.key ? { ...x, downloadStatus: 'failed' } : x))
+        return false
       }
     }
+
+    // --- First pass ---
+    setProgress({ current: 0, total: foundTracks.length, label: '第一轮下载...' })
+    const failedFirst: TrackItem[] = []
+    const succeeded: TrackItem[] = []
+    for (let i = 0; i < foundTracks.length; i++) {
+      const t = foundTracks[i]
+      setProgress({ current: i + 1, total: foundTracks.length, label: `${t.title} - ${t.artist}` })
+      if (await downloadOne(t)) {
+        succeeded.push(t)
+      } else {
+        failedFirst.push(t)
+      }
+    }
+
+    // --- Second pass: retry all failed ones ---
+    if (failedFirst.length > 0) {
+      setProgress({ current: 0, total: failedFirst.length, label: '重试失败歌曲...' })
+      // Reset failed status to pending before retry
+      setTracks(prev => prev.map(x =>
+        failedFirst.some(f => f.key === x.key) ? { ...x, downloadStatus: 'pending' } : x
+      ))
+      // Small delay before retry
+      await new Promise(r => setTimeout(r, 2000))
+
+      for (let i = 0; i < failedFirst.length; i++) {
+        const t = failedFirst[i]
+        setProgress({ current: i + 1, total: failedFirst.length, label: `重试: ${t.title} - ${t.artist}` })
+        if (await downloadOne(t)) {
+          succeeded.push(t)
+        }
+      }
+    }
+
+    const finalFailed = tracks.filter(t =>
+      t.selected && t.searchStatus === 'found' && t.fangpiId && t.downloadStatus === 'failed'
+    )
 
     await loadSongs()
     // Only add successfully downloaded songs to the playlist
@@ -207,7 +239,7 @@ export default function PlaylistImportModal({ onClose }: Props) {
     }
     if (user) loadPlaylists(user.id)
     setStage('done')
-    setError(failed.length > 0 ? `以下歌曲下载失败: ${failed.join(', ')}` : '')
+    setError(finalFailed.length > 0 ? `以下歌曲下载失败: ${finalFailed.map(t => t.title).join(', ')}` : '')
   }
 
   const selectedCount = tracks.filter(t => t.selected).length

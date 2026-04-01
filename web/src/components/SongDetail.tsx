@@ -276,7 +276,7 @@ export default function SongDetail() {
   // Auto-poll when analysis is in progress
   useEffect(() => {
     if (!selectedSong) return
-    const inProgress = selectedSong.analysis_status === 'pending' || selectedSong.analysis_status === 'analyzing'
+    const inProgress = selectedSong.analysis_status === 'pending' || selectedSong.analysis_status === 'analyzing' || selectedSong.analysis_status === 'none'
     if (!inProgress) return
     const timer = setInterval(async () => {
       try {
@@ -322,13 +322,13 @@ export default function SongDetail() {
   }
 
   const analysisCompleted = song.analysis_status === 'completed'
-  const analysisInProgress = song.analysis_status === 'pending' || song.analysis_status === 'analyzing'
+  const analysisInProgress = song.analysis_status === 'pending' || song.analysis_status === 'analyzing' || song.analysis_status === 'none'
   const analysisText = {
     completed: '分析完成',
     analyzing: '⏳ 分析中...',
     pending: '⏳ 处理中...',
+    none: '⏳ 等待分析...',
     error: '分析失败',
-    none: '未分析',
   }[song.analysis_status] || '未分析'
 
   return (
