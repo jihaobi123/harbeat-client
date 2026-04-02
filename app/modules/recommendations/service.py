@@ -1,15 +1,318 @@
 from __future__ import annotations
 
 import random
+import uuid
+from collections import defaultdict
+from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.modules.library.models import LibrarySong
 from app.modules.playlists.models import Playlist, PlaylistSong, Song, SongTag
-from app.modules.profiles.service import get_profile_or_404
-from app.modules.recommendations.schemas import RecommendedSongItem
+from app.modules.recommendations.schemas import (
+    AddToLibraryData,
+    DiscoverData,
+    DiscoverSection,
+    DiscoverSongItem,
+    RecommendedSongItem,
+)
 
+# ───────────────── Style → display info mapping ─────────────────
+_STYLE_META: dict[str, tuple[str, str]] = {
+    "hiphop":    ("🎤", "嘻哈 / Hip-Hop"),
+    "hip-hop":   ("🎤", "嘻哈 / Hip-Hop"),
+    "breaking":  ("🌀", "Breaking"),
+    "popping":   ("🤖", "Popping"),
+    "locking":   ("🔒", "Locking"),
+    "waacking":  ("💃", "Waacking"),
+    "house":     ("🏠", "House"),
+    "krump":     ("🔥", "Krump"),
+    "jazz":      ("🎷", "Jazz"),
+    "funk":      ("🎸", "Funk"),
+    "urban":     ("🌆", "Urban Dance"),
+    "afro":      ("🌍", "Afro"),
+    "dancehall": ("🇯🇲", "Dancehall"),
+    "soul":      ("💜", "Soul / R&B"),
+    "r&b":       ("💜", "Soul / R&B"),
+    "trap":      ("⚡", "Trap"),
+    "pop":       ("🎵", "Pop"),
+    "latin":     ("💃", "Latin"),
+    "reggaeton": ("🔊", "Reggaeton"),
+    "电子":      ("🎛️", "电子 / Electronic"),
+    "嘻哈":      ("🎤", "嘻哈 / Hip-Hop"),
+}
+
+_ENERGY_META: dict[str, tuple[str, str, str]] = {
+    "high":   ("🔥", "高能炸场", "适合 Battle / Cypher 的高能量歌曲"),
+    "medium": ("🎵", "律动氛围", "适合日常练习和自由舞蹈的中等节奏"),
+    "low":    ("🌙", "放松舒缓", "适合拉伸和冷静的低能量音乐"),
+}
+
+_GROOVE_META: dict[str, tuple[str, str]] = {
+    "cypher":   ("🔄", "Cypher 围圈"),
+    "battle":   ("⚔️", "Battle 对战"),
+    "showcase": ("🎭", "表演展示"),
+    "training": ("📚", "基础训练"),
+    "party":    ("🎉", "派对氛围"),
+    "warmup":   ("🏃", "热身暖场"),
+}
+
+SECTION_SONG_LIMIT = 6
+
+
+def _user_library_song_ids(db: Session, user_id: int) -> set[int]:
+    """Song IDs already in the user's playlists."""
+    return set(
+        r[0]
+        for r in db.query(PlaylistSong.song_id)
+        .join(Playlist, Playlist.id == PlaylistSong.playlist_id)
+        .filter(Playlist.user_id == user_id)
+        .all()
+    )
+
+
+def _to_item(song: Song, tags: Optional[SongTag], in_lib: bool) -> DiscoverSongItem:
+    return DiscoverSongItem(
+        song_id=song.id,
+        title=song.title,
+        artist=song.artist,
+        style=tags.style if tags else None,
+        energy=tags.energy if tags else None,
+        in_library=in_lib,
+    )
+
+
+def discover_songs(db: Session, user_id: int) -> DiscoverData:
+    """Generate categorised recommendation sections — NetEase Cloud style.
+
+    All songs on the server are considered. Songs the user already owns are
+    marked ``in_library=True`` but NOT excluded (they provide familiarity).
+    New songs are prioritised within each section.
+    """
+    rows = db.query(Song, SongTag).outerjoin(SongTag, SongTag.song_id == Song.id).all()
+    if not rows:
+        return DiscoverData(sections=[])
+
+    user_song_ids = _user_library_song_ids(db, user_id)
+
+    # Build lookup helpers
+    all_songs: list[tuple[Song, Optional[SongTag], bool]] = []
+    by_style: dict[str, list[tuple[Song, Optional[SongTag], bool]]] = defaultdict(list)
+    by_energy: dict[str, list[tuple[Song, Optional[SongTag], bool]]] = defaultdict(list)
+    by_groove: dict[str, list[tuple[Song, Optional[SongTag], bool]]] = defaultdict(list)
+
+    for song, tags in rows:
+        in_lib = song.id in user_song_ids
+        entry = (song, tags, in_lib)
+        all_songs.append(entry)
+
+        if tags and tags.style:
+            for token in tags.style.split(","):
+                key = token.strip().lower()
+                if key:
+                    by_style[key].append(entry)
+
+        if tags and tags.energy:
+            for token in tags.energy.split(","):
+                key = token.strip().lower()
+                if key:
+                    by_energy[key].append(entry)
+
+        if tags and tags.groove_tag:
+            for token in tags.groove_tag.split(","):
+                key = token.strip().lower()
+                if key:
+                    by_groove[key].append(entry)
+
+    sections: list[DiscoverSection] = []
+
+    # ── 1. 猜你喜欢 (personalised: new songs first, shuffled) ──
+    new_songs = [e for e in all_songs if not e[2]]
+    if new_songs:
+        random.shuffle(new_songs)
+        pick = new_songs[: SECTION_SONG_LIMIT + 4]  # slightly more for variety
+        sections.append(
+            DiscoverSection(
+                key="for_you",
+                title="猜你喜欢",
+                icon="✨",
+                description="为你精选的新歌，点击收入曲库",
+                songs=[_to_item(s, t, il) for s, t, il in pick],
+            )
+        )
+
+    # ── 2. Per-style sections ──
+    seen_style_groups: set[str] = set()
+    for raw_key, entries in sorted(by_style.items(), key=lambda kv: -len(kv[1])):
+        norm = raw_key.lower()
+        meta = _STYLE_META.get(norm)
+        if not meta:
+            icon, display = "🎵", raw_key.capitalize()
+        else:
+            icon, display = meta
+
+        # Avoid duplicates for aliases (hip-hop / hiphop)
+        if display in seen_style_groups:
+            continue
+        seen_style_groups.add(display)
+
+        # Prioritise new songs
+        random.shuffle(entries)
+        entries.sort(key=lambda e: (e[2], random.random()))  # not-in-lib first
+        picked = entries[:SECTION_SONG_LIMIT]
+        if not picked:
+            continue
+
+        sections.append(
+            DiscoverSection(
+                key=f"style_{norm}",
+                title=f"{display} 精选",
+                icon=icon,
+                description=f"适合 {display} 风格的音乐",
+                songs=[_to_item(s, t, il) for s, t, il in picked],
+            )
+        )
+
+    # ── 3. Per-energy sections ──
+    for ekey in ("high", "medium", "low"):
+        entries = by_energy.get(ekey, [])
+        if not entries:
+            continue
+        meta = _ENERGY_META[ekey]
+        random.shuffle(entries)
+        entries.sort(key=lambda e: (e[2], random.random()))
+        picked = entries[:SECTION_SONG_LIMIT]
+        sections.append(
+            DiscoverSection(
+                key=f"energy_{ekey}",
+                title=meta[1],
+                icon=meta[0],
+                description=meta[2],
+                songs=[_to_item(s, t, il) for s, t, il in picked],
+            )
+        )
+
+    # ── 4. Per-groove / scene sections ──
+    for gkey, entries in sorted(by_groove.items(), key=lambda kv: -len(kv[1])):
+        meta = _GROOVE_META.get(gkey.lower())
+        if not meta:
+            icon, display = "🎶", gkey.capitalize()
+        else:
+            icon, display = meta
+        random.shuffle(entries)
+        entries.sort(key=lambda e: (e[2], random.random()))
+        picked = entries[:SECTION_SONG_LIMIT]
+        if not picked:
+            continue
+        sections.append(
+            DiscoverSection(
+                key=f"groove_{gkey}",
+                title=f"{display} 适用",
+                icon=icon,
+                description=f"适合 {display} 场景使用的歌曲",
+                songs=[_to_item(s, t, il) for s, t, il in picked],
+            )
+        )
+
+    # ── 5. 最新入库 (recently added) ──
+    recent = sorted(all_songs, key=lambda e: e[0].id, reverse=True)[:SECTION_SONG_LIMIT]
+    if recent:
+        sections.append(
+            DiscoverSection(
+                key="recent",
+                title="最新入库",
+                icon="🆕",
+                description="最近上传到服务器的新歌",
+                songs=[_to_item(s, t, il) for s, t, il in recent],
+            )
+        )
+
+    # ── 6. 随机发现 ──
+    pool = list(all_songs)
+    random.shuffle(pool)
+    sections.append(
+        DiscoverSection(
+            key="random",
+            title="随机发现",
+            icon="🎲",
+            description="随机推荐，也许有惊喜",
+            songs=[_to_item(s, t, il) for s, t, il in pool[:SECTION_SONG_LIMIT]],
+        )
+    )
+
+    return DiscoverData(sections=sections)
+
+
+# ───────────── Add a server song to user's library ─────────────
+
+def add_song_to_library(db: Session, user_id: int, song_id: int) -> AddToLibraryData:
+    """Create a LibrarySong entry for an existing Song on the server.
+
+    Reuses the file from any other user's LibrarySong linked to the same Song.
+    """
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="歌曲不存在")
+
+    # Check if user already has this song
+    existing = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == user_id, LibrarySong.song_id == song_id)
+        .first()
+    )
+    if existing:
+        return AddToLibraryData(
+            library_song_id=existing.id, title=existing.title, artist=existing.artist,
+        )
+
+    # Find any other user's LibrarySong with this song's file
+    source_lib = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.song_id == song_id,
+            LibrarySong.source_path.isnot(None),
+            LibrarySong.source_path != "",
+        )
+        .first()
+    )
+    if not source_lib:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该歌曲没有可用的音频文件",
+        )
+
+    new_lib = LibrarySong(
+        id=uuid.uuid4().hex,
+        user_id=user_id,
+        song_id=song_id,
+        title=song.title,
+        artist=song.artist,
+        duration=source_lib.duration or 0,
+        format=source_lib.format or "mp3",
+        file_size=source_lib.file_size or 0,
+        source_type=source_lib.source_type or "server",
+        source_path=source_lib.source_path,
+        platform_id=source_lib.platform_id,
+        platform_url=source_lib.platform_url,
+        created_at=datetime.utcnow(),
+    )
+
+    # Copy analysis results
+    from app.modules.library.background_tasks import copy_analysis_from
+    copy_analysis_from(source_lib, new_lib)
+
+    db.add(new_lib)
+    db.commit()
+    db.refresh(new_lib)
+
+    return AddToLibraryData(
+        library_song_id=new_lib.id, title=new_lib.title, artist=new_lib.artist,
+    )
+
+
+# ───────────── Legacy: used by practice session ─────────────
 
 def _score_song(
     tags: Optional[SongTag],
@@ -17,23 +320,13 @@ def _score_song(
     mode: str,
     target_energy: Optional[str],
 ) -> int:
-    """Score a song against the user profile.
-
-    If a song has NO tags for a given dimension, it is treated as matching
-    any value (wildcard) and receives the corresponding base score.
-    """
     score = 0
-
-    # --- style ---
     if tags and tags.style:
         style_tokens = {t.strip() for t in tags.style.split(",") if t.strip()}
         if profile.favorite_style and profile.favorite_style in style_tokens:
             score += 3
     else:
-        # No style tag → wildcard, give partial credit
         score += 1
-
-    # --- energy ---
     if tags and tags.energy:
         energy_tokens = {e.strip() for e in tags.energy.split(",") if e.strip()}
         if target_energy and target_energy in energy_tokens:
@@ -41,21 +334,15 @@ def _score_song(
         elif profile.energy_preference and profile.energy_preference in energy_tokens:
             score += 2
     else:
-        # No energy tag → wildcard
         score += 1
-
-    # --- groove / scenes ---
     if tags and tags.groove_tag:
         groove_tokens = {g.strip() for g in tags.groove_tag.split(",") if g.strip()}
         if profile.groove_preference and profile.groove_preference in groove_tokens:
             score += 1
     else:
         score += 1
-
-    # --- mode bonus ---
     if mode == "cypher" and tags and tags.difficulty_fit in {"intermediate", "advanced"}:
         score += 1
-
     return score
 
 
@@ -67,28 +354,9 @@ def recommend_songs(
     target_energy: Optional[str] = None,
     source: str = "library",
 ) -> list[RecommendedSongItem]:
-    """Recommend songs.
+    from app.modules.profiles.service import get_profile_or_404
 
-    source="library"  — from user's own playlists (with their tags)
-    source="server"   — from ALL songs on the server, scored by aggregated tags from all users
-    """
     profile = get_profile_or_404(db, user_id)
-
-    if source == "library":
-        return _recommend_from_library(db, user_id, profile, mode, current_song_id, target_energy)
-    else:
-        return _recommend_from_server(db, user_id, profile, mode, current_song_id, target_energy)
-
-
-def _recommend_from_library(
-    db: Session,
-    user_id: int,
-    profile,
-    mode: str,
-    current_song_id: Optional[int],
-    target_energy: Optional[str],
-) -> list[RecommendedSongItem]:
-    """Recommend from songs in the user's playlists (with tags)."""
     rows = (
         db.query(Song, SongTag)
         .join(PlaylistSong, PlaylistSong.song_id == Song.id)
@@ -97,14 +365,9 @@ def _recommend_from_library(
         .filter(Playlist.user_id == user_id)
         .all()
     )
-
     if not rows:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="no songs in your playlists",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no songs in your playlists")
 
-    # Deduplicate by song id
     seen: set[int] = set()
     ranked: list[tuple[int, Song]] = []
     for song, tags in rows:
@@ -116,61 +379,9 @@ def _recommend_from_library(
         score = _score_song(tags, profile, mode, target_energy)
         ranked.append((score, song))
 
-    # Add randomness for songs with same score
     random.shuffle(ranked)
     ranked.sort(key=lambda item: -item[0])
     return [
-        RecommendedSongItem(
-            song_id=song.id, title=song.title, artist=song.artist, in_library=True,
-        )
+        RecommendedSongItem(song_id=song.id, title=song.title, artist=song.artist, in_library=True)
         for _, song in ranked[:10]
-    ]
-
-
-def _recommend_from_server(
-    db: Session,
-    user_id: int,
-    profile,
-    mode: str,
-    current_song_id: Optional[int],
-    target_energy: Optional[str],
-) -> list[RecommendedSongItem]:
-    """Recommend from the entire server song pool, scored by aggregated tags from all users.
-
-    Shows ALL songs on the server ranked by relevance, marking which ones
-    the user already has in their playlists.
-    """
-    rows = db.query(Song, SongTag).outerjoin(SongTag, SongTag.song_id == Song.id).all()
-    if not rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no songs available")
-
-    # Build set of song_ids in user's playlists (for in_library flag)
-    user_playlist_song_ids = set(
-        r[0] for r in db.query(PlaylistSong.song_id)
-        .join(Playlist, Playlist.id == PlaylistSong.playlist_id)
-        .filter(Playlist.user_id == user_id)
-        .all()
-    )
-
-    ranked: list[tuple[int, Song, bool]] = []
-    for song, tags in rows:
-        if current_song_id and song.id == current_song_id:
-            continue
-        score = _score_song(tags, profile, mode, target_energy)
-        in_user_playlists = song.id in user_playlist_song_ids
-        # Discovery bonus: songs the user doesn't have get priority
-        if not in_user_playlists:
-            score += 5
-        ranked.append((score, song, in_user_playlists))
-
-    # Add randomness for songs with same score
-    random.shuffle(ranked)
-    ranked.sort(key=lambda item: -item[0])
-
-    # Return up to 20 results for server pool (more discovery)
-    return [
-        RecommendedSongItem(
-            song_id=song.id, title=song.title, artist=song.artist, in_library=in_lib,
-        )
-        for _, song, in_lib in ranked[:20]
     ]

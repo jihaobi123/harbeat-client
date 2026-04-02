@@ -13,7 +13,7 @@ interface Props {
 const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
   { id: 'library', icon: '🎵', label: '我的音乐库' },
   { id: 'platform', icon: '🌐', label: '在线搜索' },
-  { id: 'recommend', icon: '🎯', label: '智能推荐' },
+  { id: 'recommend', icon: '🎯', label: '发现音乐' },
   { id: 'session', icon: '🎤', label: '练舞会话' },
   { id: 'profile', icon: '👤', label: '音乐画像' },
 ]

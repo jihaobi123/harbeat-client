@@ -185,6 +185,18 @@ export async function getRecommendations(data: {
   )
 }
 
+export async function discoverSongs(userId: number) {
+  return request<{ sections: import('../types').DiscoverSection[] }>(
+    '/api/recommendations/discover', { method: 'POST', body: JSON.stringify({ user_id: userId }) }
+  )
+}
+
+export async function addSongToLibrary(userId: number, songId: number) {
+  return request<{ library_song_id: string; title: string; artist: string }>(
+    '/api/recommendations/add-to-library', { method: 'POST', body: JSON.stringify({ user_id: userId, song_id: songId }) }
+  )
+}
+
 // ---- Profiles ----
 export async function generateProfile(userId: number) {
   return request<import('../types').UserProfile>(

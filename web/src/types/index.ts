@@ -94,6 +94,23 @@ export interface RecommendedSong {
   in_library: boolean
 }
 
+export interface DiscoverSongItem {
+  song_id: number
+  title: string
+  artist: string
+  style: string | null
+  energy: string | null
+  in_library: boolean
+}
+
+export interface DiscoverSection {
+  key: string
+  title: string
+  icon: string
+  description: string
+  songs: DiscoverSongItem[]
+}
+
 export interface UserProfile {
   favorite_style: string
   avg_bpm_preference: number | null

@@ -3,10 +3,39 @@ from sqlalchemy.orm import Session
 
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
-from app.modules.recommendations.schemas import RecommendationData, RecommendationRequest
-from app.modules.recommendations.service import recommend_songs
+from app.modules.recommendations.schemas import (
+    AddToLibraryData,
+    AddToLibraryRequest,
+    DiscoverData,
+    DiscoverRequest,
+    RecommendationData,
+    RecommendationRequest,
+)
+from app.modules.recommendations.service import (
+    add_song_to_library,
+    discover_songs,
+    recommend_songs,
+)
 
 router = APIRouter()
+
+
+@router.post("/discover", response_model=APIResponse[DiscoverData])
+def discover_endpoint(
+    payload: DiscoverRequest,
+    db: Session = Depends(get_db),
+):
+    data = discover_songs(db, user_id=payload.user_id)
+    return APIResponse(data=data)
+
+
+@router.post("/add-to-library", response_model=APIResponse[AddToLibraryData])
+def add_to_library_endpoint(
+    payload: AddToLibraryRequest,
+    db: Session = Depends(get_db),
+):
+    data = add_song_to_library(db, user_id=payload.user_id, song_id=payload.song_id)
+    return APIResponse(data=data)
 
 
 @router.post("/for-user", response_model=APIResponse[RecommendationData])
