@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.modules.music.model_selection import pick_model_bundle, pick_style_engine
+from app.modules.music.audio_processor import process_audio_for_style
 from app.modules.music.models import SongCue
-from app.modules.music.schemas import CueCreateRequest, SongData, SongTagUpdateRequest, UpsertSongRequest
+from app.modules.music.schemas import (
+    CueCreateRequest,
+    CueData,
+    SongData,
+    SongProcessRequest,
+    SongProcessResult,
+    SongProcessStyleMeta,
+    SongTagUpdateRequest,
+    UpsertSongRequest,
+)
 from app.modules.playlists.models import Song, SongTag
 from app.modules.users.service import get_user_or_404
 
@@ -80,7 +93,6 @@ def update_song_tags(db: Session, song_id: int, payload: SongTagUpdateRequest) -
 
 
 def upsert_song_with_tags(db: Session, payload: UpsertSongRequest) -> SongData:
-    """Find or create a Song by (title, artist) and accumulate tags from all users."""
     song = db.query(Song).filter(Song.title == payload.title, Song.artist == payload.artist).first()
     if song is None:
         song = Song(title=payload.title, artist=payload.artist)
@@ -93,7 +105,6 @@ def upsert_song_with_tags(db: Session, payload: UpsertSongRequest) -> SongData:
         db.add(tag)
         db.flush()
 
-    # Accumulate tags (union with existing) instead of replacing
     if payload.tags:
         existing_styles = {t.strip() for t in (tag.style or "").split(",") if t.strip()}
         existing_styles.update(payload.tags)
@@ -149,3 +160,66 @@ def list_cues(db: Session, song_id: int, user_id: int) -> list[CueData]:
         )
         for cue in cues
     ]
+
+
+def process_song_for_styles(db: Session, song_id: int, payload: SongProcessRequest) -> SongProcessResult:
+    """
+    对单曲生成多风格街舞成品（当前为成熟模型选择+管线路由层）。
+    实际推理可在此处替换为 Demucs/Essentia/RAVE/FFmpeg 调用。
+    """
+    song = get_song_or_404(db, song_id)
+
+    requested_styles = payload.styles or _split_style_tags(song.tags.style if song.tags else None)
+    if not requested_styles:
+        requested_styles = ["hiphop"]
+
+    processed_files: dict[str, str] = {}
+    meta: dict[str, SongProcessStyleMeta] = {}
+
+    base_bundle = pick_model_bundle(payload.quality_mode)
+
+    for style in requested_styles:
+        selected_models = {
+            "stem_separator": base_bundle.stem_separator,
+            "beat_tracker": base_bundle.beat_tracker,
+            "key_detector": base_bundle.key_detector,
+            "time_stretch": base_bundle.time_stretch,
+            "transition_mixer": base_bundle.transition_mixer,
+            "mastering": base_bundle.mastering,
+            "style_engine": pick_style_engine(style, payload.quality_mode),
+        }
+
+        output_path = f"data/music-files/shared/processed/{song_id}_{style}_{payload.quality_mode}.wav"
+        note = "model bundle selected; fallback path generated"
+        try:
+            if os.path.isfile(output_path):
+                note = "cached: already processed"
+                payload_bpm = payload.bpm
+            elif song.audio_url:
+                process_meta = process_audio_for_style(
+                    input_path=song.audio_url,
+                    output_path=output_path,
+                    style=style,
+                    target_bpm=payload.bpm,
+                    target_energy=payload.energy,
+                )
+                note = "processed with librosa-based dance pipeline"
+                if process_meta.get("target_bpm") and payload.bpm is None:
+                    payload_bpm = int(process_meta["target_bpm"])
+                else:
+                    payload_bpm = payload.bpm
+            else:
+                payload_bpm = payload.bpm
+        except Exception as exc:
+            payload_bpm = payload.bpm
+            note = f"processing skipped: {exc}"
+
+        processed_files[style] = output_path
+        meta[style] = SongProcessStyleMeta(
+            selected_models=selected_models,
+            bpm=payload_bpm,
+            energy=payload.energy,
+            note=note,
+        )
+
+    return SongProcessResult(song_id=song_id, processed_files=processed_files, meta=meta)

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SongImportItem(BaseModel):
@@ -60,3 +60,17 @@ class PlaylistListData(BaseModel):
 
 class PlaylistSongTagUpdateRequest(BaseModel):
     tags: list[str]
+
+
+class StyleMixRequest(BaseModel):
+    style: str
+    duration_minutes: int = 30
+    bpm: Optional[int] = None
+    energy: Optional[str] = None
+    quality_mode: Literal["balanced", "hq", "fast"] = "balanced"
+
+
+class StyleMixResult(BaseModel):
+    playlist: list[PlaylistSongData] = Field(default_factory=list)
+    processed_files: dict[int, str] = Field(default_factory=dict)
+    meta: dict[int, dict[str, str]] = Field(default_factory=dict)

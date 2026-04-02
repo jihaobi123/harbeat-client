@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
+import { getProcessedStreamUrl } from '../api/client'
 import type { PracticeTrack } from '../api/client'
+import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
+import type { DanceStyle, QualityMode, StyleMixResult } from '../types'
+import SeamlessPlayer from './SeamlessPlayer'
+import type { SeamlessTrack } from './SeamlessPlayer'
 
 const MODES = [
   { value: 'freeplay', label: '自由练习', desc: '随心所欲，自由练舞' },
@@ -33,6 +38,38 @@ export default function SessionPanel() {
   const [practiceList, setPracticeList] = useState<PracticeTrack[]>([])
   const [practiceLoading, setPracticeLoading] = useState(false)
   const [practiceDuration, setPracticeDuration] = useState(30)
+
+  // Style mix state
+  const [mixStyle, setMixStyle] = useState<DanceStyle>('hiphop')
+  const [mixDuration, setMixDuration] = useState(30)
+  const [mixQuality, setMixQuality] = useState<QualityMode>('balanced')
+  const [mixLoading, setMixLoading] = useState(false)
+  const [mixResult, setMixResult] = useState<StyleMixResult | null>(null)
+  const [mixError, setMixError] = useState('')
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
+  const mixAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Seamless player state
+  const [seamlessActive, setSeamlessActive] = useState(false)
+  const [seamlessTracks, setSeamlessTracks] = useState<SeamlessTrack[]>([])
+  const [seamlessKey, setSeamlessKey] = useState(0)
+
+  const toggleMixPlay = (songId: string, filePath: string) => {
+    if (playingTrackId === songId) {
+      mixAudioRef.current?.pause()
+      setPlayingTrackId(null)
+      return
+    }
+    if (mixAudioRef.current) {
+      mixAudioRef.current.pause()
+    }
+    const audio = new Audio(getProcessedStreamUrl(filePath))
+    audio.onended = () => setPlayingTrackId(null)
+    audio.onerror = () => setPlayingTrackId(null)
+    audio.play()
+    mixAudioRef.current = audio
+    setPlayingTrackId(songId)
+  }
 
   // Timer for elapsed time
   useState(() => {
@@ -112,6 +149,66 @@ export default function SessionPanel() {
     if (song) playSong(song)
   }
 
+  const handleGenerateStyleMix = async () => {
+    setMixLoading(true)
+    setMixError('')
+    setMixResult(null)
+    try {
+      const res = await api.generateStyleMix({
+        style: mixStyle,
+        duration_minutes: mixDuration,
+        quality_mode: mixQuality,
+      })
+      setMixResult(res)
+    } catch (e: any) {
+      setMixError(e.message || '生成失败')
+    } finally {
+      setMixLoading(false)
+    }
+  }
+
+  const handleStartSeamless = async () => {
+    if (!user || !mixResult) return
+    // Stop regular audio player
+    useMusicStore.setState({ playingSong: null, isPlaying: false })
+    // Stop single-track mix preview
+    if (mixAudioRef.current) {
+      mixAudioRef.current.pause()
+      mixAudioRef.current = null
+      setPlayingTrackId(null)
+    }
+    // Build track list from mix result
+    const stracks: SeamlessTrack[] = mixResult.playlist
+      .filter(t => !!mixResult.processed_files[t.song_id])
+      .map(t => ({
+        songId: t.song_id,
+        title: t.title,
+        artist: t.artist,
+        filePath: mixResult.processed_files[t.song_id],
+      }))
+    if (!stracks.length) {
+      setMixError('没有可播放的处理文件')
+      return
+    }
+    setSeamlessTracks(stracks)
+    setSeamlessKey(k => k + 1)
+    setSeamlessActive(true)
+    // Auto-start session
+    if (!sessionId) {
+      setLoading(true)
+      try {
+        const res = await api.startSession(user.id, `seamless_${mixStyle}`)
+        setSessionId(res.session_id)
+        setStartTime(new Date())
+        setEvents([{ type: 'session_start', value: `丝滑播放 ${DANCE_STYLE_LABELS[mixStyle]}`, time: new Date().toLocaleTimeString() }])
+      } catch (e: any) {
+        setError(e.message || '启动失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       <div className="px-5 py-4 border-b border-gray-700">
@@ -182,6 +279,195 @@ export default function SessionPanel() {
             </div>
           )}
         </div>
+
+        {/* 🔥 风格化街舞歌单生成 */}
+        <div className="bg-surface-light rounded-xl p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-white">🔥 街舞风格歌单</h3>
+          <p className="text-xs text-gray-500">
+            从服务器曲库筛选匹配歌曲，自动处理为指定舞种的街舞成品，生成连续练舞歌单
+          </p>
+
+          <div className="space-y-3">
+            {/* Style selection */}
+            <div>
+              <label className="text-[10px] text-gray-500 mb-1 block">目标舞种</label>
+              <div className="flex flex-wrap gap-1">
+                {DANCE_STYLES.filter(s => s !== 'other').map(style => (
+                  <button
+                    key={style}
+                    onClick={() => setMixStyle(style)}
+                    className="px-2 py-0.5 rounded-full text-[11px] font-medium transition"
+                    style={{
+                      background: mixStyle === style ? (DANCE_STYLE_COLORS[style] || '#64748b') + '33' : 'transparent',
+                      color: mixStyle === style ? DANCE_STYLE_COLORS[style] || '#64748b' : '#6b7280',
+                      border: `1px solid ${mixStyle === style ? DANCE_STYLE_COLORS[style] || '#64748b' : '#374151'}`,
+                    }}
+                  >
+                    {DANCE_STYLE_LABELS[style]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Duration + Quality */}
+            <div className="flex items-center gap-3">
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block">目标时长</label>
+                <select
+                  value={mixDuration}
+                  onChange={e => setMixDuration(Number(e.target.value))}
+                  className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none"
+                >
+                  <option value={15}>15 分钟</option>
+                  <option value={30}>30 分钟</option>
+                  <option value={45}>45 分钟</option>
+                  <option value={60}>60 分钟</option>
+                  <option value={90}>90 分钟</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block">处理质量</label>
+                <div className="flex gap-1">
+                  {([
+                    { v: 'fast' as QualityMode, l: '⚡快' },
+                    { v: 'balanced' as QualityMode, l: '⚖️均衡' },
+                    { v: 'hq' as QualityMode, l: '💎高' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setMixQuality(opt.v)}
+                      className={`px-2 py-1 rounded-lg text-[11px] transition ${
+                        mixQuality === opt.v
+                          ? 'bg-primary/20 text-primary border border-primary'
+                          : 'bg-surface text-gray-500 border border-gray-700'
+                      }`}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Generate button */}
+            <button
+              onClick={handleGenerateStyleMix}
+              disabled={mixLoading}
+              className="w-full py-2.5 rounded-lg text-sm font-semibold transition bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 text-white"
+            >
+              {mixLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  处理中（可能需要几分钟）...
+                </span>
+              ) : `🔥 生成 ${DANCE_STYLE_LABELS[mixStyle]} ${mixDuration}分钟歌单`}
+            </button>
+          </div>
+
+          {/* Error */}
+          {mixError && (
+            <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-3 py-2 text-red-300 text-xs">{mixError}</div>
+          )}
+
+          {/* Results */}
+          {mixResult && mixResult.playlist.length > 0 && (
+            <div className="space-y-2 mt-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: DANCE_STYLE_COLORS[mixStyle] || '#64748b' }}
+                />
+                <h4 className="text-xs font-semibold text-white">
+                  {DANCE_STYLE_LABELS[mixStyle]} 练舞歌单
+                </h4>
+                <span className="text-[10px] text-gray-500 ml-auto">
+                  共 {mixResult.playlist.length} 首 · 约 {Math.round(mixResult.playlist.reduce((s, t) => s + (t.duration || 180), 0) / 60)} 分钟
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-3 text-[10px] text-gray-500 px-2">
+                  <span className="w-6">#</span>
+                  <span className="flex-1">歌曲</span>
+                  <span className="w-14 text-right">BPM</span>
+                  <span className="w-14 text-right">状态</span>
+                </div>
+                {mixResult.playlist.map((track, i) => {
+                  const hasFile = !!mixResult.processed_files[track.song_id]
+                  const trackMeta = mixResult.meta[track.song_id]
+                  return (
+                    <div
+                      key={track.song_id}
+                      className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter transition"
+                    >
+                      <span className="w-6 text-xs text-gray-500">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-white truncate">{track.title}</div>
+                        <div className="text-[10px] text-gray-500 truncate">{track.artist}</div>
+                      </div>
+                      <span className="w-14 text-xs text-gray-400 text-right">
+                        {track.bpm ? Math.round(track.bpm) : '-'}
+                      </span>
+                      <span className="w-14 text-right">
+                        {hasFile ? (
+                          <button
+                            onClick={() => toggleMixPlay(track.song_id, mixResult.processed_files[track.song_id])}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition hover:scale-105"
+                            style={{ background: DANCE_STYLE_COLORS[mixStyle] + '33', color: DANCE_STYLE_COLORS[mixStyle] }}
+                          >
+                            {playingTrackId === track.song_id ? '⏸ 暂停' : '▶ 播放'}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-gray-500">—</span>
+                        )}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Model info */}
+              {Object.keys(mixResult.meta).length > 0 && (
+                <div className="mt-2 bg-surface rounded-lg p-3">
+                  <div className="text-[10px] text-gray-500 mb-1">使用的处理模型</div>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(Object.values(mixResult.meta)[0] || {}).slice(0, 5).map(([k, v]) => (
+                      <span key={k} className="text-[9px] bg-surface-lighter px-1.5 py-0.5 rounded text-gray-400">
+                        {k}: {String(v).split(':')[0]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 丝滑连续播放按钮 */}
+              <button
+                onClick={handleStartSeamless}
+                disabled={mixLoading}
+                className="w-full py-3 rounded-xl text-sm font-bold transition shadow-lg text-white hover:opacity-90 mt-2"
+                style={{
+                  background: `linear-gradient(135deg, ${DANCE_STYLE_COLORS[mixStyle] || '#8b5cf6'}, ${DANCE_STYLE_COLORS[mixStyle] || '#8b5cf6'}aa)`,
+                }}
+              >
+                🎵 开始丝滑连续播放
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Seamless Player */}
+        {seamlessActive && seamlessTracks.length > 0 && (
+          <SeamlessPlayer
+            key={seamlessKey}
+            tracks={seamlessTracks}
+            crossfadeSec={4}
+            accentColor={DANCE_STYLE_COLORS[mixStyle] || '#8b5cf6'}
+            onEnd={() => {
+              setSeamlessActive(false)
+              setEvents(prev => [...prev, { type: 'seamless_end', value: '全部播放完毕', time: new Date().toLocaleTimeString() }])
+            }}
+          />
+        )}
 
         {!sessionId ? (
           /* Start session view */

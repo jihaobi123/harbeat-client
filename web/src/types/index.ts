@@ -142,3 +142,25 @@ export interface SongCue {
   end_time: number | null
   label: string | null
 }
+
+/* ─── Style Processing ─── */
+export type QualityMode = 'balanced' | 'hq' | 'fast'
+
+export interface StyleProcessMeta {
+  selected_models: Record<string, string>
+  bpm: number | null
+  energy: string | null
+  note: string | null
+}
+
+export interface StyleProcessResult {
+  song_id: number
+  processed_files: Record<string, string>
+  meta: Record<string, StyleProcessMeta>
+}
+
+export interface StyleMixResult {
+  playlist: PlaylistSong[]
+  processed_files: Record<number, string>
+  meta: Record<number, Record<string, string>>
+}

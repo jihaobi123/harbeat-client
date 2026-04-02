@@ -40,6 +40,40 @@ def _iter_file(path: str, start: int, end: int):
             yield chunk
 
 
+def _range_response(file_path: str, file_size: int, content_type: str, request: Request):
+    """Handle optional Range header and return appropriate streaming response."""
+    range_header = request.headers.get("range")
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if not m:
+            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+        start = int(m.group(1))
+        end = int(m.group(2)) if m.group(2) else file_size - 1
+        end = min(end, file_size - 1)
+        if start > end or start >= file_size:
+            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
+        content_length = end - start + 1
+        return StreamingResponse(
+            _iter_file(file_path, start, end),
+            status_code=206,
+            media_type=content_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(content_length),
+            },
+        )
+
+    return StreamingResponse(
+        _iter_file(file_path, 0, file_size - 1),
+        media_type=content_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(file_size),
+        },
+    )
+
+
 def _get_user_from_request(request: Request, db: Session, token_param: str | None) -> User:
     """Extract user from Authorization header or query param token."""
     token: str | None = None
@@ -61,6 +95,31 @@ def _get_user_from_request(request: Request, db: Session, token_param: str | Non
     return user
 
 
+@router.get("/processed/{filename}")
+def stream_processed(
+    filename: str,
+    request: Request,
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Stream a style-processed audio file from data/music-files/shared/processed/."""
+    _get_user_from_request(request, db, token)
+
+    # Sanitize filename to prevent path traversal
+    safe_name = os.path.basename(filename)
+    base_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data", "music-files", "shared", "processed")
+    )
+    file_path = os.path.normpath(os.path.join(base_dir, safe_name))
+    if not file_path.startswith(base_dir):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid filename")
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="processed file not found")
+
+    file_size = os.path.getsize(file_path)
+    return _range_response(file_path, file_size, "audio/wav", request)
+
+
 @router.get("/{song_id}")
 def stream_audio(
     song_id: str,
@@ -68,7 +127,7 @@ def stream_audio(
     token: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    current_user = _get_user_from_request(request, db, token)
+    _get_user_from_request(request, db, token)
 
     song = db.get(LibrarySong, song_id)
     if not song:
@@ -81,38 +140,7 @@ def stream_audio(
     file_size = os.path.getsize(file_path)
     fmt = song.format.lower().lstrip(".")
     content_type = CONTENT_TYPES.get(fmt, "application/octet-stream")
-
-    range_header = request.headers.get("range")
-    if range_header:
-        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
-        if not m:
-            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
-        start = int(m.group(1))
-        end = int(m.group(2)) if m.group(2) else file_size - 1
-        end = min(end, file_size - 1)
-        if start > end or start >= file_size:
-            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
-
-        content_length = end - start + 1
-        return StreamingResponse(
-            _iter_file(file_path, start, end),
-            status_code=206,
-            media_type=content_type,
-            headers={
-                "Content-Range": f"bytes {start}-{end}/{file_size}",
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(content_length),
-            },
-        )
-
-    return StreamingResponse(
-        _iter_file(file_path, 0, file_size - 1),
-        media_type=content_type,
-        headers={
-            "Accept-Ranges": "bytes",
-            "Content-Length": str(file_size),
-        },
-    )
+    return _range_response(file_path, file_size, content_type, request)
 
 
 @router.get("/{song_id}/stem/{stem_name}")
@@ -124,7 +152,7 @@ def stream_stem(
     db: Session = Depends(get_db),
 ):
     """Stream a separated stem audio file."""
-    current_user = _get_user_from_request(request, db, token)
+    _get_user_from_request(request, db, token)
 
     if stem_name not in ("vocals", "drums", "bass", "other"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid stem name")
@@ -141,36 +169,4 @@ def stream_stem(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="stem file not found on disk")
 
     file_size = os.path.getsize(file_path)
-    content_type = "audio/wav"
-
-    range_header = request.headers.get("range")
-    if range_header:
-        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
-        if not m:
-            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
-        start = int(m.group(1))
-        end = int(m.group(2)) if m.group(2) else file_size - 1
-        end = min(end, file_size - 1)
-        if start > end or start >= file_size:
-            raise HTTPException(status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE)
-
-        content_length = end - start + 1
-        return StreamingResponse(
-            _iter_file(file_path, start, end),
-            status_code=206,
-            media_type=content_type,
-            headers={
-                "Content-Range": f"bytes {start}-{end}/{file_size}",
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(content_length),
-            },
-        )
-
-    return StreamingResponse(
-        _iter_file(file_path, 0, file_size - 1),
-        media_type=content_type,
-        headers={
-            "Accept-Ranges": "bytes",
-            "Content-Length": str(file_size),
-        },
-    )
+    return _range_response(file_path, file_size, "audio/wav", request)

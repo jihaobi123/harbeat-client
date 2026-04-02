@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SongTagUpdateRequest(BaseModel):
@@ -60,3 +60,24 @@ class SongData(BaseModel):
 
 class SongListData(BaseModel):
     songs: list[SongData]
+
+
+class SongProcessRequest(BaseModel):
+    styles: list[str] = Field(default_factory=list)
+    bpm: Optional[int] = None
+    energy: Optional[str] = None
+    # balanced: 默认；hq: 更高质量（更耗时）；fast: 更快预览
+    quality_mode: Literal["balanced", "hq", "fast"] = "balanced"
+
+
+class SongProcessStyleMeta(BaseModel):
+    selected_models: dict[str, str] = Field(default_factory=dict)
+    bpm: Optional[int] = None
+    energy: Optional[str] = None
+    note: Optional[str] = None
+
+
+class SongProcessResult(BaseModel):
+    song_id: int
+    processed_files: dict[str, str] = Field(default_factory=dict)
+    meta: dict[str, SongProcessStyleMeta] = Field(default_factory=dict)

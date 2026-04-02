@@ -2,26 +2,29 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.shared.database import get_db
-from app.shared.responses import APIResponse
 from app.modules.auth.dependencies import get_current_user
-from app.modules.users.models import User
 from app.modules.playlists.schemas import (
     PlaylistDetailData,
     PlaylistImportData,
     PlaylistImportRequest,
     PlaylistListData,
     PlaylistSongTagUpdateRequest,
+    StyleMixRequest,
+    StyleMixResult,
 )
 from app.modules.playlists.service import (
-    create_empty_playlist,
     add_library_songs_to_playlist,
+    create_empty_playlist,
     delete_playlist,
+    generate_style_mix_playlist,
     get_playlist_detail,
     import_playlist,
     list_playlists,
     update_playlist_song_tags,
 )
+from app.modules.users.models import User
+from app.shared.database import get_db
+from app.shared.responses import APIResponse
 
 router = APIRouter()
 
@@ -79,12 +82,8 @@ def create_playlist_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create an empty playlist."""
     playlist = create_empty_playlist(db, current_user.id, payload.name)
-    return APIResponse(data={
-        "id": playlist.id,
-        "playlist_name": playlist.playlist_name,
-    })
+    return APIResponse(data={"id": playlist.id, "playlist_name": playlist.playlist_name})
 
 
 @router.post("/{playlist_id}/add-songs", response_model=APIResponse[dict])
@@ -94,6 +93,12 @@ def add_songs_to_playlist_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Add library songs to a playlist."""
     count = add_library_songs_to_playlist(db, playlist_id, current_user.id, payload.library_song_ids)
     return APIResponse(data={"added": count})
+
+
+@router.post("/generate-style-mix", response_model=APIResponse[StyleMixResult])
+def generate_style_mix_endpoint(payload: StyleMixRequest, db: Session = Depends(get_db)):
+    """生成风格化连续练舞歌单。"""
+    result = generate_style_mix_playlist(db, payload)
+    return APIResponse(data=result)

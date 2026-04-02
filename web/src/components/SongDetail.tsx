@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
 import WaveformPlayer from './WaveformPlayer'
 import * as api from '../api/client'
-import { getStemStreamUrl } from '../api/client'
+import { getStemStreamUrl, getProcessedStreamUrl } from '../api/client'
 import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
-import type { DanceStyle } from '../types'
+import type { DanceStyle, QualityMode, StyleProcessResult } from '../types'
 
 function formatDuration(sec: number): string {
   if (!sec || sec <= 0) return '--:--'
@@ -24,6 +24,7 @@ const STEM_INFO: Record<string, { label: string; emoji: string; color: string }>
 function StemPlayer({ songId }: { songId: string }) {
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
   const [isPlaying, setIsPlaying] = useState(false)
+  const [volumes, setVolumes] = useState<Record<string, number>>({ vocals: 1, drums: 1, bass: 1, other: 1 })
   const [muted, setMuted] = useState<Record<string, boolean>>({ vocals: false, drums: false, bass: false, other: false })
   const [ready, setReady] = useState(false)
   const stemNames = ['vocals', 'drums', 'bass', 'other']
@@ -32,6 +33,7 @@ function StemPlayer({ songId }: { songId: string }) {
     // Reset state when songId changes
     setIsPlaying(false)
     setReady(false)
+    setVolumes({ vocals: 1, drums: 1, bass: 1, other: 1 })
     setMuted({ vocals: false, drums: false, bass: false, other: false })
 
     let loaded = 0
@@ -42,6 +44,7 @@ function StemPlayer({ songId }: { songId: string }) {
       if (audio) {
         audio.src = getStemStreamUrl(songId, name)
         audio.preload = 'metadata'
+        audio.volume = 1
         audio.muted = false
         audio.oncanplaythrough = checkReady
         audio.onended = () => setIsPlaying(false)
@@ -69,14 +72,31 @@ function StemPlayer({ songId }: { songId: string }) {
     setIsPlaying(!isPlaying)
   }, [isPlaying])
 
+  const handleVolumeChange = useCallback((stem: string, value: number) => {
+    setVolumes(prev => ({ ...prev, [stem]: value }))
+    const audio = audioRefs.current[stem]
+    if (audio) {
+      audio.volume = value
+      audio.muted = value === 0
+    }
+    setMuted(prev => ({ ...prev, [stem]: value === 0 }))
+  }, [])
+
   const toggleMute = useCallback((stem: string) => {
     setMuted(prev => {
       const next = { ...prev, [stem]: !prev[stem] }
       const audio = audioRefs.current[stem]
-      if (audio) audio.muted = next[stem]
+      if (audio) {
+        audio.muted = next[stem]
+        if (!next[stem] && volumes[stem] === 0) {
+          // Unmuting from 0 → restore to 1
+          setVolumes(v => ({ ...v, [stem]: 1 }))
+          audio.volume = 1
+        }
+      }
       return next
     })
-  }, [])
+  }, [volumes])
 
   return (
     <div className="bg-surface rounded-xl p-4">
@@ -93,21 +113,39 @@ function StemPlayer({ songId }: { songId: string }) {
       <div className="space-y-2">
         {stemNames.map(name => {
           const info = STEM_INFO[name] || { label: name, emoji: '🎵', color: '#aaa' }
+          const vol = volumes[name]
+          const isMuted = muted[name]
           return (
-            <div key={name} className="flex items-center gap-3 px-3 py-2 bg-surface-lighter rounded-lg">
+            <div key={name} className="flex items-center gap-2.5 px-3 py-2 bg-surface-lighter rounded-lg">
               <audio ref={el => { audioRefs.current[name] = el }} />
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: info.color }} />
-              <span className="text-xs text-gray-300 w-16">{info.emoji} {info.label}</span>
-              <div className="flex-1" />
+              <span className="text-xs text-gray-300 w-16 shrink-0">{info.emoji} {info.label}</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={isMuted ? 0 : vol}
+                onChange={e => handleVolumeChange(name, parseFloat(e.target.value))}
+                className="flex-1 h-1.5 appearance-none rounded-full cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, ${info.color} ${(isMuted ? 0 : vol) * 100}%, #374151 ${(isMuted ? 0 : vol) * 100}%)`,
+                  accentColor: info.color,
+                }}
+              />
+              <span className="text-xs text-gray-500 w-8 text-right shrink-0">
+                {isMuted ? 0 : Math.round(vol * 100)}%
+              </span>
               <button
                 onClick={() => toggleMute(name)}
-                className={`px-2 py-0.5 rounded text-xs transition ${
-                  muted[name]
+                className={`w-7 h-7 flex items-center justify-center rounded text-sm transition shrink-0 ${
+                  isMuted
                     ? 'bg-red-500/20 text-red-400'
-                    : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                    : 'bg-surface text-gray-400 hover:text-white'
                 }`}
+                title={isMuted ? '取消静音' : '静音'}
               >
-                {muted[name] ? '🔇 静音' : '🔊 开启'}
+                {isMuted ? '🔇' : vol > 0.5 ? '🔊' : vol > 0 ? '🔉' : '🔈'}
               </button>
             </div>
           )
@@ -266,6 +304,181 @@ function SongTagEditor({ title, artist }: { title: string; artist: string }) {
   )
 }
 
+/* ─── Dance Style Processor ─── */
+const QUALITY_OPTIONS: { value: QualityMode; label: string }[] = [
+  { value: 'fast', label: '⚡ 快速预览' },
+  { value: 'balanced', label: '⚖️ 均衡' },
+  { value: 'hq', label: '💎 高质量' },
+]
+
+function StyleProcessor({ songId, title }: { songId: string; title: string }) {
+  const [selectedStyles, setSelectedStyles] = useState<DanceStyle[]>([])
+  const [quality, setQuality] = useState<QualityMode>('balanced')
+  const [processing, setProcessing] = useState(false)
+  const [result, setResult] = useState<StyleProcessResult | null>(null)
+  const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
+  const [playingStyle, setPlayingStyle] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const togglePlay = (style: string, filePath: string) => {
+    if (playingStyle === style) {
+      audioRef.current?.pause()
+      setPlayingStyle(null)
+      return
+    }
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    const audio = new Audio(getProcessedStreamUrl(filePath))
+    audio.onended = () => setPlayingStyle(null)
+    audio.onerror = () => setPlayingStyle(null)
+    audio.play()
+    audioRef.current = audio
+    setPlayingStyle(style)
+  }
+
+  const toggleStyle = (s: DanceStyle) =>
+    setSelectedStyles(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+
+  const handleProcess = async () => {
+    if (selectedStyles.length === 0) return
+    setProcessing(true)
+    setError('')
+    setResult(null)
+    try {
+      const catalogSong = await api.getCatalogSongs()
+      const match = catalogSong.songs.find(s => s.title === title)
+      if (!match) { setError('服务器未找到此歌曲的目录记录'); return }
+      const res = await api.processSongStyle(match.id, {
+        styles: selectedStyles,
+        quality_mode: quality,
+      })
+      setResult(res)
+    } catch (e: any) {
+      setError(e.message || '处理失败')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  return (
+    <div className="bg-surface rounded-xl p-4">
+      <button
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <h4 className="text-sm font-semibold text-white">🎶 街舞风格处理</h4>
+        <span className="text-xs text-gray-500">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-3">
+          <p className="text-[10px] text-gray-500">选择舞种，自动生成适合该风格的音乐成品（BPM调整 + 鼓点强化 + 能量适配）</p>
+
+          {/* Style selection */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1 block">目标舞种（可多选）</label>
+            <div className="flex flex-wrap gap-1">
+              {DANCE_STYLES.filter(s => s !== 'other').map(style => (
+                <button
+                  key={style}
+                  onClick={() => toggleStyle(style)}
+                  className="px-2 py-0.5 rounded-full text-[11px] font-medium transition"
+                  style={{
+                    background: selectedStyles.includes(style) ? DANCE_STYLE_COLORS[style] + '33' : 'transparent',
+                    color: selectedStyles.includes(style) ? DANCE_STYLE_COLORS[style] : '#6b7280',
+                    border: `1px solid ${selectedStyles.includes(style) ? DANCE_STYLE_COLORS[style] : '#374151'}`,
+                  }}
+                >
+                  {DANCE_STYLE_LABELS[style]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quality mode */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1 block">处理质量</label>
+            <div className="flex gap-1.5">
+              {QUALITY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setQuality(opt.value)}
+                  className={`px-2.5 py-0.5 rounded-lg text-[11px] transition ${
+                    quality === opt.value
+                      ? 'bg-primary/20 text-primary border border-primary'
+                      : 'bg-surface-lighter text-gray-500 border border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Process button */}
+          <button
+            onClick={handleProcess}
+            disabled={selectedStyles.length === 0 || processing}
+            className="w-full py-2 rounded-lg text-xs font-semibold transition bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-40 text-white"
+          >
+            {processing ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                处理中...
+              </span>
+            ) : `🔥 生成 ${selectedStyles.length} 种风格成品`}
+          </button>
+
+          {/* Error */}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          {/* Results */}
+          {result && (
+            <div className="space-y-2 mt-2">
+              <h5 className="text-[11px] text-gray-400 font-medium">✅ 处理完成</h5>
+              {Object.entries(result.processed_files).map(([style, filePath]) => {
+                const styleMeta = result.meta[style]
+                const styleKey = style as DanceStyle
+                return (
+                  <div key={style} className="bg-surface-lighter rounded-lg p-3 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => togglePlay(style, filePath)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs transition hover:scale-110"
+                        style={{ background: DANCE_STYLE_COLORS[styleKey] || '#64748b' }}
+                        title={playingStyle === style ? '暂停' : '播放'}
+                      >
+                        {playingStyle === style ? '⏸' : '▶'}
+                      </button>
+                      <span className="text-sm font-medium text-white">
+                        {DANCE_STYLE_LABELS[styleKey] || style}
+                      </span>
+                      {styleMeta?.bpm && (
+                        <span className="text-[10px] text-gray-500 ml-auto">BPM: {styleMeta.bpm}</span>
+                      )}
+                    </div>
+                    {styleMeta?.selected_models && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {Object.entries(styleMeta.selected_models).slice(0, 4).map(([k, v]) => (
+                          <span key={k} className="text-[9px] bg-surface px-1.5 py-0.5 rounded text-gray-500">
+                            {k}: {(v as string).split(':')[0]}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main SongDetail ─── */
 export default function SongDetail() {
   const { selectedSong, playSong, analyzeSong, deleteSong, updateLibrarySongLocal } = useMusicStore()
@@ -375,6 +588,9 @@ export default function SongDetail() {
 
         {/* Tag editor */}
         <SongTagEditor title={song.title} artist={song.artist} />
+
+        {/* Dance style processor */}
+        <StyleProcessor songId={song.id} title={song.title} />
       </div>
 
       {/* Waveform player */}

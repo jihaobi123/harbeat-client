@@ -3,15 +3,18 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.modules.playlists.models import Playlist, PlaylistSong, Song
-from app.modules.playlists.models import SongTag
 from app.modules.library.models import LibrarySong
+from app.modules.music.schemas import SongProcessRequest
+from app.modules.music.service import process_song_for_styles
+from app.modules.playlists.models import Playlist, PlaylistSong, Song, SongTag
 from app.modules.playlists.schemas import (
     PlaylistDetailData,
     PlaylistImportRequest,
     PlaylistListData,
     PlaylistSongData,
     PlaylistSummaryData,
+    StyleMixRequest,
+    StyleMixResult,
 )
 from app.modules.users.service import get_user_or_404
 
@@ -30,11 +33,7 @@ def import_playlist(db: Session, payload: PlaylistImportRequest) -> tuple[Playli
     pending_analysis_count = 0
 
     for index, item in enumerate(payload.songs):
-        song = (
-            db.query(Song)
-            .filter(Song.title == item.title, Song.artist == item.artist)
-            .first()
-        )
+        song = db.query(Song).filter(Song.title == item.title, Song.artist == item.artist).first()
         if not song:
             song = Song(
                 title=item.title,
@@ -45,32 +44,16 @@ def import_playlist(db: Session, payload: PlaylistImportRequest) -> tuple[Playli
             db.add(song)
             db.flush()
             if item.bpm is not None or item.tags:
-                db.add(
-                    SongTag(
-                        song_id=song.id,
-                        bpm=item.bpm,
-                        style=",".join(item.tags) if item.tags else None,
-                    )
-                )
+                db.add(SongTag(song_id=song.id, bpm=item.bpm, style=",".join(item.tags) if item.tags else None))
         elif (item.bpm is not None or item.tags) and song.tags is None:
-            db.add(
-                SongTag(
-                    song_id=song.id,
-                    bpm=item.bpm,
-                    style=",".join(item.tags) if item.tags else None,
-                )
-            )
+            db.add(SongTag(song_id=song.id, bpm=item.bpm, style=",".join(item.tags) if item.tags else None))
         elif song.tags is not None:
             if item.bpm is not None:
                 song.tags.bpm = item.bpm
             if item.tags:
                 song.tags.style = ",".join(item.tags)
 
-        relation = PlaylistSong(
-            playlist_id=playlist.id,
-            song_id=song.id,
-            order_index=index,
-        )
+        relation = PlaylistSong(playlist_id=playlist.id, song_id=song.id, order_index=index)
         db.add(relation)
 
         if song.tags is None:
@@ -91,14 +74,7 @@ def import_playlist(db: Session, payload: PlaylistImportRequest) -> tuple[Playli
 
 def list_playlists(db: Session, user_id: int) -> PlaylistListData:
     get_user_or_404(db, user_id)
-    playlists = (
-        db.query(Playlist)
-        .filter(Playlist.user_id == user_id)
-        .order_by(Playlist.created_at.desc())
-        .all()
-    )
-
-    # In server-centric model, all songs are available on server
+    playlists = db.query(Playlist).filter(Playlist.user_id == user_id).order_by(Playlist.created_at.desc()).all()
     return PlaylistListData(
         playlists=[
             PlaylistSummaryData(
@@ -125,7 +101,6 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
         .all()
     )
 
-    # In server-centric model, show all songs (not filtered by local library)
     return PlaylistDetailData(
         id=playlist.id,
         user_id=playlist.user_id,
@@ -156,11 +131,7 @@ def delete_playlist(db: Session, playlist_id: int) -> None:
 
 
 def update_playlist_song_tags(db: Session, playlist_id: int, song_id: int, tags: list[str]) -> None:
-    relation = (
-        db.query(PlaylistSong)
-        .filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song_id)
-        .first()
-    )
+    relation = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song_id).first()
     if not relation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist song not found")
 
@@ -173,29 +144,20 @@ def update_playlist_song_tags(db: Session, playlist_id: int, song_id: int, tags:
 
 
 def create_empty_playlist(db: Session, user_id: int, name: str) -> Playlist:
-    """Create an empty playlist."""
-    playlist = Playlist(
-        user_id=user_id,
-        playlist_name=name,
-        source_type="manual",
-    )
+    playlist = Playlist(user_id=user_id, playlist_name=name, source_type="manual")
     db.add(playlist)
     db.commit()
     db.refresh(playlist)
     return playlist
 
 
-def add_library_songs_to_playlist(
-    db: Session, playlist_id: int, user_id: int, library_song_ids: list[str]
-) -> int:
-    """Add library songs to a playlist. Returns the count of newly added songs."""
+def add_library_songs_to_playlist(db: Session, playlist_id: int, user_id: int, library_song_ids: list[str]) -> int:
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
     if playlist.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your playlist")
 
-    # Get current max order_index
     max_order = (
         db.query(PlaylistSong.order_index)
         .filter(PlaylistSong.playlist_id == playlist_id)
@@ -210,41 +172,100 @@ def add_library_songs_to_playlist(
         if not lib_song or lib_song.user_id != user_id:
             continue
 
-        # Get or create the Song record
-        song = (
-            db.query(Song)
-            .filter(Song.title == lib_song.title, Song.artist == lib_song.artist)
-            .first()
-        )
+        song = db.query(Song).filter(Song.title == lib_song.title, Song.artist == lib_song.artist).first()
         if not song:
-            song = Song(
-                title=lib_song.title,
-                artist=lib_song.artist,
-                duration=lib_song.duration,
-            )
+            song = Song(title=lib_song.title, artist=lib_song.artist, duration=lib_song.duration)
             db.add(song)
             db.flush()
 
-        # Link library_song → catalog song if not already linked
         if lib_song.song_id != song.id:
             lib_song.song_id = song.id
 
-        # Check for duplicate
-        existing = (
-            db.query(PlaylistSong)
-            .filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song.id)
-            .first()
-        )
+        existing = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id, PlaylistSong.song_id == song.id).first()
         if existing:
             continue
 
-        db.add(PlaylistSong(
-            playlist_id=playlist_id,
-            song_id=song.id,
-            order_index=next_order,
-        ))
+        db.add(PlaylistSong(playlist_id=playlist_id, song_id=song.id, order_index=next_order))
         next_order += 1
         added += 1
 
     db.commit()
     return added
+
+
+def generate_style_mix_playlist(db: Session, payload: StyleMixRequest) -> StyleMixResult:
+    """
+    练舞会话长歌单生成：
+    1. 从服务器曲库按 style/bpm/energy 筛歌
+    2. 累计到目标时长
+    3. 对每首歌应用单曲风格处理，并返回模型选择信息
+    """
+    query = db.query(Song).join(SongTag).filter(SongTag.style.ilike(f"%{payload.style}%"))
+    if payload.bpm is not None:
+        # 允许少量偏差，适合练舞连续性
+        query = query.filter(SongTag.bpm >= payload.bpm - 4, SongTag.bpm <= payload.bpm + 4)
+    if payload.energy is not None:
+        query = query.filter(SongTag.energy.ilike(f"%{payload.energy}%"))
+
+    songs = query.order_by(SongTag.bpm.asc(), Song.created_at.desc()).all()
+
+    # Fallback: if style filter returns too few results, include all songs with audio
+    if len(songs) < 3:
+        fallback = (
+            db.query(Song)
+            .filter(Song.audio_url.isnot(None), Song.duration.isnot(None))
+            .order_by(Song.created_at.desc())
+            .all()
+        )
+        seen = {s.id for s in songs}
+        for s in fallback:
+            if s.id not in seen:
+                songs.append(s)
+
+    selected: list[Song] = []
+    total_seconds = 0
+    target_seconds = max(payload.duration_minutes, 1) * 60
+
+    for song in songs:
+        if song.duration is None or song.duration <= 0:
+            continue
+        if not song.audio_url:
+            continue
+        selected.append(song)
+        total_seconds += int(song.duration)
+        if total_seconds >= target_seconds:
+            break
+
+    playlist_data = [
+        PlaylistSongData(
+            song_id=song.id,
+            title=song.title,
+            artist=song.artist,
+            audio_url=song.audio_url,
+            duration=song.duration,
+            bpm=song.tags.bpm if song.tags else None,
+            tags=[part for part in (song.tags.style or "").split(",") if part] if song.tags else [],
+            order_index=index,
+        )
+        for index, song in enumerate(selected)
+    ]
+
+    processed_files: dict[int, str] = {}
+    meta: dict[int, dict[str, str]] = {}
+
+    for song in selected:
+        one_song_result = process_song_for_styles(
+            db,
+            song.id,
+            SongProcessRequest(
+                styles=[payload.style],
+                bpm=payload.bpm,
+                energy=payload.energy,
+                quality_mode=payload.quality_mode,
+            ),
+        )
+        processed_files[song.id] = one_song_result.processed_files.get(payload.style, "")
+        style_meta = one_song_result.meta.get(payload.style)
+        meta[song.id] = style_meta.selected_models if style_meta else {}
+
+    return StyleMixResult(playlist=playlist_data, processed_files=processed_files, meta=meta)

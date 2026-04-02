@@ -321,3 +321,27 @@ export async function generatePracticeList(userId: number, targetDuration: numbe
     }
   )
 }
+
+// ---- Style Processing ----
+export async function processSongStyle(songId: number, data: {
+  styles: string[]; bpm?: number; energy?: string; quality_mode?: import('../types').QualityMode
+}) {
+  return request<import('../types').StyleProcessResult>(
+    `/api/music/songs/${songId}/process-style`, { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
+export async function generateStyleMix(data: {
+  style: string; duration_minutes?: number; bpm?: number; energy?: string; quality_mode?: import('../types').QualityMode
+}) {
+  return request<import('../types').StyleMixResult>(
+    '/api/playlists/generate-style-mix', { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
+export function getProcessedStreamUrl(filePath: string): string {
+  const token = getToken()
+  // filePath looks like "data/music-files/shared/processed/1_breaking_balanced.wav"
+  const filename = filePath.split('/').pop() || filePath
+  return `${BASE}/api/stream/processed/${encodeURIComponent(filename)}?token=${token || ''}`
+}

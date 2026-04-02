@@ -13,3 +13,24 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 /* transitions */
 .fade-in { animation: fadeIn 0.2s ease-in; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* stem volume sliders */
+input[type="range"].stem-vol,
+.bg-surface-lighter input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb,
+.bg-surface-lighter input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 3px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
