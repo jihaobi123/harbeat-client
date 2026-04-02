@@ -6,7 +6,6 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.modules.library.models import LibrarySong
 from app.modules.playlists.models import Playlist, PlaylistSong, Song, SongTag
 from app.modules.profiles.service import get_profile_or_404
 from app.modules.recommendations.schemas import RecommendedSongItem
@@ -136,15 +135,20 @@ def _recommend_from_server(
     current_song_id: Optional[int],
     target_energy: Optional[str],
 ) -> list[RecommendedSongItem]:
-    """Recommend from the server-wide song pool using aggregated tags from all users."""
+    """Recommend from the entire server song pool, scored by aggregated tags from all users.
+
+    Shows ALL songs on the server ranked by relevance, marking which ones
+    the user already has in their playlists.
+    """
     rows = db.query(Song, SongTag).outerjoin(SongTag, SongTag.song_id == Song.id).all()
     if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no songs available")
 
-    # Build set of song_ids in user's library
-    lib_song_ids = set(
-        r[0] for r in db.query(LibrarySong.song_id)
-        .filter(LibrarySong.user_id == user_id, LibrarySong.song_id.isnot(None))
+    # Build set of song_ids in user's playlists (for in_library flag)
+    user_playlist_song_ids = set(
+        r[0] for r in db.query(PlaylistSong.song_id)
+        .join(Playlist, Playlist.id == PlaylistSong.playlist_id)
+        .filter(Playlist.user_id == user_id)
         .all()
     )
 
@@ -153,14 +157,20 @@ def _recommend_from_server(
         if current_song_id and song.id == current_song_id:
             continue
         score = _score_song(tags, profile, mode, target_energy)
-        ranked.append((score, song, song.id in lib_song_ids))
+        in_user_playlists = song.id in user_playlist_song_ids
+        # Discovery bonus: songs the user doesn't have get priority
+        if not in_user_playlists:
+            score += 5
+        ranked.append((score, song, in_user_playlists))
 
     # Add randomness for songs with same score
     random.shuffle(ranked)
     ranked.sort(key=lambda item: -item[0])
+
+    # Return up to 20 results for server pool (more discovery)
     return [
         RecommendedSongItem(
             song_id=song.id, title=song.title, artist=song.artist, in_library=in_lib,
         )
-        for _, song, in_lib in ranked[:10]
+        for _, song, in_lib in ranked[:20]
     ]

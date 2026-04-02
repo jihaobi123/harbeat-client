@@ -66,12 +66,47 @@ async def fangpi_download(
     shared_dir = os.path.join(upload_dir, "shared")
     os.makedirs(shared_dir, exist_ok=True)
 
-    # Check if this song already exists on the server (by platform_id or title+artist)
+    # --- Cross-user dedup: check if ANY user already downloaded this song ---
+    # Strategy: check by platform_id, then by title+artist in Song catalog,
+    #           then by title+artist in LibrarySong (case-insensitive).
     existing_lib = (
         db.query(LibrarySong)
         .filter(LibrarySong.platform_id == payload.music_id)
         .first()
     )
+    if not existing_lib:
+        # Check via the Song catalog table (cross-platform canonical record)
+        from sqlalchemy import func
+        catalog_match = (
+            db.query(Song)
+            .filter(
+                func.lower(Song.title) == payload.title.lower().strip(),
+                func.lower(Song.artist) == payload.artist.lower().strip(),
+            )
+            .first()
+        )
+        if catalog_match:
+            # Find any LibrarySong linked to this catalog song that has a file
+            existing_lib = (
+                db.query(LibrarySong)
+                .filter(
+                    LibrarySong.song_id == catalog_match.id,
+                    LibrarySong.source_path.isnot(None),
+                )
+                .first()
+            )
+    if not existing_lib:
+        # Fallback: case-insensitive title+artist on LibrarySong itself
+        from sqlalchemy import func
+        existing_lib = (
+            db.query(LibrarySong)
+            .filter(
+                func.lower(LibrarySong.title) == payload.title.lower().strip(),
+                func.lower(LibrarySong.artist) == payload.artist.lower().strip(),
+                LibrarySong.source_path.isnot(None),
+            )
+            .first()
+        )
 
     if existing_lib:
         # Song already downloaded — just upsert tags (accumulate) and link to this user
@@ -89,6 +124,17 @@ async def fangpi_download(
             .filter(LibrarySong.user_id == current_user.id, LibrarySong.platform_id == payload.music_id)
             .first()
         )
+        if not user_lib:
+            from sqlalchemy import func as sa_func
+            user_lib = (
+                db.query(LibrarySong)
+                .filter(
+                    LibrarySong.user_id == current_user.id,
+                    sa_func.lower(LibrarySong.title) == payload.title.lower().strip(),
+                    sa_func.lower(LibrarySong.artist) == payload.artist.lower().strip(),
+                )
+                .first()
+            )
         if not user_lib:
             user_lib = LibrarySong(
                 id=uuid.uuid4().hex,

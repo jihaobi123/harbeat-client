@@ -201,12 +201,30 @@ async def _kuwo_get_audio_url(music_id: str) -> str:
 
 
 async def search_fangpi(query: str) -> list[dict]:
-    """Search songs — tries fangpi.net first, falls back to Kuwo."""
-    results = await _fangpi_search(query)
-    if results:
-        return results
-    logger.info("fangpi search returned 0 results, falling back to Kuwo for: %s", query)
-    return await _kuwo_search(query)
+    """Search songs — combines fangpi.net + Kuwo results for better coverage."""
+    import asyncio
+
+    fangpi_results, kuwo_results = await asyncio.gather(
+        _fangpi_search(query),
+        _kuwo_search(query),
+        return_exceptions=True,
+    )
+    if isinstance(fangpi_results, Exception):
+        fangpi_results = []
+    if isinstance(kuwo_results, Exception):
+        kuwo_results = []
+
+    # Deduplicate by normalized title+artist
+    seen: set[str] = set()
+    combined: list[dict] = []
+    for song in list(fangpi_results) + list(kuwo_results):
+        key = (song["title"].lower().strip() + "|" + song["artist"].lower().strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        combined.append(song)
+
+    return combined
 
 
 async def smart_search_fangpi(title: str, artist: str) -> list[dict]:
