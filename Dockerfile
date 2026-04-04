@@ -21,9 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsndfile1 ffm
 
 # Use China mirrors for pip + install CPU-only torch (much smaller)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+RUN pip install --no-cache-dir --timeout 300 --retries 5 \
     torch==2.6.0+cpu torchaudio==2.6.0+cpu --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r requirements.txt
+    pip install --no-cache-dir --timeout 300 --retries 5 \
+    -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+    -r requirements.txt
 
 COPY . .
 
