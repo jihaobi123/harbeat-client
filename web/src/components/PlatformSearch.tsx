@@ -12,7 +12,6 @@ interface FangpiSong {
   free?: boolean
   source?: string
   duration?: number
-  source?: string
 }
 
 const ENERGY_OPTIONS = [

@@ -339,6 +339,23 @@ export async function generateStyleMix(data: {
   )
 }
 
+export async function generateDJMix(data: {
+  style: string
+  duration_minutes?: number
+  bpm?: number
+  energy?: string
+  energy_profile?: string
+  harmonic_weight?: string
+  overlap_bars?: number
+  transition_style?: string
+  quality_mode?: import('../types').QualityMode
+  start_song_id?: number
+}) {
+  return request<import('../types').DJMixResult>(
+    '/api/playlists/generate-dj-mix', { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
 export function getProcessedStreamUrl(filePath: string): string {
   const token = getToken()
   // filePath looks like "data/music-files/shared/processed/1_breaking_balanced.wav"

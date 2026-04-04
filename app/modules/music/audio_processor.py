@@ -316,11 +316,14 @@ def process_audio_for_style(
             return np.pad(arr, (0, target_len - arr.shape[0]))
         return arr[:target_len]
 
+    # Pad all stems to the same length
+    padded_stems = {name: _pad(arr) for name, arr in stems.items()}
+
     mixed = (
-        _pad(stems.get("drums", np.zeros(1))) * drums_g
-        + _pad(stems.get("bass", np.zeros(1))) * bass_g
-        + _pad(stems.get("vocals", np.zeros(1))) * vocals_g
-        + _pad(stems.get("other", np.zeros(1))) * other_g
+        padded_stems.get("drums", np.zeros(target_len)) * drums_g
+        + padded_stems.get("bass", np.zeros(target_len)) * bass_g
+        + padded_stems.get("vocals", np.zeros(target_len)) * vocals_g
+        + padded_stems.get("other", np.zeros(target_len)) * other_g
     )
     log.info("Stem remix: drums=%.2f bass=%.2f vocals=%.2f other=%.2f",
              drums_g, bass_g, vocals_g, other_g)
@@ -354,6 +357,21 @@ def process_audio_for_style(
     sf.write(str(out), mixed, sr)
     log.info("Output written: %s (%.1f MB)", out.name, out.stat().st_size / 1024 / 1024)
 
+    # ── Write individual stem files ──
+    stem_paths: dict[str, str] = {}
+    stem_base = out.stem  # e.g. "363_breaking_balanced"
+    stem_dir = out.parent
+    for stem_name in ("drums", "bass", "vocals", "other"):
+        stem_arr = padded_stems.get(stem_name)
+        if stem_arr is None:
+            continue
+        # Apply per-stem loudness normalization
+        stem_norm = _loudness_normalize(stem_arr.copy(), sr, target_lufs=-16.0)
+        stem_file = stem_dir / f"{stem_base}_{stem_name}.wav"
+        sf.write(str(stem_file), stem_norm, sr)
+        stem_paths[stem_name] = str(stem_file)
+    log.info("Stems written: %s", list(stem_paths.keys()))
+
     return {
         "detected_bpm": float(bpm_raw) if bpm_raw else None,
         "target_bpm": int(desired_bpm) if desired_bpm else None,
@@ -361,4 +379,5 @@ def process_audio_for_style(
         "samples": int(mixed.shape[0]),
         "energy": target_energy,
         "pipeline": "demucs_v4+pedalboard+pyloudnorm",
+        "stem_files": stem_paths,
     }

@@ -162,5 +162,63 @@ export interface StyleProcessResult {
 export interface StyleMixResult {
   playlist: PlaylistSong[]
   processed_files: Record<number, string>
+  stem_files: Record<number, Record<string, string>>
   meta: Record<number, Record<string, string>>
+}
+
+// ── DJ Auto-Mix types (DJ.studio-inspired) ──────────────────────────────
+
+export interface TransitionAutomation {
+  sample_rate: number
+  a_drums: number[]
+  a_bass: number[]
+  a_vocals: number[]
+  a_other: number[]
+  a_volume: number[]
+  a_echo: number[]
+  b_drums: number[]
+  b_bass: number[]
+  b_vocals: number[]
+  b_other: number[]
+  b_volume: number[]
+}
+
+export interface SegmentInfo {
+  start_sec: number
+  end_sec: number
+  bars: number
+  label: string
+}
+
+export interface TransitionData {
+  from_song_id: number
+  to_song_id: number
+  score: number
+  bpm_score: number
+  key_score: number
+  energy_score: number
+  a_play_start: number
+  a_play_end: number
+  b_play_start: number
+  b_play_end: number
+  overlap_bars: number
+  overlap_sec: number
+  mix_start_time: number
+  mix_duration_sec: number
+  mix_duration_bars: number
+  b_cue_time: number
+  bpm_shift: number
+  automation: TransitionAutomation | null
+}
+
+export interface DJMixResult {
+  playlist: PlaylistSong[]
+  processed_files: Record<number, string>
+  stem_files: Record<number, Record<string, string>>
+  segments: Record<number, SegmentInfo>
+  transitions: TransitionData[]
+  energy_profile: string
+  harmonic_weight: string
+  total_duration_sec: number
+  avg_score: number
 }

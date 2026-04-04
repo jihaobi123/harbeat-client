@@ -33,6 +33,9 @@ class LibrarySong(Base):
     analysis_status: Mapped[str] = mapped_column(String(50), default="none", nullable=False)
     beat_points: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
     cue_points: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    downbeats: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
+    phrase_map: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    key_confidence: Mapped[float | None] = mapped_column(Float)
     stems: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

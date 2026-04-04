@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.playlists.schemas import (
+    DJMixRequest,
+    DJMixResult,
     PlaylistDetailData,
     PlaylistImportData,
     PlaylistImportRequest,
@@ -16,6 +18,7 @@ from app.modules.playlists.service import (
     add_library_songs_to_playlist,
     create_empty_playlist,
     delete_playlist,
+    generate_dj_mix,
     generate_style_mix_playlist,
     get_playlist_detail,
     import_playlist,
@@ -101,4 +104,11 @@ def add_songs_to_playlist_endpoint(
 def generate_style_mix_endpoint(payload: StyleMixRequest, db: Session = Depends(get_db)):
     """生成风格化连续练舞歌单。"""
     result = generate_style_mix_playlist(db, payload)
+    return APIResponse(data=result)
+
+
+@router.post("/generate-dj-mix", response_model=APIResponse[DJMixResult])
+def generate_dj_mix_endpoint(payload: DJMixRequest, db: Session = Depends(get_db)):
+    """AI DJ 自动排歌接歌：智能排序 + Camelot调性匹配 + EQ过渡自动化。"""
+    result = generate_dj_mix(db, payload)
     return APIResponse(data=result)

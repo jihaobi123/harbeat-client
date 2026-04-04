@@ -40,6 +40,9 @@ def run_analysis_and_separation(song_id: str) -> None:
             song.camelot_key = result.get("camelot_key")
             song.energy = result.get("energy")
             song.beat_points = result.get("beat_points", [])
+            song.downbeats = result.get("downbeats", [])
+            song.phrase_map = result.get("phrase_map", [])
+            song.key_confidence = result.get("key_confidence")
             raw_cues = result.get("cue_points", [])
             song.cue_points = [
                 {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
@@ -94,7 +97,8 @@ def run_analysis_and_separation(song_id: str) -> None:
 def copy_analysis_from(source: object, target: object) -> None:
     """Copy analysis results from an existing LibrarySong to a new one."""
     for field in ("bpm", "duration", "key", "camelot_key", "energy",
-                  "beat_points", "cue_points", "stems", "analysis_status"):
+                  "beat_points", "downbeats", "phrase_map", "key_confidence",
+                  "cue_points", "stems", "analysis_status"):
         val = getattr(source, field, None)
         if val is not None:
             setattr(target, field, val)

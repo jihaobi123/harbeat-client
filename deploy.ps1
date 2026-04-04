@@ -1,4 +1,4 @@
-# HarBeat Full-Stack Deployment Script (Windows)
+ # HarBeat Full-Stack Deployment Script (Windows)
 # Run this on your server (the desktop PC)
 
 Write-Host "🎵 HarBeat 部署脚本" -ForegroundColor Cyan
