@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#13131b",
+              "surface-tint": "#cc97ff",
+              "tertiary-container": "#fa53a4",
+              "on-secondary-container": "#ecfaff",
+              "surface-container": "#191922",
+              "tertiary-dim": "#ff67ad",
+              "inverse-on-surface": "#55545e",
+              "surface-container-highest": "#252530",
+              "on-primary-fixed-variant": "#430076",
+              "on-tertiary-fixed": "#37001d",
+              "outline-variant": "#484750",
+              "inverse-primary": "#842cd3",
+              "surface-dim": "#0d0d15",
+              "tertiary-fixed": "#ff8cbc",
+              "error-container": "#a70138",
+              "surface-container-high": "#1f1f29",
+              "on-tertiary-fixed-variant": "#740044",
+              "outline": "#76747f",
+              "on-surface": "#efecf8",
+              "primary-dim": "#9c48ea",
+              "on-tertiary-container": "#2f0018",
+              "on-primary-container": "#360061",
+              "on-tertiary": "#4b002a",
+              "on-secondary-fixed-variant": "#005969",
+              "on-primary": "#47007c",
+              "primary-container": "#c284ff",
+              "surface-bright": "#2b2b38",
+              "on-secondary": "#004b58",
+              "surface-container-lowest": "#000000",
+              "on-error-container": "#ffb2b9",
+              "error-dim": "#d73357",
+              "surface": "#0d0d15",
+              "error": "#ff6e84",
+              "secondary-container": "#00687a",
+              "on-primary-fixed": "#000000",
+              "on-error": "#490013",
+              "secondary-fixed": "#65e1ff",
+              "primary": "#cc97ff",
+              "primary-fixed-dim": "#b971ff",
+              "secondary-fixed-dim": "#48d4f3",
+              "primary-fixed": "#c284ff",
+              "tertiary": "#ff6daf",
+              "on-background": "#efecf8",
+              "on-surface-variant": "#acaab5",
+              "surface-variant": "#252530",
+              "tertiary-fixed-dim": "#ff73b1",
+              "secondary": "#53ddfc",
+              "secondary-dim": "#40ceed",
+              "on-secondary-fixed": "#003a45",
+              "background": "#0d0d15",
+              "inverse-surface": "#fcf8ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .waveform-bar {
+        transition: height 0.2s ease;
+      }
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary selection:text-on-primary overflow-x-hidden">
+<!-- Top Bar Navigation (Context: Full Screen Overlay Hide Shell) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-20 bg-surface/40 backdrop-blur-xl">
+<button class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface text-3xl">keyboard_arrow_down</span>
+</button>
+<div class="flex flex-col items-center">
+<h1 class="font-headline font-bold text-lg tracking-tight uppercase leading-none">Midnight Cypher</h1>
+<p class="font-body text-xs font-semibold text-on-surface-variant uppercase tracking-[0.2em] mt-1">Arcade Soul</p>
+</div>
+<button class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</header>
+<main class="pt-24 pb-12 px-6 flex flex-col items-center max-w-2xl mx-auto">
+<!-- Album Art / Vinyl Spinning Section -->
+<div class="relative group mt-4">
+<div class="absolute inset-0 bg-primary/20 blur-[80px] rounded-full scale-110"></div>
+<div class="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden border-[6px] border-surface-container-highest shadow-2xl animate-[spin_10s_linear_infinite]">
+<img class="w-full h-full object-cover" data-alt="abstract vibrant 3D geometric shapes with purple and cyan neon lighting and grainy artistic texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZoQ1kniQoG6d6pxSn6buqWCgMRr0hGbd4sRwTeUslBXt1RL_vR-LemrnAssZ0HHTC5uGvbshxrtgFOrrnOdrqWlnTQ5YNFUjy2VcAfZPxJGXsA96ghP47Am-NKUmcsIF-Epr9hE9032KuocLMtnoN74loW2K0O_r_23QKo4kCsqbA6WOmcyNm1wLesjumKNfT_lm_YpPrbaqtAamPaomEYrlm7fdvmzQYZ8g3KLJr78Rfv3CvtaRNBr0UF21oZ38ndzmQ63WYXtM"/>
+<!-- Vinyl Hole -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-16 h-16 bg-surface border-4 border-surface-container-highest rounded-full flex items-center justify-center">
+<div class="w-4 h-4 bg-primary-dim rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Waveform Section -->
+<div class="w-full mt-12 space-y-4">
+<div class="relative h-24 w-full flex items-center justify-between gap-[2px]">
+<!-- Waveform Bars -->
+<div class="flex-1 h-full flex items-center justify-around gap-[2px]">
+<!-- Repeatable bars with varying heights for visualization -->
+<div class="w-1 h-8 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-12 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-16 bg-primary rounded-full"></div>
+<div class="w-1 h-20 bg-primary rounded-full"></div>
+<div class="w-1 h-24 bg-primary rounded-full relative">
+<!-- Cue Point Pin -->
+<div class="absolute -top-4 left-1/2 -translate-x-1/2">
+<span class="material-symbols-outlined text-secondary text-lg" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+<div class="w-1 h-20 bg-primary rounded-full"></div>
+<div class="w-1 h-14 bg-secondary rounded-full"></div>
+<div class="w-1 h-10 bg-secondary rounded-full"></div>
+<div class="w-1 h-16 bg-secondary rounded-full relative">
+<!-- Loop Start A -->
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 font-headline font-bold text-[10px] text-secondary">LOOP A</div>
+</div>
+<div class="w-1 h-12 bg-secondary rounded-full"></div>
+<div class="w-1 h-18 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-22 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-16 bg-on-surface-variant/30 rounded-full relative">
+<!-- Loop End B -->
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 font-headline font-bold text-[10px] text-primary">LOOP B</div>
+</div>
+<div class="w-1 h-12 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-8 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-14 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-10 bg-on-surface-variant/30 rounded-full"></div>
+<div class="w-1 h-6 bg-on-surface-variant/30 rounded-full"></div>
+</div>
+<!-- Playhead -->
+<div class="absolute left-1/3 top-0 bottom-0 w-0.5 bg-on-surface shadow-[0_0_8px_white] z-10"></div>
+</div>
+<!-- Time Markers -->
+<div class="flex justify-between font-label text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
+<span>01:24</span>
+<span class="text-secondary-fixed">AB REPEAT ACTIVE</span>
+<span>-02:45</span>
+</div>
+</div>
+<!-- BPM & Transport Controls -->
+<div class="w-full mt-12 flex flex-col items-center gap-8">
+<!-- BPM Module -->
+<div class="flex items-center gap-6 bg-surface-container-high px-8 py-3 rounded-xl border border-white/5">
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-2xl">remove</span>
+</button>
+<div class="flex flex-col items-center min-w-[80px]">
+<span class="font-headline font-black text-3xl text-secondary">125</span>
+<span class="font-label text-[10px] uppercase font-bold tracking-tighter text-on-surface-variant">BPM</span>
+</div>
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+</div>
+<!-- Playback Controls -->
+<div class="flex items-center gap-12">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-bright transition-all">
+<span class="material-symbols-outlined text-on-surface text-3xl">fast_rewind</span>
+</button>
+<button class="w-24 h-24 flex items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dim shadow-[0_0_30px_rgba(168,85,247,0.4)] hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-on-primary text-6xl" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-bright transition-all">
+<span class="material-symbols-outlined text-on-surface text-3xl">fast_forward</span>
+</button>
+</div>
+</div>
+<!-- Scrollable Advanced Section -->
+<div class="w-full mt-16 pb-20 space-y-10">
+<!-- Stem Mixer -->
+<section class="space-y-6">
+<div class="flex justify-between items-end">
+<h2 class="font-headline font-bold text-2xl tracking-tight uppercase">Stem Mixer</h2>
+<span class="font-label text-[10px] text-on-surface-variant font-black uppercase tracking-widest bg-surface-container-highest px-2 py-1 rounded">Real-time AI</span>
+</div>
+<div class="grid grid-cols-4 gap-4 h-64">
+<!-- Vocals -->
+<div class="flex flex-col items-center gap-3">
+<div class="flex-1 w-2 bg-surface-container-highest rounded-full relative">
+<div class="absolute bottom-0 left-0 right-0 h-[85%] bg-tertiary shadow-[0_0_15px_rgba(255,109,175,0.4)] rounded-full"></div>
+<div class="absolute bottom-[85%] left-1/2 -translate-x-1/2 w-4 h-4 bg-on-surface rounded-full shadow-lg border-2 border-tertiary"></div>
+</div>
+<button class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm">mic</span>
+</button>
+<span class="font-headline font-bold text-xs text-on-surface">85%</span>
+</div>
+<!-- Drums -->
+<div class="flex flex-col items-center gap-3">
+<div class="flex-1 w-2 bg-surface-container-highest rounded-full relative">
+<div class="absolute bottom-0 left-0 right-0 h-[60%] bg-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.4)] rounded-full"></div>
+<div class="absolute bottom-[60%] left-1/2 -translate-x-1/2 w-4 h-4 bg-on-surface rounded-full shadow-lg border-2 border-orange-400"></div>
+</div>
+<button class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-orange-400 text-sm">article</span>
+</button>
+<span class="font-headline font-bold text-xs text-on-surface">60%</span>
+</div>
+<!-- Bass -->
+<div class="flex flex-col items-center gap-3">
+<div class="flex-1 w-2 bg-surface-container-highest rounded-full relative">
+<div class="absolute bottom-0 left-0 right-0 h-[40%] bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.4)] rounded-full"></div>
+<div class="absolute bottom-[40%] left-1/2 -translate-x-1/2 w-4 h-4 bg-on-surface rounded-full shadow-lg border-2 border-emerald-400"></div>
+</div>
+<button class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-emerald-400 text-sm">graphic_eq</span>
+</button>
+<span class="font-headline font-bold text-xs text-on-surface">40%</span>
+</div>
+<!-- Other -->
+<div class="flex flex-col items-center gap-3">
+<div class="flex-1 w-2 bg-surface-container-highest rounded-full relative">
+<div class="absolute bottom-0 left-0 right-0 h-[70%] bg-secondary shadow-[0_0_15px_rgba(83,221,252,0.4)] rounded-full"></div>
+<div class="absolute bottom-[70%] left-1/2 -translate-x-1/2 w-4 h-4 bg-on-surface rounded-full shadow-lg border-2 border-secondary"></div>
+</div>
+<button class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm">more_horiz</span>
+</button>
+<span class="font-headline font-bold text-xs text-on-surface">70%</span>
+</div>
+</div>
+</section>
+<!-- Tags & Separation Action -->
+<section class="flex flex-col gap-6">
+<div class="flex flex-wrap gap-2">
+<span class="px-4 py-2 rounded-full bg-surface-container-high text-secondary border border-secondary/20 font-label text-xs font-bold uppercase tracking-widest">Hiphop</span>
+<span class="px-4 py-2 rounded-full bg-surface-container-high text-primary border border-primary/20 font-label text-xs font-bold uppercase tracking-widest">Popping</span>
+</div>
+<button class="group relative w-full h-16 bg-surface-container-highest rounded-xl overflow-hidden hover:bg-surface-bright transition-colors border border-white/5">
+<div class="absolute inset-0 bg-primary/10 animate-pulse"></div>
+<div class="relative flex items-center justify-center gap-3">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">auto_awesome</span>
+<span class="font-headline font-bold uppercase tracking-[0.15em] text-on-surface">Start Separation</span>
+</div>
+</button>
+</section>
+<!-- Lyrics Preview / Extra info -->
+<section class="p-6 rounded-xl bg-surface-container-low border border-white/5">
+<p class="font-headline text-lg leading-relaxed text-on-surface/60 italic">
+                    "Catch the rhythm, don't you let it slide. Neon pulses where the shadows hide..."
+                </p>
+</section>
+</div>
+</main>
+<!-- Contextual Nav Anchor (Manual override: hidden on details but using logic from JSON) -->
+<!-- Applying Shared Component BottomNavBar Styles -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-surface/40 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_30px_rgba(168,85,247,0.15)] md:hidden">
+<div class="flex flex-col items-center justify-center text-[#efecf8]/40">
+<span class="material-symbols-outlined">library_music</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Library</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#efecf8]/40">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Discover</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#efecf8]/40">
+<span class="material-symbols-outlined">search</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Search</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#cc97ff] drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Session</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#efecf8]/40">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Profile</span>
+</div>
+</nav>
+</body></html>

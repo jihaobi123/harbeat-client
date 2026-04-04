@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-fixed": "#c284ff",
+            "surface-variant": "#252530",
+            "surface-container-highest": "#252530",
+            "secondary-fixed-dim": "#48d4f3",
+            "error": "#ff6e84",
+            "surface-dim": "#0d0d15",
+            "on-tertiary-container": "#2f0018",
+            "surface-bright": "#2b2b38",
+            "on-primary-container": "#360061",
+            "tertiary-fixed": "#ff8cbc",
+            "on-primary-fixed-variant": "#430076",
+            "inverse-primary": "#842cd3",
+            "error-container": "#a70138",
+            "inverse-surface": "#fcf8ff",
+            "on-tertiary-fixed-variant": "#740044",
+            "tertiary-fixed-dim": "#ff73b1",
+            "background": "#0d0d15",
+            "surface-tint": "#cc97ff",
+            "primary-fixed-dim": "#b971ff",
+            "on-secondary-container": "#ecfaff",
+            "surface-container-low": "#13131b",
+            "on-tertiary": "#4b002a",
+            "tertiary": "#ff6daf",
+            "surface-container-high": "#1f1f29",
+            "secondary": "#53ddfc",
+            "primary": "#cc97ff",
+            "on-surface-variant": "#acaab5",
+            "on-surface": "#efecf8",
+            "on-secondary-fixed": "#003a45",
+            "primary-dim": "#9c48ea",
+            "on-error-container": "#ffb2b9",
+            "surface-container-lowest": "#000000",
+            "on-primary": "#47007c",
+            "error-dim": "#d73357",
+            "outline": "#76747f",
+            "surface-container": "#191922",
+            "on-secondary": "#004b58",
+            "primary-container": "#c284ff",
+            "inverse-on-surface": "#55545e",
+            "tertiary-container": "#fa53a4",
+            "outline-variant": "#484750",
+            "on-tertiary-fixed": "#37001d",
+            "on-error": "#490013",
+            "on-primary-fixed": "#000000",
+            "secondary-container": "#00687a",
+            "on-secondary-fixed-variant": "#005969",
+            "on-background": "#efecf8",
+            "surface": "#0d0d15",
+            "tertiary-dim": "#ff67ad",
+            "secondary-dim": "#40ceed",
+            "secondary-fixed": "#65e1ff"
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk"],
+            "body": ["Manrope"],
+            "label": ["Manrope"]
+          },
+          borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    .glass-card {
+      background: rgba(37, 37, 48, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .ghost-border {
+      border: 1px solid rgba(72, 71, 80, 0.15);
+    }
+    .neon-glow-primary {
+      box-shadow: 0 0 20px rgba(204, 151, 255, 0.2);
+    }
+    .bg-kinetic-mesh {
+      background: radial-gradient(circle at 20% 30%, rgba(204, 151, 255, 0.1) 0%, transparent 40%),
+                  radial-gradient(circle at 80% 70%, rgba(83, 221, 252, 0.1) 0%, transparent 40%);
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-dim text-on-surface font-body min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+<!-- Background Elements -->
+<div class="absolute inset-0 bg-kinetic-mesh pointer-events-none"></div>
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-primary-dim/20 rounded-full blur-[120px]"></div>
+<div class="absolute -bottom-24 -right-24 w-96 h-96 bg-secondary-container/20 rounded-full blur-[120px]"></div>
+<!-- Top AppBar (Identity Only) -->
+<header class="fixed top-0 w-full flex justify-center items-center w-full px-6 py-8 z-50">
+<div class="font-headline tracking-widest text-3xl font-black text-purple-500 dark:text-purple-400 uppercase">
+      HARBEAT
+    </div>
+</header>
+<!-- Main Login Container -->
+<main class="relative z-10 w-full max-w-md px-6 py-12">
+<!-- Hero Title for the Page -->
+<div class="mb-12 text-center">
+<h1 class="font-headline text-5xl font-bold tracking-tighter text-on-surface leading-none mb-2">
+        THE <span class="text-primary">CYPHER</span><br/>AWAITS
+      </h1>
+<p class="text-on-surface-variant font-medium tracking-wide">Enter the rhythm of the digital stage.</p>
+</div>
+<!-- Login Card -->
+<div class="glass-card ghost-border rounded-xl p-8 md:p-10 neon-glow-primary">
+<form class="space-y-6">
+<!-- Username Field -->
+<div class="space-y-2">
+<label class="block text-sm font-bold text-on-surface-variant ml-1" for="username">Username</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline group-focus-within:text-primary transition-colors">person</span>
+</div>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest/40 border-none rounded-xl text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/50 focus:bg-surface-bright transition-all" id="username" name="username" placeholder="dance_machine_99" type="text"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="flex justify-between items-center px-1">
+<label class="block text-sm font-bold text-on-surface-variant" for="password">Password</label>
+<a class="text-xs font-bold text-outline hover:text-primary transition-colors h-[44px] flex items-center" href="#">Forgot Password?</a>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline group-focus-within:text-primary transition-colors">lock</span>
+</div>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-highest/40 border-none rounded-xl text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/50 focus:bg-surface-bright transition-all" id="password" name="password" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<!-- Action Button -->
+<div class="pt-4">
+<button class="w-full h-14 bg-gradient-to-br from-primary to-primary-dim text-on-primary font-black text-lg tracking-widest uppercase rounded-xl shadow-lg shadow-primary/20 hover:scale-[0.98] active:scale-95 transition-all duration-200" type="submit">
+            Login
+          </button>
+</div>
+<!-- Social/Alternative Login -->
+<div class="relative py-4">
+<div aria-hidden="true" class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-outline-variant/30"></div>
+</div>
+<div class="relative flex justify-center text-xs uppercase tracking-widest font-bold">
+<span class="bg-transparent px-4 text-outline">or connect with</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="flex items-center justify-center h-[56px] rounded-xl bg-surface-variant/40 ghost-border hover:bg-surface-bright transition-colors" type="button">
+<img alt="" class="w-5 h-5 mr-2 opacity-80" data-alt="minimalistic google logo icon on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9oyOQyahdXNd3tJ34kZ8PMh3L9NVJqKoUZ8uxD81_UbKvIp4KmgbhtUnPSzdubX5IL_QzxLb-JWdrSvRJtlOD3LEbohj42BMb7DyAwm0UpSuU8MAaS33aMv5Iaavgv_PGQ1IYA_i8N8VyEskbSB3YA3j012v-wW1N_YxyfUraMLQUx2MuCqilzUJ6p5buWFb-XSVfd_FPZ1ttN8QUW7iZgOogYiQybxkAetgBtP3DcORRc9OpHOT3QkAJ5k3UMVJl7eF96xlcrNQ"/>
+<span class="font-bold text-sm">Google</span>
+</button>
+<button class="flex items-center justify-center h-[56px] rounded-xl bg-surface-variant/40 ghost-border hover:bg-surface-bright transition-colors" type="button">
+<span class="material-symbols-outlined mr-2 text-on-surface">ios</span>
+<span class="font-bold text-sm">Apple</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Footer Redirect -->
+<div class="mt-8 text-center">
+<p class="text-on-surface-variant font-medium">
+        New to the beat? 
+        <a class="text-secondary font-black hover:underline underline-offset-4 ml-1" href="#">Join the Collective</a>
+</p>
+</div>
+</main>
+<!-- Side Decorative Content (Asymmetric Layout) -->
+<div class="hidden lg:block fixed left-12 bottom-12 max-w-xs pointer-events-none opacity-40">
+<p class="font-headline text-8xl font-black text-transparent stroke-primary stroke-2 leading-none" style="-webkit-text-stroke: 1px rgba(204, 151, 255, 0.4);">
+      STEP<br/>UP
+    </p>
+</div>
+<!-- Navigation Suppression Logic: This is a task-focused screen (Login), so TopAppBar and BottomNavBar components from JSON are contextually hidden to prioritize focus. -->
+</body></html>

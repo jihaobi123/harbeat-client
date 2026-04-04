@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HarBeat - Discover</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#13131b",
+              "surface-tint": "#cc97ff",
+              "tertiary-container": "#fa53a4",
+              "on-secondary-container": "#ecfaff",
+              "surface-container": "#191922",
+              "tertiary-dim": "#ff67ad",
+              "inverse-on-surface": "#55545e",
+              "surface-container-highest": "#252530",
+              "on-primary-fixed-variant": "#430076",
+              "on-tertiary-fixed": "#37001d",
+              "outline-variant": "#484750",
+              "inverse-primary": "#842cd3",
+              "surface-dim": "#0d0d15",
+              "tertiary-fixed": "#ff8cbc",
+              "error-container": "#a70138",
+              "surface-container-high": "#1f1f29",
+              "on-tertiary-fixed-variant": "#740044",
+              "outline": "#76747f",
+              "on-surface": "#efecf8",
+              "primary-dim": "#9c48ea",
+              "on-tertiary-container": "#2f0018",
+              "on-primary-container": "#360061",
+              "on-tertiary": "#4b002a",
+              "on-secondary-fixed-variant": "#005969",
+              "on-primary": "#47007c",
+              "primary-container": "#c284ff",
+              "surface-bright": "#2b2b38",
+              "on-secondary": "#004b58",
+              "surface-container-lowest": "#000000",
+              "on-error-container": "#ffb2b9",
+              "error-dim": "#d73357",
+              "surface": "#0d0d15",
+              "error": "#ff6e84",
+              "secondary-container": "#00687a",
+              "on-primary-fixed": "#000000",
+              "on-error": "#490013",
+              "secondary-fixed": "#65e1ff",
+              "primary": "#cc97ff",
+              "primary-fixed-dim": "#b971ff",
+              "secondary-fixed-dim": "#48d4f3",
+              "primary-fixed": "#c284ff",
+              "tertiary": "#ff6daf",
+              "on-background": "#efecf8",
+              "on-surface-variant": "#acaab5",
+              "surface-variant": "#252530",
+              "tertiary-fixed-dim": "#ff73b1",
+              "secondary": "#53ddfc",
+              "secondary-dim": "#40ceed",
+              "on-secondary-fixed": "#003a45",
+              "background": "#0d0d15",
+              "inverse-surface": "#fcf8ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(37, 37, 48, 0.4);
+            backdrop-filter: blur(20px);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-purple-500 dark:text-[#A855F7] hover:bg-white/10 transition-colors scale-95 duration-200">menu</button>
+<h1 class="font-['Space_Grotesk'] font-bold text-2xl tracking-tight uppercase text-purple-500 dark:text-[#A855F7]">HarBeat</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-purple-500 dark:text-[#A855F7] hover:bg-white/10 transition-colors scale-95 duration-200">search</button>
+</div>
+</header>
+<main class="pt-20 pb-44 px-6 max-w-5xl mx-auto space-y-12">
+<!-- Hero: Guess You Like Carousel -->
+<section>
+<div class="flex items-end justify-between mb-6">
+<h2 class="font-headline font-black text-4xl uppercase tracking-tighter italic">Guess You Like</h2>
+<span class="text-secondary font-bold text-sm tracking-widest uppercase">Slide for vibe</span>
+</div>
+<div class="flex gap-6 overflow-x-auto hide-scrollbar snap-x snap-mandatory">
+<!-- Large High-Impact Card 1 -->
+<div class="relative flex-shrink-0 w-80 h-[450px] rounded-xl overflow-hidden snap-start group">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="dynamic low angle shot of a street dancer in silhouette against a neon purple and cyan backlit background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3jVpPXtIPtOJEDMELllGKvxubO1RJDyYzUYfiunaAKeMmtoeZ4l2T9-JJt8BJRM1YODf5zygs9ue48kARdUJjflTNdXglPU9WwegCvjODL64QPDFfaVoP-U0Ej5AeYUle1ArJliaRwW4aKmCX3xkJeU0RnZDmQBXWFcMGPpcucn_bLPfsya0IcQvzyByX2KtuQPbYvWe9FCA9sX9htAUpOBuL4DRxp48QHxT4b3cxd-Xh_md25wpYmzNPpg83flJUTEP-fRGS6Rw"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+<div class="absolute top-6 left-6">
+<span class="bg-primary px-4 py-1.5 rounded-full text-on-primary font-black text-sm tracking-widest">128 BPM</span>
+</div>
+<div class="absolute bottom-8 left-8 right-8">
+<h3 class="font-headline font-bold text-3xl leading-none mb-2">NEON JUNGLE</h3>
+<p class="text-on-surface-variant font-medium">Lofi-Phonk Mix</p>
+<button class="mt-4 flex items-center gap-2 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full hover:bg-primary hover:text-on-primary transition-all duration-300">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="font-bold uppercase tracking-widest text-xs">Drop In</span>
+</button>
+</div>
+</div>
+<!-- Large High-Impact Card 2 -->
+<div class="relative flex-shrink-0 w-80 h-[450px] rounded-xl overflow-hidden snap-start group">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="abstract liquid metallic texture with deep violet and gold reflections and dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQ7TYgKMS3klpCnJG6GukfP4JAXv2vfZsHSaqZBdQzDSA15L9UaSN2p61lxqla4l1aikRQlwyBq-JKYso7IV9SHCpoMSgbds_AW4OBdUsSZKhcjr-ZNdE846lPDQ849jtBOf4bU4OSPub5X4nMA1YFEgjAL_FKYxsaslzc0S27av9QEyEHHHPstIQZK_LDjUzWvV3_D1ZKNK04OjTAc91Koh04FCAbgEW_W-Qrsf4H1iqbACHxlzkw2PcWwxy6RYhTy--KVFRLP84"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+<div class="absolute top-6 left-6">
+<span class="bg-secondary px-4 py-1.5 rounded-full text-on-secondary font-black text-sm tracking-widest">95 BPM</span>
+</div>
+<div class="absolute bottom-8 left-8 right-8">
+<h3 class="font-headline font-bold text-3xl leading-none mb-2">VIOLET FLOW</h3>
+<p class="text-on-surface-variant font-medium">Melodic Glitch</p>
+<button class="mt-4 flex items-center gap-2 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full hover:bg-primary hover:text-on-primary transition-all duration-300">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="font-bold uppercase tracking-widest text-xs">Drop In</span>
+</button>
+</div>
+</div>
+<!-- Large High-Impact Card 3 -->
+<div class="relative flex-shrink-0 w-80 h-[450px] rounded-xl overflow-hidden snap-start group">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="close up of a professional DJ mixer with glowing faders in a dark smoky club environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-jbsr0JEkOB-boDWQP7zPjRd7V7jNCzhtaBAkD_2Q0amjwheSQsjaV6D-wAXF8wkRxeboUOEcsAucZSFxcnPzDdat8IJiLdc4x-x47qYaXtm5eVFtX-KBDG1haWz4olXhm7wAQan1mY8vFKNQDczTCpse8ZOyrWf6z6SV-Gwc3t7s0IHSeE3ovFO93TI0WcFiQN7jPAYN2pvujLFEVPqL8Gb5tHQ_-zuEGfbgOpUOTtNQzagCVaMflhOgqzUFq8ZTyBxS6ouB5oU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+<div class="absolute top-6 left-6">
+<span class="bg-tertiary px-4 py-1.5 rounded-full text-on-tertiary font-black text-sm tracking-widest">145 BPM</span>
+</div>
+<div class="absolute bottom-8 left-8 right-8">
+<h3 class="font-headline font-bold text-3xl leading-none mb-2">CYBER BATTLE</h3>
+<p class="text-on-surface-variant font-medium">Hyper-Techno</p>
+<button class="mt-4 flex items-center gap-2 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full hover:bg-primary hover:text-on-primary transition-all duration-300">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="font-bold uppercase tracking-widest text-xs">Drop In</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Browse by Style -->
+<section>
+<h2 class="font-headline font-black text-2xl uppercase tracking-tighter mb-6 flex items-center gap-3">
+<span class="w-8 h-1 bg-primary"></span> Style Archive
+            </h2>
+<div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-error-container text-on-error-container border border-error/20 transition-transform active:scale-90">Hiphop</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-amber-600/20 text-amber-500 border border-amber-600/30 transition-transform active:scale-90">Jazz</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-secondary-container text-on-secondary-container border border-secondary/20 transition-transform active:scale-90">Popping</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-tertiary-container text-on-tertiary-container border border-tertiary/20 transition-transform active:scale-90">House</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-blue-600/20 text-blue-400 border border-blue-600/30 transition-transform active:scale-90">Krump</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-purple-600/20 text-purple-400 border border-purple-600/30 transition-transform active:scale-90">Vogue</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-green-600/20 text-green-400 border border-green-600/30 transition-transform active:scale-90">Funk</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 transition-transform active:scale-90">Breakin</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-rose-600/20 text-rose-400 border border-rose-600/30 transition-transform active:scale-90">Contemporary</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-cyan-600/20 text-cyan-400 border border-cyan-600/30 transition-transform active:scale-90">Waacking</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-orange-600/20 text-orange-400 border border-orange-600/30 transition-transform active:scale-90">Locking</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-lime-600/20 text-lime-400 border border-lime-600/30 transition-transform active:scale-90">Afrobeat</button>
+<button class="flex-shrink-0 px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase bg-neutral-600/20 text-neutral-400 border border-neutral-600/30 transition-transform active:scale-90">Lo-fi</button>
+</div>
+</section>
+<!-- Scene/Energy Grid -->
+<section>
+<h2 class="font-headline font-black text-2xl uppercase tracking-tighter mb-6">Current Vibe</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+<div class="relative group h-40 rounded-xl overflow-hidden cursor-pointer">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-110" data-alt="overhead view of a crowded dance floor in a dark club with sharp laser lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDw_uQReRxXZzp-PmXrPgqCC1ZE7GNxEi5cMq9SiBoQToIN7_dUEjIggTW_C-exfXoxuPdbKHugw7kfWJ1dxw_zzdWl-KRkpBVqQZ3TWomhdAK10w-i-mf16yRMtEhP3mb9Kmd0XGQxADjOddfByFc4bxU4lvd2eYB_-1gr29fVZWDlQAmNIcS3m2C8zbh8qHcOa3UP3x73ZZ-QJRbS9PCGzq4MVwdRIwp5DNErEKTV48DPJAkoj5ivlW1pvZJb3OjzLqDnFrQpnk"/>
+<div class="absolute inset-0 bg-surface-container-lowest/40 backdrop-blur-[2px] transition-all group-hover:backdrop-blur-none group-hover:bg-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="font-headline font-black text-xl tracking-widest uppercase group-hover:scale-125 transition-transform">Battle Mode</span>
+</div>
+</div>
+<div class="relative group h-40 rounded-xl overflow-hidden cursor-pointer">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-110" data-alt="silhouetted figure standing alone in a dark street lit by a single moody blue streetlight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuBy7EcRyRsfMlrPz4YdCJPrLscC6DRXY3h4B6SrfRAAJ41hYC1qbmZvmYNZ5ySXdwcPFW6NvMldTwGh0qPU3N-JvrAvYploZRXKYTBh3_wzT8bpzhu0YuHZDyJRlO8tDwBCF1QpAou5jkktMxH5Vd5sGxYOXrYBY0vCH7Dwl1wZNhlJtAYUMcLsFmT9JeUYF-FPFcQ-vBGhM0lB7Z7uYd6G7Ls2s6CRWth2jcJX9ncOrB2KIt30TTHwfKzFRRxHIIBZCbL_Lza58"/>
+<div class="absolute inset-0 bg-surface-container-lowest/40 backdrop-blur-[2px] transition-all group-hover:backdrop-blur-none group-hover:bg-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="font-headline font-black text-xl tracking-widest uppercase group-hover:scale-125 transition-transform">Midnight Solo</span>
+</div>
+</div>
+<div class="relative group h-40 rounded-xl overflow-hidden cursor-pointer col-span-2 md:col-span-1">
+<img class="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-110" data-alt="modern brutalist gym interior with harsh overhead white lighting and shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwdvIDSMq_hNOU88Hg4-MjSoZoDBkfsYJj4WuzEHyRc_wz3RLOUUpvp4XYsxvYaSCYh7hhqVe_HvadCCqGDDbfapwidHHPiRvW6Zt7Ct28DcvIpalc8IRIhtIpgTXr8f_51dr7hBO7n3Chnqu6QjsJ--OOp2uuHUaBVQqaFgeH_61aDwXN_oC9i4xUkb3Tbbvrf2EnjG3KW0rLnZpSxkt4dhUQwjpU_h9TfHb92OfaaLIy_LMjgazvjsCI-ouhbnIzQUzS07-zMGM"/>
+<div class="absolute inset-0 bg-surface-container-lowest/40 backdrop-blur-[2px] transition-all group-hover:backdrop-blur-none group-hover:bg-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="font-headline font-black text-xl tracking-widest uppercase group-hover:scale-125 transition-transform">Gym Chill</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Track List with + buttons -->
+<section class="space-y-4">
+<h2 class="font-headline font-black text-2xl uppercase tracking-tighter mb-6">Trending Tracks</h2>
+<div class="flex items-center gap-4 bg-surface-container-high/50 p-4 rounded-xl hover:bg-surface-container-highest transition-colors group">
+<div class="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="close up of a colorful vinyl record spinning on a turntable" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgADzJunQUGBDhOsMgguegpmNludZNI2DOssEKV8dNhdRzxdkd26gZ-I2eZmMZNlTAosO4VpS6qnVF1m5L6fYxLzif45sO6vPSSy7JQ8120__pEi-wWb3r4_DHV_DXQoVHPEmaZW72RVzgcJ45XGMazfQWdHq6ELwaOyrhO3oYFYPKtb59VGyskFRhPFTE15Nb29PlM-EgfDxNt6eAQFmlTwz0qe1xtt36DbB8qQS7bIjPdgSshYhgSFN4MTPNmH2z6V4D4rsTqHc"/>
+</div>
+<div class="flex-grow">
+<h4 class="font-bold text-on-surface">Basement Echoes</h4>
+<p class="text-on-surface-variant text-sm">DJ Ghost • 112 BPM</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full border border-outline-variant hover:border-primary group/btn">
+<span class="material-symbols-outlined text-outline-variant group-hover/btn:text-primary transition-colors">add</span>
+</button>
+</div>
+<div class="flex items-center gap-4 bg-surface-container-high/50 p-4 rounded-xl hover:bg-surface-container-highest transition-colors group">
+<div class="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="abstract motion blur of city street lights at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUKaQFpfp0pUKWC6a8lVVpexybxm-nCPrK3RhCIvGn2YHCxtCjvzoZCz14Tp6-J4MKr7dHFDI8Y320RRKGmUyJyyawK3wOgxwmb43_m-IfGRZqPRYZ9YEofM4cmCLT9QJ2UxUq_E5Hv5WdTs4mGGraeVBfZObmBs8dSF3xkqV_a2dLhOno315v2eAnKOl3EVNwt4w-E8iEZ3RZ8VWeqU2WBb5NLIxZ3tz4k28DupYKi3exiLbtuhBJUIGE8ASCHWlJ-fVo5AXSnQY"/>
+</div>
+<div class="flex-grow">
+<h4 class="font-bold text-on-surface">Step &amp; Bounce</h4>
+<p class="text-on-surface-variant text-sm">Vibe Master • 120 BPM</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/40">
+<span class="material-symbols-outlined text-green-500" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+</div>
+<div class="flex items-center gap-4 bg-surface-container-high/50 p-4 rounded-xl hover:bg-surface-container-highest transition-colors group">
+<div class="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="neon glowing shapes in the dark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmljifWxHp6zch9SI3P1QmweTmNx46SogjsnBThqrRXSGZEvBkBxuC9rojhX4vvQF4jXz8VO_P2o4aTiyEEZGca0ywtMF6DrEDvROhnpuJPQXB0He0-Q-WDOAk8nCAnP7R00GPVtgbE-McKmE-NI4sUInrY95PqgdgPc9jBOmeTlPpB5beLEprHBQ-FmAD5xDX0pHuS_Cw7T0aVeA2kax_1n62RZ1_JpYnbz9hvbi6VTO3_rS8YOn_rXZkiYVjo3iMBr0l4QEZIjY"/>
+</div>
+<div class="flex-grow">
+<h4 class="font-bold text-on-surface">Liquid Flow</h4>
+<p class="text-on-surface-variant text-sm">FlowState • 90 BPM</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full border border-outline-variant hover:border-primary group/btn">
+<span class="material-symbols-outlined text-outline-variant group-hover/btn:text-primary transition-colors">add</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Global Mini Player -->
+<div class="fixed bottom-24 left-6 right-6 z-50">
+<div class="glass-card p-4 rounded-xl flex items-center gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.6)] border-t border-white/10">
+<div class="relative w-12 h-12 flex-shrink-0">
+<img class="w-full h-full object-cover rounded-lg" data-alt="metallic purple texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdtt0fan0gFkTtAt_73E7nN9fx42v_pfRsabHsneugF4Tmzx4nyoXpXzs43RdN3a5fPmEFF8vJ2iZoUnVkUEqZlCxUFfT9Cn6HNV5Zjut8FGmFjGw1N5-hQ-_D39R65Q51S-JXz9dcFYT2s75xs3BN78qgDkky4EiTpztjpNtAzQGGQ9TJRWo-4Dv1RENybIjSoU_DfdfjPdDzCEnhdF9aaUPj-KY0w-r0A26U7ok3pzTt66Onz5tCi5f0_Sy6SUqPpMZH9rLDi1k"/>
+<div class="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse neon-glow"></div>
+</div>
+<div class="flex-grow overflow-hidden">
+<h5 class="text-xs font-black uppercase tracking-[0.2em] text-primary truncate">Now Training</h5>
+<p class="font-headline font-bold text-lg truncate leading-tight">VIOLET FLOW</p>
+<!-- Beat Seeker -->
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="h-full w-2/3 bg-gradient-to-r from-primary to-secondary rounded-full relative">
+<div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-secondary-fixed rounded-full shadow-[0_0_8px_rgba(101,225,255,0.8)]"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined p-2 hover:text-primary transition-colors">skip_previous</button>
+<button class="material-symbols-outlined bg-primary p-3 rounded-full text-on-primary scale-110 shadow-lg shadow-primary/20" style="font-variation-settings: 'FILL' 1;">pause</button>
+<button class="material-symbols-outlined p-2 hover:text-primary transition-colors">skip_next</button>
+</div>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_30px_rgba(168,85,247,0.15)]">
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined text-[24px]">library_music</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Library</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#cc97ff] drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Discover</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined text-[24px]">search</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Search</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined text-[24px]">bolt</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Session</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined text-[24px]">person</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Profile</span>
+</button>
+</nav>
+</body></html>

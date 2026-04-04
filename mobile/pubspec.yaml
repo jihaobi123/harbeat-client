@@ -1,0 +1,32 @@
+name: harbeat_mobile
+description: HarBeat mobile app scaffold based on phoneui design language.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  google_fonts: ^6.2.1
+  provider: ^6.1.2
+  just_audio: ^0.9.39
+  just_audio_background: ^0.0.1-beta.17
+  audio_service: ^0.18.15
+  file_picker: ^8.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+dependency_overrides:
+  path_provider: 2.1.4
+  path_provider_foundation: 2.4.1
+
+flutter:
+  uses-material-design: true

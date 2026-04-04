@@ -62,6 +62,15 @@ class PlaylistSongTagUpdateRequest(BaseModel):
     tags: list[str]
 
 
+class PlaylistSongOrderItem(BaseModel):
+    song_id: int
+    order_index: int
+
+
+class PlaylistReorderRequest(BaseModel):
+    songs: list[PlaylistSongOrderItem]
+
+
 class StyleMixRequest(BaseModel):
     style: str
     duration_minutes: int = 30

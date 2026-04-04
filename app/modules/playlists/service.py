@@ -11,6 +11,7 @@ from app.modules.playlists.schemas import (
     PlaylistDetailData,
     PlaylistImportRequest,
     PlaylistListData,
+    PlaylistReorderRequest,
     PlaylistSongData,
     PlaylistSummaryData,
     StyleMixRequest,
@@ -193,6 +194,48 @@ def add_library_songs_to_playlist(db: Session, playlist_id: int, user_id: int, l
     return added
 
 
+def reorder_playlist_songs(
+    db: Session,
+    playlist_id: int,
+    user_id: int,
+    payload: PlaylistReorderRequest,
+) -> None:
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
+    if playlist.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your playlist")
+
+    relations = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id).all()
+    relation_by_song_id = {relation.song_id: relation for relation in relations}
+
+    if len(payload.songs) != len(relations):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reorder payload must include every playlist song",
+        )
+
+    incoming_song_ids = {item.song_id for item in payload.songs}
+    existing_song_ids = set(relation_by_song_id.keys())
+    if incoming_song_ids != existing_song_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reorder payload song ids do not match playlist songs",
+        )
+
+    used_indexes = set()
+    for item in payload.songs:
+        if item.order_index in used_indexes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="duplicate order_index in reorder payload",
+            )
+        used_indexes.add(item.order_index)
+        relation_by_song_id[item.song_id].order_index = item.order_index
+
+    db.commit()
+
+
 def generate_style_mix_playlist(db: Session, payload: StyleMixRequest) -> StyleMixResult:
     """
     练舞会话长歌单生成：
@@ -209,7 +252,6 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest) -> StyleM
 
     songs = query.order_by(SongTag.bpm.asc(), Song.created_at.desc()).all()
 
-    # Fallback: if style filter returns too few results, include all songs with audio
     if len(songs) < 3:
         fallback = (
             db.query(Song)
@@ -218,9 +260,9 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest) -> StyleM
             .all()
         )
         seen = {s.id for s in songs}
-        for s in fallback:
-            if s.id not in seen:
-                songs.append(s)
+        for song in fallback:
+            if song.id not in seen:
+                songs.append(song)
 
     selected: list[Song] = []
     total_seconds = 0

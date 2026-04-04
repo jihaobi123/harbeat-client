@@ -1,0 +1,29 @@
+# HarBeat 街舞音乐 APP — 移动端 UI 重构需求指令
+
+## 一、 全局架构与视觉规范
+### 1. 移动端基础布局
+* **顶部 AppBar**：高度 44px-56px，包含当前页面标题、返回按钮（二级页面），以及顶部操作区。
+* **底部导航栏 (Bottom Tab Bar)**：5 个核心 Tab：音乐库、发现、搜索、练舞、我的。
+* **全局悬浮迷你播放器 (Mini Player)**：固定悬浮在底部导航栏上方。显示封面、歌名、播放/暂停、进度环。
+
+### 2. 视觉与交互规范
+* **主题风格**：深色模式 (Dark Mode, #12121A)。主色调：电音紫 (Primary)、霓虹青 (Accent)。
+* **13种舞种色彩映射**：
+    * hiphop: 红, jazz: 琥珀, breaking: 蓝, popping: 紫, locking: 粉, waacking: 青, house: 天蓝, krump: 深红, funk: 橙, urban: 紫罗兰, afro: 绿, dancehall: 黄, other: 灰。
+* **交互动效**：水平推入 (Slide in)，底部弹起 (Bottom Sheet)。
+
+## 二、 核心页面
+1. **登录与注册 (Auth Screen)**: 玻璃拟物化卡片，舞种选择标签。
+2. **我的音乐库 (Library)**: 单曲列表与歌单视图切换，正在播放高亮带波形动画。
+3. **全屏歌曲详情与播放页 (Song Detail & Player)**: 核心波形播放器，A-B 循环，4轨音轨混音器 (StemPlayer)。
+4. **发现音乐 (Discover)**: 猜你喜欢大卡片，按舞种/场景/能量分类推荐。
+5. **在线搜索 (Search & Download)**: 带防抖搜索，下载时需选择标签的 Bottom Sheet。
+6. **练舞会话 (Session)**: 时长设置生成，进行中模式（巨大倒计时 + 快速事件打点）。
+7. **音乐画像与我的 (Profile)**: 5维数据雷达图/大字报，主修舞种标签。
+8. **歌单导入向导 (Import Modal)**: 5步骤进度条，URL 解析与下载日志。
+
+## 三、 技术规范
+* React + Tailwind CSS
+* Lucide React 图标
+* 触控区域 >= 44px
+* Mock 数据结构 (Zustand style)

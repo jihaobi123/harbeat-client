@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Midnight Cypher - Detailed View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed-dim": "#ff73b1",
+              "on-background": "#efecf8",
+              "primary-fixed": "#c284ff",
+              "primary-dim": "#9c48ea",
+              "on-tertiary-fixed-variant": "#740044",
+              "surface-container-high": "#1f1f29",
+              "error": "#ff6e84",
+              "on-surface": "#efecf8",
+              "surface-variant": "#252530",
+              "primary": "#cc97ff",
+              "on-secondary-container": "#ecfaff",
+              "outline-variant": "#484750",
+              "secondary-dim": "#40ceed",
+              "secondary-container": "#00687a",
+              "inverse-on-surface": "#55545e",
+              "tertiary-dim": "#ff67ad",
+              "surface-container-low": "#13131b",
+              "surface-container": "#191922",
+              "on-primary-container": "#360061",
+              "primary-fixed-dim": "#b971ff",
+              "on-primary-fixed-variant": "#430076",
+              "on-tertiary-container": "#2f0018",
+              "secondary-fixed-dim": "#48d4f3",
+              "secondary": "#53ddfc",
+              "on-error-container": "#ffb2b9",
+              "surface-container-lowest": "#000000",
+              "surface": "#0d0d15",
+              "tertiary": "#ff6daf",
+              "on-secondary": "#004b58",
+              "error-container": "#a70138",
+              "background": "#0d0d15",
+              "surface-tint": "#cc97ff",
+              "tertiary-fixed": "#ff8cbc",
+              "tertiary-container": "#fa53a4",
+              "primary-container": "#c284ff",
+              "error-dim": "#d73357",
+              "on-tertiary": "#4b002a",
+              "on-error": "#490013",
+              "inverse-primary": "#842cd3",
+              "on-secondary-fixed": "#003a45",
+              "outline": "#76747f",
+              "on-primary-fixed": "#000000",
+              "on-surface-variant": "#acaab5",
+              "surface-dim": "#0d0d15",
+              "surface-container-highest": "#252530",
+              "secondary-fixed": "#65e1ff",
+              "on-primary": "#47007c",
+              "on-tertiary-fixed": "#37001d",
+              "inverse-surface": "#fcf8ff",
+              "on-secondary-fixed-variant": "#005969",
+              "surface-bright": "#2b2b38"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-blur { backdrop-filter: blur(20px); }
+        .neon-glow { text-shadow: 0 0 12px rgba(168, 85, 247, 0.4); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body select-none">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 py-4 bg-transparent backdrop-blur-xl bg-slate-900/40 shadow-[0_0_12px_rgba(168,85,247,0.15)]">
+<button class="w-11 h-11 flex items-center justify-center rounded-full hover:bg-purple-500/10 transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-purple-400" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="text-purple-500 font-black tracking-tighter font-['Space_Grotesk'] font-bold tracking-tight uppercase">Midnight Cypher</h1>
+<button class="w-11 h-11 flex items-center justify-center rounded-full hover:bg-purple-500/10 transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-purple-400" data-icon="more_vert">more_vert</span>
+</button>
+</header>
+<main class="pb-32">
+<!-- Hero Section: Immersive Album Art -->
+<section class="relative w-full h-[574px] overflow-hidden">
+<img alt="Detailed Track View" class="w-full h-full object-cover scale-110" data-alt="Cinematic low angle shot of a street dancer in a dark alley with vibrant purple and cyan neon lights reflecting off wet pavement" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7LyKoaNiRE91XaCCRL4sk2OjB_pMds0HwRcb56fLZt1XXeiPdvFb1xIXyPOKE6BKIa1B5roQKkfWe6SvIjLa-QQlO7RisY3oFcchH_LICQY4rwTYANZTuLutMPOb8ZoRmFsR1qpgjSPdJujLnNATUw2L7xi6sNySeUJdfbjbjmBrtWpp3rQVI6Datpg5zAMAHotmb_JObB63TBr4w4ptjjLUBvqXcNYH_y15JseOeCilSTkx1ScSW4cEE6t1nOOMEJz99xGeknY0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+<!-- Metadata Overlay -->
+<div class="absolute bottom-0 left-0 w-full p-8 space-y-4">
+<div class="flex items-center gap-3">
+<span class="px-4 py-1.5 rounded-full bg-primary/20 text-primary font-bold text-xs tracking-widest uppercase border border-primary/30">Popping</span>
+<span class="text-on-surface-variant font-medium text-sm">2024 • Neonic Records</span>
+</div>
+<h2 class="text-6xl md:text-8xl font-headline font-bold text-on-surface leading-tight tracking-tighter neon-glow">
+                    MIDNIGHT <br/> CYPHER
+                </h2>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden border-2 border-primary">
+<img alt="Artist Avatar" class="w-full h-full object-cover" data-alt="High contrast studio portrait of a futuristic music artist with cybernetic face paint and neon lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0tpIXh45geuhZ3v2eP5i4wRmj7IkUmwGtkHrbElxrt4j2q4p-sA_VnkCa9SjGxAE_JkGcmFRVxWW-KLorn0Jg54WV6wt6WeAgBWtuItgBt4QH92UQ-c_nNP5eb2nHvsi7wLkBy20oU3AAWN1BquQhpc3z0KUpqnzXTJbfpapJ3IQcAVxoYTs4NWPxGNqlhnZ8hLGgM1hDFxPaxvBjz5VIMuuJrLUv4ptSG5astjQipzoeSOoaCp42IvE48Kwqy1eBU-vCMqJ6zKY"/>
+</div>
+<div>
+<p class="text-secondary font-bold tracking-wide">Arcade Soul</p>
+<p class="text-on-surface-variant text-xs uppercase tracking-widest">Artist Profile</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Action Controls -->
+<section class="px-8 -mt-8 relative z-10 flex gap-4">
+<button class="flex-1 h-16 rounded-xl bg-gradient-to-br from-primary to-primary-dim text-on-primary-container font-extrabold text-lg flex items-center justify-center gap-3 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                START SESSION
+            </button>
+<button class="w-16 h-16 rounded-xl bg-surface-container-highest border border-outline-variant/30 flex items-center justify-center active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-on-surface" data-icon="favorite">favorite</span>
+</button>
+</section>
+<!-- Synopsis & Lyrics Grid -->
+<section class="px-8 mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Synopsis -->
+<div class="space-y-6">
+<h3 class="text-on-surface-variant font-headline font-bold uppercase tracking-widest text-sm">Synopsis</h3>
+<p class="text-2xl font-light leading-relaxed text-on-surface/90">
+                    A rhythmic journey through the concrete veins of the city. <span class="text-primary font-medium italic">Midnight Cypher</span> blend heavy mechanical bass with ethereal glitch-textures, designed specifically for <span class="text-secondary">high-precision isolation</span> and liquid transitions.
+                </p>
+</div>
+<!-- Lyrical Snippet Card -->
+<div class="bg-surface-container-low rounded-lg p-8 relative overflow-hidden group border border-outline-variant/10">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-8xl" data-icon="format_quote">format_quote</span>
+</div>
+<h3 class="text-on-surface-variant font-headline font-bold uppercase tracking-widest text-sm mb-6">Key Quotes</h3>
+<p class="text-xl font-headline italic leading-snug text-on-primary-fixed-variant">
+                    "When the neon flickers, the pulse dictates the frame. Freeze the moment, own the shadow."
+                </p>
+<div class="mt-8 flex items-center gap-2">
+<div class="h-px flex-1 bg-outline-variant/20"></div>
+<span class="text-xs uppercase font-bold tracking-widest text-on-surface-variant">Track Timestamp 02:44</span>
+</div>
+</div>
+</section>
+<!-- User Reviews Bento Section -->
+<section class="px-8 mt-16">
+<h3 class="text-on-surface-variant font-headline font-bold uppercase tracking-widest text-sm mb-8">Community Feedback</h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-container-highest p-6 rounded-lg space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary text-xs font-bold">JD</div>
+<span class="text-sm font-bold">J-Dash</span>
+</div>
+<p class="text-on-surface/80 text-sm italic">"The snare crack at the 1:15 mark is perfect for hard popping. Been using this for my competition drills."</p>
+</div>
+<div class="bg-surface-container-highest p-6 rounded-lg space-y-4 border-l-4 border-primary">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">NL</div>
+<span class="text-sm font-bold">Neon_Lily</span>
+</div>
+<p class="text-on-surface/80 text-sm italic">"Incredible atmospheric layers. Feels like dancing inside a cyberpunk movie. 10/10 vibe."</p>
+</div>
+<div class="bg-surface-container-highest p-6 rounded-lg space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary text-xs font-bold">MX</div>
+<span class="text-sm font-bold">Maximus</span>
+</div>
+<p class="text-on-surface/80 text-sm italic">"Bass response is heavy. Make sure your subs are ready before dropping this in the studio."</p>
+</div>
+</div>
+</section>
+<!-- Related Tracks Carousel -->
+<section class="mt-16 overflow-hidden">
+<div class="px-8 flex justify-between items-end mb-8">
+<h3 class="text-on-surface-variant font-headline font-bold uppercase tracking-widest text-sm">Similar Patterns</h3>
+<button class="text-primary text-xs font-bold uppercase tracking-widest">Explore All</button>
+</div>
+<div class="flex gap-6 overflow-x-auto px-8 pb-4 hide-scrollbar">
+<!-- Track Card 1 -->
+<div class="min-w-[280px] group">
+<div class="aspect-square rounded-lg overflow-hidden relative mb-4">
+<img alt="Related Track" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Abstract visualization of music soundwaves in vibrant electric pink and blue against a black background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPSgovqi_ql4DQV9pVAfu0iytAk-syE-MKkdjdfofq83eUsXzU9Qwj7lPNfkh5nvG005lqIr1xvIpZGG7Rq3LIUPCOFhLuW0H5KyMyYueWYBDZ2YsbSREy0DAxU2oKlEFQR7VYRuIWp9r5FyiuUm5gyr8UKtByOwHMhP-TSJkc0olT-xQMDrH9-cN-crt_LDbI0KIelcNY29eTF7oAnl-hfl2H-fFa3vjfnkH9Hhb-UFRwugnqbCj2KcdfxxW0t4RrA-Uf0GRvk7I"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-5xl" data-icon="play_circle">play_circle</span>
+</div>
+</div>
+<h4 class="font-bold text-on-surface">Neon Syndicate</h4>
+<p class="text-on-surface-variant text-sm">Arcade Soul • Popping</p>
+</div>
+<!-- Track Card 2 -->
+<div class="min-w-[280px] group">
+<div class="aspect-square rounded-lg overflow-hidden relative mb-4">
+<img alt="Related Track" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Close up of a professional DJ mixer with illuminated buttons in a dark nightclub environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAs5HDxusf9YMkrVh70EWh56h7WqaeuR5pIQKU_HLI42UrimU-kV83Yc1Y32EKrITFVFpugHI8VzYAvNPicG-Cwkom6wtRUzLpiiOkuVgOCM4GNYD7SRWYBge_qD0vzWt25rK66G4MMB-zzzpMMMZPrygIFN2JzHVq2Z78XD1f70nJo9UP4R1Bg2_WieNhOlDoU9ETD0q2iFu44xHo3SMX_c0CjgMTHDDW55_UyNEmzf4E9_kAUtsS0fi-YEt5GVrHGvtJAScmdZtM"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-5xl" data-icon="play_circle">play_circle</span>
+</div>
+</div>
+<h4 class="font-bold text-on-surface">Circuit Breaker</h4>
+<p class="text-on-surface-variant text-sm">Binary Flow • Glitch</p>
+</div>
+<!-- Track Card 3 -->
+<div class="min-w-[280px] group">
+<div class="aspect-square rounded-lg overflow-hidden relative mb-4">
+<img alt="Related Track" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Retro aesthetic microphone in front of a glowing neon sign with soft bokeh lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLkOLwe9AtUxEfMWaZd8DLH2g43HnpfCaQPnp2ya5TG7xwzLM0_GKjF7j9dpYFTXYJz6HcCJNNGtgJ3q2cvuSMolz7pxESjpWrEC8CzGCACfSktAmBABrLGpgXScv2w5gowLiYZxX0YD45qLiG_tpUkxQ0cj-TsohaK8deP6AFEXS_HSGG50nmBeFH_rqTSoD-dmGctOdXpi1h35dAybj6HdP3csk1vKMt7n2ns28wlDgC4woupIW3ASE_QBsN5d7IEsfuAG5kHUw"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-5xl" data-icon="play_circle">play_circle</span>
+</div>
+</div>
+<h4 class="font-bold text-on-surface">Vapor Pulse</h4>
+<p class="text-on-surface-variant text-sm">Static Ghost • Lo-Fi</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-4 bg-[#13131b]/90 backdrop-blur-2xl rounded-t-[3rem] shadow-[0_-10px_40px_rgba(0,0,0,0.6)]">
+<button class="flex flex-col items-center justify-center text-slate-500 p-2 hover:text-purple-300 transition-all active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+<span class="font-['Manrope'] text-[10px] font-semibold uppercase tracking-widest mt-1">Battle</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 p-2 hover:text-purple-300 transition-all active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-['Manrope'] text-[10px] font-semibold uppercase tracking-widest mt-1">Discover</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-purple-500/20 text-purple-400 rounded-full px-6 py-2 shadow-[0_0_15px_rgba(168,85,247,0.3)] active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="subscriptions">subscriptions</span>
+<span class="font-['Manrope'] text-[10px] font-semibold uppercase tracking-widest mt-1">Library</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 p-2 hover:text-purple-300 transition-all active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Manrope'] text-[10px] font-semibold uppercase tracking-widest mt-1">Profile</span>
+</button>
+</nav>
+</body></html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#13131b",
+              "surface-tint": "#cc97ff",
+              "tertiary-container": "#fa53a4",
+              "on-secondary-container": "#ecfaff",
+              "surface-container": "#191922",
+              "tertiary-dim": "#ff67ad",
+              "inverse-on-surface": "#55545e",
+              "surface-container-highest": "#252530",
+              "on-primary-fixed-variant": "#430076",
+              "on-tertiary-fixed": "#37001d",
+              "outline-variant": "#484750",
+              "inverse-primary": "#842cd3",
+              "surface-dim": "#0d0d15",
+              "tertiary-fixed": "#ff8cbc",
+              "error-container": "#a70138",
+              "surface-container-high": "#1f1f29",
+              "on-tertiary-fixed-variant": "#740044",
+              "outline": "#76747f",
+              "on-surface": "#efecf8",
+              "primary-dim": "#9c48ea",
+              "on-tertiary-container": "#2f0018",
+              "on-primary-container": "#360061",
+              "on-tertiary": "#4b002a",
+              "on-secondary-fixed-variant": "#005969",
+              "on-primary": "#47007c",
+              "primary-container": "#c284ff",
+              "surface-bright": "#2b2b38",
+              "on-secondary": "#004b58",
+              "surface-container-lowest": "#000000",
+              "on-error-container": "#ffb2b9",
+              "error-dim": "#d73357",
+              "surface": "#0d0d15",
+              "error": "#ff6e84",
+              "secondary-container": "#00687a",
+              "on-primary-fixed": "#000000",
+              "on-error": "#490013",
+              "secondary-fixed": "#65e1ff",
+              "primary": "#cc97ff",
+              "primary-fixed-dim": "#b971ff",
+              "secondary-fixed-dim": "#48d4f3",
+              "primary-fixed": "#c284ff",
+              "tertiary": "#ff6daf",
+              "on-background": "#efecf8",
+              "on-surface-variant": "#acaab5",
+              "surface-variant": "#252530",
+              "tertiary-fixed-dim": "#ff73b1",
+              "secondary": "#53ddfc",
+              "secondary-dim": "#40ceed",
+              "on-secondary-fixed": "#003a45",
+              "background": "#0d0d15",
+              "inverse-surface": "#fcf8ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glow-pulse {
+            box-shadow: 0 0 20px rgba(83, 221, 252, 0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30 min-h-screen pb-32 overflow-x-hidden">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-purple-500 dark:text-[#A855F7] hover:bg-white/10 transition-colors rounded-full p-2 scale-95 duration-200" data-icon="menu">menu</button>
+<h1 class="font-['Space_Grotesk'] font-bold text-2xl tracking-tight uppercase text-[#efecf8]">HarBeat</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-purple-500 dark:text-[#A855F7] hover:bg-white/10 transition-colors rounded-full p-2 scale-95 duration-200" data-icon="search">search</button>
+</div>
+</nav>
+<main class="pt-20 px-6 max-w-4xl mx-auto">
+<!-- Toggle Header -->
+<div class="flex justify-center mb-10">
+<div class="inline-flex bg-surface-container p-1 rounded-xl">
+<button class="px-6 py-2 rounded-lg font-bold text-sm uppercase tracking-widest bg-primary text-on-primary shadow-lg shadow-primary/20 transition-all">Generate List</button>
+<button class="px-6 py-2 rounded-lg font-bold text-sm uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-all">Session History</button>
+</div>
+</div>
+<!-- Big Poster: Active Session Mode -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-high p-8 mb-10 border-t border-white/5">
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-[100px] rounded-full"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary/10 blur-[100px] rounded-full"></div>
+<div class="flex flex-col items-center justify-center text-center relative z-10">
+<span class="font-headline font-bold uppercase tracking-[0.3em] text-secondary text-sm mb-4">Live Session</span>
+<!-- Huge Countdown Timer with Pulse Ring -->
+<div class="relative mb-8 group">
+<div class="absolute inset-0 rounded-full border-[10px] border-secondary/20 scale-110"></div>
+<div class="absolute inset-0 rounded-full border-[2px] border-secondary glow-pulse animate-pulse"></div>
+<div class="w-64 h-64 rounded-full flex items-center justify-center bg-surface-container-highest/50 backdrop-blur-sm">
+<h2 class="text-7xl font-headline font-black text-on-surface tracking-tighter">12:44</h2>
+</div>
+</div>
+<div class="mb-10">
+<h3 class="text-2xl font-headline font-bold uppercase mb-1">Night Crawler</h3>
+<p class="text-on-surface-variant font-medium">B-Side Rebels • 128 BPM</p>
+</div>
+<!-- Quick Event Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-surface-container-low hover:bg-surface-bright border border-white/5 transition-all active:scale-95 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform" data-icon="sync">sync</span>
+<span class="text-[10px] uppercase font-bold tracking-widest">Switch</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-surface-container-low hover:bg-surface-bright border border-white/5 transition-all active:scale-95 group">
+<span class="material-symbols-outlined text-secondary group-hover:scale-110 transition-transform" data-icon="person">person</span>
+<span class="text-[10px] uppercase font-bold tracking-widest">Solo</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-surface-container-low hover:bg-surface-bright border border-white/5 transition-all active:scale-95 group">
+<span class="material-symbols-outlined text-tertiary group-hover:scale-110 transition-transform" data-icon="water_drop">water_drop</span>
+<span class="text-[10px] uppercase font-bold tracking-widest">Water</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-surface-container-low hover:bg-surface-bright border border-white/5 transition-all active:scale-95 group">
+<span class="material-symbols-outlined text-blue-400 group-hover:scale-110 transition-transform" data-icon="ac_unit">ac_unit</span>
+<span class="text-[10px] uppercase font-bold tracking-widest">Freeze</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Generate Configuration -->
+<section class="mb-12">
+<h4 class="font-headline font-bold text-xl uppercase mb-6 tracking-tight">Configure Practice</h4>
+<div class="grid grid-cols-4 gap-4 mb-8">
+<button class="h-20 rounded-xl bg-surface-container-highest border-2 border-primary text-primary font-headline font-black text-xl flex items-center justify-center shadow-lg shadow-primary/10">15m</button>
+<button class="h-20 rounded-xl bg-surface-container-low border border-outline-variant hover:border-on-surface-variant text-on-surface-variant font-headline font-bold text-xl flex items-center justify-center transition-all">30m</button>
+<button class="h-20 rounded-xl bg-surface-container-low border border-outline-variant hover:border-on-surface-variant text-on-surface-variant font-headline font-bold text-xl flex items-center justify-center transition-all">60m</button>
+<button class="h-20 rounded-xl bg-surface-container-low border border-outline-variant hover:border-on-surface-variant text-on-surface-variant font-headline font-bold text-xl flex items-center justify-center transition-all">90m</button>
+</div>
+<button class="w-full py-6 rounded-xl bg-gradient-to-r from-primary to-primary-dim text-on-primary font-headline font-black text-2xl uppercase tracking-[0.2em] shadow-[0_0_40px_rgba(168,85,247,0.4)] hover:shadow-[0_0_60px_rgba(168,85,247,0.6)] active:scale-[0.98] transition-all">
+                Start Session
+            </button>
+</section>
+<!-- History Mode Section -->
+<section>
+<div class="flex justify-between items-end mb-6">
+<h4 class="font-headline font-bold text-xl uppercase tracking-tight">Recent Sessions</h4>
+<button class="text-primary font-bold text-xs uppercase tracking-widest">View All</button>
+</div>
+<div class="space-y-4">
+<!-- History Item 1 -->
+<div class="bg-surface-container-low rounded-xl p-5 flex items-center gap-6 group hover:bg-surface-container-high transition-colors">
+<div class="flex-shrink-0 w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center overflow-hidden">
+<img alt="Album art" class="w-full h-full object-cover opacity-60" data-alt="vibrant abstract digital art with explosive purple and cyan light patterns on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD14jbaGjfFOzHX_1vcc8sO5xP8wPRpIcp1M25KAerJ8PWAqdRsfFh14q1wnFgdjsKHXa5MzHiS050bNzW1R59F18L_aQSPn4m3yEI3O8EasNArScAbxV7efaZjptlEt2oZJpLEZqk6-Gznb0NID3NhwzW7wWLBuzCWumaFAUp2vDc9Vq174U9dqy_Zcur0fz2io5EgjxB2j4zWxqr3q4ZE_sviOS3vUnRAZxwbacV1HSi2t16e7csVKHLUtO03gMuUvZbn4ydd3EQ"/>
+</div>
+<div class="flex-grow">
+<p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">Yesterday</p>
+<h5 class="font-bold text-on-surface">Power Session • 45m</h5>
+</div>
+<div class="flex items-end gap-1 h-10 w-24 px-2">
+<div class="w-full bg-secondary rounded-t-sm" style="height: 40%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 60%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 90%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 50%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 80%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 100%"></div>
+<div class="w-full bg-secondary rounded-t-sm" style="height: 70%"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</button>
+</div>
+<!-- History Item 2 -->
+<div class="bg-surface-container-low rounded-xl p-5 flex items-center gap-6 group hover:bg-surface-container-high transition-colors">
+<div class="flex-shrink-0 w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center overflow-hidden">
+<img alt="Album art" class="w-full h-full object-cover opacity-60" data-alt="energetic dancer silhouette in a smoky urban studio with dramatic purple backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTggLlm5DbchpPZ_fQCMTLxqufXNhiVpAwG4C1cIifjZGslKmApqLzXC2LpkEkt7PgioRX9L5fBOWRoUQRZ3Y3GR4w9nUPlBj_5YRNrFqafAIUllBzIi_YwUJl6GLe61Sf5S4aKYw-3ViK-bPCfPSOjlOlBvbfDzhVrpKNqlJEcaWX7rYQ6f1qKokfU-LwOJyf7gqiqpOcbZcKrfpOxk2GxWESFVpQAxx8a1QuOtukb-EWeKrbg7DQVEomMChDnM-j5ecBSFuEkA4"/>
+</div>
+<div class="flex-grow">
+<p class="text-xs font-bold uppercase tracking-widest text-secondary mb-1">Oct 24</p>
+<h5 class="font-bold text-on-surface">Foundation Drill • 20m</h5>
+</div>
+<div class="flex items-end gap-1 h-10 w-24 px-2">
+<div class="w-full bg-primary rounded-t-sm" style="height: 20%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 30%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 25%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 40%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 35%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 30%"></div>
+<div class="w-full bg-primary rounded-t-sm" style="height: 20%"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_30px_rgba(168,85,247,0.15)]">
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined mb-1" data-icon="library_music">library_music</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Library</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined mb-1" data-icon="explore">explore</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Discover</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined mb-1" data-icon="search">search</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Search</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#cc97ff] drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined mb-1" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Session</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300 tap-highlight-none">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest">Profile</span>
+</button>
+</nav>
+</body></html>

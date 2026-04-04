@@ -8,6 +8,7 @@ from app.modules.playlists.schemas import (
     PlaylistImportData,
     PlaylistImportRequest,
     PlaylistListData,
+    PlaylistReorderRequest,
     PlaylistSongTagUpdateRequest,
     StyleMixRequest,
     StyleMixResult,
@@ -20,6 +21,7 @@ from app.modules.playlists.service import (
     get_playlist_detail,
     import_playlist,
     list_playlists,
+    reorder_playlist_songs,
     update_playlist_song_tags,
 )
 from app.modules.users.models import User
@@ -73,6 +75,17 @@ def update_playlist_song_tags_endpoint(
     db: Session = Depends(get_db),
 ):
     update_playlist_song_tags(db, playlist_id, song_id, payload.tags)
+    return APIResponse(data={"success": True})
+
+
+@router.patch("/{playlist_id}/reorder", response_model=APIResponse[dict])
+def reorder_playlist_endpoint(
+    playlist_id: int,
+    payload: PlaylistReorderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reorder_playlist_songs(db, playlist_id, current_user.id, payload)
     return APIResponse(data={"success": True})
 
 

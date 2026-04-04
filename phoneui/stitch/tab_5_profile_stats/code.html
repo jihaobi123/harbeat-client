@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#13131b",
+              "surface-tint": "#cc97ff",
+              "tertiary-container": "#fa53a4",
+              "on-secondary-container": "#ecfaff",
+              "surface-container": "#191922",
+              "tertiary-dim": "#ff67ad",
+              "inverse-on-surface": "#55545e",
+              "surface-container-highest": "#252530",
+              "on-primary-fixed-variant": "#430076",
+              "on-tertiary-fixed": "#37001d",
+              "outline-variant": "#484750",
+              "inverse-primary": "#842cd3",
+              "surface-dim": "#0d0d15",
+              "tertiary-fixed": "#ff8cbc",
+              "error-container": "#a70138",
+              "surface-container-high": "#1f1f29",
+              "on-tertiary-fixed-variant": "#740044",
+              "outline": "#76747f",
+              "on-surface": "#efecf8",
+              "primary-dim": "#9c48ea",
+              "on-tertiary-container": "#2f0018",
+              "on-primary-container": "#360061",
+              "on-tertiary": "#4b002a",
+              "on-secondary-fixed-variant": "#005969",
+              "on-primary": "#47007c",
+              "primary-container": "#c284ff",
+              "surface-bright": "#2b2b38",
+              "on-secondary": "#004b58",
+              "surface-container-lowest": "#000000",
+              "on-error-container": "#ffb2b9",
+              "error-dim": "#d73357",
+              "surface": "#0d0d15",
+              "error": "#ff6e84",
+              "secondary-container": "#00687a",
+              "on-primary-fixed": "#000000",
+              "on-error": "#490013",
+              "secondary-fixed": "#65e1ff",
+              "primary": "#cc97ff",
+              "primary-fixed-dim": "#b971ff",
+              "secondary-fixed-dim": "#48d4f3",
+              "primary-fixed": "#c284ff",
+              "tertiary": "#ff6daf",
+              "on-background": "#efecf8",
+              "on-surface-variant": "#acaab5",
+              "surface-variant": "#252530",
+              "tertiary-fixed-dim": "#ff73b1",
+              "secondary": "#53ddfc",
+              "secondary-dim": "#40ceed",
+              "on-secondary-fixed": "#003a45",
+              "background": "#0d0d15",
+              "inverse-surface": "#fcf8ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(37, 37, 48, 0.4);
+            backdrop-filter: blur(20px);
+        }
+        .radar-grid {
+            background-image: 
+                radial-gradient(circle at center, transparent 30%, rgba(83, 221, 252, 0.05) 31%, transparent 32%),
+                radial-gradient(circle at center, transparent 60%, rgba(83, 221, 252, 0.05) 61%, transparent 62%),
+                radial-gradient(circle at center, transparent 90%, rgba(83, 221, 252, 0.05) 91%, transparent 92%);
+        }
+        .text-glow-purple {
+            text-shadow: 0 0 12px rgba(204, 151, 255, 0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary selection:text-on-primary-container min-h-screen pb-32">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface/60 hover:bg-white/10 transition-colors p-2 rounded-full">menu</button>
+<h1 class="font-['Space_Grotesk'] font-bold text-2xl tracking-tight uppercase text-[#efecf8]">HarBeat</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-on-surface/60 hover:bg-white/10 transition-colors p-2 rounded-full">search</button>
+</div>
+</header>
+<main class="pt-20 px-6 max-w-2xl mx-auto">
+<!-- Profile Header -->
+<section class="flex flex-col items-center text-center mb-10">
+<div class="relative mb-6">
+<div class="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary via-secondary to-tertiary">
+<img alt="User Profile" class="w-full h-full object-cover rounded-full border-4 border-surface" data-alt="portrait of a professional street dancer with edgy hairstyle and neon purple lighting reflecting on their skin" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYsnN9OtCDEJFp_SNiZFSAM-XcwNrVNq5MhbSZ1YfT1Zlcs5c2rf_LvjntuW4V7WytKR-27-y7SmFiTsv_aIvugStyhphojouXu1s-VjpxQSB3CGwGUyS78DaFhQ0Js3Ee2Ezyp8aAFqhs2qUA-djML4tkTnrcxe7viZ0zAl6jcr-mL3tpIWdFP7HygS91iIVdY6bcz8pw8GWVEunzxtFnJPMw3qP6tPVbyD7abO7rliXveyGT_JkryClhovBjeGi0_jbLeaNkBJM"/>
+</div>
+<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-surface-container-highest px-4 py-1 rounded-full border border-outline-variant/30 shadow-xl">
+<span class="text-secondary font-headline font-bold text-xs tracking-widest uppercase">Pro Popper</span>
+</div>
+</div>
+<h2 class="font-headline font-black text-4xl tracking-tighter text-on-surface mb-1">RYAN_VOLT</h2>
+<p class="text-on-surface-variant font-medium text-sm">Member since Oct 2023 • Los Angeles</p>
+</section>
+<!-- Music Portrait: Radar Chart -->
+<section class="mb-12">
+<div class="flex justify-between items-end mb-6">
+<div>
+<h3 class="font-headline font-bold text-2xl text-glow-purple uppercase tracking-tight">Music Portrait</h3>
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Beat Analysis Engine</p>
+</div>
+<button class="material-symbols-outlined text-primary">share</button>
+</div>
+<div class="relative glass-panel rounded-xl aspect-square w-full flex items-center justify-center border border-outline-variant/10 radar-grid overflow-hidden">
+<!-- Radar SVG -->
+<svg class="w-4/5 h-4/5 transform -rotate-18" viewbox="0 0 100 100">
+<!-- Axes -->
+<line stroke="rgba(239, 236, 248, 0.1)" stroke-width="0.5" x1="50" x2="50" y1="50" y2="5"></line>
+<line stroke="rgba(239, 236, 248, 0.1)" stroke-width="0.5" x1="50" x2="93" y1="50" y2="35"></line>
+<line stroke="rgba(239, 236, 248, 0.1)" stroke-width="0.5" x1="50" x2="77" y1="50" y2="85"></line>
+<line stroke="rgba(239, 236, 248, 0.1)" stroke-width="0.5" x1="50" x2="23" y1="50" y2="85"></line>
+<line stroke="rgba(239, 236, 248, 0.1)" stroke-width="0.5" x1="50" x2="7" y1="50" y2="35"></line>
+<!-- Radar Shape -->
+<polygon class="drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]" fill="rgba(168, 85, 247, 0.2)" points="50,15 85,38 65,75 30,70 15,30" stroke="#cc97ff" stroke-width="1.5"></polygon>
+<polygon fill="rgba(83, 221, 252, 0.1)" points="50,25 70,45 60,65 40,60 25,40" stroke="#53ddfc" stroke-width="0.75"></polygon>
+</svg>
+<!-- Labels -->
+<span class="absolute top-8 font-headline font-black text-[10px] tracking-tighter uppercase text-on-surface">Styles</span>
+<span class="absolute top-1/3 right-6 font-headline font-black text-[10px] tracking-tighter uppercase text-on-surface">BPM</span>
+<span class="absolute bottom-10 right-16 font-headline font-black text-[10px] tracking-tighter uppercase text-on-surface">Energy</span>
+<span class="absolute bottom-10 left-16 font-headline font-black text-[10px] tracking-tighter uppercase text-on-surface">Vocals</span>
+<span class="absolute top-1/3 left-6 font-headline font-black text-[10px] tracking-tighter uppercase text-on-surface">Groove</span>
+</div>
+</section>
+<!-- Dance Stats Grid -->
+<section class="mb-12">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-primary">
+<span class="block font-headline font-black text-4xl text-on-surface mb-1">142</span>
+<span class="block text-on-surface-variant font-bold text-[10px] uppercase tracking-widest">Total Practice Hours</span>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-secondary">
+<span class="block font-headline font-black text-4xl text-on-surface mb-1">87</span>
+<span class="block text-on-surface-variant font-bold text-[10px] uppercase tracking-widest">Songs Mastered</span>
+</div>
+</div>
+</section>
+<!-- Settings List -->
+<section class="space-y-3 mb-10">
+<h3 class="font-headline font-bold text-lg text-on-surface mb-4 px-2">Account Settings</h3>
+<button class="w-full flex items-center justify-between p-5 bg-surface-container rounded-xl hover:bg-surface-bright transition-all group">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-2 rounded-lg group-hover:scale-110 transition-transform">palette</span>
+<span class="font-body font-bold text-on-surface">Theme Settings</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-on-surface-variant text-xs">Neon Dark</span>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</div>
+</button>
+<button class="w-full flex items-center justify-between p-5 bg-surface-container rounded-xl hover:bg-surface-bright transition-all group">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary bg-primary-container/20 p-2 rounded-lg group-hover:scale-110 transition-transform">info</span>
+<span class="font-body font-bold text-on-surface">About HarBeat</span>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 bg-surface-container rounded-xl hover:bg-error-container/10 transition-all group border border-transparent hover:border-error/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-error p-2 rounded-lg">logout</span>
+<span class="font-body font-bold text-error">Logout</span>
+</div>
+</button>
+</section>
+</main>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-surface/40 dark:bg-[#0d0d15]/40 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_30px_rgba(168,85,247,0.15)]">
+<a class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">library_music</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Library</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Discover</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#efecf8]/40 hover:text-[#cc97ff]/80 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Session</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#cc97ff] drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-['Manrope'] text-[10px] font-bold uppercase tracking-widest mt-1">Profile</span>
+</a>
+</nav>
+</body></html>
