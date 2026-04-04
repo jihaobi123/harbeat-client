@@ -1,6 +1,7 @@
 # ---- Stage 1: Build web frontend ----
 FROM node:20-slim AS web-builder
 WORKDIR /web
+RUN npm config set registry https://registry.npmmirror.com
 COPY web/package.json web/package-lock.json* ./
 RUN npm install
 COPY web/ .
@@ -11,11 +12,18 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Use China mirrors for apt (Debian Trixie)
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true
+
 # Install system deps for librosa (libsndfile)
 RUN apt-get update && apt-get install -y --no-install-recommends libsndfile1 ffmpeg && rm -rf /var/lib/apt/lists/*
 
+# Use China mirrors for pip + install CPU-only torch (much smaller)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+    torch==2.6.0+cpu torchaudio==2.6.0+cpu --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r requirements.txt
 
 COPY . .
 

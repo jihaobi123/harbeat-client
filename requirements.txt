@@ -14,9 +14,9 @@ librosa==0.10.2.post1
 numpy<2
 
 # === Stem Separation (demucs) ===
-# Pin torch/torchaudio to 2.6.x to avoid torchcodec/FFmpeg DLL issues on Windows
-torch==2.6.0
-torchaudio==2.6.0
+# torch CPU installed separately in Dockerfile (smaller, faster)
+# torch==2.6.0
+# torchaudio==2.6.0
 soundfile==0.13.1
 demucs==4.0.1
 
