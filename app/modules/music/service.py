@@ -6,7 +6,6 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.modules.music.model_selection import pick_model_bundle, pick_style_engine
-from app.modules.music.audio_processor import process_audio_for_style
 from app.modules.music.models import SongCue
 from app.modules.music.schemas import (
     CueCreateRequest,
@@ -196,6 +195,7 @@ def process_song_for_styles(db: Session, song_id: int, payload: SongProcessReque
                 note = "cached: already processed"
                 payload_bpm = payload.bpm
             elif song.audio_url:
+                from app.modules.music.audio_processor import process_audio_for_style
                 process_meta = process_audio_for_style(
                     input_path=song.audio_url,
                     output_path=output_path,

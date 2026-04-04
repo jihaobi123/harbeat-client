@@ -16,21 +16,38 @@ import functools
 from pathlib import Path
 from typing import Optional
 
-import librosa
-import numpy as np
-import soundfile as sf
-import pyloudnorm as pyln
-import torch
-from pedalboard import (
-    Compressor,
-    Gain,
-    HighShelfFilter,
-    LowShelfFilter,
-    Limiter,
-    Pedalboard,
-)
-
 log = logging.getLogger(__name__)
+
+# Heavy libs (librosa, torch, pedalboard, numpy, etc.) are imported lazily
+# to avoid ~500MB+ memory usage at startup on a 4GB server.
+_libs_loaded = False
+
+
+def _ensure_libs():
+    """Import heavy audio libs into module globals on first use."""
+    global _libs_loaded
+    if _libs_loaded:
+        return
+    import librosa as _librosa
+    import numpy as _np
+    import soundfile as _sf
+    import pyloudnorm as _pyln
+    import torch as _torch
+    import pedalboard as _pb
+
+    g = globals()
+    g["librosa"] = _librosa
+    g["np"] = _np
+    g["sf"] = _sf
+    g["pyln"] = _pyln
+    g["torch"] = _torch
+    g["Compressor"] = _pb.Compressor
+    g["Gain"] = _pb.Gain
+    g["HighShelfFilter"] = _pb.HighShelfFilter
+    g["LowShelfFilter"] = _pb.LowShelfFilter
+    g["Limiter"] = _pb.Limiter
+    g["Pedalboard"] = _pb.Pedalboard
+    _libs_loaded = True
 
 # ── Target BPM per dance style ──────────────────────────────────────────────
 STYLE_TARGET_BPM: dict[str, int] = {
@@ -279,6 +296,8 @@ def process_audio_for_style(
     src = Path(input_path)
     if not src.exists():
         raise FileNotFoundError(f"input file not found: {src}")
+
+    _ensure_libs()  # lazy-load heavy dependencies (torch, librosa, etc.)
 
     sr = 44100
     style_key = style.lower().strip()
