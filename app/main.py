@@ -1,10 +1,11 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.modules import models  # noqa: F401
@@ -13,11 +14,17 @@ from app.shared.config import get_settings
 from app.shared.database import Base, engine
 
 
+os.environ.setdefault("PATH", os.environ.get("Path", ""))
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Auto-analyze songs that have files but were never analyzed
-    _schedule_pending_analyses()
+    # Avoid startup crashes from heavy audio stack in constrained Windows envs.
+    # Enable only when explicitly requested.
+    if os.getenv("ENABLE_STARTUP_ANALYSIS", "").lower() in {"1", "true", "yes"}:
+        _schedule_pending_analyses()
     yield
 
 
@@ -71,8 +78,29 @@ app.include_router(api_router)
 
 # Serve the web frontend (built into web/dist)
 _web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
-if _web_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_web_dist), html=True), name="web")
+_web_assets = _web_dist / "assets"
+if _web_assets.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(_web_assets)), name="web-assets")
+
+
+def _serve_spa_index() -> FileResponse:
+    return FileResponse(str(_web_dist / "index.html"))
+
+
+if _web_dist.is_dir() and (_web_dist / "index.html").is_file():
+
+    @app.get("/", include_in_schema=False)
+    async def web_root():
+        return _serve_spa_index()
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def web_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="not found")
+        candidate = _web_dist / full_path
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        return _serve_spa_index()
 
 
 @app.exception_handler(HTTPException)

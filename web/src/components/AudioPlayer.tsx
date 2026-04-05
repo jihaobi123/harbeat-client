@@ -19,7 +19,6 @@ export default function AudioPlayer() {
   const [seeking, setSeeking] = useState(false)
   const playStartRef = useRef<{ songId: string; startTime: number } | null>(null)
 
-  // Log interaction when song changes or playback ends
   const flushInteraction = useCallback((action: string) => {
     const info = playStartRef.current
     if (!info || !user) return
@@ -35,7 +34,6 @@ export default function AudioPlayer() {
     playStartRef.current = null
   }, [user])
 
-  // Sync play/pause
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -46,11 +44,9 @@ export default function AudioPlayer() {
     }
   }, [isPlaying])
 
-  // Change source when song changes
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !playingSong) return
-    // Log previous song as 'skip' if switching
     if (playStartRef.current && playStartRef.current.songId !== playingSong.id) {
       flushInteraction('skip')
     }
@@ -62,7 +58,6 @@ export default function AudioPlayer() {
     }
   }, [playingSong])
 
-  // Volume
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume
   }, [volume])
@@ -84,7 +79,7 @@ export default function AudioPlayer() {
     setCurrentTime(val)
   }, [])
 
-  const handleSeekCommit = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleSeekCommit = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.currentTime = currentTime
     }
@@ -95,14 +90,14 @@ export default function AudioPlayer() {
 
   if (!playingSong) {
     return (
-      <div className="h-20 bg-surface-light border-t border-gray-700 flex items-center justify-center shrink-0">
-        <span className="text-gray-500 text-sm">选择一首歌曲开始播放</span>
+      <div className="min-h-20 bg-surface-light flex items-center justify-center shrink-0 street-sticker">
+        <span className="street-subtitle text-sm">Pick a track to start.</span>
       </div>
     )
   }
 
   return (
-    <div className="h-20 bg-surface-light border-t border-gray-700 flex items-center px-4 gap-4 shrink-0">
+    <div className="min-h-20 bg-surface-light flex items-center px-4 py-2 gap-4 shrink-0 street-sticker">
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
@@ -110,37 +105,31 @@ export default function AudioPlayer() {
         onEnded={() => { flushInteraction('complete'); useMusicStore.getState().togglePlay() }}
       />
 
-      {/* Song info */}
       <div className="w-52 shrink-0 min-w-0">
-        <div className="text-sm text-white truncate">{playingSong.title}</div>
-        <div className="text-xs text-gray-500 truncate">{playingSong.artist}</div>
+        <div className="text-sm truncate font-semibold">{playingSong.title}</div>
+        <div className="text-xs truncate">{playingSong.artist}</div>
       </div>
 
-      {/* Controls */}
       <div className="flex-1 flex flex-col items-center gap-1 max-w-2xl mx-auto">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={togglePlay}
-            className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition"
-          >
-            {isPlaying ? (
-              <svg className="w-4 h-4 text-surface" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-surface ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={togglePlay}
+          className="w-10 h-10 rounded-md bg-primary flex items-center justify-center"
+        >
+          {isPlaying ? (
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
 
-        {/* Progress bar */}
         <div className="w-full flex items-center gap-2">
-          <span className="text-xs text-gray-500 w-10 text-right">{formatTime(currentTime)}</span>
-          <div className="flex-1 relative h-1 group">
-            <div className="absolute inset-0 bg-gray-600 rounded-full" />
-            <div className="absolute inset-y-0 left-0 bg-primary rounded-full" style={{ width: `${progress}%` }} />
+          <span className="text-xs w-10 text-right">{formatTime(currentTime)}</span>
+          <div className="flex-1 relative h-2 border-2 border-black bg-white">
+            <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress}%` }} />
             <input
               type="range"
               min={0}
@@ -155,14 +144,13 @@ export default function AudioPlayer() {
               className="absolute inset-0 w-full opacity-0 cursor-pointer"
             />
           </div>
-          <span className="text-xs text-gray-500 w-10">{formatTime(duration)}</span>
+          <span className="text-xs w-10">{formatTime(duration)}</span>
         </div>
       </div>
 
-      {/* Volume */}
-      <div className="w-32 shrink-0 flex items-center gap-2">
-        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+      <div className="w-36 shrink-0 flex items-center gap-2">
+        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
         </svg>
         <input
           type="range"
@@ -171,7 +159,7 @@ export default function AudioPlayer() {
           step={0.01}
           value={volume}
           onChange={(e) => setVolume(parseFloat(e.target.value))}
-          className="w-full accent-primary"
+          className="w-full"
         />
       </div>
     </div>

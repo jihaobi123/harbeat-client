@@ -117,7 +117,35 @@ def stream_processed(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="processed file not found")
 
     file_size = os.path.getsize(file_path)
-    return _range_response(file_path, file_size, "audio/wav", request)
+    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
+    content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
+    return _range_response(file_path, file_size, content_type, request)
+
+
+@router.get("/mixes/{filename}")
+def stream_mix_file(
+    filename: str,
+    request: Request,
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Stream a rendered offline mix file from data/music-files/shared/mixes/."""
+    _get_user_from_request(request, db, token)
+
+    safe_name = os.path.basename(filename)
+    base_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data", "music-files", "shared", "mixes")
+    )
+    file_path = os.path.normpath(os.path.join(base_dir, safe_name))
+    if not file_path.startswith(base_dir):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid filename")
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="mix file not found")
+
+    file_size = os.path.getsize(file_path)
+    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
+    content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
+    return _range_response(file_path, file_size, content_type, request)
 
 
 @router.get("/{song_id}")

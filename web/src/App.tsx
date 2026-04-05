@@ -12,8 +12,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-surface">
-        <div className="text-gray-400 text-lg">加载中...</div>
+      <div className="h-screen flex items-center justify-center bg-surface street-theme">
+        <div className="street-sticker px-6 py-4 text-lg street-subtitle">Loading...</div>
       </div>
     )
   }

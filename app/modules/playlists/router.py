@@ -4,12 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.playlists.schemas import (
-    DJMixRequest,
-    DJMixResult,
+    DjMixPlanRequest,
+    DjMixPlanResult,
+    DjOfflineMixRequest,
+    DjOfflineMixResult,
     PlaylistDetailData,
     PlaylistImportData,
     PlaylistImportRequest,
     PlaylistListData,
+    PlaylistReorderRequest,
     PlaylistSongTagUpdateRequest,
     StyleMixRequest,
     StyleMixResult,
@@ -18,11 +21,13 @@ from app.modules.playlists.service import (
     add_library_songs_to_playlist,
     create_empty_playlist,
     delete_playlist,
-    generate_dj_mix,
+    generate_dj_mix_plan,
+    generate_dj_offline_mix,
     generate_style_mix_playlist,
     get_playlist_detail,
     import_playlist,
     list_playlists,
+    reorder_playlist_songs,
     update_playlist_song_tags,
 )
 from app.modules.users.models import User
@@ -57,18 +62,18 @@ def list_playlists_endpoint(user_id: int, db: Session = Depends(get_db)):
     return APIResponse(data=list_playlists(db, user_id))
 
 
-@router.get("/{playlist_id}", response_model=APIResponse[PlaylistDetailData])
+@router.get("/{playlist_id:int}", response_model=APIResponse[PlaylistDetailData])
 def get_playlist_detail_endpoint(playlist_id: int, db: Session = Depends(get_db)):
     return APIResponse(data=get_playlist_detail(db, playlist_id))
 
 
-@router.delete("/{playlist_id}", response_model=APIResponse[dict])
+@router.delete("/{playlist_id:int}", response_model=APIResponse[dict])
 def delete_playlist_endpoint(playlist_id: int, db: Session = Depends(get_db)):
     delete_playlist(db, playlist_id)
     return APIResponse(data={"success": True})
 
 
-@router.patch("/{playlist_id}/songs/{song_id}/tags", response_model=APIResponse[dict])
+@router.patch("/{playlist_id:int}/songs/{song_id:int}/tags", response_model=APIResponse[dict])
 def update_playlist_song_tags_endpoint(
     playlist_id: int,
     song_id: int,
@@ -76,6 +81,17 @@ def update_playlist_song_tags_endpoint(
     db: Session = Depends(get_db),
 ):
     update_playlist_song_tags(db, playlist_id, song_id, payload.tags)
+    return APIResponse(data={"success": True})
+
+
+@router.patch("/{playlist_id:int}/reorder", response_model=APIResponse[dict])
+def reorder_playlist_endpoint(
+    playlist_id: int,
+    payload: PlaylistReorderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reorder_playlist_songs(db, playlist_id, current_user.id, payload)
     return APIResponse(data={"success": True})
 
 
@@ -89,7 +105,7 @@ def create_playlist_endpoint(
     return APIResponse(data={"id": playlist.id, "playlist_name": playlist.playlist_name})
 
 
-@router.post("/{playlist_id}/add-songs", response_model=APIResponse[dict])
+@router.post("/{playlist_id:int}/add-songs", response_model=APIResponse[dict])
 def add_songs_to_playlist_endpoint(
     playlist_id: int,
     payload: AddSongsRequest,
@@ -101,14 +117,32 @@ def add_songs_to_playlist_endpoint(
 
 
 @router.post("/generate-style-mix", response_model=APIResponse[StyleMixResult])
-def generate_style_mix_endpoint(payload: StyleMixRequest, db: Session = Depends(get_db)):
-    """生成风格化连续练舞歌单。"""
-    result = generate_style_mix_playlist(db, payload)
+def generate_style_mix_endpoint(
+    payload: StyleMixRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """鐢熸垚椋庢牸鍖栬繛缁粌鑸炴瓕鍗曘€?"""
+    result = generate_style_mix_playlist(db, payload, user_id=current_user.id)
     return APIResponse(data=result)
 
 
-@router.post("/generate-dj-mix", response_model=APIResponse[DJMixResult])
-def generate_dj_mix_endpoint(payload: DJMixRequest, db: Session = Depends(get_db)):
-    """AI DJ 自动排歌接歌：智能排序 + Camelot调性匹配 + EQ过渡自动化。"""
-    result = generate_dj_mix(db, payload)
+@router.post("/generate-dj-mix-plan", response_model=APIResponse[DjMixPlanResult])
+def generate_dj_mix_plan_endpoint(
+    payload: DjMixPlanRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = generate_dj_mix_plan(db, payload.model_copy(update={"user_id": current_user.id}))
     return APIResponse(data=result)
+
+
+@router.post("/generate-dj-offline-mix", response_model=APIResponse[DjOfflineMixResult])
+def generate_dj_offline_mix_endpoint(
+    payload: DjOfflineMixRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = generate_dj_offline_mix(db, payload.model_copy(update={"user_id": current_user.id}))
+    return APIResponse(data=result)
+
