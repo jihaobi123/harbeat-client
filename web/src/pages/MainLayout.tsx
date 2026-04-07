@@ -61,53 +61,54 @@ export default function MainLayout() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-surface overflow-hidden">
-      {/* Top bar */}
-      <header className="h-14 bg-surface-light border-b border-gray-700 flex items-center px-4 justify-between shrink-0">
+    <div className="h-screen flex flex-col bg-surface overflow-hidden street-theme p-2 gap-2">
+      <header className="street-sticker min-h-16 bg-surface-light px-4 py-2 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-xl">🎵</span>
-          <span className="font-bold text-lg text-white">HarBeat</span>
+          <span className="text-2xl">🎚️</span>
+          <div>
+            <div className="text-2xl street-title leading-none">HarBeat</div>
+            <div className="text-xs street-subtitle">street dance / dj platform</div>
+          </div>
         </div>
-        <div className="flex-1 max-w-lg mx-8">
+
+        <div className="flex-1 max-w-xl">
           <input
             type="text"
-            placeholder="搜索歌曲、艺术家..."
+            placeholder="Search songs / artists"
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full bg-surface rounded-lg px-4 py-1.5 text-sm text-white border border-gray-600 focus:border-primary focus:outline-none"
+            className="w-full px-4 py-2 text-sm"
           />
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowPlaylistImport(true)}
-            className="bg-surface hover:bg-surface-lighter text-gray-300 text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-600 transition flex items-center gap-1"
+            className="bg-surface-lighter text-sm font-semibold px-3 py-2 rounded-md"
           >
-            📋 导入歌单
+            Import Playlist
           </button>
           <button
             onClick={() => setShowUpload(true)}
-            className="bg-primary hover:bg-primary-dark text-white text-sm font-medium px-4 py-1.5 rounded-lg transition flex items-center gap-1"
+            className="bg-primary text-sm font-bold px-4 py-2 rounded-md flex items-center gap-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            上传
+            Upload
           </button>
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gap-2 min-h-0">
         <Sidebar currentView={currentView} onViewChange={setCurrentView} />
         <ErrorBoundary>
           {renderMainContent()}
         </ErrorBoundary>
       </div>
 
-      {/* Bottom player */}
       <AudioPlayer />
 
-      {/* Modals */}
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
       {showPlaylistImport && <PlaylistImportModal onClose={() => setShowPlaylistImport(false)} />}
     </div>

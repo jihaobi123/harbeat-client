@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import os
+import random
+import re
+import shutil
+import subprocess
+import sys
+import time
+from hashlib import sha1
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -8,17 +17,33 @@ from app.modules.music.schemas import SongProcessRequest
 from app.modules.music.service import process_song_for_styles
 from app.modules.playlists.models import Playlist, PlaylistSong, Song, SongTag
 from app.modules.playlists.schemas import (
-    DJMixRequest,
-    DJMixResult,
+    DjFxAutomationPoint,
+    DjOfflineMixRequest,
+    DjOfflineMixResult,
+    DjMixPlanRequest,
+    DjMixPlanResult,
+    DjTransitionPlanItem,
     PlaylistDetailData,
     PlaylistImportRequest,
     PlaylistListData,
+    PlaylistReorderRequest,
     PlaylistSongData,
     PlaylistSummaryData,
-    SegmentInfo,
     StyleMixRequest,
     StyleMixResult,
-    TransitionData,
+)
+from app.modules.playlists.transition_planner import (
+    build_features,
+    build_fx_automation,
+    harmonic_compatible,
+    plan_phrase_transition,
+    score_transition,
+    within_tempo_shift,
+)
+from app.modules.playlists.offline_renderer import (
+    OfflineRenderTrackInput,
+    convert_wav_to_mp3,
+    render_offline_mix,
 )
 from app.modules.users.service import get_user_or_404
 
@@ -197,312 +222,945 @@ def add_library_songs_to_playlist(db: Session, playlist_id: int, user_id: int, l
     return added
 
 
-def generate_style_mix_playlist(db: Session, payload: StyleMixRequest) -> StyleMixResult:
+def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: int) -> StyleMixResult:
     """
     练舞会话长歌单生成：
     1. 从服务器曲库按 style/bpm/energy 筛歌
     2. 累计到目标时长
     3. 对每首歌应用单曲风格处理，并返回模型选择信息
     """
-    query = db.query(Song).join(SongTag).filter(SongTag.style.ilike(f"%{payload.style}%"))
-    if payload.bpm is not None:
-        # 允许少量偏差，适合练舞连续性
-        query = query.filter(SongTag.bpm >= payload.bpm - 4, SongTag.bpm <= payload.bpm + 4)
-    if payload.energy is not None:
-        query = query.filter(SongTag.energy.ilike(f"%{payload.energy}%"))
+    songs: list[Song] = []
+    changed_library_mapping = False
 
-    songs = query.order_by(SongTag.bpm.asc(), Song.created_at.desc()).all()
+    if payload.playlist_id is not None:
+        playlist = db.query(Playlist).filter(Playlist.id == payload.playlist_id).first()
+        if not playlist:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
 
-    # Fallback: if style filter returns too few results, include all songs with audio
-    if len(songs) < 3:
-        fallback = (
-            db.query(Song)
-            .filter(Song.audio_url.isnot(None), Song.duration.isnot(None))
-            .order_by(Song.created_at.desc())
+        if playlist.user_id != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your playlist")
+
+        ordered_relations = (
+            db.query(PlaylistSong)
+            .filter(PlaylistSong.playlist_id == payload.playlist_id)
+            .order_by(PlaylistSong.order_index.asc())
             .all()
         )
-        seen = {s.id for s in songs}
-        for s in fallback:
-            if s.id not in seen:
-                songs.append(s)
+        songs = [rel.song for rel in ordered_relations if rel.song is not None]
+    else:
+        # Default to current user's own library-mapped songs only.
+        library_rows = (
+            db.query(LibrarySong)
+            .filter(
+                LibrarySong.user_id == user_id,
+                LibrarySong.source_path.isnot(None),
+                LibrarySong.source_path != "",
+            )
+            .order_by(LibrarySong.created_at.desc())
+            .all()
+        )
+        seen_song_ids: set[int] = set()
+        for lib_song in library_rows:
+            if not lib_song.source_path or not os.path.isfile(lib_song.source_path):
+                continue
 
-    selected: list[Song] = []
+            song: Song | None = None
+            if lib_song.song_id:
+                song = db.get(Song, lib_song.song_id)
+
+            if song is None:
+                song = db.query(Song).filter(Song.title == lib_song.title, Song.artist == lib_song.artist).first()
+
+            if song is None:
+                song = Song(
+                    title=lib_song.title,
+                    artist=lib_song.artist,
+                    audio_url=lib_song.source_path,
+                    duration=lib_song.duration if lib_song.duration and lib_song.duration > 0 else None,
+                )
+                db.add(song)
+                db.flush()
+
+            if lib_song.song_id != song.id:
+                lib_song.song_id = song.id
+                changed_library_mapping = True
+
+            if song.tags is None:
+                db.add(
+                    SongTag(
+                        song_id=song.id,
+                        bpm=int(lib_song.bpm) if lib_song.bpm else None,
+                        style=payload.style,
+                    )
+                )
+            elif not song.tags.style:
+                song.tags.style = payload.style
+
+            if song.id in seen_song_ids:
+                continue
+            seen_song_ids.add(song.id)
+            songs.append(song)
+
+    # Optional filters on top of owned playlist/library source
+    if payload.bpm is not None:
+        songs = [
+            s for s in songs
+            if s.tags and s.tags.bpm is not None and payload.bpm - 4 <= s.tags.bpm <= payload.bpm + 4
+        ]
+    if payload.energy is not None:
+        token = payload.energy.lower()
+        songs = [
+            s for s in songs
+            if s.tags and s.tags.energy and token in s.tags.energy.lower()
+        ]
+
+    # Soft style preference (do not hard filter when using explicit playlist).
+    def _style_rank(song: Song) -> int:
+        style = (song.tags.style if song.tags else "") or ""
+        return 0 if payload.style.lower() in style.lower() else 1
+
+    songs = sorted(
+        songs,
+        key=lambda s: (
+            _style_rank(s),
+            abs(((s.tags.bpm if s.tags and s.tags.bpm is not None else payload.bpm or 0) - (payload.bpm or 0)))
+            if payload.bpm is not None else 0,
+            -(s.created_at.timestamp() if s.created_at else 0),
+        ),
+    )
+
+    if changed_library_mapping:
+        db.commit()
+
+    selected: list[tuple[Song, str, float]] = []
     total_seconds = 0
     target_seconds = max(payload.duration_minutes, 1) * 60
+    rng = random.Random(payload.random_seed) if payload.random_seed is not None else random.Random()
+    diversity = _clamp(float(payload.diversity), 0.0, 1.0)
+    candidate_window = max(1, min(8, int(1 + round(diversity * 5.0))))
+    pending_songs = list(songs)
 
-    for song in songs:
+    while pending_songs and total_seconds < target_seconds:
+        if diversity <= 0.001:
+            song = pending_songs.pop(0)
+        else:
+            top = pending_songs[:candidate_window]
+            top_weights = [1.0 / (idx + 1) for idx in range(len(top))]
+            song = rng.choices(top, weights=top_weights, k=1)[0]
+            pending_songs.remove(song)
+
+        audio_path = _resolve_user_song_audio_path(db, song, user_id)
+        if not audio_path:
+            continue
+
+        duration = _resolve_user_song_duration_fast(db, song, user_id)
+        if duration is None or duration <= 0:
+            continue
+
         if song.duration is None or song.duration <= 0:
-            continue
-        if not song.audio_url:
-            continue
-        selected.append(song)
-        total_seconds += int(song.duration)
-        if total_seconds >= target_seconds:
-            break
+            song.duration = duration
 
-    playlist_data = [
-        PlaylistSongData(
-            song_id=song.id,
-            title=song.title,
-            artist=song.artist,
-            audio_url=song.audio_url,
-            duration=song.duration,
-            bpm=song.tags.bpm if song.tags else None,
-            tags=[part for part in (song.tags.style or "").split(",") if part] if song.tags else [],
-            order_index=index,
-        )
-        for index, song in enumerate(selected)
-    ]
+        selected.append((song, audio_path, duration))
+        total_seconds += int(duration)
 
+    playlist_data: list[PlaylistSongData] = []
     processed_files: dict[int, str] = {}
-    stem_files: dict[int, dict[str, str]] = {}
     meta: dict[int, dict[str, str]] = {}
+    changed_song_audio = False
 
-    for song in selected:
-        one_song_result = process_song_for_styles(
-            db,
-            song.id,
-            SongProcessRequest(
-                styles=[payload.style],
-                bpm=payload.bpm,
-                energy=payload.energy,
-                quality_mode=payload.quality_mode,
-            ),
-        )
-        processed_files[song.id] = one_song_result.processed_files.get(payload.style, "")
-        style_meta = one_song_result.meta.get(payload.style)
-        meta[song.id] = style_meta.selected_models if style_meta else {}
+    # Batch mix must remain interactive. Heavy per-track DSP (Demucs + mastering)
+    # is only allowed for very small HQ jobs; otherwise we use fast stream-copy fallback.
+    allow_heavy_batch = (
+        payload.quality_mode == "hq"
+        and len(selected) <= 2
+        and all((d or 0) <= 6 * 60 for _, _, d in selected)
+    )
 
-        # Collect stem file paths (drums/bass/vocals/other)
-        main_path = processed_files[song.id]
-        if main_path:
-            import os
-            base = main_path.rsplit(".", 1)[0]  # strip .wav
-            song_stems: dict[str, str] = {}
-            for stem_name in ("drums", "bass", "vocals", "other"):
-                sp = f"{base}_{stem_name}.wav"
-                if os.path.isfile(sp):
-                    song_stems[stem_name] = sp
-            if song_stems:
-                stem_files[song.id] = song_stems
+    for song, audio_path, duration in selected:
+        if song.audio_url != audio_path:
+            song.audio_url = audio_path
+            changed_song_audio = True
 
-    return StyleMixResult(playlist=playlist_data, processed_files=processed_files, stem_files=stem_files, meta=meta)
+        if allow_heavy_batch:
+            one_song_result = process_song_for_styles(
+                db,
+                song.id,
+                SongProcessRequest(
+                    styles=[payload.style],
+                    bpm=payload.bpm,
+                    energy=payload.energy,
+                    quality_mode=payload.quality_mode,
+                ),
+            )
+            processed_path = one_song_result.processed_files.get(payload.style, "")
+            style_meta = one_song_result.meta.get(payload.style)
+            selected_models = style_meta.selected_models if style_meta else {}
+        else:
+            processed_path = ""
+            selected_models = {
+                "pipeline": "fast_stream_copy",
+                "note": "batch_mix_interactive_mode",
+            }
 
-
-def generate_dj_mix(db: Session, payload: DJMixRequest) -> DJMixResult:
-    """
-    DJ.studio-inspired Harmonize 排歌 + 专业过渡：
-    1. 从曲库筛选歌曲（BPM ±5%，风格匹配）
-    2. 特征提取（BPM/Key/Energy/Downbeat/Phrase）
-    3. Harmonize 全局排歌 (Held-Karp DP 或 Greedy+2-opt)
-    4. 每首歌完整播放，计算 mix-in/mix-out 点
-    5. 生成 DJ.studio 风格过渡自动化 (smooth/power/bass_swap/echo_out/filter/cut/slam)
-    """
-    import os
-    from app.modules.music.dj_sequencer import DJTrack, build_dj_set
-    from app.modules.music.dj_transition import generate_transition_automation
-
-    # ── Step 1: Query candidate songs ──
-    query = db.query(Song).join(SongTag).filter(SongTag.style.ilike(f"%{payload.style}%"))
-    if payload.bpm is not None:
-        tolerance = max(4, int(payload.bpm * 0.05))
-        query = query.filter(SongTag.bpm >= payload.bpm - tolerance, SongTag.bpm <= payload.bpm + tolerance)
-
-    songs = query.order_by(SongTag.bpm.asc(), Song.created_at.desc()).all()
-
-    if len(songs) < 3:
-        fallback = (
-            db.query(Song)
-            .filter(Song.audio_url.isnot(None), Song.duration.isnot(None))
-            .order_by(Song.created_at.desc())
-            .all()
-        )
-        seen = {s.id for s in songs}
-        for s in fallback:
-            if s.id not in seen:
-                songs.append(s)
-
-    selected: list[Song] = []
-    total_sec = 0
-    target_sec = max(payload.duration_minutes, 1) * 60
-    for song in songs:
-        if not song.duration or song.duration <= 0 or not song.audio_url:
+        if not processed_path or not os.path.isfile(processed_path):
+            processed_path = _build_processed_fallback(audio_path, song.id, payload.style, payload.quality_mode)
+        if not processed_path or not os.path.isfile(processed_path):
             continue
-        selected.append(song)
-        total_sec += int(song.duration)
-        if total_sec >= target_sec:
-            break
 
-    if not selected:
-        return DJMixResult()
+        order_index = len(playlist_data)
+        playlist_data.append(
+            PlaylistSongData(
+                song_id=song.id,
+                title=song.title,
+                artist=song.artist,
+                audio_url=audio_path,
+                duration=duration,
+                bpm=song.tags.bpm if song.tags else None,
+                tags=[part for part in (song.tags.style or "").split(",") if part] if song.tags else [],
+                order_index=order_index,
+            )
+        )
+        processed_files[song.id] = processed_path
+        meta[song.id] = selected_models
 
-    # ── Step 2: Build DJTrack objects with features from LibrarySong ──
-    dj_tracks: list[DJTrack] = []
-    for song in selected:
-        lib_song = (
+    if changed_song_audio:
+        db.commit()
+
+    return StyleMixResult(playlist=playlist_data, processed_files=processed_files, meta=meta)
+
+
+def _song_map(db: Session, song_ids: list[int]) -> dict[int, Song]:
+    if not song_ids:
+        return {}
+    songs = db.query(Song).filter(Song.id.in_(song_ids)).all()
+    return {song.id: song for song in songs}
+
+
+def _library_context_map(
+    db: Session,
+    user_id: int,
+    songs: dict[int, Song],
+) -> dict[int, LibrarySong]:
+    song_ids = list(songs.keys())
+    if not song_ids:
+        return {}
+    direct_rows = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == user_id, LibrarySong.song_id.in_(song_ids))
+        .order_by(LibrarySong.created_at.desc())
+        .all()
+    )
+    out: dict[int, LibrarySong] = {}
+    for row in direct_rows:
+        if row.song_id and row.song_id not in out:
+            out[row.song_id] = row
+
+    for sid, song in songs.items():
+        if sid in out:
+            continue
+        fallback = (
             db.query(LibrarySong)
-            .filter(LibrarySong.song_id == song.id, LibrarySong.analysis_status == "completed")
+            .filter(
+                LibrarySong.user_id == user_id,
+                LibrarySong.title == song.title,
+                LibrarySong.artist == song.artist,
+            )
+            .order_by(LibrarySong.created_at.desc())
             .first()
         )
+        if fallback:
+            out[sid] = fallback
+    return out
 
-        bpm = float(song.tags.bpm) if song.tags and song.tags.bpm else 120.0
-        energy = 0.5
-        camelot_key = ""
-        downbeats: list[float] = []
-        phrase_map: list[dict] = []
-        beat_points: list[float] = []
-        key_confidence = 0.0
 
-        if lib_song:
-            bpm = lib_song.bpm or bpm
-            energy = lib_song.energy or energy
-            camelot_key = lib_song.camelot_key or ""
-            downbeats = lib_song.downbeats or []
-            phrase_map = lib_song.phrase_map or []
-            beat_points = lib_song.beat_points or []
-            key_confidence = lib_song.key_confidence or 0.0
+def _run_demucs_separation(audio_path: str, timeout_sec: int = 120) -> dict[str, str] | None:
+    if not audio_path or not os.path.isfile(audio_path):
+        return None
 
-        dj_tracks.append(DJTrack(
-            song_id=song.id, title=song.title, artist=song.artist,
-            bpm=bpm, camelot_key=camelot_key, energy=energy,
-            duration=song.duration or 0, key_confidence=key_confidence,
-            downbeats=downbeats, phrase_map=phrase_map, beat_points=beat_points,
-        ))
+    stems_base = os.path.abspath(os.path.join(os.path.dirname(audio_path), "..", "stems"))
+    os.makedirs(stems_base, exist_ok=True)
 
-    # ── Step 3: Harmonize sequencing (global optimal ordering + mix points) ──
-    ordered, plans = build_dj_set(
-        dj_tracks,
-        energy_profile=payload.energy_profile,
-        harmonic_weight=payload.harmonic_weight,
-        overlap_bars=payload.overlap_bars,
-        start_song_id=payload.start_song_id,
+    base_name = os.path.splitext(os.path.basename(audio_path))[0]
+    stems_dir = os.path.join(stems_base, "htdemucs", base_name)
+    stem_names = ["vocals", "drums", "bass", "other"]
+    if all(os.path.isfile(os.path.join(stems_dir, f"{name}.wav")) for name in stem_names):
+        return {name: os.path.join(stems_dir, f"{name}.wav") for name in stem_names}
+
+    def _invoke_demucs(source_path: str) -> tuple[bool, str]:
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "demucs", "-n", "htdemucs", "-o", stems_base, source_path],
+                capture_output=True,
+                text=True,
+                timeout=max(15, int(timeout_sec)),
+                check=False,
+            )
+            message = f"{proc.stdout}\n{proc.stderr}".strip()
+            return proc.returncode == 0, message
+        except Exception as exc:
+            return False, str(exc)
+
+    _invoke_demucs(audio_path)
+
+    # Retry path-sensitive cases with an ASCII-safe temp filename.
+    if not all(os.path.isfile(os.path.join(stems_dir, f"{name}.wav")) for name in stem_names):
+        safe_input_dir = os.path.join(stems_base, "_inputs")
+        os.makedirs(safe_input_dir, exist_ok=True)
+        ext = os.path.splitext(audio_path)[1] or ".wav"
+        safe_base = f"src_{sha1(audio_path.encode('utf-8', errors='ignore')).hexdigest()[:16]}"
+        safe_input = os.path.join(safe_input_dir, f"{safe_base}{ext}")
+        try:
+            shutil.copyfile(audio_path, safe_input)
+            ok2, _ = _invoke_demucs(safe_input)
+            safe_stems_dir = os.path.join(stems_base, "htdemucs", safe_base)
+            if ok2 and all(os.path.isfile(os.path.join(safe_stems_dir, f"{name}.wav")) for name in stem_names):
+                os.makedirs(stems_dir, exist_ok=True)
+                for name in stem_names:
+                    shutil.copyfile(
+                        os.path.join(safe_stems_dir, f"{name}.wav"),
+                        os.path.join(stems_dir, f"{name}.wav"),
+                    )
+        except Exception:
+            return None
+
+    if not all(os.path.isfile(os.path.join(stems_dir, f"{name}.wav")) for name in stem_names):
+        return None
+    return {name: os.path.join(stems_dir, f"{name}.wav") for name in stem_names}
+
+
+def _separate_stems_for_library_song(song: LibrarySong, timeout_sec: int = 120) -> dict[str, str] | None:
+    return _run_demucs_separation(song.source_path or "", timeout_sec=timeout_sec)
+
+
+def _separate_stems_for_audio_path(audio_path: str, timeout_sec: int = 120) -> dict[str, str] | None:
+    return _run_demucs_separation(audio_path, timeout_sec=timeout_sec)
+
+
+def _energy_bucket(value: object) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"low", "medium", "high"}:
+            return v
+        if v in {"explosive", "peak"}:
+            return "high"
+        return None
+    if isinstance(value, (int, float)):
+        n = float(value)
+        if n < 0.34:
+            return "low"
+        if n < 0.67:
+            return "medium"
+        return "high"
+    return None
+
+
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def _ranked_pick(
+    ranked_candidates: list[tuple[float, int]],
+    rng: random.Random,
+    diversity: float,
+    candidate_window: int,
+) -> int:
+    if not ranked_candidates:
+        raise ValueError("ranked_candidates must not be empty")
+
+    ordered = sorted(ranked_candidates, key=lambda item: item[0], reverse=True)
+    if len(ordered) == 1:
+        return ordered[0][1]
+
+    div = _clamp(float(diversity), 0.0, 1.0)
+    if div <= 0.001:
+        return ordered[0][1]
+
+    window = max(1, min(int(candidate_window), len(ordered)))
+    top = ordered[:window]
+
+    # More diversity -> flatter distribution among top candidates.
+    rank_decay = 0.55 + (1.35 * (1.0 - div))
+    weights = [1.0 / ((idx + 1) ** rank_decay) for idx, _ in enumerate(top)]
+    return rng.choices([song_id for _, song_id in top], weights=weights, k=1)[0]
+
+
+def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanResult:
+    if payload.user_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id is required")
+
+    style_result = generate_style_mix_playlist(
+        db,
+        StyleMixRequest(
+            style=payload.style,
+            duration_minutes=payload.duration_minutes,
+            bpm=payload.bpm,
+            energy=payload.energy,
+            playlist_id=payload.playlist_id,
+            quality_mode=payload.quality_mode,
+            random_seed=payload.random_seed,
+            diversity=payload.diversity,
+        ),
+        user_id=payload.user_id,
     )
 
-    # ── Step 4: Build segments + transition automation ──
-    segments_map: dict[int, SegmentInfo] = {}
-    transition_data: list[TransitionData] = []
-
-    for plan in plans:
-        # Segment for A: full song play range
-        if plan.from_song_id not in segments_map:
-            segments_map[plan.from_song_id] = SegmentInfo(
-                start_sec=plan.a_play_start, end_sec=plan.a_play_end,
-                bars=0, label="full",
-            )
-        # Segment for B: full song play range
-        if plan.to_song_id not in segments_map:
-            segments_map[plan.to_song_id] = SegmentInfo(
-                start_sec=plan.b_play_start, end_sec=plan.b_play_end,
-                bars=0, label="full",
-            )
-
-        auto = generate_transition_automation(
-            overlap_sec=plan.overlap_sec,
-            overlap_bars=plan.overlap_bars,
-            bpm=next((t.bpm for t in ordered if t.song_id == plan.from_song_id), 120),
-            style=payload.transition_style,
+    playlist = style_result.playlist
+    if len(playlist) < 2:
+        return DjMixPlanResult(
+            playlist=playlist,
+            processed_files=style_result.processed_files,
+            meta=style_result.meta,
+            transition_plan=[],
         )
-        transition_data.append(TransitionData(
-            from_song_id=plan.from_song_id,
-            to_song_id=plan.to_song_id,
-            score=plan.score,
-            bpm_score=plan.bpm_score,
-            key_score=plan.key_score,
-            energy_score=plan.energy_score,
-            a_play_start=plan.a_play_start,
-            a_play_end=plan.a_play_end,
-            b_play_start=plan.b_play_start,
-            b_play_end=plan.b_play_end,
-            overlap_bars=plan.overlap_bars,
-            overlap_sec=plan.overlap_sec,
-            mix_start_time=plan.mix_start_time,
-            mix_duration_sec=plan.mix_duration_sec,
-            mix_duration_bars=plan.mix_duration_bars,
-            b_cue_time=plan.b_cue_time,
-            bpm_shift=plan.bpm_shift,
-            automation={
-                "sample_rate": auto.sample_rate,
-                "a_drums": auto.a_drums,
-                "a_bass": auto.a_bass,
-                "a_vocals": auto.a_vocals,
-                "a_other": auto.a_other,
-                "a_volume": auto.a_volume,
-                "a_echo": auto.a_echo,
-                "b_drums": auto.b_drums,
-                "b_bass": auto.b_bass,
-                "b_vocals": auto.b_vocals,
-                "b_other": auto.b_other,
-                "b_volume": auto.b_volume,
-            },
-        ))
 
-    # Ensure all tracks have segments
-    for track in ordered:
-        if track.song_id not in segments_map:
-            segments_map[track.song_id] = SegmentInfo(
-                start_sec=0, end_sec=track.duration,
-                bars=0, label="full",
-            )
+    song_ids = [track.song_id for track in playlist]
+    songs = _song_map(db, song_ids)
+    library_map = _library_context_map(db, payload.user_id, songs)
 
-    # ── Step 5: Process audio + collect stems ──
-    ordered_songs = {t.song_id: t for t in ordered}
-    song_id_order = [t.song_id for t in ordered]
-    processed_files: dict[int, str] = {}
-    stem_files: dict[int, dict[str, str]] = {}
+    item_by_song_id = {item.song_id: item for item in playlist}
+    feature_by_song_id = {}
+    beat_by_song_id: dict[int, list[float]] = {}
+    cue_by_song_id: dict[int, list[dict]] = {}
+    energy_by_song_id: dict[int, str | None] = {}
 
-    for song in selected:
-        if song.id not in ordered_songs:
-            continue
-        one_result = process_song_for_styles(
-            db, song.id,
-            SongProcessRequest(
-                styles=[payload.style],
-                bpm=payload.bpm,
-                energy=payload.energy,
-                quality_mode=payload.quality_mode,
-            ),
+    for item in playlist:
+        song = songs.get(item.song_id)
+        lib = library_map.get(item.song_id)
+        processed = style_result.processed_files.get(item.song_id, "")
+        song_energy = song.tags.energy if song and song.tags else None
+
+        feature_by_song_id[item.song_id] = build_features(
+            song_id=item.song_id,
+            duration=item.duration or (lib.duration if lib else None),
+            bpm=item.bpm or (lib.bpm if lib else None),
+            camelot_key=lib.camelot_key if lib else None,
+            processed_file=processed,
+            allow_audio_estimation=False,
         )
-        processed_files[song.id] = one_result.processed_files.get(payload.style, "")
-        main_path = processed_files[song.id]
-        if main_path:
-            base = main_path.rsplit(".", 1)[0]
-            song_stems: dict[str, str] = {}
-            for stem_name in ("drums", "bass", "vocals", "other"):
-                sp = f"{base}_{stem_name}.wav"
-                if os.path.isfile(sp):
-                    song_stems[stem_name] = sp
-            if song_stems:
-                stem_files[song.id] = song_stems
+        beat_by_song_id[item.song_id] = list(lib.beat_points) if lib and lib.beat_points else []
+        cue_by_song_id[item.song_id] = list(lib.cue_points) if lib and lib.cue_points else []
+        energy_by_song_id[item.song_id] = _energy_bucket(song_energy) or _energy_bucket(lib.energy if lib else None)
 
-    # Build ordered playlist
-    playlist_data: list[PlaylistSongData] = []
-    for i, sid in enumerate(song_id_order):
-        song = next((s for s in selected if s.id == sid), None)
+    # Greedy reorder by transition quality (DJ-like flow), with controlled
+    # diversity to avoid repeatedly generating an identical sequence.
+    rng = random.Random(payload.random_seed) if payload.random_seed is not None else random.Random()
+    diversity = _clamp(float(payload.diversity), 0.0, 1.0)
+    candidate_window = max(1, int(payload.candidate_window))
+
+    ordered_ids: list[int] = []
+    remaining_ids = [item.song_id for item in playlist]
+    if remaining_ids:
+        if diversity <= 0.001:
+            ordered_ids.append(remaining_ids.pop(0))
+        else:
+            start_window = max(1, min(len(remaining_ids), max(2, candidate_window)))
+            start_id = rng.choice(remaining_ids[:start_window])
+            ordered_ids.append(start_id)
+            remaining_ids.remove(start_id)
+
+    while remaining_ids:
+        from_id = ordered_ids[-1]
+        from_feature = feature_by_song_id[from_id]
+        from_energy = energy_by_song_id.get(from_id)
+        from_song = songs.get(from_id)
+
+        hard_candidates: list[tuple[float, int]] = []
+        soft_candidates: list[tuple[float, int]] = []
+        for cand_id in remaining_ids:
+            cand_feature = feature_by_song_id[cand_id]
+            cand_energy = energy_by_song_id.get(cand_id)
+            cand_song = songs.get(cand_id)
+            score, _, _ = score_transition(
+                from_track=from_feature,
+                to_track=cand_feature,
+                from_energy=from_energy,
+                to_energy=cand_energy,
+                strict_harmonic=payload.strict_harmonic,
+                max_tempo_shift=payload.max_tempo_shift,
+                crossfade_sec=6.0,
+            )
+            if (
+                from_song
+                and cand_song
+                and from_song.artist
+                and cand_song.artist
+                and from_song.artist.strip().lower() == cand_song.artist.strip().lower()
+            ):
+                score -= 0.06
+
+            hard_ok = (
+                harmonic_compatible(from_feature.camelot_key, cand_feature.camelot_key, payload.strict_harmonic)
+                and within_tempo_shift(from_feature.bpm, cand_feature.bpm, payload.max_tempo_shift)
+            )
+            if hard_ok:
+                hard_candidates.append((score, cand_id))
+            soft_candidates.append((score, cand_id))
+
+        if payload.strict_harmonic:
+            candidate_pool = hard_candidates or soft_candidates
+        else:
+            hard_set = {sid for _, sid in hard_candidates}
+            candidate_pool = []
+            for score, sid in soft_candidates:
+                boosted = score + (0.08 if sid in hard_set else 0.0)
+                candidate_pool.append((boosted, sid))
+        if not candidate_pool:
+            chosen_id = remaining_ids[0]
+        else:
+            chosen_id = _ranked_pick(
+                candidate_pool,
+                rng=rng,
+                diversity=diversity,
+                candidate_window=candidate_window,
+            )
+        ordered_ids.append(chosen_id)
+        remaining_ids.remove(chosen_id)
+
+    ordered_playlist = [item_by_song_id[sid] for sid in ordered_ids if sid in item_by_song_id]
+
+    transition_plan: list[DjTransitionPlanItem] = []
+    default_crossfade = 6.0
+
+    for index in range(len(ordered_playlist) - 1):
+        current = ordered_playlist[index]
+        nxt = ordered_playlist[index + 1]
+        from_feature = feature_by_song_id[current.song_id]
+        to_feature = feature_by_song_id[nxt.song_id]
+
+        current_energy = energy_by_song_id.get(current.song_id)
+        next_energy = energy_by_song_id.get(nxt.song_id)
+        score, tempo_ratio, key_relation = score_transition(
+            from_track=from_feature,
+            to_track=to_feature,
+            from_energy=current_energy,
+            to_energy=next_energy,
+            strict_harmonic=payload.strict_harmonic,
+            max_tempo_shift=payload.max_tempo_shift,
+            crossfade_sec=default_crossfade,
+        )
+
+        timing = plan_phrase_transition(
+            from_track=from_feature,
+            to_track=to_feature,
+            crossfade_sec=default_crossfade,
+            from_beat_points=beat_by_song_id.get(current.song_id),
+            to_beat_points=beat_by_song_id.get(nxt.song_id),
+            from_cue_points=cue_by_song_id.get(current.song_id),
+        )
+
+        fx_automation = [
+            DjFxAutomationPoint(**point)
+            for point in build_fx_automation(
+                timing.crossfade_sec,
+                payload.energy or next_energy,
+                timing.technique,
+            )
+        ]
+
+        transition_plan.append(
+            DjTransitionPlanItem(
+                from_song_id=current.song_id,
+                to_song_id=nxt.song_id,
+                entry_beat=timing.entry_beat,
+                exit_beat=timing.exit_beat,
+                entry_time_sec=timing.entry_time_sec,
+                exit_time_sec=timing.exit_time_sec,
+                from_beat_interval_sec=timing.from_beat_interval_sec,
+                to_beat_interval_sec=timing.to_beat_interval_sec,
+                phase_anchor_sec=timing.phase_anchor_sec,
+                crossfade_sec=timing.crossfade_sec,
+                tempo_ratio=round(tempo_ratio, 4),
+                key_relation=key_relation,
+                transition_technique=timing.technique,
+                energy_target=payload.energy or next_energy or "medium",
+                fx_automation=fx_automation,
+                score=round(score, 4),
+            )
+        )
+
+    return DjMixPlanResult(
+        playlist=ordered_playlist,
+        processed_files=style_result.processed_files,
+        meta=style_result.meta,
+        transition_plan=transition_plan,
+    )
+
+
+def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOfflineMixResult:
+    if payload.user_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id is required")
+
+    mix_plan = generate_dj_mix_plan(
+        db,
+        DjMixPlanRequest(
+            style=payload.style,
+            duration_minutes=payload.duration_minutes,
+            bpm=payload.bpm,
+            energy=payload.energy,
+            playlist_id=payload.playlist_id,
+            quality_mode=payload.quality_mode,
+            strict_harmonic=payload.strict_harmonic,
+            max_tempo_shift=payload.max_tempo_shift,
+            random_seed=payload.random_seed,
+            diversity=payload.diversity,
+            candidate_window=payload.candidate_window,
+            user_id=payload.user_id,
+        ),
+    )
+
+    if not mix_plan.playlist:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="no track available for offline mix")
+
+    songs = _song_map(db, [item.song_id for item in mix_plan.playlist])
+    library_map = _library_context_map(db, payload.user_id, songs)
+    transition_lookup = {(item.from_song_id, item.to_song_id): item for item in mix_plan.transition_plan}
+
+    render_track_candidates: list[dict[str, object]] = []
+    warnings: list[str] = []
+    library_updated = False
+    missing_audio_song_ids: list[int] = []
+    missing_stem_song_ids: list[int] = []
+    auto_stem_failed_song_ids: list[int] = []
+    auto_stem_skipped_by_limit_song_ids: list[int] = []
+    auto_stem_attempts = 0
+    auto_stem_limit = max(0, int(payload.max_auto_stem_tracks))
+    auto_stem_timeout = max(15, int(payload.stem_separation_timeout_sec))
+
+    for item in mix_plan.playlist:
+        song = songs.get(item.song_id)
         if not song:
             continue
-        playlist_data.append(PlaylistSongData(
-            song_id=song.id, title=song.title, artist=song.artist,
-            audio_url=song.audio_url, duration=song.duration,
-            bpm=song.tags.bpm if song.tags else None,
-            tags=[p for p in (song.tags.style or "").split(",") if p] if song.tags else [],
-            order_index=i,
-        ))
 
-    total_dur = sum(
-        (segments_map.get(s.id, SegmentInfo(start_sec=0, end_sec=s.duration or 0, bars=0)).end_sec -
-         segments_map.get(s.id, SegmentInfo(start_sec=0, end_sec=s.duration or 0, bars=0)).start_sec)
-        for s in selected if s.id in ordered_songs
-    )
-    avg_score = sum(t.score for t in transition_data) / max(len(transition_data), 1)
+        audio_path = mix_plan.processed_files.get(item.song_id, "")
+        if not audio_path or not os.path.isfile(audio_path):
+            resolved = _resolve_user_song_audio_path(db, song, payload.user_id)
+            audio_path = resolved or ""
+        if not audio_path or not os.path.isfile(audio_path):
+            missing_audio_song_ids.append(item.song_id)
+            continue
 
-    return DJMixResult(
-        playlist=playlist_data,
-        processed_files=processed_files,
-        stem_files=stem_files,
-        segments=segments_map,
-        transitions=transition_data,
-        energy_profile=payload.energy_profile,
-        harmonic_weight=payload.harmonic_weight,
-        total_duration_sec=round(total_dur, 1),
-        avg_score=round(avg_score, 1),
+        lib = library_map.get(item.song_id)
+        stem_paths: dict[str, str] | None = None
+        if payload.stem_aware and lib and lib.stems:
+            existing = {
+                k: v
+                for k, v in lib.stems.items()
+                if isinstance(k, str) and isinstance(v, str) and os.path.isfile(v)
+            }
+            if len(existing) >= 2:
+                stem_paths = existing
+
+        if payload.stem_aware and payload.auto_separate_stems and not stem_paths:
+            if auto_stem_attempts >= auto_stem_limit:
+                auto_stem_skipped_by_limit_song_ids.append(item.song_id)
+                missing_stem_song_ids.append(item.song_id)
+                render_track_candidates.append(
+                    {
+                        "song_id": item.song_id,
+                        "audio_path": audio_path,
+                        "stems": stem_paths,
+                    }
+                )
+                continue
+
+            generated: dict[str, str] | None = None
+            auto_stem_attempts += 1
+            if lib:
+                generated = _separate_stems_for_library_song(lib, timeout_sec=auto_stem_timeout)
+                if generated:
+                    lib.stems = generated
+                    library_updated = True
+            if not generated:
+                generated = _separate_stems_for_audio_path(audio_path, timeout_sec=auto_stem_timeout)
+
+            if generated:
+                stem_paths = generated
+            else:
+                auto_stem_failed_song_ids.append(item.song_id)
+
+        if payload.stem_aware and not stem_paths:
+            missing_stem_song_ids.append(item.song_id)
+
+        render_track_candidates.append(
+            {
+                "song_id": item.song_id,
+                "audio_path": audio_path,
+                "stems": stem_paths,
+            }
+        )
+
+    if library_updated:
+        db.commit()
+
+    if not render_track_candidates:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="offline mix failed: no usable tracks")
+
+    if missing_audio_song_ids:
+        show = ",".join(str(sid) for sid in missing_audio_song_ids[:12])
+        tail = f" (+{len(missing_audio_song_ids) - 12})" if len(missing_audio_song_ids) > 12 else ""
+        warnings.append(
+            f"{len(missing_audio_song_ids)} songs missing decodable audio and were skipped: {show}{tail}"
+        )
+    if payload.stem_aware and missing_stem_song_ids:
+        show = ",".join(str(sid) for sid in missing_stem_song_ids[:12])
+        tail = f" (+{len(missing_stem_song_ids) - 12})" if len(missing_stem_song_ids) > 12 else ""
+        warnings.append(
+            f"{len(missing_stem_song_ids)} songs without usable stems, fallback to normal crossfade: {show}{tail}"
+        )
+    if payload.stem_aware and payload.auto_separate_stems and auto_stem_failed_song_ids:
+        warnings.append(
+            f"auto stem separation failed for {len(auto_stem_failed_song_ids)} songs (demucs unavailable or failed)"
+        )
+    if payload.stem_aware and payload.auto_separate_stems and auto_stem_skipped_by_limit_song_ids:
+        warnings.append(
+            f"auto stem separation limit reached ({auto_stem_limit}); skipped {len(auto_stem_skipped_by_limit_song_ids)} songs"
+        )
+
+    render_tracks: list[OfflineRenderTrackInput] = []
+    render_transitions: list[DjTransitionPlanItem] = []
+    for i, candidate in enumerate(render_track_candidates):
+        song_id = int(candidate["song_id"])  # type: ignore[arg-type]
+        audio_path = str(candidate["audio_path"])
+        stems = candidate.get("stems")
+        entry_time = 0.0
+
+        if i > 0:
+            prev_song_id = int(render_track_candidates[i - 1]["song_id"])  # type: ignore[arg-type]
+            pair_transition = transition_lookup.get((prev_song_id, song_id))
+            if pair_transition and pair_transition.entry_time_sec is not None:
+                entry_time = max(0.0, float(pair_transition.entry_time_sec))
+            if pair_transition:
+                render_transitions.append(pair_transition)
+
+        render_tracks.append(
+            OfflineRenderTrackInput(
+                song_id=song_id,
+                audio_path=audio_path,
+                entry_time_sec=entry_time,
+                stems=stems if isinstance(stems, dict) else None,
+            )
+        )
+
+    safe_output_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", (payload.output_name or "final_mix")).strip("_")
+    if not safe_output_name:
+        safe_output_name = "final_mix"
+
+    suffix = int(time.time())
+    base_filename = f"{safe_output_name}_{payload.user_id}_{suffix}"
+    out_dir = os.path.join("data", "music-files", "shared", "mixes")
+    os.makedirs(out_dir, exist_ok=True)
+    wav_filename = f"{base_filename}.wav"
+    wav_path = os.path.join(out_dir, wav_filename)
+
+    render_meta = render_offline_mix(
+        tracks=render_tracks,
+        transitions=render_transitions,
+        output_wav_path=wav_path,
+        sample_rate=44100,
+        stem_aware=payload.stem_aware,
     )
+
+    output_files: dict[str, str] = {"wav": wav_path.replace("\\", "/")}
+    stream_files: dict[str, str] = {"wav": wav_filename}
+
+    if payload.output_format in {"mp3", "both"}:
+        mp3_filename = f"{base_filename}.mp3"
+        mp3_path = os.path.join(out_dir, mp3_filename)
+        ok, msg = convert_wav_to_mp3(wav_path, mp3_path)
+        if ok:
+            output_files["mp3"] = mp3_path.replace("\\", "/")
+            stream_files["mp3"] = mp3_filename
+        elif msg:
+            if payload.output_format == "both":
+                warnings.append("mp3 unavailable on current ffmpeg build; wav exported successfully")
+            else:
+                warnings.append(msg)
+            if payload.output_format == "mp3":
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+
+    return DjOfflineMixResult(
+        mix_plan=mix_plan,
+        output_files=output_files,
+        stream_files=stream_files,
+        warnings=warnings,
+        stem_rule_events=render_meta.get("stem_rule_events", []),
+        sample_rate=int(render_meta.get("sample_rate", 44100)),
+        duration_sec=float(render_meta.get("duration_sec", 0.0)),
+    )
+
+
+def reorder_playlist_songs(
+    db: Session,
+    playlist_id: int,
+    user_id: int,
+    payload: PlaylistReorderRequest,
+) -> None:
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="playlist not found")
+    if playlist.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your playlist")
+
+    relations = db.query(PlaylistSong).filter(PlaylistSong.playlist_id == playlist_id).all()
+    relation_by_song_id = {relation.song_id: relation for relation in relations}
+
+    if len(payload.songs) != len(relations):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reorder payload must include every playlist song",
+        )
+
+    incoming_song_ids = {item.song_id for item in payload.songs}
+    existing_song_ids = set(relation_by_song_id.keys())
+    if incoming_song_ids != existing_song_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reorder payload song ids do not match playlist songs",
+        )
+
+    used_indexes = set()
+    for item in payload.songs:
+        if item.order_index in used_indexes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="duplicate order_index in reorder payload",
+            )
+        used_indexes.add(item.order_index)
+        relation_by_song_id[item.song_id].order_index = item.order_index
+
+    db.commit()
+
+
+def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str | None:
+    if song.audio_url and os.path.isfile(song.audio_url):
+        return song.audio_url
+
+    by_song_id = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.song_id == song.id,
+            LibrarySong.source_path.isnot(None),
+            LibrarySong.source_path != "",
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .all()
+    )
+    for item in by_song_id:
+        if item.source_path and os.path.isfile(item.source_path):
+            return item.source_path
+
+    by_title_artist = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.title == song.title,
+            LibrarySong.artist == song.artist,
+            LibrarySong.source_path.isnot(None),
+            LibrarySong.source_path != "",
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .all()
+    )
+    for item in by_title_artist:
+        if item.source_path and os.path.isfile(item.source_path):
+            return item.source_path
+
+    return None
+
+
+def _resolve_user_song_duration(db: Session, song: Song, user_id: int, audio_path: str) -> float | None:
+    if song.duration and song.duration > 0:
+        return float(song.duration)
+
+    by_song_id = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.song_id == song.id,
+            LibrarySong.duration.isnot(None),
+            LibrarySong.duration > 0,
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .first()
+    )
+    if by_song_id and by_song_id.duration and by_song_id.duration > 0:
+        return float(by_song_id.duration)
+
+    by_title_artist = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.title == song.title,
+            LibrarySong.artist == song.artist,
+            LibrarySong.duration.isnot(None),
+            LibrarySong.duration > 0,
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .first()
+    )
+    if by_title_artist and by_title_artist.duration and by_title_artist.duration > 0:
+        return float(by_title_artist.duration)
+
+    try:
+        import librosa  # type: ignore
+
+        guessed = float(librosa.get_duration(path=audio_path))
+        if guessed > 0:
+            return guessed
+    except Exception:
+        pass
+
+    return None
+
+
+def _resolve_user_song_duration_fast(db: Session, song: Song, user_id: int) -> float:
+    if song.duration and song.duration > 0:
+        return float(song.duration)
+    by_song_id = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.song_id == song.id,
+            LibrarySong.duration.isnot(None),
+            LibrarySong.duration > 0,
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .first()
+    )
+    if by_song_id and by_song_id.duration and by_song_id.duration > 0:
+        return float(by_song_id.duration)
+
+    by_title_artist = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == user_id,
+            LibrarySong.title == song.title,
+            LibrarySong.artist == song.artist,
+            LibrarySong.duration.isnot(None),
+            LibrarySong.duration > 0,
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .first()
+    )
+    if by_title_artist and by_title_artist.duration and by_title_artist.duration > 0:
+        return float(by_title_artist.duration)
+    # Interactive fallback: avoid expensive file probing.
+    return 180.0
+
+
+def _build_processed_fallback(audio_path: str, song_id: int, style: str, quality_mode: str) -> str | None:
+    if not audio_path or not os.path.isfile(audio_path):
+        return None
+    ext = os.path.splitext(audio_path)[1].lower() or ".wav"
+    safe_ext = ext if len(ext) <= 8 else ".wav"
+    out_dir = os.path.join("data", "music-files", "shared", "processed")
+    os.makedirs(out_dir, exist_ok=True)
+    filename = f"{song_id}_{style}_{quality_mode}_raw{safe_ext}"
+    out_path = os.path.join(out_dir, filename)
+    try:
+        shutil.copyfile(audio_path, out_path)
+        return out_path.replace("\\", "/")
+    except Exception:
+        return None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -62,78 +62,111 @@ class PlaylistSongTagUpdateRequest(BaseModel):
     tags: list[str]
 
 
+class PlaylistSongOrderItem(BaseModel):
+    song_id: int
+    order_index: int
+
+
+class PlaylistReorderRequest(BaseModel):
+    songs: list[PlaylistSongOrderItem]
+
+
 class StyleMixRequest(BaseModel):
     style: str
     duration_minutes: int = 30
     bpm: Optional[int] = None
     energy: Optional[str] = None
+    playlist_id: Optional[int] = None
     quality_mode: Literal["balanced", "hq", "fast"] = "balanced"
+    random_seed: Optional[int] = None
+    diversity: float = Field(default=0.35, ge=0.0, le=1.0)
+    user_id: Optional[int] = None
 
 
 class StyleMixResult(BaseModel):
     playlist: list[PlaylistSongData] = Field(default_factory=list)
     processed_files: dict[int, str] = Field(default_factory=dict)
-    stem_files: dict[int, dict[str, str]] = Field(default_factory=dict)
     meta: dict[int, dict[str, str]] = Field(default_factory=dict)
 
 
-# ── DJ Auto-Mix schemas (DJ.studio-inspired) ──────────────────────────────
+class DjFxAutomationPoint(BaseModel):
+    target: Literal["from", "to"] = "to"
+    time_sec: float
+    gain_db: float = 0.0
+    lowpass_hz: float = 18000.0
+    highpass_hz: float = 30.0
+    eq_low_db: float = 0.0
+    eq_mid_db: float = 0.0
+    eq_high_db: float = 0.0
 
-class DJMixRequest(BaseModel):
-    """Request for AI-powered DJ set generation via Harmonize algorithm."""
+
+class DjTransitionPlanItem(BaseModel):
+    from_song_id: int
+    to_song_id: int
+    entry_beat: int
+    exit_beat: int
+    entry_time_sec: Optional[float] = None
+    exit_time_sec: Optional[float] = None
+    from_beat_interval_sec: Optional[float] = None
+    to_beat_interval_sec: Optional[float] = None
+    phase_anchor_sec: Optional[float] = None
+    crossfade_sec: float
+    tempo_ratio: float
+    key_relation: str
+    transition_technique: str = "crossfade"
+    energy_target: str
+    fx_automation: list[DjFxAutomationPoint] = Field(default_factory=list)
+    score: float = 0.0
+
+
+class DjMixPlanRequest(BaseModel):
     style: str
     duration_minutes: int = 30
     bpm: Optional[int] = None
     energy: Optional[str] = None
-    energy_profile: str = "journey"       # warmup | peak | cooldown | journey | free
-    harmonic_weight: str = "balanced"     # bpm_first | key_first | balanced
-    overlap_bars: int = 8                 # bars of A/B overlap for transition
-    transition_style: str = "smooth"      # smooth | power | bass_swap | echo_out | filter | cut | slam
+    playlist_id: Optional[int] = None
     quality_mode: Literal["balanced", "hq", "fast"] = "balanced"
-    start_song_id: Optional[int] = None
+    strict_harmonic: bool = False
+    max_tempo_shift: float = 0.08
+    random_seed: Optional[int] = None
+    diversity: float = Field(default=0.35, ge=0.0, le=1.0)
+    candidate_window: int = Field(default=4, ge=1, le=8)
+    user_id: Optional[int] = None
 
 
-class SegmentInfo(BaseModel):
-    """Full-song play range (mix-in/mix-out points)."""
-    start_sec: float
-    end_sec: float
-    bars: int
-    label: str = ""
-
-
-class TransitionData(BaseModel):
-    """Transition metadata between two songs (DJ.studio-style)."""
-    from_song_id: int
-    to_song_id: int
-    score: float
-    bpm_score: float
-    key_score: float
-    energy_score: float
-    # Full-song play ranges
-    a_play_start: float = 0.0
-    a_play_end: float = 0.0
-    b_play_start: float = 0.0
-    b_play_end: float = 0.0
-    # Overlap
-    overlap_bars: int = 8
-    overlap_sec: float = 0.0
-    mix_start_time: float = 0.0       # time in A where overlap begins
-    mix_duration_sec: float = 0.0
-    mix_duration_bars: int = 8
-    b_cue_time: float = 0.0
-    bpm_shift: float = 1.0
-    # Per-stem automation curves (sampled at 10Hz)
-    automation: Optional[dict] = None
-
-
-class DJMixResult(BaseModel):
-    """Complete DJ set with ordering + transitions + processed files."""
+class DjMixPlanResult(BaseModel):
     playlist: list[PlaylistSongData] = Field(default_factory=list)
     processed_files: dict[int, str] = Field(default_factory=dict)
-    stem_files: dict[int, dict[str, str]] = Field(default_factory=dict)
-    segments: dict[int, SegmentInfo] = Field(default_factory=dict)
-    transitions: list[TransitionData] = Field(default_factory=list)
-    energy_profile: str = "journey"
-    harmonic_weight: str = "balanced"
-    total_duration_sec: float = 0
-    avg_score: float = 0
+    meta: dict[int, dict[str, str]] = Field(default_factory=dict)
+    transition_plan: list[DjTransitionPlanItem] = Field(default_factory=list)
+
+
+class DjOfflineMixRequest(BaseModel):
+    style: str
+    duration_minutes: int = 30
+    bpm: Optional[int] = None
+    energy: Optional[str] = None
+    playlist_id: Optional[int] = None
+    quality_mode: Literal["balanced", "hq", "fast"] = "balanced"
+    strict_harmonic: bool = False
+    max_tempo_shift: float = 0.08
+    random_seed: Optional[int] = None
+    diversity: float = Field(default=0.35, ge=0.0, le=1.0)
+    candidate_window: int = Field(default=4, ge=1, le=8)
+    user_id: Optional[int] = None
+    output_format: Literal["wav", "mp3", "both"] = "both"
+    output_name: str = "final_mix"
+    stem_aware: bool = True
+    auto_separate_stems: bool = False
+    max_auto_stem_tracks: int = Field(default=1, ge=0, le=8)
+    stem_separation_timeout_sec: int = Field(default=120, ge=15, le=600)
+
+
+class DjOfflineMixResult(BaseModel):
+    mix_plan: DjMixPlanResult
+    output_files: dict[str, str] = Field(default_factory=dict)
+    stream_files: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    stem_rule_events: list[dict[str, Any]] = Field(default_factory=list)
+    sample_rate: int = 44100
+    duration_sec: float = 0.0

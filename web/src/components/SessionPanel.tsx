@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
-import { getProcessedStreamUrl } from '../api/client'
+import { getMixStreamUrl, getProcessedStreamUrl } from '../api/client'
 import type { PracticeTrack } from '../api/client'
 import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
-import type { DanceStyle, QualityMode, StyleMixResult, DJMixResult, TransitionData } from '../types'
+import type { DanceStyle, DjMixPlanResult, DjOfflineMixResult, QualityMode } from '../types'
 import SeamlessPlayer from './SeamlessPlayer'
 import type { SeamlessTrack } from './SeamlessPlayer'
 
@@ -25,7 +25,7 @@ interface SessionEvent {
 
 export default function SessionPanel() {
   const { user } = useAuthStore()
-  const { playSong, songs } = useMusicStore()
+  const { playSong, songs, playlists } = useMusicStore()
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [mode, setMode] = useState('freeplay')
   const [events, setEvents] = useState<SessionEvent[]>([])
@@ -43,28 +43,28 @@ export default function SessionPanel() {
   const [mixStyle, setMixStyle] = useState<DanceStyle>('hiphop')
   const [mixDuration, setMixDuration] = useState(30)
   const [mixQuality, setMixQuality] = useState<QualityMode>('balanced')
+  const [mixPlaylistId, setMixPlaylistId] = useState<number | ''>('')
+  const [mixStrictHarmonic, setMixStrictHarmonic] = useState(false)
+  const [mixMaxTempoShift, setMixMaxTempoShift] = useState(0.08)
+  const [mixDiversity, setMixDiversity] = useState(0.35)
   const [mixLoading, setMixLoading] = useState(false)
-  const [mixResult, setMixResult] = useState<StyleMixResult | null>(null)
+  const [mixResult, setMixResult] = useState<DjMixPlanResult | null>(null)
+  const [mixSeed, setMixSeed] = useState<number>(Date.now())
   const [mixError, setMixError] = useState('')
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
+  const [playingTrackId, setPlayingTrackId] = useState<number | null>(null)
   const mixAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [offlineLoading, setOfflineLoading] = useState(false)
+  const [offlineError, setOfflineError] = useState('')
+  const [offlineFormat, setOfflineFormat] = useState<'wav' | 'mp3' | 'both'>('wav')
+  const [offlineResult, setOfflineResult] = useState<DjOfflineMixResult | null>(null)
 
   // Seamless player state
   const [seamlessActive, setSeamlessActive] = useState(false)
   const [seamlessTracks, setSeamlessTracks] = useState<SeamlessTrack[]>([])
+  const [seamlessTransitionPlan, setSeamlessTransitionPlan] = useState<DjMixPlanResult['transition_plan']>([])
   const [seamlessKey, setSeamlessKey] = useState(0)
 
-  // DJ Auto-Mix state (DJ.studio Harmonize)
-  const [djMode, setDjMode] = useState(false)
-  const [djEnergyProfile, setDjEnergyProfile] = useState('journey')
-  const [djHarmonicWeight, setDjHarmonicWeight] = useState('balanced')
-  const [djTransitionStyle, setDjTransitionStyle] = useState('smooth')
-  const [djOverlapBars, setDjOverlapBars] = useState(8)
-  const [djResult, setDjResult] = useState<DJMixResult | null>(null)
-  const [djLoading, setDjLoading] = useState(false)
-  const [djError, setDjError] = useState('')
-
-  const toggleMixPlay = (songId: string, filePath: string) => {
+  const toggleMixPlay = (songId: number, filePath: string) => {
     if (playingTrackId === songId) {
       mixAudioRef.current?.pause()
       setPlayingTrackId(null)
@@ -82,7 +82,7 @@ export default function SessionPanel() {
   }
 
   // Timer for elapsed time
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       if (startTime) {
         const diff = Math.floor((Date.now() - startTime.getTime()) / 1000)
@@ -92,7 +92,7 @@ export default function SessionPanel() {
       }
     }, 1000)
     return () => clearInterval(interval)
-  })
+  }, [startTime])
 
   const handleStart = async () => {
     if (!user) return
@@ -162,18 +162,65 @@ export default function SessionPanel() {
   const handleGenerateStyleMix = async () => {
     setMixLoading(true)
     setMixError('')
+    setOfflineError('')
+    setOfflineResult(null)
     setMixResult(null)
+    const seed = Date.now()
+    setMixSeed(seed)
     try {
-      const res = await api.generateStyleMix({
+      const res = await api.generateDjMixPlan({
         style: mixStyle,
         duration_minutes: mixDuration,
+        playlist_id: mixPlaylistId === '' ? undefined : mixPlaylistId,
         quality_mode: mixQuality,
+        strict_harmonic: mixStrictHarmonic,
+        max_tempo_shift: mixMaxTempoShift,
+        diversity: mixDiversity,
+        candidate_window: 4,
+        random_seed: seed,
       })
+      if (!res.playlist || res.playlist.length === 0) {
+        setMixError('没有找到可播放的已导入歌曲，请先在曲库中导入并分析歌曲后再生成。')
+      }
       setMixResult(res)
     } catch (e: any) {
       setMixError(e.message || '生成失败')
     } finally {
       setMixLoading(false)
+    }
+  }
+
+  const handleRenderOfflineMix = async () => {
+    if (!user) return
+    setOfflineLoading(true)
+    setOfflineError('')
+    try {
+      const res = await api.generateDjOfflineMix({
+        style: mixStyle,
+        duration_minutes: mixDuration,
+        playlist_id: mixPlaylistId === '' ? undefined : mixPlaylistId,
+        quality_mode: mixQuality,
+        strict_harmonic: mixStrictHarmonic,
+        max_tempo_shift: mixMaxTempoShift,
+        diversity: mixDiversity,
+        candidate_window: 4,
+        random_seed: mixSeed,
+        output_format: offlineFormat,
+        output_name: 'final_mix',
+        stem_aware: true,
+        auto_separate_stems: false,
+        max_auto_stem_tracks: 0,
+        stem_separation_timeout_sec: 90,
+      })
+      setOfflineResult(res)
+      setMixResult(res.mix_plan)
+      if (res.mix_plan.playlist.length === 0) {
+        setOfflineError('离线渲染未生成可用轨道')
+      }
+    } catch (e: any) {
+      setOfflineError(e.message || '离线渲染失败')
+    } finally {
+      setOfflineLoading(false)
     }
   }
 
@@ -195,13 +242,24 @@ export default function SessionPanel() {
         title: t.title,
         artist: t.artist,
         filePath: mixResult.processed_files[t.song_id],
-        stemFiles: mixResult.stem_files?.[t.song_id] || undefined,
+        bpm: t.bpm,
+        duration: t.duration,
       }))
     if (!stracks.length) {
       setMixError('没有可播放的处理文件')
       return
     }
+    const planByPair = new Map<string, DjMixPlanResult['transition_plan'][number]>()
+    ;(mixResult.transition_plan || []).forEach((p) => {
+      planByPair.set(`${p.from_song_id}->${p.to_song_id}`, p)
+    })
+    const alignedPlan = stracks
+      .slice(0, -1)
+      .map((track, i) => planByPair.get(`${track.songId}->${stracks[i + 1].songId}`))
+      .filter((p): p is DjMixPlanResult['transition_plan'][number] => !!p)
+
     setSeamlessTracks(stracks)
+    setSeamlessTransitionPlan(alignedPlan)
     setSeamlessKey(k => k + 1)
     setSeamlessActive(true)
     // Auto-start session
@@ -220,74 +278,11 @@ export default function SessionPanel() {
     }
   }
 
-  const handleGenerateDJMix = async () => {
-    setDjLoading(true)
-    setDjError('')
-    setDjResult(null)
-    try {
-      const res = await api.generateDJMix({
-        style: mixStyle,
-        duration_minutes: mixDuration,
-        quality_mode: mixQuality,
-        energy_profile: djEnergyProfile,
-        harmonic_weight: djHarmonicWeight,
-        overlap_bars: djOverlapBars,
-        transition_style: djTransitionStyle,
-      })
-      setDjResult(res)
-    } catch (e: any) {
-      setDjError(e.message || 'DJ排歌失败')
-    } finally {
-      setDjLoading(false)
-    }
-  }
-
-  const handleStartDJSeamless = async () => {
-    if (!user || !djResult) return
-    useMusicStore.setState({ playingSong: null, isPlaying: false })
-    if (mixAudioRef.current) {
-      mixAudioRef.current.pause()
-      mixAudioRef.current = null
-      setPlayingTrackId(null)
-    }
-    const stracks: SeamlessTrack[] = djResult.playlist
-      .filter(t => !!djResult.processed_files[t.song_id])
-      .map((t, i) => {
-        const seg = djResult.segments?.[t.song_id]
-        const transition = djResult.transitions.find(tr => tr.to_song_id === t.song_id)
-        return {
-          songId: t.song_id,
-          title: t.title,
-          artist: t.artist,
-          filePath: djResult.processed_files[t.song_id],
-          stemFiles: djResult.stem_files?.[t.song_id] || undefined,
-          playStart: seg?.start_sec ?? undefined,
-          playEnd: seg?.end_sec ?? undefined,
-          transitionIn: transition?.automation ?? undefined,
-          overlapSec: transition?.overlap_sec ?? undefined,
-        }
-      })
-    if (!stracks.length) {
-      setDjError('没有可播放的处理文件')
-      return
-    }
-    setSeamlessTracks(stracks)
-    setSeamlessKey(k => k + 1)
-    setSeamlessActive(true)
-    if (!sessionId) {
-      setLoading(true)
-      try {
-        const res = await api.startSession(user.id, `dj_mix_${mixStyle}`)
-        setSessionId(res.session_id)
-        setStartTime(new Date())
-        setEvents([{ type: 'session_start', value: `AI DJ ${DANCE_STYLE_LABELS[mixStyle]}`, time: new Date().toLocaleTimeString() }])
-      } catch (e: any) {
-        setError(e.message || '启动失败')
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
+  const offlinePreviewFile =
+    offlineResult?.stream_files?.mp3 ||
+    offlineResult?.stream_files?.wav ||
+    ''
+  const offlinePreviewUrl = offlinePreviewFile ? getMixStreamUrl(offlinePreviewFile) : ''
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -427,8 +422,61 @@ export default function SessionPanel() {
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block">来源歌单</label>
+                <select
+                  value={mixPlaylistId === '' ? '' : String(mixPlaylistId)}
+                  onChange={e => {
+                    const v = e.target.value
+                    setMixPlaylistId(v === '' ? '' : Number(v))
+                  }}
+                  className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none min-w-[180px]"
+                >
+                  <option value="">我的全部曲库</option>
+                  {playlists.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.playlist_name} ({p.song_count})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2 text-xs text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={mixStrictHarmonic}
+                  onChange={e => setMixStrictHarmonic(e.target.checked)}
+                  className="accent-primary"
+                />
+                Strict Harmonic
+              </label>
+              <label className="text-xs text-gray-400">
+                Max Tempo Shift: <span className="text-gray-300">{Math.round(mixMaxTempoShift * 100)}%</span>
+                <input
+                  type="range"
+                  min={0.02}
+                  max={0.16}
+                  step={0.01}
+                  value={mixMaxTempoShift}
+                  onChange={e => setMixMaxTempoShift(parseFloat(e.target.value))}
+                  className="w-full accent-primary mt-1"
+                />
+              </label>
+              <label className="text-xs text-gray-400">
+                Diversity: <span className="text-gray-300">{Math.round(mixDiversity * 100)}%</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={mixDiversity}
+                  onChange={e => setMixDiversity(parseFloat(e.target.value))}
+                  className="w-full accent-primary mt-1"
+                />
+              </label>
+            </div>
             {/* Generate button */}
             <button
               onClick={handleGenerateStyleMix}
@@ -491,11 +539,11 @@ export default function SessionPanel() {
                       <span className="w-14 text-right">
                         {hasFile ? (
                           <button
-                            onClick={() => toggleMixPlay(String(track.song_id), mixResult.processed_files[track.song_id])}
+                            onClick={() => toggleMixPlay(track.song_id, mixResult.processed_files[track.song_id])}
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition hover:scale-105"
                             style={{ background: DANCE_STYLE_COLORS[mixStyle] + '33', color: DANCE_STYLE_COLORS[mixStyle] }}
                           >
-                            {playingTrackId === String(track.song_id) ? '⏸ 暂停' : '▶ 播放'}
+                            {playingTrackId === track.song_id ? '⏸ 暂停' : '▶ 播放'}
                           </button>
                         ) : (
                           <span className="text-[10px] text-gray-500">—</span>
@@ -520,6 +568,47 @@ export default function SessionPanel() {
                 </div>
               )}
 
+              <div className="mt-2 bg-surface rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-300 font-semibold">离线渲染（成片导出）</span>
+                  <span className="text-[10px] text-gray-500 ml-auto">实时 Seamless 仍作为预览</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={offlineFormat}
+                    onChange={e => setOfflineFormat(e.target.value as 'wav' | 'mp3' | 'both')}
+                    className="bg-surface text-white border border-gray-600 rounded px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="both">WAV + MP3</option>
+                    <option value="wav">WAV</option>
+                    <option value="mp3">MP3</option>
+                  </select>
+                  <button
+                    onClick={handleRenderOfflineMix}
+                    disabled={offlineLoading || mixLoading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition"
+                  >
+                    {offlineLoading ? '渲染中...' : '生成 final_mix'}
+                  </button>
+                </div>
+                {offlineError && (
+                  <div className="text-[11px] text-red-300">{offlineError}</div>
+                )}
+                {offlineResult && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-gray-400">
+                      输出时长 {offlineResult.duration_sec.toFixed(1)}s · 采样率 {offlineResult.sample_rate} Hz · stem 规则 {offlineResult.stem_rule_events.length} 次
+                    </div>
+                    {offlineResult.warnings.length > 0 && (
+                      <div className="text-[10px] text-amber-300">{offlineResult.warnings.join(' | ')}</div>
+                    )}
+                    {offlinePreviewUrl && (
+                      <audio controls preload="none" className="w-full" src={offlinePreviewUrl} />
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* 丝滑连续播放按钮 */}
               <button
                 onClick={handleStartSeamless}
@@ -535,235 +624,14 @@ export default function SessionPanel() {
           )}
         </div>
 
-        {/* 🤖 AI DJ 自动排歌接歌 (DJ.studio Harmonize) */}
-        <div className="bg-surface-light rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-white">🤖 AI DJ Harmonize</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                全局最优排歌 (Camelot 调性轮 + BPM + 能量曲线) + 专业 EQ 过渡自动化
-              </p>
-            </div>
-            <button
-              onClick={() => setDjMode(!djMode)}
-              className={`text-[10px] px-2 py-1 rounded-full transition ${
-                djMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500' : 'bg-surface text-gray-500 border border-gray-700'
-              }`}
-            >
-              {djMode ? '收起设置' : '展开设置'}
-            </button>
-          </div>
-
-          {djMode && (
-            <div className="space-y-3">
-              {/* Harmonic Weight */}
-              <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">和声权重</label>
-                <div className="flex flex-wrap gap-1">
-                  {[
-                    { v: 'bpm_first', l: '🎵 BPM优先', d: '节拍匹配为主' },
-                    { v: 'key_first', l: '🎹 调性优先', d: 'Camelot和声为主' },
-                    { v: 'balanced', l: '⚖️ 均衡', d: 'BPM+调性平衡' },
-                  ].map(opt => (
-                    <button
-                      key={opt.v}
-                      onClick={() => setDjHarmonicWeight(opt.v)}
-                      className="px-2 py-1 rounded-lg text-[11px] transition"
-                      style={{
-                        background: djHarmonicWeight === opt.v ? '#3b82f633' : 'transparent',
-                        color: djHarmonicWeight === opt.v ? '#3b82f6' : '#6b7280',
-                        border: `1px solid ${djHarmonicWeight === opt.v ? '#3b82f6' : '#374151'}`,
-                      }}
-                      title={opt.d}
-                    >
-                      {opt.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Energy Profile */}
-              <div>
-                <label className="text-[10px] text-gray-500 mb-1 block">能量曲线</label>
-                <div className="flex flex-wrap gap-1">
-                  {[
-                    { v: 'warmup', l: '🔥 暖场', d: '能量递增' },
-                    { v: 'peak', l: '⚡ 爆发', d: '持续高能' },
-                    { v: 'cooldown', l: '🌙 冷却', d: '能量递减' },
-                    { v: 'journey', l: '🎢 旅程', d: '起承转合' },
-                    { v: 'free', l: '🎲 自由', d: '不限制' },
-                  ].map(opt => (
-                    <button
-                      key={opt.v}
-                      onClick={() => setDjEnergyProfile(opt.v)}
-                      className="px-2 py-1 rounded-lg text-[11px] transition"
-                      style={{
-                        background: djEnergyProfile === opt.v ? '#f59e0b33' : 'transparent',
-                        color: djEnergyProfile === opt.v ? '#f59e0b' : '#6b7280',
-                        border: `1px solid ${djEnergyProfile === opt.v ? '#f59e0b' : '#374151'}`,
-                      }}
-                      title={opt.d}
-                    >
-                      {opt.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Transition Style + Overlap */}
-              <div className="flex items-center gap-3">
-                <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">过渡风格</label>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { v: 'smooth', l: '🎚 EQ渐变' },
-                      { v: 'power', l: '🔄 等功率' },
-                      { v: 'bass_swap', l: '🎸 Bass交换' },
-                      { v: 'echo_out', l: '🔊 回声尾' },
-                      { v: 'filter', l: '🎛 滤波扫频' },
-                      { v: 'cut', l: '✂️ 硬切' },
-                      { v: 'slam', l: '💥 冲击' },
-                    ].map(opt => (
-                      <button
-                        key={opt.v}
-                        onClick={() => setDjTransitionStyle(opt.v)}
-                        className={`px-2 py-1 rounded-lg text-[11px] transition ${
-                          djTransitionStyle === opt.v
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500'
-                            : 'bg-surface text-gray-500 border border-gray-700'
-                        }`}
-                      >
-                        {opt.l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">过渡重叠</label>
-                  <select
-                    value={djOverlapBars}
-                    onChange={e => setDjOverlapBars(Number(e.target.value))}
-                    className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value={4}>4 小节</option>
-                    <option value={8}>8 小节</option>
-                    <option value={16}>16 小节</option>
-                    <option value={32}>32 小节</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Generate DJ Mix */}
-              <button
-                onClick={handleGenerateDJMix}
-                disabled={djLoading}
-                className="w-full py-2.5 rounded-lg text-sm font-semibold transition bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 text-white"
-              >
-                {djLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Harmonize 分析排歌中...
-                  </span>
-                ) : `🤖 Harmonize · ${DANCE_STYLE_LABELS[mixStyle]} · ${mixDuration}分钟`}
-              </button>
-
-              {djError && (
-                <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-3 py-2 text-red-300 text-xs">{djError}</div>
-              )}
-
-              {/* DJ Mix Results */}
-              {djResult && djResult.playlist.length > 0 && (
-                <div className="space-y-3 mt-2">
-                  {/* Stats header */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
-                      平均兼容度 {djResult.avg_score}%
-                    </span>
-                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
-                      {djResult.harmonic_weight === 'bpm_first' ? 'BPM优先' : djResult.harmonic_weight === 'key_first' ? '调性优先' : '均衡'}
-                    </span>
-                    <span className="text-[10px] bg-surface text-gray-400 px-2 py-0.5 rounded-full">
-                      能量: {djEnergyProfile}
-                    </span>
-                    <span className="text-[10px] bg-surface text-gray-400 px-2 py-0.5 rounded-full">
-                      约 {Math.round(djResult.total_duration_sec / 60)} 分钟
-                    </span>
-                  </div>
-
-                  {/* Track list with transition info */}
-                  <div className="space-y-0.5">
-                    {djResult.playlist.map((track, i) => {
-                      const transition = djResult.transitions.find(t => t.to_song_id === track.song_id)
-                      const hasFile = !!djResult.processed_files[track.song_id]
-                      return (
-                        <div key={track.song_id}>
-                          {/* Transition indicator between songs */}
-                          {transition && (
-                            <div className="flex items-center gap-2 px-2 py-1">
-                              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                              <div className="flex items-center gap-1 text-[9px]">
-                                <span style={{ color: transition.score >= 70 ? '#22c55e' : transition.score >= 40 ? '#f59e0b' : '#ef4444' }}>
-                                  {Math.round(transition.score)}%
-                                </span>
-                                <span className="text-gray-600">|</span>
-                                <span className="text-gray-500">BPM:{Math.round(transition.bpm_score)}</span>
-                                <span className="text-gray-500">Key:{Math.round(transition.key_score)}</span>
-                                <span className="text-gray-500">E:{Math.round(transition.energy_score)}</span>
-                                <span className="text-gray-600">|</span>
-                                <span className="text-amber-500/60">{transition.mix_duration_bars}bar</span>
-                              </div>
-                              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-                            </div>
-                          )}
-                          {/* Song row */}
-                          <div className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter transition">
-                            <span className="w-5 text-xs text-gray-500 text-center">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm text-white truncate">{track.title}</div>
-                              <div className="text-[10px] text-gray-500 truncate">{track.artist}</div>
-                            </div>
-                            <span className="text-[10px] text-gray-400">{track.bpm ? Math.round(track.bpm) : '-'}</span>
-                            <span className="w-14 text-right">
-                              {hasFile ? (
-                                <button
-                                  onClick={() => toggleMixPlay(String(track.song_id), djResult.processed_files[track.song_id])}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition hover:scale-105"
-                                  style={{ background: '#f59e0b33', color: '#f59e0b' }}
-                                >
-                                  {playingTrackId === String(track.song_id) ? '⏸' : '▶'}
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-gray-500">—</span>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Start DJ Seamless */}
-                  <button
-                    onClick={handleStartDJSeamless}
-                    disabled={djLoading}
-                    className="w-full py-3 rounded-xl text-sm font-bold transition shadow-lg text-white hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #f59e0b, #ea580c)' }}
-                  >
-                    🤖 开始 Harmonize DJ 播放
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Seamless Player */}
         {seamlessActive && seamlessTracks.length > 0 && (
           <SeamlessPlayer
             key={seamlessKey}
             tracks={seamlessTracks}
-            crossfadeSec={4}
+            crossfadeSec={6}
             accentColor={DANCE_STYLE_COLORS[mixStyle] || '#8b5cf6'}
+            transitionPlan={seamlessTransitionPlan}
             onEnd={() => {
               setSeamlessActive(false)
               setEvents(prev => [...prev, { type: 'seamless_end', value: '全部播放完毕', time: new Date().toLocaleTimeString() }])
@@ -886,3 +754,5 @@ export default function SessionPanel() {
     </div>
   )
 }
+
+

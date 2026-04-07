@@ -1,10 +1,11 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.modules import models  # noqa: F401
@@ -17,7 +18,8 @@ from app.shared.database import Base, engine
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     # Auto-analyze songs that have files but were never analyzed
-    _schedule_pending_analyses()
+    if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
+        _schedule_pending_analyses()
     yield
 
 
@@ -75,7 +77,25 @@ app.include_router(api_router)
 # Serve the web frontend (built into web/dist)
 _web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
 if _web_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_web_dist), html=True), name="web")
+    _assets_dir = _web_dist / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+    _index_html = _web_dist / "index.html"
+
+    @app.get("/")
+    @app.get("/{full_path:path}")
+    async def _spa_fallback(request: Request, full_path: str = ""):
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi"):
+            raise HTTPException(status_code=404)
+        # Serve static file if it exists
+        candidate = _web_dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        # Otherwise serve SPA index
+        if _index_html.is_file():
+            return FileResponse(str(_index_html))
+        raise HTTPException(status_code=404)
 
 
 @app.exception_handler(HTTPException)

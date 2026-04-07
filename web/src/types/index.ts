@@ -162,63 +162,49 @@ export interface StyleProcessResult {
 export interface StyleMixResult {
   playlist: PlaylistSong[]
   processed_files: Record<number, string>
-  stem_files: Record<number, Record<string, string>>
   meta: Record<number, Record<string, string>>
 }
 
-// ── DJ Auto-Mix types (DJ.studio-inspired) ──────────────────────────────
-
-export interface TransitionAutomation {
-  sample_rate: number
-  a_drums: number[]
-  a_bass: number[]
-  a_vocals: number[]
-  a_other: number[]
-  a_volume: number[]
-  a_echo: number[]
-  b_drums: number[]
-  b_bass: number[]
-  b_vocals: number[]
-  b_other: number[]
-  b_volume: number[]
+export interface DjFxAutomationPoint {
+  target?: 'from' | 'to'
+  time_sec: number
+  gain_db: number
+  lowpass_hz: number
+  highpass_hz: number
+  eq_low_db: number
+  eq_mid_db: number
+  eq_high_db: number
 }
 
-export interface SegmentInfo {
-  start_sec: number
-  end_sec: number
-  bars: number
-  label: string
-}
-
-export interface TransitionData {
+export interface DjTransitionPlanItem {
   from_song_id: number
   to_song_id: number
+  entry_beat: number
+  exit_beat: number
+  entry_time_sec?: number | null
+  exit_time_sec?: number | null
+  from_beat_interval_sec?: number | null
+  to_beat_interval_sec?: number | null
+  phase_anchor_sec?: number | null
+  crossfade_sec: number
+  tempo_ratio: number
+  key_relation: string
+  transition_technique?: string
+  energy_target: string
+  fx_automation: DjFxAutomationPoint[]
   score: number
-  bpm_score: number
-  key_score: number
-  energy_score: number
-  a_play_start: number
-  a_play_end: number
-  b_play_start: number
-  b_play_end: number
-  overlap_bars: number
-  overlap_sec: number
-  mix_start_time: number
-  mix_duration_sec: number
-  mix_duration_bars: number
-  b_cue_time: number
-  bpm_shift: number
-  automation: TransitionAutomation | null
 }
 
-export interface DJMixResult {
-  playlist: PlaylistSong[]
-  processed_files: Record<number, string>
-  stem_files: Record<number, Record<string, string>>
-  segments: Record<number, SegmentInfo>
-  transitions: TransitionData[]
-  energy_profile: string
-  harmonic_weight: string
-  total_duration_sec: number
-  avg_score: number
+export interface DjMixPlanResult extends StyleMixResult {
+  transition_plan: DjTransitionPlanItem[]
+}
+
+export interface DjOfflineMixResult {
+  mix_plan: DjMixPlanResult
+  output_files: Record<string, string>
+  stream_files: Record<string, string>
+  warnings: string[]
+  stem_rule_events: Array<Record<string, string | number | boolean | string[]>>
+  sample_rate: number
+  duration_sec: number
 }

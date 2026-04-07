@@ -14,7 +14,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim() || !password.trim()) {
-      setError('请填写用户名和密码')
+      setError('Please input username and password')
       return
     }
     setError('')
@@ -26,51 +26,51 @@ export default function LoginPage() {
         await doLogin(username.trim(), password)
       }
     } catch (err: any) {
-      setError(err.message || '操作失败')
+      setError(err.message || 'Action failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface px-4 street-theme">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">🎵 HarBeat</h1>
-          <p className="text-gray-400">街舞音乐管理平台</p>
+        <div className="text-center mb-6">
+          <h1 className="text-5xl street-title mb-2">HarBeat</h1>
+          <p className="street-subtitle text-sm">hiphop street music platform</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-surface-light rounded-2xl p-8 shadow-lg space-y-5">
-          <h2 className="text-xl font-semibold text-white text-center">
-            {isRegister ? '注册账号' : '登录'}
+        <form onSubmit={handleSubmit} className="street-sticker p-7 space-y-4 bg-surface-light">
+          <h2 className="text-3xl street-title text-center">
+            {isRegister ? 'REGISTER' : 'LOGIN'}
           </h2>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-4 py-2 text-red-300 text-sm">
+            <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-4 py-2 text-sm">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">用户名</label>
+            <label className="block text-sm mb-1 street-subtitle">USERNAME</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-surface rounded-lg px-4 py-2.5 text-white border border-gray-600 focus:border-primary focus:outline-none"
-              placeholder="输入用户名"
+              className="w-full px-4 py-2.5"
+              placeholder="your username"
               autoComplete="username"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">密码</label>
+            <label className="block text-sm mb-1 street-subtitle">PASSWORD</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-surface rounded-lg px-4 py-2.5 text-white border border-gray-600 focus:border-primary focus:outline-none"
-              placeholder="输入密码"
+              className="w-full px-4 py-2.5"
+              placeholder="your password"
               autoComplete={isRegister ? 'new-password' : 'current-password'}
             />
           </div>
@@ -78,27 +78,27 @@ export default function LoginPage() {
           {isRegister && (
             <>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">舞蹈风格</label>
+                <label className="block text-sm mb-1 street-subtitle">STYLE</label>
                 <select
                   value={danceStyle}
                   onChange={(e) => setDanceStyle(e.target.value)}
-                  className="w-full bg-surface rounded-lg px-4 py-2.5 text-white border border-gray-600 focus:border-primary focus:outline-none"
+                  className="w-full px-4 py-2.5"
                 >
-                  {['hiphop','jazz','breaking','popping','locking','waacking','house','krump','other'].map(s => (
+                  {['hiphop', 'jazz', 'breaking', 'popping', 'locking', 'waacking', 'house', 'krump', 'other'].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">水平</label>
+                <label className="block text-sm mb-1 street-subtitle">LEVEL</label>
                 <select
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="w-full bg-surface rounded-lg px-4 py-2.5 text-white border border-gray-600 focus:border-primary focus:outline-none"
+                  className="w-full px-4 py-2.5"
                 >
-                  <option value="beginner">初学者</option>
-                  <option value="intermediate">中级</option>
-                  <option value="advanced">高级</option>
+                  <option value="beginner">beginner</option>
+                  <option value="intermediate">intermediate</option>
+                  <option value="advanced">advanced</option>
                 </select>
               </div>
             </>
@@ -107,19 +107,19 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 transition"
+            className="w-full bg-primary disabled:opacity-50 font-bold rounded-lg py-2.5"
           >
-            {loading ? '请稍候...' : isRegister ? '注册' : '登录'}
+            {loading ? 'PROCESSING...' : isRegister ? 'REGISTER' : 'LOGIN'}
           </button>
 
-          <p className="text-center text-sm text-gray-400">
-            {isRegister ? '已有账号？' : '没有账号？'}
+          <p className="text-center text-sm">
+            {isRegister ? 'Already have account?' : 'No account yet?'}
             <button
               type="button"
-              className="text-primary hover:underline ml-1"
+              className="ml-2 px-2 py-1 bg-surface-lighter text-sm"
               onClick={() => { setIsRegister(!isRegister); setError('') }}
             >
-              {isRegister ? '去登录' : '注册'}
+              {isRegister ? 'LOGIN' : 'REGISTER'}
             </button>
           </p>
         </form>

@@ -34,7 +34,16 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   }
 
   const res = await fetch(`${BASE}${url}`, { ...options, headers })
-  const json: ApiResponse<T> = await res.json()
+
+  let json: ApiResponse<T>
+  try {
+    json = await res.json()
+  } catch {
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
+    throw new Error('invalid server response')
+  }
 
   if (!res.ok || json.code !== 0) {
     throw new Error(json.message || `HTTP ${res.status}`)
@@ -339,20 +348,47 @@ export async function generateStyleMix(data: {
   )
 }
 
-export async function generateDJMix(data: {
+export async function generateDjMixPlan(data: {
   style: string
   duration_minutes?: number
   bpm?: number
   energy?: string
-  energy_profile?: string
-  harmonic_weight?: string
-  overlap_bars?: number
-  transition_style?: string
+  playlist_id?: number
   quality_mode?: import('../types').QualityMode
-  start_song_id?: number
+  strict_harmonic?: boolean
+  max_tempo_shift?: number
+  random_seed?: number
+  diversity?: number
+  candidate_window?: number
 }) {
-  return request<import('../types').DJMixResult>(
-    '/api/playlists/generate-dj-mix', { method: 'POST', body: JSON.stringify(data) }
+  return request<import('../types').DjMixPlanResult>(
+    '/api/playlists/generate-dj-mix-plan',
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
+export async function generateDjOfflineMix(data: {
+  style: string
+  duration_minutes?: number
+  bpm?: number
+  energy?: string
+  playlist_id?: number
+  quality_mode?: import('../types').QualityMode
+  strict_harmonic?: boolean
+  max_tempo_shift?: number
+  random_seed?: number
+  diversity?: number
+  candidate_window?: number
+  output_format?: 'wav' | 'mp3' | 'both'
+  output_name?: string
+  stem_aware?: boolean
+  auto_separate_stems?: boolean
+  max_auto_stem_tracks?: number
+  stem_separation_timeout_sec?: number
+}) {
+  return request<import('../types').DjOfflineMixResult>(
+    '/api/playlists/generate-dj-offline-mix',
+    { method: 'POST', body: JSON.stringify(data) }
   )
 }
 
@@ -361,4 +397,9 @@ export function getProcessedStreamUrl(filePath: string): string {
   // filePath looks like "data/music-files/shared/processed/1_breaking_balanced.wav"
   const filename = filePath.split('/').pop() || filePath
   return `${BASE}/api/stream/processed/${encodeURIComponent(filename)}?token=${token || ''}`
+}
+
+export function getMixStreamUrl(filename: string): string {
+  const token = getToken()
+  return `${BASE}/api/stream/mixes/${encodeURIComponent(filename)}?token=${token || ''}`
 }
