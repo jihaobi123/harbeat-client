@@ -58,7 +58,6 @@ def run_analysis_and_separation(song_id: str) -> None:
                 logger.exception("[bg-analysis] analysis failed for %s", song_id)
                 song.analysis_status = "error"
                 db.commit()
-            return
 
         # --- Phase 2: Stem separation (demucs) ---
         try:
