@@ -12,11 +12,19 @@ httpx==0.28.1
 # === Audio Analysis ===
 librosa==0.10.2.post1
 numpy<2
+pyloudnorm
+pedalboard
 
 # === Stem Separation (demucs) ===
 # torch CPU installed separately in Dockerfile (smaller, faster)
 # torch==2.6.0
 # torchaudio==2.6.0
+# torch runtime deps (needed because torch is installed with --no-deps)
+sympy==1.13.1
+networkx
+filelock
+jinja2
+fsspec
 soundfile==0.13.1
 demucs==4.0.1
 
