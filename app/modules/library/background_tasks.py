@@ -78,7 +78,7 @@ def run_analysis_and_separation(song_id: str) -> None:
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "10",   # limit RAM: process 10s chunks instead of full song
+                        "--segment", "7",   # limit RAM: process 7s chunks (htdemucs max ~7.8)
                         "-o", stems_base,
                         song.source_path,
                     ],
