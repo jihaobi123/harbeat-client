@@ -27,33 +27,37 @@ def run_analysis_and_separation(song_id: str) -> None:
             return
 
         # --- Phase 1: BPM / Key / Energy / Beat & Cue points ---
-        song.analysis_status = "analyzing"
-        db.commit()
-
-        try:
-            from app.modules.library.analysis import analyze_audio_file
-
-            result = analyze_audio_file(song.source_path)
-            song.bpm = result["bpm"]
-            song.duration = result["duration"]
-            song.key = result.get("key")
-            song.camelot_key = result.get("camelot_key")
-            song.energy = result.get("energy")
-            song.beat_points = result.get("beat_points", [])
-            song.downbeats = result.get("downbeats", [])
-            song.phrase_map = result.get("phrase_map", [])
-            song.key_confidence = result.get("key_confidence")
-            raw_cues = result.get("cue_points", [])
-            song.cue_points = [
-                {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
-                for i, c in enumerate(raw_cues)
-            ]
+        # Skip if already analyzed (e.g. retrying after interrupted stem separation)
+        if song.bpm is not None and song.key is not None:
+            logger.info("[bg-analysis] skipping Phase 1 for %s (already has BPM=%s Key=%s)", song_id, song.bpm, song.key)
+        else:
+            song.analysis_status = "analyzing"
             db.commit()
-            logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
-        except Exception:
-            logger.exception("[bg-analysis] analysis failed for %s", song_id)
-            song.analysis_status = "error"
-            db.commit()
+
+            try:
+                from app.modules.library.analysis import analyze_audio_file
+
+                result = analyze_audio_file(song.source_path)
+                song.bpm = result["bpm"]
+                song.duration = result["duration"]
+                song.key = result.get("key")
+                song.camelot_key = result.get("camelot_key")
+                song.energy = result.get("energy")
+                song.beat_points = result.get("beat_points", [])
+                song.downbeats = result.get("downbeats", [])
+                song.phrase_map = result.get("phrase_map", [])
+                song.key_confidence = result.get("key_confidence")
+                raw_cues = result.get("cue_points", [])
+                song.cue_points = [
+                    {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
+                    for i, c in enumerate(raw_cues)
+                ]
+                db.commit()
+                logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
+            except Exception:
+                logger.exception("[bg-analysis] analysis failed for %s", song_id)
+                song.analysis_status = "error"
+                db.commit()
             return
 
         # --- Phase 2: Stem separation (demucs) ---
@@ -69,13 +73,21 @@ def run_analysis_and_separation(song_id: str) -> None:
             # Skip if already separated
             if not all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 python_exe = sys.executable
-                subprocess.run(
-                    [python_exe, "-m", "demucs", "-n", "htdemucs", "-o", stems_base, song.source_path],
+                logger.info("[bg-analysis] starting demucs for %s", song_id)
+                result = subprocess.run(
+                    [
+                        python_exe, "-m", "demucs",
+                        "-n", "htdemucs",
+                        "--segment", "10",   # limit RAM: process 10s chunks instead of full song
+                        "-o", stems_base,
+                        song.source_path,
+                    ],
                     capture_output=True,
                     text=True,
-                    timeout=600,
+                    timeout=1800,
                     check=True,
                 )
+                logger.info("[bg-analysis] demucs finished for %s", song_id)
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}

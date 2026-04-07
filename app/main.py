@@ -22,7 +22,7 @@ async def lifespan(_: FastAPI):
 
 
 def _schedule_pending_analyses():
-    """Find songs with analysis_status='none' that have actual files, and queue analysis."""
+    """Find songs that need analysis/stems and queue them."""
     import os
     import threading
     from app.shared.database import SessionLocal
@@ -31,7 +31,10 @@ def _schedule_pending_analyses():
 
     db = SessionLocal()
     try:
-        pending = db.query(LibrarySong).filter(LibrarySong.analysis_status == "none").all()
+        # Pick up songs never analyzed AND songs stuck in "analyzing" (interrupted by restart)
+        pending = db.query(LibrarySong).filter(
+            LibrarySong.analysis_status.in_(["none", "pending", "analyzing"])
+        ).all()
         to_analyze = [s.id for s in pending if s.source_path and os.path.isfile(s.source_path)]
         db.close()
     except Exception:
