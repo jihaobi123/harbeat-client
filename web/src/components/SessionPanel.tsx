@@ -55,7 +55,7 @@ export default function SessionPanel() {
   const mixAudioRef = useRef<HTMLAudioElement | null>(null)
   const [offlineLoading, setOfflineLoading] = useState(false)
   const [offlineError, setOfflineError] = useState('')
-  const [offlineFormat, setOfflineFormat] = useState<'wav' | 'mp3' | 'both'>('wav')
+  const [offlineFormat, setOfflineFormat] = useState<'wav' | 'mp3' | 'both'>('both')
   const [offlineResult, setOfflineResult] = useState<DjOfflineMixResult | null>(null)
 
   // Seamless player state
@@ -597,13 +597,28 @@ export default function SessionPanel() {
                 {offlineResult && (
                   <div className="space-y-2">
                     <div className="text-[10px] text-gray-400">
-                      输出时长 {offlineResult.duration_sec.toFixed(1)}s · 采样率 {offlineResult.sample_rate} Hz · stem 规则 {offlineResult.stem_rule_events.length} 次
+                      输出时长 {Math.floor(offlineResult.duration_sec / 60)}:{String(Math.floor(offlineResult.duration_sec % 60)).padStart(2, '0')} · 采样率 {offlineResult.sample_rate} Hz · stem 规则 {offlineResult.stem_rule_events.length} 次
                     </div>
                     {offlineResult.warnings.length > 0 && (
-                      <div className="text-[10px] text-amber-300">{offlineResult.warnings.join(' | ')}</div>
+                      <div className="text-[10px] text-amber-300 border border-amber-500/30 rounded px-2 py-1">{offlineResult.warnings.join(' | ')}</div>
                     )}
                     {offlinePreviewUrl && (
-                      <audio controls preload="none" className="w-full" src={offlinePreviewUrl} />
+                      <div className="flex items-center gap-2">
+                        <audio controls preload="metadata" className="flex-1" src={offlinePreviewUrl} />
+                        <a
+                          href={offlinePreviewUrl}
+                          download
+                          className="px-2 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-[10px] text-gray-300 whitespace-nowrap"
+                        >
+                          ⬇ 下载
+                        </a>
+                      </div>
+                    )}
+                    {offlineResult.stream_files.wav && offlineResult.stream_files.mp3 && (
+                      <div className="flex gap-2 text-[10px]">
+                        <a href={getMixStreamUrl(offlineResult.stream_files.wav)} download className="text-blue-400 hover:underline">⬇ WAV</a>
+                        <a href={getMixStreamUrl(offlineResult.stream_files.mp3)} download className="text-blue-400 hover:underline">⬇ MP3</a>
+                      </div>
                     )}
                   </div>
                 )}
