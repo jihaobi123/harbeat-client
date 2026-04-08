@@ -36,11 +36,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface px-4 street-theme">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-5xl street-title mb-2">HarBeat</h1>
+          <h1 className="text-4xl sm:text-5xl street-title mb-2">HarBeat</h1>
           <p className="street-subtitle text-sm">hiphop street music platform</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="street-sticker p-7 space-y-4 bg-surface-light">
+        <form onSubmit={handleSubmit} className="street-sticker p-5 sm:p-7 space-y-4 bg-surface-light">
           <h2 className="text-3xl street-title text-center">
             {isRegister ? 'REGISTER' : 'LOGIN'}
           </h2>

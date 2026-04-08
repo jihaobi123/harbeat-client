@@ -286,17 +286,17 @@ export default function SessionPanel() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-      <div className="px-5 py-4 border-b border-gray-700">
-        <h2 className="text-lg font-semibold text-white mb-1">🎤 DJ 练舞会话</h2>
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-700">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-1">🎤 DJ 练舞会话</h2>
         <p className="text-xs text-gray-500">记录你的练舞过程和关键时刻</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 sm:space-y-5">
         {/* 智能练舞歌单生成 */}
-        <div className="bg-surface-light rounded-xl p-5 space-y-3">
+        <div className="bg-surface-light rounded-xl p-3 sm:p-5 space-y-3">
           <h3 className="text-sm font-semibold text-white">🎯 智能练舞歌单</h3>
           <p className="text-xs text-gray-500">基于 Camelot 和谐混音 + BPM 兼容算法，自动编排适合连续练习的歌单</p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <label className="text-xs text-gray-400">目标时长</label>
             <select
               value={practiceDuration}
@@ -319,17 +319,17 @@ export default function SessionPanel() {
           </div>
           {practiceList.length > 0 && (
             <div className="space-y-1 mt-2">
-              <div className="flex items-center gap-3 text-xs text-gray-500 px-2">
+              <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 px-2">
                 <span className="w-6">#</span>
                 <span className="flex-1">歌曲</span>
-                <span className="w-16 text-right">BPM</span>
-                <span className="w-12 text-right">Key</span>
-                <span className="w-14 text-right">能量</span>
+                <span className="w-16 text-right hidden sm:block">BPM</span>
+                <span className="w-12 text-right hidden sm:block">Key</span>
+                <span className="w-14 text-right hidden sm:block">能量</span>
               </div>
               {practiceList.map((t, i) => (
                 <div
                   key={t.id}
-                  className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter cursor-pointer transition"
+                  className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter cursor-pointer transition"
                   onClick={() => handlePlayPracticeTrack(t)}
                 >
                   <span className="w-6 text-xs text-gray-500">{i + 1}</span>
@@ -337,9 +337,9 @@ export default function SessionPanel() {
                     <div className="text-sm text-white truncate">{t.title}</div>
                     <div className="text-xs text-gray-500 truncate">{t.artist}</div>
                   </div>
-                  <span className="w-16 text-xs text-gray-400 text-right">{t.bpm ? Math.round(t.bpm) : '-'}</span>
-                  <span className="w-12 text-xs text-gray-400 text-right">{t.camelot_key || '-'}</span>
-                  <span className="w-14 text-xs text-gray-400 text-right">
+                  <span className="w-16 text-xs text-gray-400 text-right hidden sm:block">{t.bpm ? Math.round(t.bpm) : '-'}</span>
+                  <span className="w-12 text-xs text-gray-400 text-right hidden sm:block">{t.camelot_key || '-'}</span>
+                  <span className="w-14 text-xs text-gray-400 text-right hidden sm:block">
                     {t.energy != null ? (
                       <span className="inline-block w-full bg-gray-700 rounded-full h-1.5">
                         <span className="block bg-primary rounded-full h-1.5" style={{ width: `${Math.round(t.energy * 100)}%` }} />
@@ -356,7 +356,7 @@ export default function SessionPanel() {
         </div>
 
         {/* 🔥 风格化街舞歌单生成 */}
-        <div className="bg-surface-light rounded-xl p-5 space-y-3">
+        <div className="bg-surface-light rounded-xl p-3 sm:p-5 space-y-3">
           <h3 className="text-sm font-semibold text-white">🔥 街舞风格歌单</h3>
           <p className="text-xs text-gray-500">
             从服务器曲库筛选匹配歌曲，自动处理为指定舞种的街舞成品，生成连续练舞歌单
@@ -385,7 +385,7 @@ export default function SessionPanel() {
             </div>
 
             {/* Duration + Quality */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-start gap-3">
               <div>
                 <label className="text-[10px] text-gray-500 mb-1 block">目标时长</label>
                 <select
@@ -430,7 +430,7 @@ export default function SessionPanel() {
                     const v = e.target.value
                     setMixPlaylistId(v === '' ? '' : Number(v))
                   }}
-                  className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none min-w-[180px]"
+                  className="bg-surface text-white border border-gray-600 rounded-lg px-3 py-1.5 text-sm focus:border-primary focus:outline-none min-w-[140px] sm:min-w-[180px]"
                 >
                   <option value="">我的全部曲库</option>
                   {playlists.map(p => (
@@ -514,10 +514,10 @@ export default function SessionPanel() {
               </div>
 
               <div className="space-y-1">
-                <div className="flex items-center gap-3 text-[10px] text-gray-500 px-2">
+                <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-gray-500 px-2">
                   <span className="w-6">#</span>
                   <span className="flex-1">歌曲</span>
-                  <span className="w-14 text-right">BPM</span>
+                  <span className="w-14 text-right hidden sm:block">BPM</span>
                   <span className="w-14 text-right">状态</span>
                 </div>
                 {mixResult.playlist.map((track, i) => {
@@ -526,14 +526,14 @@ export default function SessionPanel() {
                   return (
                     <div
                       key={track.song_id}
-                      className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter transition"
+                      className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 rounded-lg hover:bg-surface-lighter transition"
                     >
                       <span className="w-6 text-xs text-gray-500">{i + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-white truncate">{track.title}</div>
                         <div className="text-[10px] text-gray-500 truncate">{track.artist}</div>
                       </div>
-                      <span className="w-14 text-xs text-gray-400 text-right">
+                      <span className="w-14 text-xs text-gray-400 text-right hidden sm:block">
                         {track.bpm ? Math.round(track.bpm) : '-'}
                       </span>
                       <span className="w-14 text-right">

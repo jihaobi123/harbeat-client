@@ -70,7 +70,7 @@ function SongRow({ song }: { song: LibrarySong }) {
   return (
     <>
       <div
-        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition group ${
+        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition group ${
           isSelected ? 'bg-primary/15' : 'hover:bg-surface-lighter'
         }`}
         onClick={() => selectSong(song)}
@@ -100,7 +100,7 @@ function SongRow({ song }: { song: LibrarySong }) {
       </div>
 
       {/* BPM */}
-      <div className="w-14 text-xs text-gray-400 text-right shrink-0">
+      <div className="w-14 text-xs text-gray-400 text-right shrink-0 hidden sm:block">
         {song.bpm ? `${Math.round(song.bpm)}` : '-'}
         {song.bpm && <span className="text-gray-600 ml-0.5">bpm</span>}
       </div>
@@ -129,8 +129,8 @@ function SongRow({ song }: { song: LibrarySong }) {
     {showMenu && (
       <div
         ref={menuRef}
-        className="fixed z-50 bg-surface border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px]"
-        style={{ left: menuPos.x, top: menuPos.y }}
+        className="fixed z-50 bg-surface border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px] max-w-[calc(100vw-1rem)]"
+        style={{ left: Math.min(menuPos.x, window.innerWidth - 200), top: Math.min(menuPos.y, window.innerHeight - 200) }}
       >
         <button
           className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/15 hover:text-red-300 transition"
@@ -196,10 +196,10 @@ export default function SongList() {
       </div>
 
       {/* Column headers */}
-      <div className="flex items-center gap-3 px-4 py-1.5 text-xs text-gray-500 border-b border-gray-700/50">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 text-xs text-gray-500 border-b border-gray-700/50">
         <div className="w-8 shrink-0" />
         <div className="flex-1">歌曲</div>
-        <div className="w-14 text-right shrink-0">BPM</div>
+        <div className="w-14 text-right shrink-0 hidden sm:block">BPM</div>
         <div className="w-12 text-right shrink-0">时长</div>
         <div className="w-20 text-right shrink-0 hidden lg:block">格式</div>
       </div>
@@ -222,7 +222,7 @@ export default function SongList() {
                   <div className="text-sm text-white truncate">{ps.title}</div>
                   <div className="text-xs text-gray-500 truncate">{ps.artist}</div>
                 </div>
-                <div className="w-14 text-xs text-gray-400 text-right shrink-0">
+                <div className="w-14 text-xs text-gray-400 text-right shrink-0 hidden sm:block">
                   {ps.bpm || '-'}
                 </div>
                 <div className="w-12 text-xs text-gray-400 text-right shrink-0">
