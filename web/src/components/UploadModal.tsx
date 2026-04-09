@@ -42,7 +42,7 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div
-        className="bg-surface-light rounded-2xl w-full max-w-lg mx-4 p-6 shadow-2xl"
+        className="bg-surface-light rounded-2xl w-full max-w-lg mx-2 sm:mx-4 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -52,7 +52,7 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
 
         {/* Drop zone */}
         <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${
+          className={`border-2 border-dashed rounded-xl p-4 sm:p-8 text-center transition cursor-pointer ${
             dragOver ? 'border-primary bg-primary/10' : 'border-gray-600 hover:border-gray-500'
           }`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}

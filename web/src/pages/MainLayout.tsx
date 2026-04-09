@@ -20,6 +20,8 @@ export default function MainLayout() {
   const [showUpload, setShowUpload] = useState(false)
   const [showPlaylistImport, setShowPlaylistImport] = useState(false)
   const [currentView, setCurrentView] = useState<NavView>('library')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
@@ -38,6 +40,11 @@ export default function MainLayout() {
       }
     }, 400)
   }, [searchSongs, loadSongs, setSearchQuery])
+
+  const handleViewChange = useCallback((view: NavView) => {
+    setCurrentView(view)
+    setSidebarOpen(false)
+  }, [])
 
   const renderMainContent = () => {
     switch (currentView) {
@@ -61,17 +68,29 @@ export default function MainLayout() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-surface overflow-hidden street-theme p-2 gap-2">
-      <header className="street-sticker min-h-16 bg-surface-light px-4 py-2 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎚️</span>
-          <div>
+    <div className="h-screen flex flex-col bg-surface overflow-hidden street-theme p-1 sm:p-2 gap-1 sm:gap-2">
+      {/* Header */}
+      <header className="street-sticker min-h-12 sm:min-h-16 bg-surface-light px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+        {/* Left: hamburger + logo */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button
+            className="md:hidden w-8 h-8 flex items-center justify-center text-lg"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            ☰
+          </button>
+          <span className="text-xl sm:text-2xl">🎚️</span>
+          <div className="hidden sm:block">
             <div className="text-2xl street-title leading-none">HarBeat</div>
             <div className="text-xs street-subtitle">street dance / dj platform</div>
           </div>
+          <div className="sm:hidden">
+            <div className="text-lg street-title leading-none">HarBeat</div>
+          </div>
         </div>
 
-        <div className="flex-1 max-w-xl">
+        {/* Center: search (desktop) */}
+        <div className="hidden sm:block flex-1 max-w-xl">
           <input
             type="text"
             placeholder="Search songs / artists"
@@ -81,27 +100,66 @@ export default function MainLayout() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right: actions */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Mobile search toggle */}
+          <button
+            className="sm:hidden w-8 h-8 flex items-center justify-center text-sm"
+            onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+          >
+            🔍
+          </button>
           <button
             onClick={() => setShowPlaylistImport(true)}
-            className="bg-surface-lighter text-sm font-semibold px-3 py-2 rounded-md"
+            className="hidden sm:block bg-surface-lighter text-sm font-semibold px-3 py-2 rounded-md"
           >
             Import Playlist
           </button>
           <button
             onClick={() => setShowUpload(true)}
-            className="bg-primary text-sm font-bold px-4 py-2 rounded-md flex items-center gap-1"
+            className="bg-primary text-xs sm:text-sm font-bold px-2 sm:px-4 py-1.5 sm:py-2 rounded-md flex items-center gap-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Upload
+            <span className="hidden sm:inline">Upload</span>
           </button>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden gap-2 min-h-0">
-        <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      {/* Mobile search bar */}
+      {mobileSearchOpen && (
+        <div className="sm:hidden px-1 shrink-0">
+          <input
+            type="text"
+            placeholder="Search songs / artists"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full px-3 py-2 text-sm"
+            autoFocus
+          />
+        </div>
+      )}
+
+      {/* Main content area */}
+      <div className="flex flex-1 overflow-hidden gap-1 sm:gap-2 min-h-0">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar: drawer on mobile, static on desktop */}
+        <div className={`
+          fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out
+          md:relative md:inset-auto md:z-auto md:w-60 md:transform-none md:transition-none
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}>
+          <Sidebar currentView={currentView} onViewChange={handleViewChange} onMobileAction={() => setSidebarOpen(false)} />
+        </div>
+
         <ErrorBoundary>
           {renderMainContent()}
         </ErrorBoundary>

@@ -90,14 +90,14 @@ export default function AudioPlayer() {
 
   if (!playingSong) {
     return (
-      <div className="min-h-20 bg-surface-light flex items-center justify-center shrink-0 street-sticker">
+      <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center justify-center shrink-0 street-sticker">
         <span className="street-subtitle text-sm">Pick a track to start.</span>
       </div>
     )
   }
 
   return (
-    <div className="min-h-20 bg-surface-light flex items-center px-4 py-2 gap-4 shrink-0 street-sticker">
+    <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center px-2 sm:px-4 py-1.5 sm:py-2 gap-2 sm:gap-4 shrink-0 street-sticker">
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
@@ -105,30 +105,32 @@ export default function AudioPlayer() {
         onEnded={() => { flushInteraction('complete'); useMusicStore.getState().togglePlay() }}
       />
 
-      <div className="w-52 shrink-0 min-w-0">
-        <div className="text-sm truncate font-semibold">{playingSong.title}</div>
-        <div className="text-xs truncate">{playingSong.artist}</div>
+      {/* Song info - compact on mobile */}
+      <div className="w-28 sm:w-52 shrink-0 min-w-0">
+        <div className="text-xs sm:text-sm truncate font-semibold">{playingSong.title}</div>
+        <div className="text-[10px] sm:text-xs truncate">{playingSong.artist}</div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center gap-1 max-w-2xl mx-auto">
+      {/* Play controls */}
+      <div className="flex-1 flex flex-col items-center gap-0.5 sm:gap-1 max-w-2xl mx-auto">
         <button
           onClick={togglePlay}
-          className="w-10 h-10 rounded-md bg-primary flex items-center justify-center"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center"
         >
           {isPlaying ? (
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
           )}
         </button>
 
-        <div className="w-full flex items-center gap-2">
-          <span className="text-xs w-10 text-right">{formatTime(currentTime)}</span>
-          <div className="flex-1 relative h-2 border-2 border-black bg-white">
+        <div className="w-full flex items-center gap-1 sm:gap-2">
+          <span className="text-[10px] sm:text-xs w-8 sm:w-10 text-right">{formatTime(currentTime)}</span>
+          <div className="flex-1 relative h-1.5 sm:h-2 border-2 border-black bg-white">
             <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress}%` }} />
             <input
               type="range"
@@ -144,11 +146,12 @@ export default function AudioPlayer() {
               className="absolute inset-0 w-full opacity-0 cursor-pointer"
             />
           </div>
-          <span className="text-xs w-10">{formatTime(duration)}</span>
+          <span className="text-[10px] sm:text-xs w-8 sm:w-10">{formatTime(duration)}</span>
         </div>
       </div>
 
-      <div className="w-36 shrink-0 flex items-center gap-2">
+      {/* Volume - hidden on mobile */}
+      <div className="hidden sm:flex w-36 shrink-0 items-center gap-2">
         <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
           <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
         </svg>

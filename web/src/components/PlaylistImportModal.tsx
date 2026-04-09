@@ -248,7 +248,7 @@ export default function PlaylistImportModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-surface-light rounded-2xl w-full max-w-[800px] mx-4 max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface-light rounded-2xl w-full max-w-[800px] mx-2 sm:mx-4 max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <div className="flex items-center gap-2">

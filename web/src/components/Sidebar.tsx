@@ -8,6 +8,7 @@ export type NavView = 'library' | 'platform' | 'recommend' | 'session' | 'profil
 interface Props {
   currentView: NavView
   onViewChange: (view: NavView) => void
+  onMobileAction?: () => void
 }
 
 const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
@@ -18,7 +19,7 @@ const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
   { id: 'profile', icon: '👤', label: 'Profile' },
 ]
 
-export default function Sidebar({ currentView, onViewChange }: Props) {
+export default function Sidebar({ currentView, onViewChange, onMobileAction }: Props) {
   const { user, doLogout } = useAuthStore()
   const { playlists, playlistsLoading, selectPlaylist, selectedPlaylist, clearSelectedPlaylist, deletePlaylist, loadSongs, loadPlaylists } = useMusicStore()
   const [creatingPlaylist, setCreatingPlaylist] = useState(false)
@@ -37,7 +38,7 @@ export default function Sidebar({ currentView, onViewChange }: Props) {
   }
 
   return (
-    <div className="w-60 bg-surface-light flex flex-col shrink-0 overflow-hidden street-sticker">
+    <div className="w-full h-full bg-surface-light flex flex-col overflow-hidden street-sticker md:rounded-[10px]">
       <nav className="p-3 space-y-2">
         {NAV_ITEMS.map(item => (
           <button
@@ -95,7 +96,7 @@ export default function Sidebar({ currentView, onViewChange }: Props) {
                 className={`group flex items-center justify-between px-3 py-2 cursor-pointer text-sm rounded-md border-2 border-black ${
                   selectedPlaylist?.id === pl.id ? 'bg-primary' : 'bg-surface-lighter'
                 }`}
-                onClick={() => { onViewChange('library'); selectPlaylist(pl.id) }}
+                onClick={() => { onViewChange('library'); selectPlaylist(pl.id); onMobileAction?.() }}
               >
                 <span className="truncate flex-1">{pl.playlist_name}</span>
                 <span className="text-xs ml-1">{pl.song_count}</span>
