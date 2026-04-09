@@ -403,3 +403,15 @@ export function getMixStreamUrl(filename: string): string {
   const token = getToken()
   return `${BASE}/api/stream/mixes/${encodeURIComponent(filename)}?token=${token || ''}`
 }
+
+export function getMixDownloadUrl(filename: string): string {
+  const token = getToken()
+  return `${BASE}/api/stream/mixes/${encodeURIComponent(filename)}?token=${token || ''}&download=true`
+}
+
+export async function deleteMixFile(filename: string): Promise<void> {
+  const token = getToken()
+  await fetch(`${BASE}/api/stream/mixes/${encodeURIComponent(filename)}?token=${token || ''}`, {
+    method: 'DELETE',
+  })
+}

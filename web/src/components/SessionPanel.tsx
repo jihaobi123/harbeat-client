@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
-import { getMixStreamUrl, getProcessedStreamUrl } from '../api/client'
+import { getMixStreamUrl, getMixDownloadUrl, deleteMixFile, getProcessedStreamUrl } from '../api/client'
 import type { PracticeTrack } from '../api/client'
 import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
 import type { DanceStyle, DjMixPlanResult, DjOfflineMixResult, QualityMode } from '../types'
@@ -216,6 +216,25 @@ export default function SessionPanel() {
       setMixResult(res.mix_plan)
       if (res.mix_plan.playlist.length === 0) {
         setOfflineError('离线渲染未生成可用轨道')
+      } else {
+        // Auto-trigger download to user's device
+        const filesToDownload = Object.entries(res.stream_files || {})
+        for (const [, filename] of filesToDownload) {
+          if (filename) {
+            const a = document.createElement('a')
+            a.href = getMixDownloadUrl(filename)
+            a.download = filename
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+          }
+        }
+        // Clean up temporary files from server after short delay for download to start
+        setTimeout(() => {
+          for (const [, filename] of filesToDownload) {
+            if (filename) deleteMixFile(filename).catch(() => {})
+          }
+        }, 30000)
       }
     } catch (e: any) {
       setOfflineError(e.message || '离线渲染失败')
@@ -599,25 +618,19 @@ export default function SessionPanel() {
                     <div className="text-[10px] text-gray-400">
                       输出时长 {Math.floor(offlineResult.duration_sec / 60)}:{String(Math.floor(offlineResult.duration_sec % 60)).padStart(2, '0')} · 采样率 {offlineResult.sample_rate} Hz · stem 规则 {offlineResult.stem_rule_events.length} 次
                     </div>
+                    <div className="text-[10px] text-emerald-400">✅ 文件已自动下载到本地，服务器临时文件将在30秒后清理</div>
                     {offlineResult.warnings.length > 0 && (
                       <div className="text-[10px] text-amber-300 border border-amber-500/30 rounded px-2 py-1">{offlineResult.warnings.join(' | ')}</div>
                     )}
                     {offlinePreviewUrl && (
                       <div className="flex items-center gap-2">
                         <audio controls preload="metadata" className="flex-1" src={offlinePreviewUrl} />
-                        <a
-                          href={offlinePreviewUrl}
-                          download
-                          className="px-2 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-[10px] text-gray-300 whitespace-nowrap"
-                        >
-                          ⬇ 下载
-                        </a>
                       </div>
                     )}
                     {offlineResult.stream_files.wav && offlineResult.stream_files.mp3 && (
                       <div className="flex gap-2 text-[10px]">
-                        <a href={getMixStreamUrl(offlineResult.stream_files.wav)} download className="text-blue-400 hover:underline">⬇ WAV</a>
-                        <a href={getMixStreamUrl(offlineResult.stream_files.mp3)} download className="text-blue-400 hover:underline">⬇ MP3</a>
+                        <a href={getMixDownloadUrl(offlineResult.stream_files.wav)} download className="text-blue-400 hover:underline">⬇ 重新下载 WAV</a>
+                        <a href={getMixDownloadUrl(offlineResult.stream_files.mp3)} download className="text-blue-400 hover:underline">⬇ 重新下载 MP3</a>
                       </div>
                     )}
                   </div>

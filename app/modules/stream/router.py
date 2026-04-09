@@ -127,6 +127,7 @@ def stream_mix(
     filename: str,
     request: Request,
     token: str | None = Query(None),
+    download: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     """Stream an offline-rendered DJ mix from data/music-files/shared/mixes/."""
@@ -145,7 +146,40 @@ def stream_mix(
     file_size = os.path.getsize(file_path)
     ext = os.path.splitext(safe_name)[1].lstrip(".").lower()
     content_type = CONTENT_TYPES.get(ext, "audio/wav")
+
+    if download:
+        return StreamingResponse(
+            _iter_file(file_path, 0, file_size - 1),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_name}"',
+                "Content-Length": str(file_size),
+            },
+        )
+
     return _range_response(file_path, file_size, content_type, request)
+
+
+@router.delete("/mixes/{filename}")
+def delete_mix(
+    filename: str,
+    request: Request,
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Delete a temporary DJ mix file after user has downloaded it."""
+    _get_user_from_request(request, db, token)
+
+    safe_name = os.path.basename(filename)
+    base_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data", "music-files", "shared", "mixes")
+    )
+    file_path = os.path.normpath(os.path.join(base_dir, safe_name))
+    if not file_path.startswith(base_dir):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid filename")
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    return {"ok": True}
 
 
 @router.get("/{song_id}")

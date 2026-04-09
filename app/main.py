@@ -17,10 +17,35 @@ from app.shared.database import Base, engine
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Clean up old DJ mix files on startup
+    _cleanup_old_mix_files()
     # Auto-analyze songs that have files but were never analyzed
     if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
         _schedule_pending_analyses()
     yield
+
+
+def _cleanup_old_mix_files(max_age_hours: int = 1):
+    """Remove DJ mix files older than max_age_hours to save disk space."""
+    import time
+    import logging
+    logger = logging.getLogger(__name__)
+    mixes_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "music-files", "shared", "mixes")
+    if not os.path.isdir(mixes_dir):
+        return
+    now = time.time()
+    cutoff = now - max_age_hours * 3600
+    removed = 0
+    for fname in os.listdir(mixes_dir):
+        fpath = os.path.join(mixes_dir, fname)
+        if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff:
+            try:
+                os.remove(fpath)
+                removed += 1
+            except OSError:
+                pass
+    if removed:
+        logger.info("[startup] Cleaned up %d old mix files from %s", removed, mixes_dir)
 
 
 def _schedule_pending_analyses():
