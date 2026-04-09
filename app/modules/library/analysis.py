@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import logging
+from collections import Counter
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
+# ── Constants ──────────────────────────────────────────────────────────────
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -18,17 +25,20 @@ NOTE_MODE_TO_CAMELOT = {
     ("A", "minor"): "8A", ("A#", "minor"): "3A", ("B", "minor"): "10A",
 }
 
-# Camelot number lookup for distance calculation
 CAMELOT_NUMBER = {v: (int(v[:-1]), v[-1]) for v in NOTE_MODE_TO_CAMELOT.values()}
 
 CUE_COLORS = ["#22c55e", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"]
 
+SECTION_COLORS = {
+    "Intro": "#22c55e", "Verse": "#3b82f6", "Chorus": "#ef4444",
+    "Bridge": "#f59e0b", "Outro": "#64748b", "Break": "#8b5cf6",
+    "Solo": "#ec4899", "Inst": "#06b6d4",
+}
+
+# ── Camelot helpers ────────────────────────────────────────────────────────
+
 
 def camelot_distance(key_a: str, key_b: str) -> int:
-    """
-    Compute the Camelot Wheel distance between two keys.
-    Returns 0 for perfect match, 1 for adjacent (harmonic), 2 for energy boost, 7+ for clash.
-    """
     if not key_a or not key_b:
         return 99
     try:
@@ -37,19 +47,17 @@ def camelot_distance(key_a: str, key_b: str) -> int:
     except (ValueError, IndexError):
         return 99
     if num_a == num_b and mode_a == mode_b:
-        return 0  # same key
+        return 0
     if num_a == num_b and mode_a != mode_b:
-        return 1  # relative major/minor
+        return 1
     if mode_a == mode_b:
         diff = min(abs(num_a - num_b), 12 - abs(num_a - num_b))
         return diff
-    # Cross-mode non-same-number
     diff = min(abs(num_a - num_b), 12 - abs(num_a - num_b))
     return diff + 1
 
 
 def camelot_score(key_a: str, key_b: str) -> int:
-    """Score 0-100 for harmonic compatibility on the Camelot Wheel."""
     d = camelot_distance(key_a, key_b)
     if d == 0:
         return 100
@@ -62,119 +70,319 @@ def camelot_score(key_a: str, key_b: str) -> int:
     return 0
 
 
-def _detect_sections(y: np.ndarray, sr: int, duration: float) -> list[dict]:
-    """Detect song sections via energy envelope transitions (port of Electron audioAnalyzer)."""
+# ── Beat / Downbeat / BPM (madmom → librosa fallback) ─────────────────────
+
+_HAS_MADMOM: bool | None = None
+
+
+def _madmom_available() -> bool:
+    global _HAS_MADMOM
+    if _HAS_MADMOM is None:
+        try:
+            import madmom  # noqa: F401
+            _HAS_MADMOM = True
+        except Exception:
+            _HAS_MADMOM = False
+            logger.info("madmom not available — beat detection will use librosa")
+    return _HAS_MADMOM
+
+
+def _detect_beats_and_downbeats(
+    file_path: str, y: np.ndarray, sr: int,
+) -> tuple[list[float], list[float], float]:
+    """Detect beats, downbeats, BPM.  Tries madmom RNN first, falls back to librosa."""
+    if _madmom_available():
+        try:
+            result = _beats_via_madmom(file_path)
+            logger.info("beat detection via madmom: BPM=%.1f, %d beats, %d downbeats",
+                        result[2], len(result[0]), len(result[1]))
+            return result
+        except Exception:
+            logger.warning("madmom beat detection failed, falling back to librosa", exc_info=True)
+    return _beats_via_librosa(y, sr)
+
+
+def _beats_via_madmom(file_path: str) -> tuple[list[float], list[float], float]:
+    from madmom.features.beats import DBNBeatTrackingProcessor, RNNBeatProcessor
+    from madmom.features.downbeats import DBNDownBeatTrackingProcessor, RNNDownBeatProcessor
+
+    beat_act = RNNBeatProcessor()(file_path)
+    beats = DBNBeatTrackingProcessor(fps=100)(beat_act)
+
+    db_act = RNNDownBeatProcessor()(file_path)
+    db_result = DBNDownBeatTrackingProcessor(beats_per_bar=[4], fps=100)(db_act)
+    downbeats = [round(float(row[0]), 3) for row in db_result if int(round(row[1])) == 1]
+
+    bpm = 60.0 / float(np.median(np.diff(beats))) if len(beats) > 1 else 120.0
+    beat_points = [round(float(t), 3) for t in beats]
+    return beat_points, downbeats, round(bpm, 1)
+
+
+def _beats_via_librosa(y: np.ndarray, sr: int) -> tuple[list[float], list[float], float]:
     import librosa
 
-    # RMS energy with 2-second windows and 1-second hop
-    hop_length = sr
-    frame_length = sr * 2
-    rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
-    sec_fps = sr / hop_length
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+    bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+    beat_points = [round(float(t), 3) for t in beat_times]
+
+    # Downbeats via onset-strength phasing (4/4 assumption)
+    if len(beat_times) < 4:
+        downbeats = [beat_points[0]] if beat_points else []
+    else:
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+        hop = 512
+        bf = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop)
+        bf = np.clip(bf, 0, len(onset_env) - 1)
+        strengths = onset_env[bf]
+        best_phase, best_score = 0, -1.0
+        for phase in range(4):
+            idx = list(range(phase, len(strengths), 4))
+            score = float(np.mean(strengths[idx])) if idx else 0.0
+            if score > best_score:
+                best_score = score
+                best_phase = phase
+        downbeats = [round(float(beat_times[i]), 3) for i in range(best_phase, len(beat_times), 4)]
+
+    return beat_points, downbeats, round(bpm, 1)
+
+
+# ── Structure detection (SSM + Checkerboard Novelty → energy fallback) ────
+
+
+def _detect_structure(y: np.ndarray, sr: int, duration: float) -> list[dict]:
+    """Detect song structure.  Primary: Self-Similarity Matrix; Fallback: energy envelope."""
+    if duration < 15:
+        return [{"time": 0, "label": "Intro", "color": SECTION_COLORS["Intro"]}]
+    try:
+        return _structure_via_ssm(y, sr, duration)
+    except Exception:
+        logger.warning("SSM structure detection failed, using energy fallback", exc_info=True)
+        return _structure_via_energy(y, sr, duration)
+
+
+def _structure_via_ssm(y: np.ndarray, sr: int, duration: float) -> list[dict]:
+    """Self-Similarity Matrix + Foote checkerboard kernel → boundaries → labels."""
+    import librosa
+    from scipy.ndimage import gaussian_filter, uniform_filter1d
+    from scipy.signal import find_peaks
+    from scipy.spatial.distance import cdist
+
+    hop = 4096
+
+    # Combined features: chroma (harmony) + MFCC (timbre)
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop)
+    feat = np.vstack([
+        librosa.util.normalize(chroma, axis=1),
+        librosa.util.normalize(mfcc, axis=1),
+    ])
+
+    n_frames = feat.shape[1]
+    if n_frames < 10:
+        return [{"time": 0, "label": "Intro", "color": SECTION_COLORS["Intro"]}]
+
+    # Self-Similarity Matrix (cosine affinity)
+    ssm = 1.0 - cdist(feat.T, feat.T, metric="cosine")
+    ssm = gaussian_filter(ssm, sigma=2.0)
+
+    # Checkerboard kernel novelty (Foote 2000)
+    ks = min(64, n_frames // 3)
+    ks = max(ks, 4)
+    ks -= ks % 2  # ensure even
+    novelty = _checkerboard_novelty(ssm, ks)
+
+    nmax = novelty.max()
+    if nmax > 1e-8:
+        novelty /= nmax
+    novelty = uniform_filter1d(novelty, size=3)
+
+    # Peak-pick segment boundaries
+    hop_time = hop / sr
+    min_dist = max(1, int(8.0 / hop_time))  # ≥ 8 s between sections
+    peaks, _ = find_peaks(novelty, height=0.10, distance=min_dist, prominence=0.04)
+
+    boundaries: list[float] = [0.0]
+    for p in peaks:
+        t = round(float(p) * hop_time, 2)
+        if 2.0 < t < duration - 2.0:
+            boundaries.append(t)
+    boundaries.append(round(duration, 2))
+
+    # Label segments via feature clustering + energy
+    labels = _label_segments(y, sr, hop, feat, boundaries, duration)
+
+    cue_points = [
+        {"time": boundaries[i], "label": lab, "color": SECTION_COLORS.get(lab, "#06b6d4")}
+        for i, lab in enumerate(labels)
+    ]
+    return cue_points or [{"time": 0, "label": "Intro", "color": SECTION_COLORS["Intro"]}]
+
+
+def _checkerboard_novelty(ssm: np.ndarray, kernel_size: int = 64) -> np.ndarray:
+    """Foote checkerboard kernel applied along the diagonal of the SSM."""
+    n = ssm.shape[0]
+    half = kernel_size // 2
+    k = np.ones((kernel_size, kernel_size))
+    k[:half, :half] = -1
+    k[half:, half:] = -1
+
+    novelty = np.zeros(n)
+    for i in range(half, n - half):
+        novelty[i] = float(np.sum(ssm[i - half:i + half, i - half:i + half] * k))
+    return np.maximum(novelty, 0)
+
+
+def _label_segments(
+    y: np.ndarray, sr: int, hop: int, feat: np.ndarray,
+    boundaries: list[float], duration: float,
+) -> list[str]:
+    """Assign musical labels (Intro/Verse/Chorus/Bridge/Outro) via cosine clustering + energy."""
+    import librosa
+    from scipy.spatial.distance import cdist
+
+    n_segs = len(boundaries) - 1
+    if n_segs <= 0:
+        return ["Intro"]
+
+    rms = librosa.feature.rms(y=y, hop_length=hop)[0]
+    seg_feats: list[np.ndarray] = []
+    seg_energies: list[float] = []
+
+    for i in range(n_segs):
+        sf = max(0, min(int(boundaries[i] * sr / hop), feat.shape[1] - 1))
+        ef = max(sf + 1, min(int(boundaries[i + 1] * sr / hop), feat.shape[1]))
+        seg_feats.append(np.mean(feat[:, sf:ef], axis=1))
+        rs, re = min(sf, len(rms) - 1), min(ef, len(rms))
+        seg_energies.append(float(np.mean(rms[rs:re])) if re > rs else 0.0)
+
+    seg_feats_arr = np.array(seg_feats)
+    seg_e = np.array(seg_energies)
+    max_e = seg_e.max() if seg_e.max() > 1e-8 else 1.0
+    norm_e = seg_e / max_e
+
+    # Greedy cosine clustering
+    if n_segs > 1:
+        d = cdist(seg_feats_arr, seg_feats_arr, metric="cosine")
+        cids = [-1] * n_segs
+        nc = 0
+        for i in range(n_segs):
+            if cids[i] >= 0:
+                continue
+            cids[i] = nc
+            for j in range(i + 1, n_segs):
+                if cids[j] < 0 and d[i][j] < 0.35:
+                    cids[j] = nc
+            nc += 1
+    else:
+        cids = [0]
+
+    # Cluster statistics
+    counts = Counter(cids)
+    c_energy: dict[int, list[float]] = {}
+    for i, c in enumerate(cids):
+        c_energy.setdefault(c, []).append(norm_e[i])
+    avg_e = {k: float(np.mean(v)) for k, v in c_energy.items()}
+
+    # Map clusters → musical labels (most repeated high-energy = Chorus, etc.)
+    sorted_c = sorted(avg_e, key=lambda c: (-counts[c], -avg_e[c]))
+    c_label: dict[int, str] = {}
+    used: set[str] = set()
+    for c in sorted_c:
+        if counts[c] >= 2 and avg_e[c] >= 0.55 and "Chorus" not in used:
+            c_label[c] = "Chorus"
+            used.add("Chorus")
+        elif counts[c] >= 2 and "Verse" not in used:
+            c_label[c] = "Verse"
+            used.add("Verse")
+        elif counts[c] >= 2:
+            c_label[c] = "Bridge"
+        elif avg_e[c] >= 0.5:
+            c_label[c] = "Bridge"
+        else:
+            c_label[c] = "Break"
+
+    # Position-based overrides for first / last segment
+    labels: list[str] = []
+    for i in range(n_segs):
+        if i == 0 and (norm_e[i] < 0.5 or boundaries[i] / duration < 0.03):
+            labels.append("Intro")
+        elif i == n_segs - 1 and (norm_e[i] < 0.5 or boundaries[i] / duration > 0.8):
+            labels.append("Outro")
+        else:
+            labels.append(c_label.get(cids[i], "Verse"))
+    return labels
+
+
+def _structure_via_energy(y: np.ndarray, sr: int, duration: float) -> list[dict]:
+    """Fallback: energy-envelope heuristic (original method)."""
+    import librosa
+
+    rms = librosa.feature.rms(y=y, frame_length=sr * 2, hop_length=sr)[0]
+    sec_fps = 1.0
 
     if len(rms) < 4:
         return [{"time": 0, "label": "Intro", "color": "#22c55e"}]
 
-    # Smooth energy contour (moving average ~4s)
     smooth_win = max(1, round(sec_fps * 4))
     smoothed = np.convolve(rms, np.ones(smooth_win) / smooth_win, mode="same")
-
-    # Derivative (rate of change)
     deriv = np.diff(smoothed, prepend=smoothed[0])
 
-    # Find significant transitions
     mean_abs = float(np.mean(np.abs(deriv))) + 1e-9
-    transitions = []
+    transitions: list[dict] = []
     for i in range(2, len(deriv) - 1):
-        abs_der = abs(deriv[i])
-        if abs_der > mean_abs * 2.5:
-            t = i / sec_fps
+        if abs(deriv[i]) > mean_abs * 2.5:
+            t = float(i / sec_fps)
             if not transitions or t - transitions[-1]["time"] > 3:
-                transitions.append({"time": t, "strength": abs_der, "rising": deriv[i] > 0})
+                transitions.append({"time": t, "strength": abs(deriv[i]), "rising": deriv[i] > 0})
 
     transitions.sort(key=lambda x: -x["strength"])
     top = sorted(transitions[:8], key=lambda x: x["time"])
 
     cue_points: list[dict] = [{"time": 0, "label": "Intro", "color": "#22c55e"}]
-
     for t in top:
         if t["time"] < 3 or t["time"] > duration - 3:
             continue
-        rel_pos = t["time"] / duration
-        if rel_pos < 0.12:
-            label, color = "Verse", "#3b82f6"
-        elif t["rising"] and rel_pos < 0.5:
-            label, color = "Chorus", "#ef4444"
-        elif not t["rising"] and rel_pos < 0.5:
-            label, color = "Verse", "#3b82f6"
+        rp = t["time"] / duration
+        if rp < 0.12:
+            lab, col = "Verse", "#3b82f6"
+        elif t["rising"] and rp < 0.5:
+            lab, col = "Chorus", "#ef4444"
+        elif not t["rising"] and rp < 0.5:
+            lab, col = "Verse", "#3b82f6"
         elif t["rising"]:
-            label, color = "Chorus", "#ef4444"
-        elif rel_pos > 0.8:
-            label, color = "Outro", "#64748b"
+            lab, col = "Chorus", "#ef4444"
+        elif rp > 0.8:
+            lab, col = "Outro", "#64748b"
         else:
-            label, color = "Bridge", "#f59e0b"
-        cue_points.append({"time": round(t["time"], 2), "label": label, "color": color})
+            lab, col = "Bridge", "#f59e0b"
+        cue_points.append({"time": round(t["time"], 2), "label": lab, "color": col})
 
-    # Ensure Outro marker
     if duration > 30 and not any(c["label"] == "Outro" for c in cue_points):
-        outro_cand = [t for t in transitions if not t["rising"] and t["time"] > duration * 0.7]
-        outro_time = outro_cand[0]["time"] if outro_cand else duration - 15
-        cue_points.append({"time": round(outro_time, 2), "label": "Outro", "color": "#64748b"})
+        oc = [t for t in transitions if not t["rising"] and t["time"] > duration * 0.7]
+        ot = oc[0]["time"] if oc else duration - 15
+        cue_points.append({"time": round(ot, 2), "label": "Outro", "color": "#64748b"})
 
     return cue_points
 
 
-def _detect_downbeats(y: np.ndarray, sr: int, beat_times: np.ndarray) -> list[float]:
-    """
-    Detect downbeats (bar boundaries) by finding beat positions
-    with strongest onset energy, assuming 4/4 time signature.
-    """
-    import librosa
-
-    if len(beat_times) < 4:
-        return [round(float(beat_times[0]), 3)] if len(beat_times) > 0 else []
-
-    # Compute onset strength at each beat position
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    hop = 512
-    beat_frames = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop)
-    beat_frames = np.clip(beat_frames, 0, len(onset_env) - 1)
-    beat_strengths = onset_env[beat_frames]
-
-    # Find the phase offset (0-3) that maximizes total onset energy at downbeats
-    best_phase = 0
-    best_score = -1.0
-    for phase in range(4):
-        indices = list(range(phase, len(beat_strengths), 4))
-        score = float(np.mean(beat_strengths[indices])) if indices else 0.0
-        if score > best_score:
-            best_score = score
-            best_phase = phase
-
-    downbeats = [round(float(beat_times[i]), 3) for i in range(best_phase, len(beat_times), 4)]
-    return downbeats
+# ── Phrase structure (8-bar energy labeling) ───────────────────────────────
 
 
 def _detect_phrase_structure(
-    y: np.ndarray, sr: int, duration: float, downbeat_times: list[float]
+    y: np.ndarray, sr: int, duration: float, downbeat_times: list[float],
 ) -> list[dict]:
-    """
-    Build a phrase structure map by analyzing energy over 8-bar phrases.
-    Labels: intro, buildup, drop, breakdown, outro.
-    """
     import librosa
 
     if len(downbeat_times) < 4:
         return [{"start": 0, "end": duration, "label": "intro", "bars": 0}]
 
-    # Compute RMS energy at each downbeat
     hop = 512
     rms = librosa.feature.rms(y=y, hop_length=hop)[0]
     db_frames = librosa.time_to_frames(downbeat_times, sr=sr, hop_length=hop)
     db_frames = np.clip(db_frames, 0, len(rms) - 1)
 
-    # Group into 8-bar phrases
-    phrase_size = 8  # bars per phrase
+    phrase_size = 8
     phrases: list[dict] = []
     i = 0
     while i < len(downbeat_times):
@@ -182,7 +390,6 @@ def _detect_phrase_structure(
         start_t = downbeat_times[i]
         end_t = downbeat_times[end_i - 1] if end_i < len(downbeat_times) else duration
 
-        # Average energy in this phrase
         frame_start = db_frames[i]
         frame_end = db_frames[min(end_i, len(db_frames) - 1)]
         if frame_end > frame_start:
@@ -201,12 +408,10 @@ def _detect_phrase_structure(
     if not phrases:
         return [{"start": 0, "end": duration, "label": "intro", "bars": 0}]
 
-    # Normalize energies
     energies = np.array([p["energy"] for p in phrases])
     max_e = float(energies.max()) if energies.max() > 1e-8 else 1.0
     norm_energies = energies / max_e
 
-    # Label phrases based on energy profile and position
     total = len(phrases)
     for idx, p in enumerate(phrases):
         ne = norm_energies[idx]
@@ -225,26 +430,23 @@ def _detect_phrase_structure(
         else:
             p["label"] = "verse"
 
-        del p["energy"]  # don't store raw energy in structure
+        del p["energy"]
 
     return phrases
 
 
+# ── Main entry point ───────────────────────────────────────────────────────
+
+
 def analyze_audio_file(file_path: str) -> dict:
-    """Full analysis: BPM, beat points, downbeats, key, camelot key, energy, cue points, phrase map, duration."""
+    """Full analysis: BPM, beats, downbeats, key, energy, structure, phrases."""
     import librosa
 
     y, sr = librosa.load(file_path, sr=22050)
     duration = float(librosa.get_duration(y=y, sr=sr))
 
-    # BPM + beat points
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
-    beat_points = [round(float(t), 3) for t in beat_times]
-
-    # Downbeats (bar boundaries, 4/4 time)
-    downbeats = _detect_downbeats(y, sr, beat_times)
+    # Beats + downbeats + BPM  (madmom RNN → librosa fallback)
+    beat_points, downbeats, bpm = _detect_beats_and_downbeats(file_path, y, sr)
 
     # Energy
     rms = librosa.feature.rms(y=y)[0]
@@ -269,11 +471,10 @@ def analyze_audio_file(file_path: str) -> dict:
                     best_score = score
                     root_note, mode = note, m
         camelot_key = NOTE_MODE_TO_CAMELOT[(root_note, mode)]
-        # Confidence: how well the best template matches (cosine similarity, 0-1)
         key_confidence = round(max(0, min(1, best_score)), 3)
 
-    # Section detection → cue points
-    cue_points = _detect_sections(y, sr, duration)
+    # Structure detection (SSM novelty → energy fallback)
+    cue_points = _detect_structure(y, sr, duration)
 
     # Phrase structure (8-bar segments with labels)
     phrase_map = _detect_phrase_structure(y, sr, duration, downbeats)
