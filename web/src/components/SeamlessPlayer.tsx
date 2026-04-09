@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import type { DjTransitionPlanItem } from '../types'
 import { getProcessedStreamUrl } from '../api/client'
+
+// Superpowered main-thread imports
+import { SuperpoweredGlue, SuperpoweredWebAudio } from '@superpoweredsdk/web'
 
 export interface SeamlessTrack {
   songId: number
@@ -19,37 +22,11 @@ interface Props {
   onEnd?: () => void
 }
 
-interface DeckNodes {
-  source: MediaElementAudioSourceNode
-  highpass: BiquadFilterNode
-  lowpass: BiquadFilterNode
-  eqLow: BiquadFilterNode
-  eqMid: BiquadFilterNode
-  eqHigh: BiquadFilterNode
-  fxGain: GainNode
-  gain: GainNode
-}
-
 function fmt(sec: number): string {
   if (!sec || sec < 0) return '0:00'
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function dbToGain(db: number): number {
-  return Math.pow(10, db / 20)
-}
-
-function setPitchLock(audio: HTMLAudioElement, enabled: boolean) {
-  const media = audio as HTMLAudioElement & {
-    preservesPitch?: boolean
-    mozPreservesPitch?: boolean
-    webkitPreservesPitch?: boolean
-  }
-  media.preservesPitch = enabled
-  media.mozPreservesPitch = enabled
-  media.webkitPreservesPitch = enabled
 }
 
 function modPositive(x: number, m: number): number {
@@ -58,19 +35,12 @@ function modPositive(x: number, m: number): number {
   return r < 0 ? r + m : r
 }
 
-function mediaDuration(audio: HTMLAudioElement | null, fallback = 0): number {
-  if (!audio) return fallback
-  if (isFinite(audio.duration) && audio.duration > 0) return audio.duration
-  try {
-    if (audio.seekable.length > 0) {
-      const end = audio.seekable.end(audio.seekable.length - 1)
-      if (isFinite(end) && end > 0) return end
-    }
-  } catch {
-    // ignore
-  }
-  return fallback
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpWebAudioManager = any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpNode = any
+
+/* ─── Superpowered DJ Player ─── */
 
 export default function SeamlessPlayer({
   tracks,
@@ -90,625 +60,429 @@ export default function SeamlessPlayer({
   const [seeking, setSeeking] = useState(false)
   const [seekValue, setSeekValue] = useState(0)
   const [nextMixInSec, setNextMixInSec] = useState<number | null>(null)
+  const [spReady, setSpReady] = useState(false)
 
-  const audioA = useRef<HTMLAudioElement | null>(null)
-  const audioB = useRef<HTMLAudioElement | null>(null)
-  const ctxRef = useRef<AudioContext | null>(null)
-  const nodesA = useRef<DeckNodes | null>(null)
-  const nodesB = useRef<DeckNodes | null>(null)
-  const tickFnRef = useRef<() => void>(() => {})
-  const seekingRef = useRef(false)
-  seekingRef.current = seeking
-
-  const st = useRef({
-    slot: 'A' as 'A' | 'B',
+  const engineRef = useRef<{
+    webaudioManager: SpWebAudioManager | null
+    processorNode: SpNode | null
+    alive: boolean
+    slot: 'A' | 'B'
+    idx: number
+    fading: boolean
+    playing: boolean
+    transitionStartMs: number
+    transitionDurationMs: number
+    transitionTimer: ReturnType<typeof setTimeout> | 0
+    preloadedNextIdx: number
+    lastPosA: number
+    lastDurA: number
+    lastPosB: number
+    lastDurB: number
+  }>({
+    webaudioManager: null,
+    processorNode: null,
+    alive: false,
+    slot: 'A',
     idx: 0,
     fading: false,
     playing: false,
-    alive: false,
-    raf: 0,
-    transitionStartSec: 0,
-    transitionDurationSec: 0,
-    transitionTimer: 0 as ReturnType<typeof window.setTimeout> | 0,
+    transitionStartMs: 0,
+    transitionDurationMs: 0,
+    transitionTimer: 0,
     preloadedNextIdx: -1,
+    lastPosA: 0,
+    lastDurA: 0,
+    lastPosB: 0,
+    lastDurB: 0,
   })
+  const tracksRef = useRef(tracks)
+  tracksRef.current = tracks
+  const onEndRef = useRef(onEnd)
+  onEndRef.current = onEnd
+  const seekingRef = useRef(false)
+  seekingRef.current = seeking
+  const crossfadeAmountRef = useRef(crossfadeAmount)
+  crossfadeAmountRef.current = crossfadeAmount
+  const tempoSyncRef = useRef(tempoSync)
+  tempoSyncRef.current = tempoSync
+  const keyLockRef = useRef(keyLock)
+  keyLockRef.current = keyLock
+  const crossfadeSecRef = useRef(crossfadeSec)
+  crossfadeSecRef.current = crossfadeSec
 
-  const tracksR = useRef(tracks)
-  tracksR.current = tracks
-  const onEndR = useRef(onEnd)
-  onEndR.current = onEnd
-
-  const transitionByIndex = useMemo(() => {
+  const transitionByIndex = useRef(new Map<number, DjTransitionPlanItem>())
+  useEffect(() => {
     const map = new Map<number, DjTransitionPlanItem>()
-    transitionPlan?.forEach((item, i) => {
-      map.set(i, item)
-    })
-    return map
+    transitionPlan?.forEach((item, i) => map.set(i, item))
+    transitionByIndex.current = map
   }, [transitionPlan])
 
-  const ac = () => (st.current.slot === 'A' ? audioA.current : audioB.current)
-  const nx = () => (st.current.slot === 'A' ? audioB.current : audioA.current)
-  const acNodes = () => (st.current.slot === 'A' ? nodesA.current : nodesB.current)
-  const nxNodes = () => (st.current.slot === 'A' ? nodesB.current : nodesA.current)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sendToAudio = (msg: Record<string, any>) => {
+    const node = engineRef.current.processorNode
+    if (node?.sendMessageToAudioScope) {
+      node.sendMessageToAudioScope(msg)
+    }
+  }
+  const getNextDeck = () => (engineRef.current.slot === 'A' ? 'B' : 'A')
+
   const clearTransitionTimer = () => {
-    const timer = st.current.transitionTimer
-    if (timer) {
-      window.clearTimeout(timer)
-      st.current.transitionTimer = 0
-    }
-  }
-  const getDisplayDeck = () => {
-    const active = ac()
-    if (!active) return null
-    if (!st.current.fading) return active
-    const incoming = nx()
-    if (!incoming) return active
-    const xf = Math.max(0.001, st.current.transitionDurationSec || 0.001)
-    const progress = Math.max(0, Math.min(1, (active.currentTime - st.current.transitionStartSec) / xf))
-    return progress >= 0.5 ? incoming : active
-  }
-  const getTrackDuration = (track: SeamlessTrack | undefined): number =>
-    track?.duration && isFinite(track.duration) && track.duration > 0 ? track.duration : 0
-
-  const ensureAudioContext = () => {
-    if (!ctxRef.current) {
-      const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!Ctx) return null
-      ctxRef.current = new Ctx()
-    }
-    return ctxRef.current
+    const timer = engineRef.current.transitionTimer
+    if (timer) { clearTimeout(timer); engineRef.current.transitionTimer = 0 }
   }
 
-  const connectDeck = (ctx: AudioContext, audio: HTMLAudioElement): DeckNodes => {
-    const source = ctx.createMediaElementSource(audio)
-    const highpass = ctx.createBiquadFilter()
-    highpass.type = 'highpass'
-    highpass.frequency.value = 30
-
-    const lowpass = ctx.createBiquadFilter()
-    lowpass.type = 'lowpass'
-    lowpass.frequency.value = 18000
-
-    const eqLow = ctx.createBiquadFilter()
-    eqLow.type = 'lowshelf'
-    eqLow.frequency.value = 180
-    eqLow.gain.value = 0
-
-    const eqMid = ctx.createBiquadFilter()
-    eqMid.type = 'peaking'
-    eqMid.frequency.value = 1200
-    eqMid.Q.value = 1
-    eqMid.gain.value = 0
-
-    const eqHigh = ctx.createBiquadFilter()
-    eqHigh.type = 'highshelf'
-    eqHigh.frequency.value = 6000
-    eqHigh.gain.value = 0
-
-    const fxGain = ctx.createGain()
-    fxGain.gain.value = 1
-    const gain = ctx.createGain()
-    gain.gain.value = 1
-
-    source.connect(highpass)
-    highpass.connect(lowpass)
-    lowpass.connect(eqLow)
-    eqLow.connect(eqMid)
-    eqMid.connect(eqHigh)
-    eqHigh.connect(fxGain)
-    fxGain.connect(gain)
-    gain.connect(ctx.destination)
-
-    return { source, highpass, lowpass, eqLow, eqMid, eqHigh, fxGain, gain }
+  const getActivePos = () => {
+    const e = engineRef.current
+    return e.slot === 'A' ? e.lastPosA : e.lastPosB
+  }
+  const getActiveDur = () => {
+    const e = engineRef.current
+    return e.slot === 'A' ? e.lastDurA : e.lastDurB
+  }
+  const getDisplayPos = () => {
+    const e = engineRef.current
+    if (!e.fading) return getActivePos()
+    const xfDurMs = e.transitionDurationMs || 1
+    const progress = Math.max(0, Math.min(1, (getActivePos() - e.transitionStartMs) / xfDurMs))
+    return progress >= 0.5
+      ? (e.slot === 'A' ? e.lastPosB : e.lastPosA)
+      : getActivePos()
+  }
+  const getDisplayDur = () => {
+    const e = engineRef.current
+    if (!e.fading) return getActiveDur()
+    const xfDurMs = e.transitionDurationMs || 1
+    const progress = Math.max(0, Math.min(1, (getActivePos() - e.transitionStartMs) / xfDurMs))
+    return progress >= 0.5
+      ? (e.slot === 'A' ? e.lastDurB : e.lastDurA)
+      : getActiveDur()
   }
 
-  const resetDeckNodes = (nodes: DeckNodes | null, at: number, gain = 1) => {
-    if (!nodes) return
-    nodes.gain.gain.cancelScheduledValues(at)
-    nodes.gain.gain.setValueAtTime(gain, at)
-
-    nodes.fxGain.gain.cancelScheduledValues(at)
-    nodes.fxGain.gain.setValueAtTime(1, at)
-
-    nodes.lowpass.frequency.cancelScheduledValues(at)
-    nodes.lowpass.frequency.setValueAtTime(18000, at)
-
-    nodes.highpass.frequency.cancelScheduledValues(at)
-    nodes.highpass.frequency.setValueAtTime(30, at)
-
-    nodes.eqLow.gain.cancelScheduledValues(at)
-    nodes.eqLow.gain.setValueAtTime(0, at)
-
-    nodes.eqMid.gain.cancelScheduledValues(at)
-    nodes.eqMid.gain.setValueAtTime(0, at)
-
-    nodes.eqHigh.gain.cancelScheduledValues(at)
-    nodes.eqHigh.gain.setValueAtTime(0, at)
-  }
-
-  const scheduleTransitionAutomation = (fromNodes: DeckNodes, toNodes: DeckNodes, plan: DjTransitionPlanItem | undefined, xfSec: number) => {
-    const ctx = ensureAudioContext()
-    if (!ctx) return
-    const now = ctx.currentTime
-
-    resetDeckNodes(fromNodes, now, 1)
-    resetDeckNodes(toNodes, now, 0.0001)
-
-    fromNodes.gain.gain.linearRampToValueAtTime(0.0001, now + xfSec)
-    toNodes.gain.gain.linearRampToValueAtTime(1.0, now + xfSec)
-
-    if (!plan || !plan.fx_automation.length) {
-      return
-    }
-
-    for (const point of plan.fx_automation) {
-      const t = now + Math.max(0, Math.min(xfSec, point.time_sec))
-      const targetNodes = point.target === 'from' ? fromNodes : toNodes
-      targetNodes.fxGain.gain.linearRampToValueAtTime(dbToGain(point.gain_db), t)
-      targetNodes.lowpass.frequency.linearRampToValueAtTime(point.lowpass_hz, t)
-      targetNodes.highpass.frequency.linearRampToValueAtTime(point.highpass_hz, t)
-      targetNodes.eqLow.gain.linearRampToValueAtTime(point.eq_low_db, t)
-      targetNodes.eqMid.gain.linearRampToValueAtTime(point.eq_mid_db, t)
-      targetNodes.eqHigh.gain.linearRampToValueAtTime(point.eq_high_db, t)
-    }
-  }
-
-  useEffect(() => {
-    const r = st.current
-    r.alive = true
-    r.slot = 'A'
-    r.idx = 0
-    r.fading = false
-    r.playing = false
-    r.transitionStartSec = 0
-    r.transitionDurationSec = 0
-    r.transitionTimer = 0
-    r.preloadedNextIdx = -1
-
-    setIdx(0)
-    setTime(0)
-    setSeekValue(0)
-    setDur(0)
+  const completeTransition = () => {
+    const e = engineRef.current
+    if (!e.alive) return
+    clearTransitionTimer()
+    sendToAudio({ type: 'pause', deck: e.slot })
+    e.slot = e.slot === 'A' ? 'B' : 'A'
+    e.fading = false
+    e.idx += 1
+    e.transitionStartMs = 0
+    e.transitionDurationMs = 0
+    e.preloadedNextIdx = -1
+    sendToAudio({ type: 'setGain', deck: e.slot, value: 1.0 })
+    sendToAudio({ type: 'setGain', deck: e.slot === 'A' ? 'B' : 'A', value: 0.0 })
+    sendToAudio({ type: 'setActiveDeck', deck: e.slot })
+    sendToAudio({ type: 'setEq', deck: 'A', low: 1, mid: 1, high: 1 })
+    sendToAudio({ type: 'setEq', deck: 'B', low: 1, mid: 1, high: 1 })
+    sendToAudio({ type: 'setFilter', deck: 'A', lowpassHz: 20000, highpassHz: 20 })
+    sendToAudio({ type: 'setFilter', deck: 'B', lowpassHz: 20000, highpassHz: 20 })
     setFading(false)
-    setPlaying(false)
-    setSeeking(false)
+    setNextMixInSec(null)
+    setIdx(e.idx)
+  }
+
+  const primeNextTrack = (nextTrack: SeamlessTrack | undefined, nextIndex: number) => {
+    const e = engineRef.current
+    if (!nextTrack || e.fading || nextIndex < 0) return
+    if (e.preloadedNextIdx === nextIndex) return
+    const nextDeck = getNextDeck()
+    sendToAudio({ type: 'loadTrack', deck: nextDeck, url: getProcessedStreamUrl(nextTrack.filePath) })
+    e.preloadedNextIdx = nextIndex
+  }
+
+  const getTransitionTriggerMs = (activeTrack: SeamlessTrack | undefined, nextTrack: SeamlessTrack | undefined): number | null => {
+    const e = engineRef.current
+    if (!activeTrack || !nextTrack) return null
+    const plan = transitionByIndex.current.get(e.idx)
+    const base = Math.max(1, plan?.crossfade_sec ?? crossfadeSecRef.current)
+    const xfSec = Math.min(20, Math.max(1, base * crossfadeAmountRef.current))
+    const activeDurMs = getActiveDur()
+    const earlyMs = activeDurMs > 0 ? Math.max(0, activeDurMs - Math.max(xfSec, 12) * 1000) : null
+    if (plan) {
+      const exitMs = typeof plan.exit_time_sec === 'number' && plan.exit_time_sec > 0
+        ? plan.exit_time_sec * 1000
+        : (activeTrack.bpm && activeTrack.bpm > 0 ? (plan.exit_beat * 60 / activeTrack.bpm) * 1000 : undefined)
+      if (exitMs != null) {
+        const trigger = Math.max(0, exitMs - xfSec * 1000)
+        return earlyMs != null ? Math.min(trigger, earlyMs) : trigger
+      }
+    }
+    return activeDurMs > 0 ? Math.max(0, activeDurMs - Math.max(xfSec, 12) * 1000) : null
+  }
+
+  const tryTriggerTransition = () => {
+    const e = engineRef.current
+    if (e.fading || !e.playing || !e.alive) return
+    const currentTrack = tracksRef.current[e.idx]
+    const nextTrack = tracksRef.current[e.idx + 1]
+    if (!currentTrack || !nextTrack) return
+
+    const plan = transitionByIndex.current.get(e.idx)
+    const base = Math.max(1, plan?.crossfade_sec ?? crossfadeSecRef.current)
+    const xfSec = Math.min(20, Math.max(1, base * crossfadeAmountRef.current))
+    const xfMs = xfSec * 1000
+    const activePosMs = getActivePos()
+    const activeDurMs = getActiveDur()
+    const leftMs = activeDurMs > 0 ? activeDurMs - activePosMs : Infinity
+
+    const triggerMs = getTransitionTriggerMs(currentTrack, nextTrack)
+    let shouldStart = triggerMs != null ? activePosMs >= triggerMs : (activeDurMs > 0 ? leftMs <= xfMs : false)
+    if (activeDurMs > 0 && activePosMs >= Math.max(0, activeDurMs - 350)) shouldStart = true
+    if (!shouldStart || (activeDurMs > 0 && leftMs <= 50)) return
+
+    e.fading = true
+    e.transitionStartMs = activePosMs
+    e.transitionDurationMs = xfMs
+    e.preloadedNextIdx = -1
+    setFading(true)
     setNextMixInSec(null)
 
-    const a = new Audio()
-    const b = new Audio()
-    a.preload = 'auto'
-    b.preload = 'auto'
-    audioA.current = a
-    audioB.current = b
+    const nextDeck = getNextDeck()
+    sendToAudio({ type: 'loadTrack', deck: nextDeck, url: getProcessedStreamUrl(nextTrack.filePath) })
 
-    const ctx = ensureAudioContext()
-    if (ctx) {
-      nodesA.current = connectDeck(ctx, a)
-      nodesB.current = connectDeck(ctx, b)
-      resetDeckNodes(nodesA.current, ctx.currentTime, 1)
-      resetDeckNodes(nodesB.current, ctx.currentTime, 0.0001)
+    const tempoRatio = tempoSyncRef.current && plan && plan.tempo_ratio > 0 ? plan.tempo_ratio : 1
+    sendToAudio({ type: 'setPlaybackRate', deck: nextDeck, value: tempoRatio })
+    sendToAudio({ type: 'setTimeStretching', deck: nextDeck, enabled: keyLockRef.current })
+
+    if (plan) {
+      const entryMs = typeof plan.entry_time_sec === 'number' ? plan.entry_time_sec * 1000 : 0
+      const fromInterval = typeof plan.from_beat_interval_sec === 'number' && plan.from_beat_interval_sec > 0
+        ? plan.from_beat_interval_sec * 1000
+        : (currentTrack.bpm && currentTrack.bpm > 0 ? 60000 / currentTrack.bpm : 500)
+      const toIntervalBase = typeof plan.to_beat_interval_sec === 'number' && plan.to_beat_interval_sec > 0
+        ? plan.to_beat_interval_sec * 1000
+        : (nextTrack.bpm && nextTrack.bpm > 0 ? 60000 / nextTrack.bpm : 500)
+      const toInterval = toIntervalBase / Math.max(tempoRatio, 1e-6)
+      const anchorMs = typeof plan.phase_anchor_sec === 'number' ? plan.phase_anchor_sec * 1000 : Math.max(0, activePosMs)
+      const phaseFromMs = modPositive(activePosMs - anchorMs, fromInterval)
+      const phaseFraction = fromInterval > 0 ? phaseFromMs / fromInterval : 0
+      const entryOffset = phaseFraction * toInterval
+      sendToAudio({ type: 'setPosition', deck: nextDeck, ms: Math.max(0, entryMs + entryOffset) })
+    } else {
+      sendToAudio({ type: 'setPosition', deck: nextDeck, ms: 0 })
     }
 
-    function completeTransition() {
-      clearTransitionTimer()
-      const out = ac()
-      const incoming = nx()
-      if (out) {
-        out.pause()
-        out.src = ''
+    sendToAudio({ type: 'play', deck: nextDeck })
+
+    // Crossfade + automation
+    const startTime = performance.now()
+    if (plan && plan.fx_automation.length > 0) {
+      const sorted = [...plan.fx_automation].sort((a, b) => a.time_sec - b.time_sec)
+      let pi = 0
+      const automationTick = () => {
+        if (!e.alive || !e.fading) return
+        const elapsed = (performance.now() - startTime) / 1000
+        while (pi < sorted.length && sorted[pi].time_sec <= elapsed) {
+          sendToAudio({ type: 'transitionAutomation', point: sorted[pi] })
+          pi++
+        }
+        const progress = Math.max(0, Math.min(1, elapsed / xfSec))
+        sendToAudio({ type: 'setGain', deck: e.slot, value: Math.cos(progress * Math.PI * 0.5) })
+        sendToAudio({ type: 'setGain', deck: nextDeck, value: Math.sin(progress * Math.PI * 0.5) })
+        if (pi < sorted.length || progress < 1) requestAnimationFrame(automationTick)
       }
-      r.slot = r.slot === 'A' ? 'B' : 'A'
-      r.fading = false
-      setFading(false)
+      requestAnimationFrame(automationTick)
+    } else {
+      const fadeTick = () => {
+        if (!e.alive || !e.fading) return
+        const progress = Math.max(0, Math.min(1, (performance.now() - startTime) / 1000 / xfSec))
+        sendToAudio({ type: 'setGain', deck: e.slot, value: Math.cos(progress * Math.PI * 0.5) })
+        sendToAudio({ type: 'setGain', deck: nextDeck, value: Math.sin(progress * Math.PI * 0.5) })
+        if (progress < 1) requestAnimationFrame(fadeTick)
+      }
+      requestAnimationFrame(fadeTick)
+    }
+
+    clearTransitionTimer()
+    e.transitionTimer = setTimeout(() => {
+      if (!e.alive || !e.fading) return
+      completeTransition()
+    }, Math.max(120, xfMs + 80))
+  }
+
+  const handleEof = (deck: 'A' | 'B') => {
+    const e = engineRef.current
+    if (!e.alive || deck !== e.slot) return
+    if (e.fading) { completeTransition(); return }
+    const ni = e.idx + 1
+    if (ni < tracksRef.current.length) {
+      e.idx = ni
+      e.preloadedNextIdx = -1
       setNextMixInSec(null)
-      r.idx += 1
-      setIdx(r.idx)
-      r.transitionStartSec = 0
-      r.transitionDurationSec = 0
-
-      const ctxNow = ctxRef.current?.currentTime
-      if (ctxNow != null) {
-        resetDeckNodes(acNodes(), ctxNow, 1)
-        resetDeckNodes(nxNodes(), ctxNow, 0.0001)
-      }
-
-      if (incoming && isFinite(incoming.duration) && incoming.duration > 0) {
-        setTime(incoming.currentTime)
-        setSeekValue(incoming.currentTime)
-        setDur(incoming.duration)
-      }
-      r.preloadedNextIdx = -1
-    }
-
-    function primeNextTrack(nextTrack: SeamlessTrack | undefined, nextIndex: number) {
-      if (!nextTrack || r.fading || nextIndex < 0) return
-      if (r.preloadedNextIdx === nextIndex) return
-      const nextDeck = nx()
-      if (!nextDeck) return
-      const nextSrc = getProcessedStreamUrl(nextTrack.filePath)
-      if (nextDeck.getAttribute('src') !== nextSrc) {
-        nextDeck.src = nextSrc
-        nextDeck.preload = 'auto'
-        nextDeck.load()
-      }
-      r.preloadedNextIdx = nextIndex
-    }
-
-    function getTransitionTriggerSec(
-      active: HTMLAudioElement,
-      activeTrack: SeamlessTrack | undefined,
-      nextTrack: SeamlessTrack | undefined,
-    ): number | null {
-      if (!activeTrack || !nextTrack) return null
-      const plan = transitionByIndex.get(r.idx)
-      const base = Math.max(1, plan?.crossfade_sec ?? crossfadeSec)
-      const xf = Math.min(20, Math.max(1, base * crossfadeAmount))
-      const activeDuration = mediaDuration(active, getTrackDuration(activeTrack))
-      const earlyFallback = activeDuration > 0 ? Math.max(0, activeDuration - Math.max(xf, 12)) : null
-
-      if (plan) {
-        const plannedExitSec = typeof plan.exit_time_sec === 'number' && plan.exit_time_sec > 0
-          ? plan.exit_time_sec
-          : (activeTrack.bpm && activeTrack.bpm > 0 ? (plan.exit_beat * 60) / activeTrack.bpm : undefined)
-        if (plannedExitSec != null) {
-          const plannedTrigger = Math.max(0, plannedExitSec - xf)
-          return earlyFallback != null ? Math.min(plannedTrigger, earlyFallback) : plannedTrigger
-        }
-      }
-
-      if (activeDuration > 0) {
-        return Math.max(0, activeDuration - Math.max(xf, 12))
-      }
-      return null
-    }
-
-    function getTransitionCountdown(
-      active: HTMLAudioElement,
-      activeTrack: SeamlessTrack | undefined,
-      nextTrack: SeamlessTrack | undefined,
-    ): number | null {
-      if (!activeTrack || !nextTrack || r.fading) return null
-      const triggerSec = getTransitionTriggerSec(active, activeTrack, nextTrack)
-      if (triggerSec == null) return null
-      const remain = triggerSec - active.currentTime
-      if (!isFinite(remain)) return null
-      return Math.max(0, remain)
-    }
-
-    function tryTriggerTransition(active: HTMLAudioElement, activeTrack: SeamlessTrack, nextTrack: SeamlessTrack | undefined) {
-      if (!nextTrack || r.fading) return
-
-      const plan = transitionByIndex.get(r.idx)
-      const base = Math.max(1, plan?.crossfade_sec ?? crossfadeSec)
-      const xf = Math.min(20, Math.max(1, base * crossfadeAmount))
-      const activeDuration = mediaDuration(active, getTrackDuration(activeTrack))
-      const left = activeDuration > 0 ? (activeDuration - active.currentTime) : Number.POSITIVE_INFINITY
-
-      const triggerSec = getTransitionTriggerSec(active, activeTrack, nextTrack)
-      let shouldStart = triggerSec != null
-        ? active.currentTime >= triggerSec
-        : (activeDuration > 0 ? left <= xf : false)
-      if (activeDuration > 0 && active.currentTime >= Math.max(0, activeDuration - 0.35)) {
-        shouldStart = true
-      }
-
-      if (!shouldStart || (activeDuration > 0 && left <= 0.05)) return
-
-      r.fading = true
-      r.transitionStartSec = active.currentTime
-      r.transitionDurationSec = xf
-      setFading(true)
-      setNextMixInSec(null)
-      r.preloadedNextIdx = -1
-
-      const next = nx()
-      if (!next) {
-        r.fading = false
-        setFading(false)
-        return
-      }
-
-      const nextSrc = getProcessedStreamUrl(nextTrack.filePath)
-      if (next.getAttribute('src') !== nextSrc) {
-        next.src = nextSrc
-      }
-      const tempoRatio = tempoSync && plan && plan.tempo_ratio > 0 ? plan.tempo_ratio : 1
-      next.playbackRate = tempoRatio
-      setPitchLock(next, keyLock)
-
-      const onReady = () => {
-        next.removeEventListener('canplay', onReady)
-        next.removeEventListener('error', onError)
-        if (!r.alive) return
-
-        if (plan) {
-          const entryTime = typeof plan.entry_time_sec === 'number' ? plan.entry_time_sec : 0
-          const fromInterval = typeof plan.from_beat_interval_sec === 'number' && plan.from_beat_interval_sec > 0
-            ? plan.from_beat_interval_sec
-            : (activeTrack.bpm && activeTrack.bpm > 0 ? 60 / activeTrack.bpm : 0.5)
-          const toIntervalBase = typeof plan.to_beat_interval_sec === 'number' && plan.to_beat_interval_sec > 0
-            ? plan.to_beat_interval_sec
-            : (nextTrack.bpm && nextTrack.bpm > 0 ? 60 / nextTrack.bpm : 0.5)
-          const toInterval = toIntervalBase / Math.max(tempoRatio, 1e-6)
-          const anchorSec = typeof plan.phase_anchor_sec === 'number'
-            ? plan.phase_anchor_sec
-            : Math.max(0, active.currentTime)
-
-          const phaseFromSec = modPositive(active.currentTime - anchorSec, fromInterval)
-          const phaseFraction = fromInterval > 0 ? (phaseFromSec / fromInterval) : 0
-          const entryOffset = phaseFraction * toInterval
-          const phaseLockedStart = Math.max(0, entryTime + entryOffset)
-          const nextDuration = mediaDuration(next, getTrackDuration(nextTrack))
-          const safeStart = nextDuration > 0
-            ? Math.min(Math.max(0, nextDuration - 0.1), phaseLockedStart)
-            : phaseLockedStart
-          next.currentTime = safeStart
-        } else {
-          next.currentTime = 0
-        }
-
-        const fromNodes = acNodes()
-        const toNodes = nxNodes()
-        if (fromNodes && toNodes) {
-          scheduleTransitionAutomation(fromNodes, toNodes, plan, xf)
-        }
-
-        next.play().catch(() => {})
-
-        clearTransitionTimer()
-        r.transitionTimer = window.setTimeout(() => {
-          if (!r.alive || !r.fading) return
-          completeTransition()
-        }, Math.max(120, xf * 1000 + 80))
-      }
-
-      const onError = () => {
-        next.removeEventListener('canplay', onReady)
-        next.removeEventListener('error', onError)
-        clearTransitionTimer()
-        r.fading = false
-        setFading(false)
-      }
-
-      if (next.readyState >= 2) {
-        onReady()
-      } else {
-        next.addEventListener('canplay', onReady)
-        next.addEventListener('error', onError)
-        next.load()
-      }
-    }
-
-    function tick() {
-      if (!r.playing || !r.alive) return
-      const active = ac()
-      if (active) {
-        const currentTrack = tracksR.current[r.idx]
-        const nextTrack = tracksR.current[r.idx + 1]
-        primeNextTrack(nextTrack, r.idx + 1)
-
-        const display = getDisplayDeck()
-        const displayDuration = display
-          ? mediaDuration(display, display === nx() ? getTrackDuration(nextTrack) : getTrackDuration(currentTrack))
-          : 0
-        if (display && !seekingRef.current) {
-          setTime(display.currentTime)
-          setSeekValue(display.currentTime)
-          if (displayDuration > 0) {
-            setDur(displayDuration)
-          }
-        }
-        const countdown = getTransitionCountdown(active, currentTrack, nextTrack)
-        setNextMixInSec(countdown)
-        if (currentTrack) {
-          tryTriggerTransition(active, currentTrack, nextTrack)
-        }
-      }
-      r.raf = requestAnimationFrame(tick)
-    }
-    tickFnRef.current = tick
-
-    function doEnded() {
-      if (!r.alive) return
-      if (r.fading) {
-        completeTransition()
-      } else {
-        const ni = r.idx + 1
-        if (ni < tracksR.current.length) {
-          r.idx = ni
-          r.preloadedNextIdx = -1
-          setNextMixInSec(null)
-          setIdx(ni)
-          const c = ac()
-          if (!c) return
-          c.src = getProcessedStreamUrl(tracksR.current[ni].filePath)
-          c.playbackRate = 1
-          setPitchLock(c, keyLock)
-          const onReady = () => {
-            c.removeEventListener('canplay', onReady)
-            if (r.alive && r.idx === ni) c.play().catch(() => {})
-          }
-          c.addEventListener('canplay', onReady)
-          c.load()
-        } else {
-          r.playing = false
-          setPlaying(false)
-          setNextMixInSec(null)
-          cancelAnimationFrame(r.raf)
-          onEndR.current?.()
-        }
-      }
-    }
-
-    a.onended = () => {
-      if (r.slot === 'A') doEnded()
-    }
-    b.onended = () => {
-      if (r.slot === 'B') doEnded()
-    }
-    a.onerror = () => {
-      if (r.slot === 'A' && r.alive) doEnded()
-    }
-    b.onerror = () => {
-      if (r.slot === 'B' && r.alive) doEnded()
-    }
-
-    if (tracksR.current.length) {
-      a.src = getProcessedStreamUrl(tracksR.current[0].filePath)
-      a.playbackRate = 1
-      setPitchLock(a, keyLock)
-      a.load()
-    }
-
-    return () => {
-      r.alive = false
-      clearTransitionTimer()
-      cancelAnimationFrame(r.raf)
-      tickFnRef.current = () => {}
-      a.onended = null
-      b.onended = null
-      a.onerror = null
-      b.onerror = null
-      a.pause()
-      b.pause()
-      a.src = ''
-      b.src = ''
-      nodesA.current = null
-      nodesB.current = null
-    }
-  }, [tracks, transitionByIndex, crossfadeAmount, crossfadeSec, tempoSync, keyLock])
-
-  const togglePlay = async () => {
-    const r = st.current
-    if (!r.alive) return
-    const ctx = ensureAudioContext()
-    if (ctx && ctx.state === 'suspended') {
-      await ctx.resume().catch(() => {})
-    }
-
-    if (r.playing) {
-      ac()?.pause()
-      if (r.fading) nx()?.pause()
-      r.playing = false
+      setIdx(ni)
+      sendToAudio({ type: 'loadTrack', deck: e.slot, url: getProcessedStreamUrl(tracksRef.current[ni].filePath) })
+    } else {
+      e.playing = false
       setPlaying(false)
       setNextMixInSec(null)
-      cancelAnimationFrame(r.raf)
-      return
+      onEndRef.current?.()
+    }
+  }
+
+  // ── Initialize Superpowered Engine ──
+  useEffect(() => {
+    const e = engineRef.current
+    e.alive = true
+    e.slot = 'A'
+    e.idx = 0
+    e.fading = false
+    e.playing = false
+    e.preloadedNextIdx = -1
+    setIdx(0); setTime(0); setSeekValue(0); setDur(0)
+    setFading(false); setPlaying(false); setSeeking(false)
+    setNextMixInSec(null); setSpReady(false)
+
+    let destroyed = false
+
+    async function init() {
+      try {
+        const superpowered = await SuperpoweredGlue.Instantiate(
+          'ExampleLicenseKey-WillExpire-OnNextUpdate'
+        )
+        if (destroyed) return
+
+        const webaudioManager = new SuperpoweredWebAudio(44100, superpowered)
+        e.webaudioManager = webaudioManager
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const onMessage = (message: any) => {
+          if (!e.alive) return
+          if (message.event === 'ready') {
+            setSpReady(true)
+            if (tracksRef.current.length > 0) {
+              sendToAudio({ type: 'loadTrack', deck: 'A', url: getProcessedStreamUrl(tracksRef.current[0].filePath) })
+            }
+            return
+          }
+          if (message.event === 'trackLoaded') {
+            const deck = message.deck as string
+            const durMs = message.durationMs as number
+            if (deck === e.slot && !e.fading) {
+              setDur(durMs / 1000)
+              if (e.playing) sendToAudio({ type: 'play', deck })
+            }
+            return
+          }
+          if (message.event === 'positions') {
+            e.lastPosA = (message.aPosMs as number) || 0
+            e.lastDurA = (message.aDurMs as number) || 0
+            e.lastPosB = (message.bPosMs as number) || 0
+            e.lastDurB = (message.bDurMs as number) || 0
+            if (message.aEof && e.slot === 'A') handleEof('A')
+            if (message.bEof && e.slot === 'B') handleEof('B')
+            if (!seekingRef.current) {
+              const posMs = getDisplayPos()
+              const durMs = getDisplayDur()
+              setTime(posMs / 1000)
+              setSeekValue(posMs / 1000)
+              if (durMs > 0) setDur(durMs / 1000)
+            }
+            if (e.playing && !e.fading) {
+              const currentTrack = tracksRef.current[e.idx]
+              const nextTrack = tracksRef.current[e.idx + 1]
+              if (nextTrack) {
+                primeNextTrack(nextTrack, e.idx + 1)
+                const triggerMs = getTransitionTriggerMs(currentTrack, nextTrack)
+                if (triggerMs != null) {
+                  const remain = (triggerMs - getActivePos()) / 1000
+                  setNextMixInSec(isFinite(remain) ? Math.max(0, remain) : null)
+                }
+                tryTriggerTransition()
+              }
+            }
+          }
+        }
+
+        const processorUrl = new URL('/processors/djProcessor.js', window.location.origin).href
+        const node = await webaudioManager.createAudioNodeAsync(processorUrl, 'DjProcessor', onMessage)
+        if (destroyed) { node.disconnect(); return }
+        e.processorNode = node
+        node.connect(webaudioManager.audioContext.destination)
+      } catch (err) {
+        console.error('[Superpowered] Init error:', err)
+      }
     }
 
-    const current = ac()
-    if (current) {
-      setPitchLock(current, keyLock)
+    init()
+
+    return () => {
+      destroyed = true
+      e.alive = false
+      clearTransitionTimer()
+      if (e.processorNode) {
+        try { e.processorNode.destruct?.(); e.processorNode.disconnect?.() } catch { /* */ }
+        e.processorNode = null
+      }
+      if (e.webaudioManager) {
+        try { e.webaudioManager.audioContext.close() } catch { /* */ }
+        e.webaudioManager = null
+      }
     }
-    ac()?.play().catch(() => {})
-    if (r.fading) nx()?.play().catch(() => {})
-    r.playing = true
-    setPlaying(true)
-    cancelAnimationFrame(r.raf)
-    r.raf = requestAnimationFrame(() => tickFnRef.current())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracks])
+
+  const togglePlay = async () => {
+    const e = engineRef.current
+    if (!e.alive || !e.processorNode) return
+    const wam = e.webaudioManager
+    if (wam && wam.audioContext.state === 'suspended') await wam.audioContext.resume().catch(() => {})
+    if (e.playing) {
+      sendToAudio({ type: 'pause', deck: e.slot })
+      if (e.fading) sendToAudio({ type: 'pause', deck: getNextDeck() })
+      e.playing = false; setPlaying(false); setNextMixInSec(null); return
+    }
+    sendToAudio({ type: 'play', deck: e.slot })
+    if (e.fading) sendToAudio({ type: 'play', deck: getNextDeck() })
+    e.playing = true; setPlaying(true)
   }
 
   const skipTo = (ti: number) => {
-    const r = st.current
-    if (ti < 0 || ti >= tracksR.current.length || !r.alive) return
-
+    const e = engineRef.current
+    if (ti < 0 || ti >= tracksRef.current.length || !e.alive) return
     clearTransitionTimer()
-    cancelAnimationFrame(r.raf)
-    audioA.current?.pause()
-    audioB.current?.pause()
-
-    r.fading = false
-    r.slot = 'A'
-    r.idx = ti
-    r.preloadedNextIdx = -1
-    setFading(false)
-    setNextMixInSec(null)
-    setIdx(ti)
-    setTime(0)
-    setSeekValue(0)
-
-    const ctxNow = ctxRef.current?.currentTime
-    if (ctxNow != null) {
-      resetDeckNodes(nodesA.current, ctxNow, 1)
-      resetDeckNodes(nodesB.current, ctxNow, 0.0001)
-    }
-
-    const a = audioA.current
-    if (!a) return
-
-    a.src = getProcessedStreamUrl(tracksR.current[ti].filePath)
-    a.playbackRate = 1
-    setPitchLock(a, keyLock)
-    const onReady = () => {
-      a.removeEventListener('canplay', onReady)
-      if (!r.alive || r.idx !== ti) return
-      if (!r.playing) return
-      a.play().catch(() => {})
-      cancelAnimationFrame(r.raf)
-      r.raf = requestAnimationFrame(() => tickFnRef.current())
-    }
-    a.addEventListener('canplay', onReady)
-    a.load()
+    sendToAudio({ type: 'pause', deck: 'A' })
+    sendToAudio({ type: 'pause', deck: 'B' })
+    e.fading = false; e.slot = 'A'; e.idx = ti; e.preloadedNextIdx = -1
+    setFading(false); setNextMixInSec(null); setIdx(ti); setTime(0); setSeekValue(0)
+    sendToAudio({ type: 'setGain', deck: 'A', value: 1.0 })
+    sendToAudio({ type: 'setGain', deck: 'B', value: 0.0 })
+    sendToAudio({ type: 'setActiveDeck', deck: 'A' })
+    sendToAudio({ type: 'setEq', deck: 'A', low: 1, mid: 1, high: 1 })
+    sendToAudio({ type: 'setEq', deck: 'B', low: 1, mid: 1, high: 1 })
+    sendToAudio({ type: 'setFilter', deck: 'A', lowpassHz: 20000, highpassHz: 20 })
+    sendToAudio({ type: 'setFilter', deck: 'B', lowpassHz: 20000, highpassHz: 20 })
+    sendToAudio({ type: 'setPlaybackRate', deck: 'A', value: 1 })
+    sendToAudio({ type: 'setTimeStretching', deck: 'A', enabled: true })
+    sendToAudio({ type: 'loadTrack', deck: 'A', url: getProcessedStreamUrl(tracksRef.current[ti].filePath) })
   }
 
   const emergencyCut = () => {
-    const r = st.current
-    if (!r.fading) return
+    const e = engineRef.current
+    if (!e.fading) return
     clearTransitionTimer()
-    const out = ac()
-    const incoming = nx()
-    if (!incoming) return
-
-    out?.pause()
-    if (out) out.src = ''
-    incoming.currentTime = Math.max(0, incoming.currentTime)
-
-    r.slot = r.slot === 'A' ? 'B' : 'A'
-    r.fading = false
-    r.preloadedNextIdx = -1
-    setFading(false)
-    setNextMixInSec(null)
-    r.idx += 1
-    setIdx(r.idx)
-
-    const now = ctxRef.current?.currentTime
-    if (now != null) {
-      resetDeckNodes(acNodes(), now, 1)
-      resetDeckNodes(nxNodes(), now, 0.0001)
-    }
+    sendToAudio({ type: 'pause', deck: e.slot })
+    e.slot = e.slot === 'A' ? 'B' : 'A'
+    e.fading = false; e.preloadedNextIdx = -1; e.idx += 1
+    setFading(false); setNextMixInSec(null); setIdx(e.idx)
+    sendToAudio({ type: 'setGain', deck: e.slot, value: 1.0 })
+    sendToAudio({ type: 'setGain', deck: e.slot === 'A' ? 'B' : 'A', value: 0.0 })
+    sendToAudio({ type: 'setActiveDeck', deck: e.slot })
+    sendToAudio({ type: 'setEq', deck: 'A', low: 1, mid: 1, high: 1 })
+    sendToAudio({ type: 'setEq', deck: 'B', low: 1, mid: 1, high: 1 })
   }
 
-  const beginSeek = () => {
-    setSeeking(true)
-  }
-
-  const handleSeekChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value)
-    if (!isFinite(value)) return
+  const beginSeek = () => setSeeking(true)
+  const handleSeekChange = (ev: ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(ev.target.value)
+    if (!isFinite(v)) return
     if (!seeking) setSeeking(true)
-    setSeekValue(value)
+    setSeekValue(v)
   }
-
   const commitSeek = () => {
     const target = seekValue
-    const deck = getDisplayDeck()
-    if (deck && isFinite(target)) {
-      const currentTrack = tracksR.current[st.current.idx]
-      const nextTrack = tracksR.current[st.current.idx + 1]
-      const fallback = deck === nx() ? getTrackDuration(nextTrack) : getTrackDuration(currentTrack)
-      const md = mediaDuration(deck, fallback)
-      const max = md > 0 ? Math.max(0, md - 0.05) : target
-      const nextTime = Math.max(0, Math.min(target, max))
-      deck.currentTime = nextTime
-      setTime(nextTime)
-      setSeekValue(nextTime)
-      if (md > 0) {
-        setDur(md)
-      }
-      if (st.current.playing) {
-        cancelAnimationFrame(st.current.raf)
-        st.current.raf = requestAnimationFrame(() => tickFnRef.current())
-      }
+    if (isFinite(target) && dur > 0) {
+      sendToAudio({ type: 'seek', deck: engineRef.current.slot, percent: Math.max(0, Math.min(1, target / dur)) })
+      setTime(target); setSeekValue(target)
     }
     setSeeking(false)
   }
@@ -722,60 +496,52 @@ export default function SeamlessPlayer({
 
   return (
     <div className="bg-gradient-to-b from-surface-light to-surface rounded-xl border border-gray-700/50 overflow-hidden shadow-xl">
+      {/* Header */}
       <div className="px-4 py-2.5 flex items-center gap-2 border-b border-gray-700/50">
         <span className="relative flex h-2.5 w-2.5">
-          {playing && (
-            <span
-              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-              style={{ background: accentColor }}
-            />
-          )}
+          {playing && <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: accentColor }} />}
           <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: accentColor }} />
         </span>
-        <span className="text-xs font-bold text-white tracking-wide">DJ Seamless Mix</span>
-        {fading && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full animate-pulse" style={{ background: `${accentColor}33`, color: accentColor }}>
-            Transition
-          </span>
-        )}
+        <span className="text-xs font-bold text-white tracking-wide">
+          DJ Seamless Mix
+          <span className="ml-1.5 text-[9px] font-medium px-1 py-0.5 rounded bg-white/10 text-gray-300">Superpowered</span>
+        </span>
+        {!spReady && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 animate-pulse">Loading engine...</span>}
+        {fading && <span className="text-[10px] px-1.5 py-0.5 rounded-full animate-pulse" style={{ background: `${accentColor}33`, color: accentColor }}>Transition</span>}
         {!fading && playing && nextTrack && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#f59e0b22', color: '#f59e0b' }}>
             {nextMixInSec != null ? `Next mix in ${nextMixInSec.toFixed(1)}s` : 'Next mix arming...'}
           </span>
         )}
-        <span className="text-[10px] text-gray-500 ml-auto tabular-nums">
-          {idx + 1} / {tracks.length}
-        </span>
+        <span className="text-[10px] text-gray-500 ml-auto tabular-nums">{idx + 1} / {tracks.length}</span>
       </div>
 
+      {/* Controls */}
       <div className="px-4 py-3 flex items-center gap-3">
         <button onClick={() => skipTo(idx - 1)} disabled={idx === 0} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" /></svg>
         </button>
-        <button onClick={togglePlay} className="w-10 h-10 rounded-full flex items-center justify-center transition hover:scale-110 shadow-lg" style={{ background: accentColor }}>
-          {playing ? (
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
-          ) : (
-            <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-          )}
+        <button onClick={togglePlay} disabled={!spReady} className="w-10 h-10 rounded-full flex items-center justify-center transition hover:scale-110 shadow-lg disabled:opacity-40" style={{ background: accentColor }}>
+          {playing
+            ? <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
+            : <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>}
         </button>
         <button onClick={() => skipTo(idx + 1)} disabled={!nextTrack} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
         </button>
-
         <div className="flex-1 min-w-0 ml-1">
           <div className="text-sm text-white truncate font-medium">{track?.title}</div>
           <div className="text-[11px] text-gray-500 truncate">{track?.artist}</div>
         </div>
-
         {fading && nextTrack && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] shrink-0" style={{ background: `${accentColor}22`, color: accentColor }}>
-            <span className="animate-pulse">��</span>
+            <span className="animate-pulse">▶</span>
             <span className="truncate max-w-[72px]">{nextTrack.title}</span>
           </div>
         )}
       </div>
 
+      {/* Progress */}
       <div className="px-4 pb-2 flex items-center gap-2">
         <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums">{fmt(shownTime)}</span>
         <div className="flex-1 h-2 relative">
@@ -783,16 +549,10 @@ export default function SeamlessPlayer({
             <div className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200" style={{ width: `${pct}%`, background: accentColor }} />
           </div>
           <input
-            type="range"
-            min={0}
-            max={dur || 0}
-            step={0.05}
-            value={shownTime}
+            type="range" min={0} max={dur || 0} step={0.05} value={shownTime}
             onChange={handleSeekChange}
-            onMouseDown={beginSeek}
-            onMouseUp={commitSeek}
-            onTouchStart={beginSeek}
-            onTouchEnd={commitSeek}
+            onMouseDown={beginSeek} onMouseUp={commitSeek}
+            onTouchStart={beginSeek} onTouchEnd={commitSeek}
             onKeyUp={commitSeek}
             className="absolute inset-0 w-full opacity-0 cursor-pointer"
           />
@@ -800,54 +560,30 @@ export default function SeamlessPlayer({
         <span className="text-[10px] text-gray-500 w-8 tabular-nums">{fmt(dur)}</span>
       </div>
 
+      {/* DJ Controls */}
       <div className="px-4 pb-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
         <label className="text-gray-400 flex items-center gap-1 col-span-2">
           Crossfade
-          <input
-            type="range"
-            min={0.5}
-            max={2}
-            step={0.05}
-            value={crossfadeAmount}
-            onChange={(e) => setCrossfadeAmount(parseFloat(e.target.value))}
-            className="flex-1 accent-primary"
-          />
+          <input type="range" min={0.5} max={2} step={0.05} value={crossfadeAmount} onChange={(ev) => setCrossfadeAmount(parseFloat(ev.target.value))} className="flex-1 accent-primary" />
           <span className="text-gray-500 w-8 text-right">{crossfadeAmount.toFixed(2)}x</span>
         </label>
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => setTempoSync((v) => !v)}
-            className={`rounded px-2 py-1 border transition ${tempoSync ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}
-          >
-            Tempo Sync
-          </button>
-          <button
-            onClick={() => setKeyLock((v) => !v)}
-            className={`rounded px-2 py-1 border transition ${keyLock ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}
-          >
-            Key Lock
-          </button>
+          <button onClick={() => setTempoSync((v) => !v)} className={`rounded px-2 py-1 border transition ${tempoSync ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}>Tempo Sync</button>
+          <button onClick={() => setKeyLock((v) => !v)} className={`rounded px-2 py-1 border transition ${keyLock ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}>Key Lock</button>
         </div>
       </div>
 
       {fading && (
         <div className="px-4 pb-2">
-          <button onClick={emergencyCut} className="w-full rounded bg-red-500/20 text-red-300 border border-red-500/40 py-1.5 text-[11px] hover:bg-red-500/30 transition">
-            Emergency Cut
-          </button>
+          <button onClick={emergencyCut} className="w-full rounded bg-red-500/20 text-red-300 border border-red-500/40 py-1.5 text-[11px] hover:bg-red-500/30 transition">Emergency Cut</button>
         </div>
       )}
 
+      {/* Track List */}
       <div className="px-3 pb-3 max-h-40 overflow-y-auto">
         {tracks.map((t, i) => (
-          <button
-            key={`${t.songId}-${i}`}
-            onClick={() => skipTo(i)}
-            className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-left text-xs transition hover:bg-white/5 ${i === idx ? 'bg-white/10' : i < idx ? 'opacity-40' : ''}`}
-          >
-            <span className="w-5 text-center shrink-0 text-[11px]" style={i === idx ? { color: accentColor } : { color: '#6b7280' }}>
-              {i === idx && playing ? '��' : i + 1}
-            </span>
+          <button key={`${t.songId}-${i}`} onClick={() => skipTo(i)} className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-left text-xs transition hover:bg-white/5 ${i === idx ? 'bg-white/10' : i < idx ? 'opacity-40' : ''}`}>
+            <span className="w-5 text-center shrink-0 text-[11px]" style={i === idx ? { color: accentColor } : { color: '#6b7280' }}>{i === idx && playing ? '♫' : i + 1}</span>
             <span className="flex-1 truncate" style={i === idx ? { color: '#fff' } : { color: '#d1d5db' }}>{t.title}</span>
             <span className="text-gray-600 truncate max-w-[80px] shrink-0">{t.artist}</span>
           </button>
