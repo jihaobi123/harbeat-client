@@ -14,9 +14,31 @@ from app.shared.config import get_settings
 from app.shared.database import Base, engine
 
 
+def _migrate_add_missing_columns():
+    """Add columns that exist in models but not in the database."""
+    import logging
+    from sqlalchemy import inspect as sa_inspect, text
+    logger = logging.getLogger(__name__)
+    with engine.connect() as conn:
+        inspector = sa_inspect(engine)
+        for table_name, table in Base.metadata.tables.items():
+            if not inspector.has_table(table_name):
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for col in table.columns:
+                if col.name not in existing:
+                    col_type = col.type.compile(engine.dialect)
+                    nullable = "NULL" if col.nullable else "NOT NULL"
+                    sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} {nullable}'
+                    logger.info("[migrate] %s", sql)
+                    conn.execute(text(sql))
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrate_add_missing_columns()
     # Clean up old DJ mix files on startup
     _cleanup_old_mix_files()
     # Auto-analyze songs that have files but were never analyzed
