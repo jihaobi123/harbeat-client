@@ -37,7 +37,6 @@ def register_endpoint(payload: RegisterRequest, db: Session = Depends(get_db)):
         db,
         username=payload.username,
         password=payload.password,
-        email=payload.email,
         dance_style=payload.dance_style,
         level=payload.level,
         favorite_style=payload.favorite_style,

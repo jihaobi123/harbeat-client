@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 UserRole = Literal["user", "admin"]
 UserStatus = Literal["active", "disabled", "deleted"]
@@ -12,7 +12,6 @@ class UserCreateRequest(BaseModel):
     dance_style: str
     level: str
     favorite_style: str
-    email: EmailStr | None = None
     password: str | None = Field(default=None, min_length=8, max_length=64)
 
 
@@ -25,7 +24,6 @@ class UserUpdateRequest(BaseModel):
     dance_style: str | None = None
     level: str | None = None
     favorite_style: str | None = None
-    email: EmailStr | None = None
 
 
 class UserStatusUpdateRequest(BaseModel):
@@ -46,7 +44,6 @@ class UserListQuery(BaseModel):
 class UserData(BaseModel):
     id: int
     username: str
-    email: str | None
     role: UserRole
     status: UserStatus
     dance_style: str

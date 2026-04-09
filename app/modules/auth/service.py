@@ -55,21 +55,14 @@ def register_user(
     dance_style: str,
     level: str,
     favorite_style: str,
-    email: str | None = None,
 ) -> User:
     normalized_username = username.strip()
-    normalized_email = email.strip().lower() if email else None
 
     if _active_q(db).filter(func.lower(User.username) == normalized_username.lower()).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="username already exists")
 
-    if normalized_email:
-        if _active_q(db).filter(func.lower(User.email) == normalized_email).first():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already exists")
-
     user = User(
         username=normalized_username,
-        email=normalized_email,
         password_hash=hash_password(password),
         dance_style=dance_style,
         level=level,

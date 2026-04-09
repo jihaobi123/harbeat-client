@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=50)
     password: str = Field(min_length=8, max_length=64)
-    email: EmailStr | None = None
     dance_style: str = "hiphop"
     level: str = "beginner"
     favorite_style: str = "hiphop"
@@ -39,7 +38,6 @@ class TokenData(BaseModel):
 class UserMeData(BaseModel):
     id: int
     username: str
-    email: str | None
     role: str
     status: str
     dance_style: str

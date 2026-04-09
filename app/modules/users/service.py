@@ -25,14 +25,8 @@ def create_user(db: Session, payload: UserCreateRequest) -> User:
             detail="username already exists",
         )
 
-    if payload.email:
-        existing_email = _build_active_user_query(db).filter(User.email == payload.email).first()
-        if existing_email:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already exists")
-
     user = User(
         username=payload.username,
-        email=payload.email,
         password_hash=hash_password(payload.password) if payload.password else None,
         dance_style=payload.dance_style,
         level=payload.level,
@@ -74,7 +68,7 @@ def list_users(db: Session, query: UserListQuery) -> UserListData:
 
     if query.keyword:
         keyword = f"%{query.keyword}%"
-        q = q.filter((User.username.ilike(keyword)) | (User.email.ilike(keyword)))
+        q = q.filter(User.username.ilike(keyword))
 
     if query.status:
         q = q.filter(User.status == query.status)
@@ -91,15 +85,6 @@ def list_users(db: Session, query: UserListQuery) -> UserListData:
 
 def update_user(db: Session, target_user: User, payload: UserUpdateRequest) -> User:
     updates = payload.model_dump(exclude_unset=True)
-    if "email" in updates and updates["email"]:
-        existing_email = (
-            _build_active_user_query(db)
-            .filter(User.email == updates["email"], User.id != target_user.id)
-            .first()
-        )
-        if existing_email:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already exists")
-
     for key, value in updates.items():
         setattr(target_user, key, value)
 
