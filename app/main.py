@@ -28,8 +28,17 @@ def _migrate_add_missing_columns():
             for col in table.columns:
                 if col.name not in existing:
                     col_type = col.type.compile(engine.dialect)
-                    nullable = "NULL" if col.nullable else "NOT NULL"
-                    sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} {nullable}'
+                    # Determine default value for NOT NULL columns
+                    default_val = None
+                    if col.default is not None and col.default.arg is not None and not callable(col.default.arg):
+                        default_val = col.default.arg
+                    if col.nullable:
+                        sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NULL'
+                    elif default_val is not None:
+                        sql = f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NOT NULL DEFAULT '{default_val}'"
+                    else:
+                        # Add as nullable first to avoid errors on existing rows, then set a safe default
+                        sql = f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NULL"
                     logger.info("[migrate] %s", sql)
                     conn.execute(text(sql))
         conn.commit()
