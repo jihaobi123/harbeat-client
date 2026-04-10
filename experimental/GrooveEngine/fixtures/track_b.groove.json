@@ -1,0 +1,66 @@
+{
+  "track_id": "fixture-track-b",
+  "title": "Battle Seed B",
+  "artist": "GrooveEngine Fixtures",
+  "path": "fixtures/audio/battle_seed_b.wav",
+  "duration_seconds": 64.0,
+  "sample_rate": 44100,
+  "channels": 2,
+  "beatgrid": {
+    "bpm": 102.0,
+    "beats": [
+      {"index": 1, "time": 0.0, "bar": 1, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 2, "time": 0.588235, "bar": 1, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 3, "time": 1.176471, "bar": 1, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 4, "time": 1.764706, "bar": 1, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 5, "time": 2.352941, "bar": 2, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 6, "time": 2.941176, "bar": 2, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 7, "time": 3.529412, "bar": 2, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 8, "time": 4.117647, "bar": 2, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 9, "time": 4.705882, "bar": 3, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 10, "time": 5.294118, "bar": 3, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 11, "time": 5.882353, "bar": 3, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 12, "time": 6.470588, "bar": 3, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 13, "time": 7.058824, "bar": 4, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 14, "time": 7.647059, "bar": 4, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 15, "time": 8.235294, "bar": 4, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 16, "time": 8.823529, "bar": 4, "beat_in_bar": 4, "is_downbeat": false}
+    ],
+    "bars": 16,
+    "downbeats": [0.0, 2.352941, 4.705882, 7.058824, 9.411765, 11.764706, 14.117647, 16.470588, 18.823529, 21.176471, 23.529412, 25.882353, 28.235294, 30.588235, 32.941176, 35.294118]
+  },
+  "phrases": [
+    {"phrase_type": "intro", "start_time": 0.0, "end_time": 9.411765, "start_bar": 1, "end_bar": 4, "confidence": 0.9},
+    {"phrase_type": "verse", "start_time": 9.411765, "end_time": 18.823529, "start_bar": 5, "end_bar": 8, "confidence": 0.88},
+    {"phrase_type": "chorus", "start_time": 18.823529, "end_time": 28.235294, "start_bar": 9, "end_bar": 12, "confidence": 0.93},
+    {"phrase_type": "drop", "start_time": 28.235294, "end_time": 37.647059, "start_bar": 13, "end_bar": 16, "confidence": 0.95}
+  ],
+  "energy_bars": [
+    {"bar": 1, "start_time": 0.0, "end_time": 2.352941, "rms": 0.30, "spectral_flux": 0.22, "combined": 0.28},
+    {"bar": 2, "start_time": 2.352941, "end_time": 4.705882, "rms": 0.32, "spectral_flux": 0.24, "combined": 0.30},
+    {"bar": 3, "start_time": 4.705882, "end_time": 7.058824, "rms": 0.34, "spectral_flux": 0.26, "combined": 0.32},
+    {"bar": 4, "start_time": 7.058824, "end_time": 9.411765, "rms": 0.36, "spectral_flux": 0.28, "combined": 0.34},
+    {"bar": 5, "start_time": 9.411765, "end_time": 11.764706, "rms": 0.44, "spectral_flux": 0.34, "combined": 0.42},
+    {"bar": 6, "start_time": 11.764706, "end_time": 14.117647, "rms": 0.49, "spectral_flux": 0.38, "combined": 0.46},
+    {"bar": 7, "start_time": 14.117647, "end_time": 16.470588, "rms": 0.54, "spectral_flux": 0.42, "combined": 0.51},
+    {"bar": 8, "start_time": 16.470588, "end_time": 18.823529, "rms": 0.60, "spectral_flux": 0.48, "combined": 0.57},
+    {"bar": 9, "start_time": 18.823529, "end_time": 21.176471, "rms": 0.71, "spectral_flux": 0.60, "combined": 0.69},
+    {"bar": 10, "start_time": 21.176471, "end_time": 23.529412, "rms": 0.76, "spectral_flux": 0.66, "combined": 0.74},
+    {"bar": 11, "start_time": 23.529412, "end_time": 25.882353, "rms": 0.81, "spectral_flux": 0.72, "combined": 0.79},
+    {"bar": 12, "start_time": 25.882353, "end_time": 28.235294, "rms": 0.85, "spectral_flux": 0.77, "combined": 0.83},
+    {"bar": 13, "start_time": 28.235294, "end_time": 30.588235, "rms": 0.91, "spectral_flux": 0.84, "combined": 0.90},
+    {"bar": 14, "start_time": 30.588235, "end_time": 32.941176, "rms": 0.93, "spectral_flux": 0.87, "combined": 0.92},
+    {"bar": 15, "start_time": 32.941176, "end_time": 35.294118, "rms": 0.95, "spectral_flux": 0.89, "combined": 0.94},
+    {"bar": 16, "start_time": 35.294118, "end_time": 37.647059, "rms": 0.97, "spectral_flux": 0.91, "combined": 0.96}
+  ],
+  "key": {
+    "tonic": "G",
+    "mode": "minor",
+    "camelot": "6A"
+  },
+  "analyzer_versions": {
+    "librosa": "fixture",
+    "songformer": "fixture",
+    "beatnet": "fixture"
+  }
+}

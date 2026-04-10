@@ -1,0 +1,22 @@
+# GrooveEngine Python dependencies
+#
+# CPU / standard PyTorch setup is listed below.
+# To switch to CUDA on Windows, install the matching PyTorch wheel set from:
+# https://pytorch.org/get-started/locally/
+# Example pattern:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+numpy>=1.26.4
+scipy>=1.12.0
+librosa>=0.10.2
+sounddevice>=0.4.7
+soundfile>=0.12.1
+pydub>=0.25.1
+pedalboard>=0.9.14
+rtmixer>=0.1.7
+pydantic>=2.7.4
+beatnet>=1.1.1
+
+torch>=2.3.1
+torchvision>=0.18.1
+torchaudio>=2.3.1

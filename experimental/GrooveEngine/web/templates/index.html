@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GrooveEngine Auto Mix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Automatic DJ Sequencing</p>
+      <h1>GrooveEngine <span>Auto Mix Workflow</span></h1>
+      <p class="hero-copy">Upload or register candidate songs, let the planner choose order and transition strategies automatically, then render a smooth multi-track mix. Analysis stays internal.</p>
+    </div>
+    <div class="hero-badge">
+      <span>Planner Mode</span>
+      <strong>Auto-select songs</strong>
+      <small>sequence · transition · render</small>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel panel-accent">
+      <h2>Candidate Songs</h2>
+      <form id="upload-form" class="stack">
+        <label class="upload-box">
+          <span>Import real local audio files for automatic mix output</span>
+          <input type="file" name="audio" accept="audio/*" multiple>
+        </label>
+        <button type="submit">Analyze and Add Candidates</button>
+      </form>
+      <div id="status-banner" class="summary-card empty">Add real songs first. External music library integration is intentionally left outside this prototype.</div>
+      <div class="badge-row">
+        <span class="badge">Internal inputs: structure, energy, key, style, phrase windows</span>
+        <span class="badge">Visible output: selected songs, sequence, final render</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Available Candidates</h2>
+      <div id="track-library" class="library-list empty">No renderable songs loaded yet.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Auto Mix Planner</h2>
+      <p class="hero-copy compact">Pick at least two real songs. GrooveEngine will order them automatically and choose transition bars/strategies internally.</p>
+      <div id="mix-selection" class="library-list empty">No eligible songs yet.</div>
+      <div class="chips">
+        <button id="preview-plan" class="chip">Preview Auto Sequence</button>
+        <button id="build-mix">Render Auto Mix</button>
+      </div>
+      <div id="plan-result" class="result-card empty">No auto sequence planned yet.</div>
+      <div id="mix-result" class="result-card empty">No final mix rendered yet.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Planner Knowledge</h2>
+      <div id="strategy-rules" class="playlist-card">Loading DJ rules…</div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
