@@ -3,18 +3,45 @@
 Both Phase 1 (BPM/key analysis) and Phase 2 (demucs stem separation) run in
 child processes so that the heavy libraries (madmom, librosa, torch, demucs)
 never bloat the uvicorn worker's resident memory — prevents OOM kills.
+
+Resource safety:
+- A global threading lock ensures only ONE analysis pipeline runs at a time.
+- Child processes have a 2.5 GB RSS memory limit (Linux only) to prevent OOM.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import platform
 import subprocess
 import sys
+import threading
 
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
+
+# ── Global lock: only one analysis pipeline at a time ─────────────────────
+
+_analysis_lock = threading.Lock()
+
+# ── Memory limit for child processes (Linux only) ─────────────────────────
+
+_CHILD_MEM_LIMIT_BYTES = int(2.5 * 1024 * 1024 * 1024)  # 2.5 GB
+
+
+def _get_preexec_fn():
+    """Return a preexec_fn that sets RSS memory limit, or None on non-Linux."""
+    if platform.system() != "Linux":
+        return None
+    try:
+        import resource as _resource
+        def _limit_memory():
+            _resource.setrlimit(_resource.RLIMIT_AS, (_CHILD_MEM_LIMIT_BYTES, _CHILD_MEM_LIMIT_BYTES))
+        return _limit_memory
+    except ImportError:
+        return None
 
 # ── Helper: run Phase 1 analysis in a subprocess ──────────────────────────
 
@@ -25,24 +52,50 @@ def _run_analysis_subprocess(file_path: str) -> dict:
     """Run analyze_audio_file() in a child process and return the result dict.
 
     This keeps madmom/librosa/numpy out of the uvicorn worker's memory.
+    Memory is capped at 2.5 GB to prevent OOM-killing the container.
     """
     result = subprocess.run(
         [sys.executable, _ANALYSIS_SCRIPT, file_path],
         capture_output=True,
         text=True,
         timeout=600,  # 10 min max for analysis
+        preexec_fn=_get_preexec_fn(),
     )
     if result.returncode != 0:
-        raise RuntimeError(f"analysis subprocess failed: {result.stderr[-1000:]}")
-    return json.loads(result.stdout)
+        err = (result.stderr or "").strip()
+        out = (result.stdout or "").strip()
+        # returncode -9 = SIGKILL (OOM), -11 = SIGSEGV
+        raise RuntimeError(
+            f"analysis subprocess exit={result.returncode} "
+            f"{'(OOM KILLED)' if result.returncode == -9 else ''} "
+            f"stderr={err[-500:] if err else '(empty)'} "
+            f"stdout={out[-200:] if out else '(empty)'}"
+        )
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"analysis subprocess returned invalid JSON: {e}; stdout={result.stdout[:500]}")
 
 
 def run_analysis_and_separation(song_id: str) -> None:
     """Run BPM/key analysis + demucs stem separation in background.
 
     Called automatically after a song is downloaded.
-    Creates its own DB session since this runs outside the request lifecycle.
+    Uses a global lock to ensure only one heavy analysis runs at a time,
+    preventing concurrent child processes from OOM-killing the container.
     """
+    acquired = _analysis_lock.acquire(timeout=900)  # wait up to 15 min for the lock
+    if not acquired:
+        logger.warning("[bg-analysis] timed out waiting for analysis lock for %s, skipping", song_id)
+        return
+    try:
+        _do_analysis_and_separation(song_id)
+    finally:
+        _analysis_lock.release()
+
+
+def _do_analysis_and_separation(song_id: str) -> None:
+    """Internal: actual analysis logic, must be called while holding _analysis_lock."""
     db = SessionLocal()
     try:
         from app.modules.library.models import LibrarySong
@@ -102,7 +155,7 @@ def run_analysis_and_separation(song_id: str) -> None:
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "7",   # limit RAM: process 7s chunks (htdemucs max ~7.8)
+                        "--segment", "5",   # limit RAM: process 5s chunks (lower = less memory)
                         "-o", stems_base,
                         song.source_path,
                     ],
@@ -110,6 +163,7 @@ def run_analysis_and_separation(song_id: str) -> None:
                     text=True,
                     timeout=1800,
                     check=True,
+                    preexec_fn=_get_preexec_fn(),
                 )
                 logger.info("[bg-analysis] demucs finished for %s", song_id)
 
