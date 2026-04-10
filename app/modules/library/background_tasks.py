@@ -28,7 +28,7 @@ _analysis_lock = threading.Lock()
 
 # ── Memory limit for child processes (Linux only) ─────────────────────────
 
-_CHILD_MEM_LIMIT_BYTES = int(2.5 * 1024 * 1024 * 1024)  # 2.5 GB
+_CHILD_MEM_LIMIT_BYTES = int(1.5 * 1024 * 1024 * 1024)  # 1.5 GB
 
 
 def _get_preexec_fn():
@@ -155,7 +155,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "5",   # limit RAM: process 5s chunks (lower = less memory)
+                        "--segment", "7",   # process 7s chunks (htdemucs max ~7.8, uses swap if needed)
                         "-o", stems_base,
                         song.source_path,
                     ],

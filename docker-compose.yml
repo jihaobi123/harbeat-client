@@ -14,7 +14,9 @@
     deploy:
       resources:
         limits:
-          memory: 7G
+          memory: 3G
+        reservations:
+          memory: 512M
     environment:
       - MALLOC_ARENA_MAX=2
       - PYTHONDONTWRITEBYTECODE=1
