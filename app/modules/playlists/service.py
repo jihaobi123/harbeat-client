@@ -155,6 +155,7 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
         songs=[
             PlaylistSongData(
                 song_id=item.song.id,
+                library_song_id=lib_map[item.song_id].id if item.song_id in lib_map else None,
                 title=item.song.title,
                 artist=item.song.artist,
                 audio_url=item.song.audio_url,

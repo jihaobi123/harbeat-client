@@ -47,6 +47,7 @@ export interface Playlist {
 
 export interface PlaylistSong {
   song_id: number
+  library_song_id: string | null
   title: string
   artist: string
   audio_url: string | null

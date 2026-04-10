@@ -212,7 +212,10 @@ export default function SongList() {
           selectedPlaylist.songs.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-gray-500 text-sm">歌单暂无歌曲</div>
           ) : (
-            selectedPlaylist.songs.map((ps) => (
+            selectedPlaylist.songs.map((ps) => {
+              const libSong = songs.find(s => s.id === ps.library_song_id)
+              if (libSong) return <SongRow key={ps.song_id} song={libSong} />
+              return (
               <div
                 key={ps.song_id}
                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-lighter transition cursor-pointer"
@@ -223,7 +226,8 @@ export default function SongList() {
                   <div className="text-xs text-gray-500 truncate">{ps.artist}</div>
                 </div>
                 <div className="w-14 text-xs text-gray-400 text-right shrink-0 hidden sm:block">
-                  {ps.bpm || '-'}
+                  {ps.bpm ? `${Math.round(ps.bpm)}` : '-'}
+                  {ps.bpm && <span className="text-gray-600 ml-0.5">bpm</span>}
                 </div>
                 <div className="w-12 text-xs text-gray-400 text-right shrink-0">
                   {formatDuration(ps.duration || 0)}
@@ -234,7 +238,8 @@ export default function SongList() {
                   )}
                 </div>
               </div>
-            ))
+              )
+            })
           )
         ) : songs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-500">

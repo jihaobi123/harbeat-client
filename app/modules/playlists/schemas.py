@@ -37,6 +37,7 @@ class PlaylistSummaryData(BaseModel):
 
 class PlaylistSongData(BaseModel):
     song_id: int
+    library_song_id: Optional[str] = None
     title: str
     artist: str
     audio_url: Optional[str] = None
