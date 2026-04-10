@@ -1,6 +1,12 @@
-"""Background tasks for automatic audio analysis and stem separation on import."""
+"""Background tasks for automatic audio analysis and stem separation on import.
+
+Both Phase 1 (BPM/key analysis) and Phase 2 (demucs stem separation) run in
+child processes so that the heavy libraries (madmom, librosa, torch, demucs)
+never bloat the uvicorn worker's resident memory — prevents OOM kills.
+"""
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -9,6 +15,26 @@ import sys
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
+
+# ── Helper: run Phase 1 analysis in a subprocess ──────────────────────────
+
+_ANALYSIS_SCRIPT = os.path.join(os.path.dirname(__file__), "_run_analysis.py")
+
+
+def _run_analysis_subprocess(file_path: str) -> dict:
+    """Run analyze_audio_file() in a child process and return the result dict.
+
+    This keeps madmom/librosa/numpy out of the uvicorn worker's memory.
+    """
+    result = subprocess.run(
+        [sys.executable, _ANALYSIS_SCRIPT, file_path],
+        capture_output=True,
+        text=True,
+        timeout=600,  # 10 min max for analysis
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"analysis subprocess failed: {result.stderr[-1000:]}")
+    return json.loads(result.stdout)
 
 
 def run_analysis_and_separation(song_id: str) -> None:
@@ -35,9 +61,8 @@ def run_analysis_and_separation(song_id: str) -> None:
             db.commit()
 
             try:
-                from app.modules.library.analysis import analyze_audio_file
-
-                result = analyze_audio_file(song.source_path)
+                logger.info("[bg-analysis] starting Phase 1 analysis (subprocess) for %s", song_id)
+                result = _run_analysis_subprocess(song.source_path)
                 song.bpm = result["bpm"]
                 song.duration = result["duration"]
                 song.key = result.get("key")
@@ -53,9 +78,9 @@ def run_analysis_and_separation(song_id: str) -> None:
                     for i, c in enumerate(raw_cues)
                 ]
                 db.commit()
-                logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
+                logger.info("[bg-analysis] Phase 1 done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
             except Exception:
-                logger.exception("[bg-analysis] analysis failed for %s", song_id)
+                logger.exception("[bg-analysis] Phase 1 failed for %s", song_id)
                 song.analysis_status = "error"
                 db.commit()
 
