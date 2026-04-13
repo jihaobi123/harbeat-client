@@ -3,10 +3,14 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
 import type { DiscoverSection, DiscoverSongItem } from '../types'
+import VibeSearch from './VibeSearch'
+
+type Tab = 'discover' | 'vibe'
 
 export default function RecommendPanel() {
   const { user } = useAuthStore()
   const { loadSongs } = useMusicStore()
+  const [tab, setTab] = useState<Tab>('discover')
   const [sections, setSections] = useState<DiscoverSection[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -93,6 +97,34 @@ export default function RecommendPanel() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      {/* Tab bar */}
+      <div className="px-5 pt-4 pb-0 flex gap-2">
+        <button
+          onClick={() => setTab('discover')}
+          className={`px-4 py-2 rounded-t-lg text-sm font-medium transition ${
+            tab === 'discover'
+              ? 'bg-surface-light text-white'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          📋 标签推荐
+        </button>
+        <button
+          onClick={() => setTab('vibe')}
+          className={`px-4 py-2 rounded-t-lg text-sm font-medium transition ${
+            tab === 'vibe'
+              ? 'bg-surface-light text-white'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          🎭 Vibe 搜索
+        </button>
+      </div>
+
+      {tab === 'vibe' ? (
+        <VibeSearch />
+      ) : (
+      <>
       <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white mb-1">🎯 发现音乐</h2>
@@ -144,6 +176,8 @@ export default function RecommendPanel() {
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   )
 }

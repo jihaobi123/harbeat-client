@@ -32,3 +32,6 @@ demucs==4.0.1
 
 # === NCM Decryption ===
 pycryptodome==3.23.0
+
+# === Spotify API ===
+spotipy==2.24.0

@@ -206,6 +206,15 @@ export async function addSongToLibrary(userId: number, songId: number) {
   )
 }
 
+export async function vibeSearch(query: string, userId?: number, topK: number = 12) {
+  return request<import('../types').VibeSearchResult>(
+    '/api/recommendations/vibe-search', {
+      method: 'POST',
+      body: JSON.stringify({ query, user_id: userId, top_k: topK }),
+    }
+  )
+}
+
 // ---- Profiles ----
 export async function generateProfile(userId: number) {
   return request<import('../types').UserProfile>(

@@ -17,6 +17,8 @@ from app.modules.recommendations.schemas import (
     DiscoverSection,
     DiscoverSongItem,
     RecommendedSongItem,
+    VibeSearchData,
+    VibeSearchSongItem,
 )
 
 # ───────────────── Style → display info mapping ─────────────────
@@ -385,3 +387,60 @@ def recommend_songs(
         RecommendedSongItem(song_id=song.id, title=song.title, artist=song.artist, in_library=True)
         for _, song in ranked[:10]
     ]
+
+
+# ───────────── Vibe search (FinalReco pipeline) ─────────────
+
+import logging as _logging
+
+_vibe_logger = _logging.getLogger(__name__)
+
+
+def vibe_search(
+    db: Session,
+    query: str,
+    user_id: Optional[int] = None,
+    top_k: int = 10,
+) -> VibeSearchData:
+    """Search songs by natural-language vibe description.
+
+    Pipeline (FinalReco approach from commit 1d65a9dc):
+    1. interpret_vibe  → genres + vibe_description + Spotify search_query
+    2. Spotify search  → candidate tracks from Spotify catalog
+    3. Return results sorted by Spotify relevance
+    """
+    from app.modules.recommendations.vibe_service import interpret_vibe
+    from app.modules.recommendations.spotify_service import search_tracks
+
+    vibe = interpret_vibe(query)
+    spotify_query = vibe.get("search_query", "")
+    vibe_desc = vibe["vibe_description"]
+    genres = vibe.get("genres", [])
+
+    # Fetch Spotify candidates
+    spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 12)) if spotify_query else []
+
+    # Build response
+    songs = []
+    for i, track in enumerate(spotify_tracks):
+        # Simple relevance score based on position
+        match_pct = round((1.0 - i / max(len(spotify_tracks), 1)) * 100, 1)
+        songs.append(VibeSearchSongItem(
+            title=track["title"],
+            artist=track["artist"],
+            spotify_id=track.get("spotify_id"),
+            preview_url=track.get("preview_url"),
+            album_art=track.get("album_art"),
+            spotify_url=track.get("spotify_url"),
+            source="spotify",
+            in_library=False,
+            match_percentage=match_pct,
+        ))
+
+    return VibeSearchData(
+        query=query,
+        vibe_description=vibe_desc,
+        search_query=spotify_query,
+        genres=genres,
+        songs=songs,
+    )

@@ -208,3 +208,24 @@ export interface DjOfflineMixResult {
   sample_rate: number
   duration_sec: number
 }
+
+// --- Vibe Search ---
+export interface VibeSearchSongItem {
+  title: string
+  artist: string
+  spotify_id?: string
+  preview_url?: string
+  album_art?: string
+  spotify_url?: string
+  source: string
+  in_library: boolean
+  match_percentage?: number
+}
+
+export interface VibeSearchResult {
+  query: string
+  vibe_description: string
+  search_query: string
+  genres: string[]
+  songs: VibeSearchSongItem[]
+}

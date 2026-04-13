@@ -10,11 +10,14 @@ from app.modules.recommendations.schemas import (
     DiscoverRequest,
     RecommendationData,
     RecommendationRequest,
+    VibeSearchData,
+    VibeSearchRequest,
 )
 from app.modules.recommendations.service import (
     add_song_to_library,
     discover_songs,
     recommend_songs,
+    vibe_search,
 )
 
 router = APIRouter()
@@ -52,3 +55,12 @@ def get_recommendations_endpoint(
         source=payload.source,
     )
     return APIResponse(data=RecommendationData(songs=songs))
+
+
+@router.post("/vibe-search", response_model=APIResponse[VibeSearchData])
+def vibe_search_endpoint(
+    payload: VibeSearchRequest,
+    db: Session = Depends(get_db),
+):
+    data = vibe_search(db, query=payload.query, user_id=payload.user_id, top_k=payload.top_k)
+    return APIResponse(data=data)
