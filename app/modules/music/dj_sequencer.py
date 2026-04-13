@@ -77,6 +77,17 @@ class TransitionPlan:
     mix_duration_bars: int = 8
     mix_duration_sec: float = 0.0
 
+    # Gradual BPM transition (both tracks meet at target BPM during overlap)
+    bpm_a_target: float = 0.0         # BPM track A adjusts to during overlap
+    bpm_b_target: float = 0.0         # BPM track B adjusts to during overlap
+
+    # Structure-aware section info
+    a_section_out: str = ""            # section label of A where mix-out starts
+    b_section_in: str = ""             # section label of B where mix-in starts
+
+    # Auto-suggested transition style
+    suggested_style: str = "smooth"
+
 
 # ── Energy curve profiles ──────────────────────────────────────────────────
 
@@ -392,6 +403,67 @@ def harmonize(
     return ordered, transitions
 
 
+# ── Structure-aware helpers ────────────────────────────────────────────────
+
+def _find_outro_start(track: DJTrack) -> Optional[float]:
+    """Find the start time of the outro or last suitable section for mix-out."""
+    if not track.phrase_map:
+        return None
+    for section in track.phrase_map:
+        if section.get("label", "").lower() == "outro":
+            return section["start"]
+    # Fallback: start of last section
+    return track.phrase_map[-1]["start"]
+
+
+def _find_intro_end(track: DJTrack) -> Optional[float]:
+    """Find the end time of the intro or first suitable section for mix-in."""
+    if not track.phrase_map:
+        return None
+    for section in track.phrase_map:
+        if section.get("label", "").lower() == "intro":
+            return section["end"]
+    # Fallback: end of first section
+    return track.phrase_map[0]["end"]
+
+
+def _get_section_at(track: DJTrack, time_sec: float) -> str:
+    """Return the label of the section containing the given time."""
+    for section in track.phrase_map:
+        start = section.get("start", 0)
+        end = section.get("end", 0)
+        if start <= time_sec < end or (time_sec == end == track.duration):
+            return section.get("label", "")
+    return ""
+
+
+def _suggest_transition_style(
+    track_a: DJTrack, track_b: DJTrack,
+) -> str:
+    """Auto-suggest the best transition style based on track characteristics."""
+    energy_diff = track_b.energy - track_a.energy
+    bpm_diff_pct = abs(track_a.bpm - track_b.bpm) / max(track_a.bpm, 1) * 100
+    key_dist = camelot_distance(track_a.camelot_key, track_b.camelot_key)
+
+    # High energy jump → slam (energy burst)
+    if energy_diff > 0.3:
+        return "slam"
+    # Energy drop → echo_out (spacious reverb tail)
+    if energy_diff < -0.25:
+        return "echo_out"
+    # Same key or adjacent → smooth (harmonic crossfade)
+    if key_dist <= 1:
+        return "smooth"
+    # Large BPM difference → filter (mask tempo change with sweep)
+    if bpm_diff_pct > 5:
+        return "filter"
+    # Similar energy + good key → bass_swap (classic DJ technique)
+    if abs(energy_diff) < 0.1 and key_dist <= 2:
+        return "bass_swap"
+    # Default
+    return "power"
+
+
 # ── Transition params: mix-in / mix-out computation ────────────────────────
 
 def compute_transition_params(
@@ -402,9 +474,11 @@ def compute_transition_params(
 ) -> TransitionPlan:
     """
     Compute mix-in/mix-out points for a transition.
-    Each song plays fully; overlap is at the junction:
-      - A's last N bars overlap with B's first N bars.
-      - Mix-in/out snapped to nearest downbeat when available.
+
+    Upgrades over basic approach:
+      - Structure-aware: prefers Outro→Intro boundaries from phrase_map
+      - Gradual BPM: both tracks meet at a mid-point tempo during overlap
+      - Auto-suggest transition style based on energy/key/BPM relationship
     """
     bar_sec_a = _bars_to_seconds(1, track_a.bpm)
     bar_sec_b = _bars_to_seconds(1, track_b.bpm)
@@ -421,22 +495,55 @@ def compute_transition_params(
     plan.a_play_start = 0.0
     plan.a_play_end = track_a.duration
 
-    # Mix-out point: where A starts fading = end - overlap
+    # ── Structure-aware mix-out point ──
+    # Prefer Outro start from phrase_map; fallback to duration - overlap
+    outro_start = _find_outro_start(track_a)
     mix_out = track_a.duration - overlap_sec
+    if outro_start is not None and outro_start > track_a.duration * 0.5:
+        # Use Outro start if it's in the second half of the track
+        mix_out = outro_start
+        # Recompute overlap to match
+        overlap_sec = track_a.duration - mix_out
+        actual_bars = max(2, round(overlap_sec / bar_sec_a))
+
     if track_a.downbeats:
         mix_out = _snap_to_nearest(mix_out, track_a.downbeats)
     plan.mix_start_time = round(max(0, mix_out), 3)
+    plan.a_section_out = _get_section_at(track_a, mix_out)
 
-    # B plays from start to end
+    # ── Structure-aware mix-in point ──
+    # Prefer Intro end from phrase_map
+    intro_end = _find_intro_end(track_b)
+    b_cue = 0.0
+    if intro_end is not None and intro_end < track_b.duration * 0.3:
+        # B starts playing from beginning; overlap covers the intro
+        b_cue = 0.0
     plan.b_play_start = 0.0
     plan.b_play_end = track_b.duration
-    plan.b_cue_time = 0.0
+    plan.b_cue_time = round(b_cue, 3)
+    plan.b_section_in = _get_section_at(track_b, b_cue) if track_b.phrase_map else ""
 
     # Overlap
     plan.overlap_bars = actual_bars
     plan.overlap_sec = round(overlap_sec, 3)
     plan.mix_duration_bars = actual_bars
     plan.mix_duration_sec = round(overlap_sec, 3)
+
+    # ── Gradual BPM transition ──
+    if track_a.bpm > 0 and track_b.bpm > 0:
+        bpm_diff = abs(track_a.bpm - track_b.bpm)
+        if bpm_diff <= 8:
+            # Small difference: both adjust to midpoint
+            mid_bpm = (track_a.bpm + track_b.bpm) / 2
+            plan.bpm_a_target = round(mid_bpm, 1)
+            plan.bpm_b_target = round(mid_bpm, 1)
+        else:
+            # Larger difference: B adjusts to A's tempo
+            plan.bpm_a_target = round(track_a.bpm, 1)
+            plan.bpm_b_target = round(track_a.bpm, 1)
+
+    # ── Auto-suggest transition style ──
+    plan.suggested_style = _suggest_transition_style(track_a, track_b)
 
     return plan
 

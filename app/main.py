@@ -14,15 +14,70 @@ from app.shared.config import get_settings
 from app.shared.database import Base, engine
 
 
+def _migrate_add_missing_columns():
+    """Add columns that exist in models but not in the database."""
+    import logging
+    from sqlalchemy import inspect as sa_inspect, text
+    logger = logging.getLogger(__name__)
+    with engine.connect() as conn:
+        inspector = sa_inspect(engine)
+        for table_name, table in Base.metadata.tables.items():
+            if not inspector.has_table(table_name):
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table_name)}
+            for col in table.columns:
+                if col.name not in existing:
+                    col_type = col.type.compile(engine.dialect)
+                    # Determine default value for NOT NULL columns
+                    default_val = None
+                    if col.default is not None and col.default.arg is not None and not callable(col.default.arg):
+                        default_val = col.default.arg
+                    if col.nullable:
+                        sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NULL'
+                    elif default_val is not None:
+                        sql = f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NOT NULL DEFAULT '{default_val}'"
+                    else:
+                        # Add as nullable first to avoid errors on existing rows, then set a safe default
+                        sql = f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} NULL"
+                    try:
+                        logger.info("[migrate] %s", sql)
+                        conn.execute(text(sql))
+                    except Exception:
+                        # Column may already be added by another worker — safe to ignore
+                        logger.debug("[migrate] skipped (already exists?): %s", sql)
+        conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Clean up old DJ mix files on startup
-    _cleanup_old_mix_files()
-    # Auto-analyze songs that have files but were never analyzed
-    if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
-        _schedule_pending_analyses()
+    _migrate_add_missing_columns()
+
+    # Use Redis SETNX to ensure only one worker runs heavy startup tasks
+    _is_primary = False
+    try:
+        from app.shared.redis import get_redis
+        _is_primary = get_redis().set("harbeat:startup_lock", str(os.getpid()), nx=True, ex=120)
+    except Exception:
+        # If Redis is unavailable, fall back to running (safe for single-worker)
+        _is_primary = True
+
+    if _is_primary:
+        # Clean up old DJ mix files on startup
+        _cleanup_old_mix_files()
+        # Auto-analyze songs that have files but were never analyzed
+        if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
+            _schedule_pending_analyses()
+
     yield
+
+    # Release lock on shutdown
+    if _is_primary:
+        try:
+            from app.shared.redis import get_redis
+            get_redis().delete("harbeat:startup_lock")
+        except Exception:
+            pass
 
 
 def _cleanup_old_mix_files(max_age_hours: int = 1):

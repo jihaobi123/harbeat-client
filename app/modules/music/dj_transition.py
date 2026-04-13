@@ -2,19 +2,19 @@
 DJ Transition Engine (DJ.studio-inspired)
 ==========================================
 
-Professional transition automation with EQ, filter, and FX curves.
-Produces per-stem automation curves at 10Hz for frontend playback.
+Professional transition automation with real EQ filter sweeps, reverb/delay FX,
+and per-stem gain curves at 50Hz (20ms resolution) for smooth playback.
 
 Transition presets:
   smooth     — EQ crossfade: A's low fades first, then mids, then highs
   power      — Equal-power gain crossfade (clean, no EQ tricks)
   bass_swap  — Classic DJ bass exchange at midpoint
-  echo_out   — Echo/delay tail on A, clean B fade-in
-  filter     — Hi-pass sweep on A + lo-pass ramp on B
+  echo_out   — Real reverb/delay tail on A, clean B fade-in
+  filter     — Highpass sweep on A + lowpass ramp on B (real frequency curves)
   cut        — Hard instant switch
-  slam       — Quick high-energy 2-beat burst transition
+  slam       — Quick high-energy burst with filter tension build
 
-Reference: DJ.studio timeline automation system
+Reference: DJ.studio timeline + mir-aidj transition analysis (NIME 2021)
 """
 from __future__ import annotations
 
@@ -29,11 +29,13 @@ log = logging.getLogger(__name__)
 class TransitionAutomation:
     """
     Per-stem automation for a single A→B transition overlap.
-    All arrays are sampled at `sample_rate` Hz (default 10Hz).
-    Values are gain multipliers 0.0 - 1.0.
+    All arrays are sampled at `sample_rate` Hz (default 50Hz = 20ms resolution).
+    Gain values are multipliers 0.0-1.0.
+    Filter frequencies are in Hz (for real Pedalboard HighpassFilter/LowpassFilter).
+    FX sends are 0.0 (dry) to 1.0 (full wet, for real Pedalboard Reverb/Delay).
     """
     total_duration_sec: float
-    sample_rate: float = 10.0
+    sample_rate: float = 50.0
 
     # A track stems
     a_drums: list[float] = field(default_factory=list)
@@ -51,8 +53,15 @@ class TransitionAutomation:
     a_volume: list[float] = field(default_factory=list)
     b_volume: list[float] = field(default_factory=list)
 
-    # Echo/reverb tail on A (0=dry, 1=full wet)
-    a_echo: list[float] = field(default_factory=list)
+    # EQ filter frequency curves (Hz) — drives real HighpassFilter / LowpassFilter
+    a_highpass_hz: list[float] = field(default_factory=list)   # 20=bypass → higher=thinner
+    a_lowpass_hz: list[float] = field(default_factory=list)    # 20000=bypass → lower=muffled
+    b_highpass_hz: list[float] = field(default_factory=list)
+    b_lowpass_hz: list[float] = field(default_factory=list)
+
+    # Reverb / Delay send (0.0=dry, 1.0=full wet) — drives real Pedalboard effects
+    a_reverb: list[float] = field(default_factory=list)
+    a_delay: list[float] = field(default_factory=list)
 
 
 TRANSITION_STYLES = [
@@ -72,7 +81,7 @@ def generate_transition_automation(
     if overlap_sec <= 0:
         overlap_sec = 8.0
 
-    sr = 10.0
+    sr = 50.0
     n = max(1, int(overlap_sec * sr))
 
     auto = TransitionAutomation(
@@ -84,6 +93,21 @@ def generate_transition_automation(
     builder(auto, n, overlap_sec, bpm)
 
     return auto
+
+
+# ── FX automation helper ───────────────────────────────────────────────────
+
+def _append_fx(auto: TransitionAutomation, *,
+               a_hp: float = 20.0, a_lp: float = 20000.0,
+               b_hp: float = 20.0, b_lp: float = 20000.0,
+               a_rev: float = 0.0, a_del: float = 0.0) -> None:
+    """Append one sample of FX automation (filter freq + reverb/delay wet)."""
+    auto.a_highpass_hz.append(round(a_hp, 1))
+    auto.a_lowpass_hz.append(round(a_lp, 1))
+    auto.b_highpass_hz.append(round(b_hp, 1))
+    auto.b_lowpass_hz.append(round(b_lp, 1))
+    auto.a_reverb.append(_r(a_rev))
+    auto.a_delay.append(_r(a_del))
 
 
 # ── Smooth: EQ crossfade (low fades first) ─────────────────────────────────
@@ -114,11 +138,13 @@ def _build_smooth(auto: TransitionAutomation, n: int, dur: float, bpm: float) ->
 
         auto.a_drums.append(a_drums); auto.a_bass.append(a_bass)
         auto.a_vocals.append(a_vocals); auto.a_other.append(a_other)
-        auto.a_volume.append(a_vol); auto.a_echo.append(_r(t * 0.3))
+        auto.a_volume.append(a_vol)
 
         auto.b_drums.append(b_drums); auto.b_bass.append(b_bass)
         auto.b_vocals.append(b_vocals); auto.b_other.append(b_other)
         auto.b_volume.append(b_vol)
+
+        _append_fx(auto, a_rev=t * 0.25)
 
 
 def _smooth_fade(t: float, start: float, end: float) -> float:
@@ -152,11 +178,13 @@ def _build_power(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> 
 
         auto.a_drums.append(_r(a_vol)); auto.a_bass.append(_r(a_vol))
         auto.a_vocals.append(_r(a_vol)); auto.a_other.append(_r(a_vol))
-        auto.a_volume.append(_r(a_vol)); auto.a_echo.append(0.0)
+        auto.a_volume.append(_r(a_vol))
 
         auto.b_drums.append(_r(b_vol)); auto.b_bass.append(_r(b_vol))
         auto.b_vocals.append(_r(b_vol)); auto.b_other.append(_r(b_vol))
         auto.b_volume.append(_r(b_vol))
+
+        _append_fx(auto)
 
 
 # ── Bass Swap: classic DJ bass exchange ────────────────────────────────────
@@ -175,13 +203,15 @@ def _build_bass_swap(auto: TransitionAutomation, n: int, dur: float, bpm: float)
             p = i / max(swap, 1)
             auto.a_drums.append(1.0); auto.a_bass.append(1.0)
             auto.a_vocals.append(1.0); auto.a_other.append(1.0)
-            auto.a_volume.append(1.0); auto.a_echo.append(0.0)
+            auto.a_volume.append(1.0)
 
             auto.b_drums.append(_r(_ease_in(p) * 0.7))
             auto.b_bass.append(0.0)
             auto.b_vocals.append(0.0)
             auto.b_other.append(_r(_ease_in(p) * 0.6))
             auto.b_volume.append(_r(_ease_in(p) * 0.7))
+
+            _append_fx(auto)
         else:
             remaining = n - swap
             p = (i - swap) / max(remaining, 1)
@@ -191,7 +221,6 @@ def _build_bass_swap(auto: TransitionAutomation, n: int, dur: float, bpm: float)
             auto.a_vocals.append(_r(_ease_out(1 - p) * 0.7))
             auto.a_other.append(_r(_ease_out(1 - p) * 0.6))
             auto.a_volume.append(_r(_ease_out(1 - p)))
-            auto.a_echo.append(_r(_ease_in(p) * 0.8))
 
             auto.b_drums.append(_r(0.7 + 0.3 * _ease_in(p)))
             auto.b_bass.append(1.0)
@@ -199,26 +228,27 @@ def _build_bass_swap(auto: TransitionAutomation, n: int, dur: float, bpm: float)
             auto.b_other.append(_r(0.6 + 0.4 * _ease_in(p)))
             auto.b_volume.append(_r(0.7 + 0.3 * _ease_in(p)))
 
+            _append_fx(auto, a_rev=_ease_in(p) * 0.6)
+
 
 # ── Echo Out: reverb tail on A ─────────────────────────────────────────────
 
 def _build_echo_out(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> None:
     """
-    A builds up echo/reverb as it fades, B clean fade-in.
-    Echo ramps strongly on A creating a spacious tail.
+    A builds up real reverb/delay as it fades, B clean fade-in.
+    Reverb ramps strongly on A creating a spacious tail;
+    delay adds rhythmic echo that decays into the new track.
     """
     for i in range(n):
         t = i / max(n - 1, 1)
 
-        # A: fade out with heavy echo
+        # A: fade out with heavy reverb + delay
         a_vol = _r(1.0 - _ease_in(t))
-        echo = _r(_ease_in(t) * 0.9)
         auto.a_drums.append(_r(1.0 - t * 0.6))
         auto.a_bass.append(_r(1.0 - _ease_in(t) * 0.8))
         auto.a_vocals.append(_r(1.0 - t * 0.5))
         auto.a_other.append(_r(1.0 - t * 0.4))
         auto.a_volume.append(a_vol)
-        auto.a_echo.append(echo)
 
         # B: clean entry, drums first
         b_p = max(0, (t - 0.15) / 0.85)
@@ -228,31 +258,40 @@ def _build_echo_out(auto: TransitionAutomation, n: int, dur: float, bpm: float) 
         auto.b_other.append(_r(_ease_in(max(0, (t - 0.2) / 0.8))))
         auto.b_volume.append(_r(_ease_in(b_p)))
 
+        # Real reverb/delay ramp — creates spacious echo tail on A
+        _append_fx(auto, a_rev=_ease_in(t) * 0.85, a_del=_ease_in(t) * 0.6)
+
 
 # ── Filter: hi-pass sweep A + lo-pass ramp B ──────────────────────────────
 
 def _build_filter(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> None:
     """
-    Simulates hi-pass filter sweep on A (kill bass → kill mids → thin highs)
-    and lo-pass opening on B (muffled → full).
+    Real highpass frequency sweep on A + lowpass opening on B.
+    A: highpass 20Hz → 5000Hz (thins out progressively).
+    B: lowpass 200Hz → 20000Hz (brightens as it enters).
+    Stem gains provide additional control on top of the real filter curves.
     """
     for i in range(n):
         t = i / max(n - 1, 1)
 
-        # A: hi-pass sweep effect (lose bass first, then mids)
+        # A: stem gain as supplementary control
         auto.a_bass.append(_r(1.0 - _ease_in(min(t * 2, 1.0))))
         auto.a_drums.append(_r(1.0 - _ease_in(min(t * 1.5, 1.0)) * 0.7))
         auto.a_vocals.append(_r(1.0 - _ease_in(t) * 0.5))
         auto.a_other.append(_r(1.0 - _ease_in(t) * 0.3))
         auto.a_volume.append(_r(1.0 - t * 0.3))
-        auto.a_echo.append(_r(t * 0.4))
 
-        # B: lo-pass opening (drums/bass enter late, highs first)
+        # B: stem gain — lo-pass opening simulation
         auto.b_other.append(_r(_ease_in(min(t * 1.5, 1.0))))
         auto.b_vocals.append(_r(_ease_in(max(0, (t - 0.2) / 0.8))))
         auto.b_drums.append(_r(_ease_in(max(0, (t - 0.3) / 0.7))))
         auto.b_bass.append(_r(_ease_in(max(0, (t - 0.5) / 0.5))))
         auto.b_volume.append(_r(_ease_in(min(t * 1.2, 1.0))))
+
+        # Real EQ filter frequency curves
+        a_hp = 20.0 + _ease_in(t) * 4980.0      # 20Hz → 5000Hz highpass sweep
+        b_lp = 200.0 + _ease_in(t) * 19800.0     # 200Hz → 20000Hz lowpass opening
+        _append_fx(auto, a_hp=a_hp, b_lp=b_lp, a_rev=t * 0.15)
 
 
 # ── Cut: hard instant switch ───────────────────────────────────────────────
@@ -264,45 +303,49 @@ def _build_cut(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> No
         if i < mid:
             auto.a_drums.append(1.0); auto.a_bass.append(1.0)
             auto.a_vocals.append(1.0); auto.a_other.append(1.0)
-            auto.a_volume.append(1.0); auto.a_echo.append(0.0)
+            auto.a_volume.append(1.0)
             auto.b_drums.append(0.0); auto.b_bass.append(0.0)
             auto.b_vocals.append(0.0); auto.b_other.append(0.0)
             auto.b_volume.append(0.0)
+            _append_fx(auto)
         else:
             auto.a_drums.append(0.0); auto.a_bass.append(0.0)
             auto.a_vocals.append(0.0); auto.a_other.append(0.0)
-            auto.a_volume.append(0.0); auto.a_echo.append(0.5)
+            auto.a_volume.append(0.0)
             auto.b_drums.append(1.0); auto.b_bass.append(1.0)
             auto.b_vocals.append(1.0); auto.b_other.append(1.0)
             auto.b_volume.append(1.0)
+            _append_fx(auto, a_rev=0.3)
 
 
 # ── Slam: quick high-energy burst ─────────────────────────────────────────
 
 def _build_slam(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> None:
     """
-    Quick slam transition:
-    1. Brief silence/filter sweep (builds tension)
-    2. B hits hard at the drop
-    Creates an energy burst effect popular in EDM/dance sets.
+    Quick slam transition with filter tension build:
+    1. A fades with highpass sweep + reverb (builds tension)
+    2. B slams in at the drop with full bandwidth
+    Creates an energy burst popular in EDM/dance sets.
     """
-    # Tension builds in first 40%, "drop" at 40%, then B dominates
     drop_point = int(n * 0.4)
 
     for i in range(n):
         if i < drop_point:
-            # Build tension: A fades, everything quiets down
+            # Build tension: A fades, highpass sweeps up, reverb ramps
             p = i / max(drop_point, 1)
             auto.a_drums.append(_r(1.0 - _ease_in(p) * 0.9))
             auto.a_bass.append(_r(1.0 - _ease_in(p)))
             auto.a_vocals.append(_r(1.0 - _ease_in(p) * 0.7))
             auto.a_other.append(_r(1.0 - p * 0.5))
             auto.a_volume.append(_r(1.0 - _ease_in(p) * 0.7))
-            auto.a_echo.append(_r(_ease_in(p) * 0.6))
 
             auto.b_drums.append(0.0); auto.b_bass.append(0.0)
             auto.b_vocals.append(0.0); auto.b_other.append(0.0)
             auto.b_volume.append(0.0)
+
+            # Tension: highpass sweeps 20→3000Hz + reverb/delay ramp
+            a_hp = 20.0 + _ease_in(p) * 2980.0
+            _append_fx(auto, a_hp=a_hp, a_rev=_ease_in(p) * 0.65, a_del=_ease_in(p) * 0.4)
         else:
             # Drop: B slams in at full energy
             remaining = n - drop_point
@@ -311,7 +354,6 @@ def _build_slam(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> N
             auto.a_drums.append(0.0); auto.a_bass.append(0.0)
             auto.a_vocals.append(0.0); auto.a_other.append(0.0)
             auto.a_volume.append(0.0)
-            auto.a_echo.append(_r(0.6 * (1 - p)))
 
             # B enters at ~90% immediately, then quickly to 100%
             entry = min(1.0, 0.9 + 0.1 * p)
@@ -320,6 +362,9 @@ def _build_slam(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> N
             auto.b_vocals.append(_r(0.7 + 0.3 * _ease_in(p)))
             auto.b_other.append(_r(entry))
             auto.b_volume.append(_r(entry))
+
+            # Reverb tail fades on A
+            _append_fx(auto, a_rev=0.5 * (1 - p))
 
 
 # ── Builder registry ───────────────────────────────────────────────────────

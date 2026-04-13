@@ -2,10 +2,10 @@
 Street-dance audio processor — professional pipeline.
 
 Processing chain:
-  1. Demucs v4 (HTDemucs) — 4-track source separation (drums/bass/vocals/other)
+  1. Demucs v4 (HTDemucs-FT fine-tuned) — 4-track source separation
   2. Style-specific stem remixing with gain curves per dance genre
-  3. Time-stretch to target BPM via librosa (pyrubberband fallback ready)
-  4. Pedalboard DSP: compressor, EQ shelf, limiter per dance style
+  3. Time-stretch to target BPM via Rubber Band R3 (pyrubberband → librosa fallback)
+  4. Pedalboard DSP: highpass, shelf/peak EQ, compressor, reverb/chorus, limiter
   5. Beat-synced groove pump (dynamic envelope on beat grid)
   6. EBU R128 loudness normalization via pyloudnorm
 """
@@ -45,6 +45,12 @@ def _ensure_libs():
     g["Gain"] = _pb.Gain
     g["HighShelfFilter"] = _pb.HighShelfFilter
     g["LowShelfFilter"] = _pb.LowShelfFilter
+    g["HighpassFilter"] = _pb.HighpassFilter
+    g["LowpassFilter"] = _pb.LowpassFilter
+    g["PeakFilter"] = _pb.PeakFilter
+    g["Reverb"] = _pb.Reverb
+    g["Delay"] = _pb.Delay
+    g["Chorus"] = _pb.Chorus
     g["Limiter"] = _pb.Limiter
     g["Pedalboard"] = _pb.Pedalboard
     _libs_loaded = True
@@ -79,35 +85,52 @@ DEFAULT_STEM_MIX = (1.10, 1.00, 0.55, 0.60)
 # ── Pedalboard DSP presets per style ────────────────────────────────────────
 # Each returns a Pedalboard effects chain
 def _dsp_chain(style: str, sr: int) -> Pedalboard:
-    """Build a pedalboard DSP chain tuned per dance style."""
+    """Build a pedalboard DSP chain tuned per dance style.
+
+    Upgraded: HighpassFilter (sub-rumble cleanup), PeakFilter (presence/mid shaping),
+    Reverb (room ambience for groove styles), Chorus (spatial width for disco/house).
+    """
     s = style.lower().strip()
 
     if s in {"breaking", "krump"}:
+        # Aggressive, dry, punchy — no reverb (snap/crack clarity)
         return Pedalboard([
-            LowShelfFilter(cutoff_frequency_hz=120.0, gain_db=5.0, q=0.7),    # sub bass boost
-            HighShelfFilter(cutoff_frequency_hz=8000.0, gain_db=-2.0, q=0.7),  # tame highs
-            Compressor(threshold_db=-18.0, ratio=5.0, attack_ms=5.0, release_ms=80.0),  # aggressive
+            HighpassFilter(cutoff_frequency_hz=30.0),                              # sub-rumble cleanup
+            LowShelfFilter(cutoff_frequency_hz=120.0, gain_db=5.0, q=0.7),        # sub bass boost
+            PeakFilter(cutoff_frequency_hz=2500.0, gain_db=2.5, q=1.2),           # snap/crack presence
+            HighShelfFilter(cutoff_frequency_hz=8000.0, gain_db=-2.0, q=0.7),     # tame harsh highs
+            Compressor(threshold_db=-18.0, ratio=5.0, attack_ms=5.0, release_ms=80.0),
             Gain(gain_db=2.0),
             Limiter(threshold_db=-1.0, release_ms=100.0),
         ])
     elif s in {"house", "waacking"}:
+        # Bright, spatial disco/house — chorus for width, light reverb
         return Pedalboard([
+            HighpassFilter(cutoff_frequency_hz=25.0),
             LowShelfFilter(cutoff_frequency_hz=100.0, gain_db=3.5, q=0.7),
-            HighShelfFilter(cutoff_frequency_hz=6000.0, gain_db=1.5, q=0.7),   # bright disco
+            PeakFilter(cutoff_frequency_hz=3000.0, gain_db=1.5, q=1.0),           # vocal/synth presence
+            HighShelfFilter(cutoff_frequency_hz=6000.0, gain_db=1.5, q=0.7),      # bright disco top
             Compressor(threshold_db=-20.0, ratio=3.5, attack_ms=10.0, release_ms=100.0),
+            Chorus(rate_hz=0.5, depth=0.15, mix=0.2),                              # spatial width
+            Reverb(room_size=0.3, wet_level=0.10, dry_level=0.90),                 # light room
             Gain(gain_db=1.5),
             Limiter(threshold_db=-1.0, release_ms=120.0),
         ])
     elif s in {"popping", "locking"}:
+        # Clean funk groove — subtle reverb, mid presence for slap/pop
         return Pedalboard([
+            HighpassFilter(cutoff_frequency_hz=30.0),
             LowShelfFilter(cutoff_frequency_hz=100.0, gain_db=3.0, q=0.7),
+            PeakFilter(cutoff_frequency_hz=1500.0, gain_db=2.0, q=1.0),           # funky mid presence
             HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=1.0, q=0.7),
             Compressor(threshold_db=-22.0, ratio=3.0, attack_ms=12.0, release_ms=120.0),
+            Reverb(room_size=0.2, wet_level=0.08, dry_level=0.92),                 # subtle room
             Gain(gain_db=1.0),
             Limiter(threshold_db=-1.0, release_ms=150.0),
         ])
     else:  # hiphop / default
         return Pedalboard([
+            HighpassFilter(cutoff_frequency_hz=25.0),                              # sub-rumble cleanup
             LowShelfFilter(cutoff_frequency_hz=100.0, gain_db=2.5, q=0.7),
             HighShelfFilter(cutoff_frequency_hz=7000.0, gain_db=0.5, q=0.7),
             Compressor(threshold_db=-24.0, ratio=2.5, attack_ms=15.0, release_ms=150.0),
@@ -120,7 +143,7 @@ def _dsp_chain(style: str, sr: int) -> Pedalboard:
 _demucs_model_cache: dict[str, object] = {}
 
 
-def _get_demucs_model(name: str = "htdemucs"):
+def _get_demucs_model(name: str = "htdemucs_ft"):
     """Load and cache Demucs model (lazy singleton)."""
     if name not in _demucs_model_cache:
         from demucs.pretrained import get_model
@@ -139,7 +162,7 @@ def _separate_stems(y_mono: np.ndarray, sr: int) -> dict[str, np.ndarray]:
     """
     try:
         from demucs.apply import apply_model
-        model = _get_demucs_model("htdemucs")
+        model = _get_demucs_model("htdemucs_ft")
 
         # Demucs expects (batch, channels, samples) tensor
         # The model operates at its own sample rate, resample if needed
@@ -187,14 +210,18 @@ def _hpss_fallback(y: np.ndarray, sr: int) -> dict[str, np.ndarray]:
 
 
 # ── Time-stretch ────────────────────────────────────────────────────────────
-def _time_stretch(y: np.ndarray, rate: float) -> np.ndarray:
-    """Time-stretch audio by rate factor. Tries pyrubberband, falls back to librosa."""
+def _time_stretch(y: np.ndarray, rate: float, sr: int = 44100) -> np.ndarray:
+    """Time-stretch audio via Rubber Band (pyrubberband) with librosa fallback."""
     if abs(rate - 1.0) < 0.02:
         return y
 
     try:
         import pyrubberband as pyrb
-        return pyrb.time_stretch(y, sr=44100, rate=rate)
+        try:
+            # Rubber Band R3 "finer" engine — best quality
+            return pyrb.time_stretch(y, sr=sr, rate=rate, rbargs={"--fine": ""})
+        except Exception:
+            return pyrb.time_stretch(y, sr=sr, rate=rate)
     except Exception:
         return librosa.effects.time_stretch(y, rate=rate)
 
@@ -317,7 +344,7 @@ def process_audio_for_style(
         stretch_rate = float(desired_bpm) / bpm
         stretch_rate = float(np.clip(stretch_rate, 0.78, 1.3))
         log.info("Time-stretch: %.1f BPM → %d BPM (rate=%.3f)", bpm, desired_bpm, stretch_rate)
-        y = _time_stretch(y, stretch_rate)
+        y = _time_stretch(y, stretch_rate, sr=sr)
         bpm = float(desired_bpm)
 
     # ── Step 3: Demucs separation ──
@@ -397,6 +424,6 @@ def process_audio_for_style(
         "sr": sr,
         "samples": int(mixed.shape[0]),
         "energy": target_energy,
-        "pipeline": "demucs_v4+pedalboard+pyloudnorm",
+        "pipeline": "htdemucs_ft+rubberband_r3+pedalboard_pro+pyloudnorm",
         "stem_files": stem_paths,
     }

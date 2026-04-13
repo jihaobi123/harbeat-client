@@ -53,22 +53,41 @@ async def _fangpi_search(query: str) -> list[dict]:
     """Search via fangpi.net.  Returns [] on any failure (including 520)."""
     if not query.strip():
         return []
+    # Strip characters that cause fangpi 404: dots, slashes, quotes
+    clean_query = re.sub(r'[./"\\]', ' ', query.strip())
+    clean_query = re.sub(r'\s+', ' ', clean_query).strip()
+    if not clean_query:
+        return []
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=12) as client:
             r1 = await client.post(
                 f"{_FANGPI_BASE}/api/s",
-                data={"keyword": query.strip()},
+                data={"keyword": clean_query},
                 headers={"User-Agent": _UA_BROWSER, "Referer": f"{_FANGPI_BASE}/"},
             )
             if r1.status_code >= 500:
                 return []
 
-            encoded = query.strip().replace(" ", "%20")
+            # Use the URL returned by fangpi's POST API when available
+            search_path = None
+            try:
+                body = r1.json()
+                if body.get("code") == 1 and body.get("data", {}).get("u"):
+                    search_path = body["data"]["u"]
+            except Exception:
+                pass
+
+            if search_path:
+                search_url = f"{_FANGPI_BASE}{search_path}"
+            else:
+                from urllib.parse import quote
+                search_url = f"{_FANGPI_BASE}/s/{quote(clean_query, safe='')}"
+
             resp = await client.get(
-                f"{_FANGPI_BASE}/s/{encoded}",
+                search_url,
                 headers={"User-Agent": _UA_BROWSER, "Referer": f"{_FANGPI_BASE}/"},
             )
-            if resp.status_code >= 500:
+            if resp.status_code >= 400:
                 return []
             html = resp.text
     except Exception:
@@ -227,8 +246,38 @@ async def search_fangpi(query: str) -> list[dict]:
     return combined
 
 
+def _normalize_title(t: str) -> str:
+    """Lowercase, strip parenthesized suffixes, remove punctuation."""
+    t = t.lower().strip()
+    t = re.sub(r"[（(].*?[)）]", "", t)
+    t = re.sub(r"[^\w\s]", "", t)
+    return t.strip()
+
+
+def _title_matches(candidate_title: str, target_title: str) -> bool:
+    """Check if candidate is a reasonable match for target."""
+    a = _normalize_title(candidate_title)
+    b = _normalize_title(target_title)
+    if not a or not b:
+        return False
+    # Exact match or one contains the other
+    if a == b or a in b or b in a:
+        return True
+    # Word overlap: at least 50% of target words appear in candidate
+    a_words = set(a.split())
+    b_words = set(b.split())
+    if not b_words:
+        return False
+    overlap = len(a_words & b_words) / len(b_words)
+    return overlap >= 0.5
+
+
 async def smart_search_fangpi(title: str, artist: str) -> list[dict]:
-    """Multi-strategy search to maximise match rate."""
+    """Multi-strategy search to maximise match rate.
+
+    Filters results to only include songs whose title reasonably matches
+    the target, preventing completely wrong downloads.
+    """
     for q in [
         f"{title} {artist}".strip(),
         title.strip(),
@@ -237,25 +286,65 @@ async def smart_search_fangpi(title: str, artist: str) -> list[dict]:
         if not q:
             continue
         results = await search_fangpi(q)
-        if results:
-            return results
+        # Filter to only title-matching results
+        matched = [r for r in results if _title_matches(r["title"], title)]
+        if matched:
+            return matched
     return []
 
 
-async def _get_audio_url(music_id: str, source: str = "fangpi") -> str:
-    """Resolve audio URL — tries the original source, falls back."""
+async def _get_audio_url(music_id: str, source: str = "fangpi",
+                         title: str = "", artist: str = "") -> str:
+    """Resolve audio URL — tries the original source, falls back.
+
+    When fangpi fails, re-searches Kuwo by title+artist to get the correct
+    Kuwo ID (fangpi IDs ≠ Kuwo IDs), then downloads from Kuwo.
+    """
+    errors: list[str] = []
+
     if source == "fangpi":
         try:
             return await _fangpi_get_audio_url(music_id)
-        except Exception:
-            logger.info("fangpi audio URL failed for %s, trying Kuwo", music_id)
-            # fangpi IDs may differ from Kuwo IDs, so this may not work
-            try:
-                return await _kuwo_get_audio_url(music_id)
-            except Exception:
-                raise ValueError("所有音源均无法获取音频链接")
-    else:
-        return await _kuwo_get_audio_url(music_id)
+        except Exception as e:
+            errors.append(f"fangpi: {e}")
+            logger.info("fangpi audio URL failed for %s: %s", music_id, e)
+
+    # Try Kuwo with the original ID (works when source is kuwo)
+    if source == "kuwo":
+        try:
+            return await _kuwo_get_audio_url(music_id)
+        except Exception as e:
+            errors.append(f"kuwo(original id): {e}")
+            logger.info("kuwo audio URL failed for %s: %s", music_id, e)
+
+    # Fallback: search Kuwo by title+artist to find the correct Kuwo ID
+    if title:
+        query = f"{title} {artist}".strip() if artist else title
+        logger.info("Fallback: searching Kuwo for '%s'", query)
+        try:
+            kuwo_results = await _kuwo_search(query)
+            # Find best match by normalized title
+            title_lower = title.lower().strip()
+            for candidate in kuwo_results:
+                if candidate["title"].lower().strip() == title_lower:
+                    try:
+                        url = await _kuwo_get_audio_url(candidate["id"])
+                        logger.info("Kuwo fallback succeeded for '%s' with id %s", title, candidate["id"])
+                        return url
+                    except Exception as e:
+                        errors.append(f"kuwo(matched id {candidate['id']}): {e}")
+            # If no exact match, try the first result
+            if kuwo_results:
+                try:
+                    url = await _kuwo_get_audio_url(kuwo_results[0]["id"])
+                    logger.info("Kuwo fallback (first result) succeeded for '%s' with id %s", title, kuwo_results[0]["id"])
+                    return url
+                except Exception as e:
+                    errors.append(f"kuwo(first result {kuwo_results[0]['id']}): {e}")
+        except Exception as e:
+            errors.append(f"kuwo search: {e}")
+
+    raise ValueError(f"所有音源均无法获取音频链接: {'; '.join(errors)}")
 
 
 # ───────────────── download ───────────────────────────────────
@@ -269,7 +358,7 @@ async def download_fangpi_song(
 
     Returns ``{file_path, file_size}``.  Raises on failure.
     """
-    audio_url = await _get_audio_url(music_id, source)
+    audio_url = await _get_audio_url(music_id, source, title=title, artist=artist)
 
     safe_name = re.sub(r'[<>:"/\\|?*]', "_", f"{title} - {artist}")[:200]
     file_path = os.path.join(dest_dir, f"{safe_name}.mp3")

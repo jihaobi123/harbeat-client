@@ -16,8 +16,8 @@ WORKDIR /app
 RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
     sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true
 
-# Install system deps for librosa (libsndfile)
-RUN apt-get update && apt-get install -y --no-install-recommends libsndfile1 ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install system deps for librosa (libsndfile) + rubberband (professional time-stretch)
+RUN apt-get update && apt-get install -y --no-install-recommends libsndfile1 ffmpeg rubberband-cli && rm -rf /var/lib/apt/lists/*
 
 # Use China mirrors for pip + install CPU-only torch (much smaller)
 COPY requirements.txt .
@@ -28,6 +28,15 @@ RUN pip install --no-cache-dir --timeout 300 --retries 5 --no-deps \
     -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
     -r requirements.txt
 
+# Optional: madmom for enhanced beat/downbeat RNN detection (falls back to librosa if unavailable)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc \
+    && pip install --no-cache-dir \
+       -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+       cython madmom \
+    ; apt-get purge -y --auto-remove gcc \
+    ; rm -rf /var/lib/apt/lists/*
+
 COPY . .
 
 # Copy built web frontend
@@ -37,5 +46,5 @@ COPY --from=web-builder /web/dist /app/web/dist
 RUN mkdir -p /app/data/music-files
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
 
