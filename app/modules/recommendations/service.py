@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import json
+import logging
+import os
 import random
+import subprocess
+import sys
 import uuid
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 
 from app.modules.library.models import LibrarySong
@@ -389,63 +396,83 @@ def recommend_songs(
     ]
 
 
+# ───────────── CLAP text subprocess helper ─────────────
+
+_CLAP_TEXT_SCRIPT = os.path.join(os.path.dirname(__file__), "_run_clap_text.py")
+
+
+def _run_clap_text_subprocess(query: str) -> List[float]:
+    """Run CLAP text embedding in a child process. Returns 512-d vector."""
+    result = subprocess.run(
+        [sys.executable, _CLAP_TEXT_SCRIPT, query],
+        capture_output=True, text=True, timeout=120,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()[-500:]
+        raise RuntimeError(f"CLAP text subprocess exit={result.returncode} stderr={stderr}")
+    return json.loads(result.stdout)
+
+
 # ───────────── Vibe / Semantic search ─────────────
 
-def vibe_search(db: Session, query: str, user_id: Optional[int] = None, top_k: int = 12) -> VibeSearchData:
-    """Search songs by natural-language vibe description using ChromaDB."""
+def vibe_search(db: Session, query: str, user_id: Optional[int] = None, top_k: int = 10) -> VibeSearchData:
+    """Search songs by natural-language vibe description.
+
+    Pipeline (following original FinalReco logic):
+    1. interpret_vibe  → genres + vibe_description + Spotify search_query
+    2. Spotify search  → candidate tracks from Spotify catalog
+    3. CLAP text rerank → sort candidates by semantic similarity to vibe
+    """
     from app.modules.recommendations.vibe_service import interpret_vibe
-    from app.modules.recommendations.vector_store import search_songs
-
+    from app.modules.recommendations.spotify_service import search_tracks
     vibe = interpret_vibe(query)
-    search_query = vibe["vibe_description"]
-    results = search_songs(search_query, top_k=top_k)
+    spotify_query = vibe.get("search_query", "")
+    vibe_desc = vibe["vibe_description"]
 
-    user_song_ids: set[int] = set()
-    lib_song_map: dict[int, str] = {}  # song_id -> library_song.id
-    if user_id:
-        user_song_ids = _user_library_song_ids(db, user_id)
-        # Also find library_song IDs for playback
-        lib_rows = (
-            db.query(LibrarySong.song_id, LibrarySong.id)
-            .filter(LibrarySong.user_id == user_id, LibrarySong.song_id.isnot(None))
-            .all()
-        )
-        lib_song_map = {r[0]: r[1] for r in lib_rows}
+    # ── Step 1: fetch Spotify candidates ──
+    spotify_limit = min(top_k, 10)  # Spotify client-credentials caps at 10
+    spotify_tracks = search_tracks(spotify_query, limit=spotify_limit) if spotify_query else []
 
-    # Enrich results with tag info from DB
-    song_ids = []
-    for r in results:
+    # ── Step 2: CLAP text rerank ──
+    if spotify_tracks:
         try:
-            song_ids.append(int(r["song_id"]))
-        except (ValueError, KeyError):
-            pass
+            import numpy as np
+            query_emb = np.array(_run_clap_text_subprocess(vibe_desc), dtype=np.float32)
+            query_emb = query_emb / (np.linalg.norm(query_emb) + 1e-8)
 
-    tag_map: dict[int, SongTag] = {}
-    if song_ids:
-        tags = db.query(SongTag).filter(SongTag.song_id.in_(song_ids)).all()
-        tag_map = {t.song_id: t for t in tags}
+            # Encode each candidate's "title artist" via CLAP text
+            for track in spotify_tracks:
+                candidate_text = f"{track['title']} {track['artist']}"
+                try:
+                    cand_emb = np.array(_run_clap_text_subprocess(candidate_text), dtype=np.float32)
+                    cand_emb = cand_emb / (np.linalg.norm(cand_emb) + 1e-8)
+                    track["_score"] = float(np.dot(query_emb, cand_emb))
+                except Exception:
+                    track["_score"] = 0.0
+            spotify_tracks.sort(key=lambda t: t["_score"], reverse=True)
+        except Exception:
+            logger.warning("CLAP rerank failed, using Spotify order", exc_info=True)
 
+    # ── Step 3: build response ──
     songs = []
-    for r in results:
-        try:
-            sid = int(r["song_id"])
-        except (ValueError, KeyError):
-            continue
-        t = tag_map.get(sid)
+    for track in spotify_tracks:
+        score = track.pop("_score", 0.0)
         songs.append(VibeSearchSongItem(
-            song_id=sid,
-            title=r.get("title", ""),
-            artist=r.get("artist", ""),
-            style=t.style if t else r.get("style"),
-            energy=t.energy if t else r.get("energy"),
-            distance=r.get("distance", 0.0),
-            in_library=sid in user_song_ids or sid in lib_song_map,
-            library_song_id=lib_song_map.get(sid),
+            title=track["title"],
+            artist=track["artist"],
+            distance=round(1.0 - score, 4) if score else 1.0,
+            spotify_id=track.get("spotify_id"),
+            preview_url=track.get("preview_url"),
+            album_art=track.get("album_art"),
+            spotify_url=track.get("spotify_url"),
+            source="spotify",
+            in_library=False,
         ))
 
     return VibeSearchData(
         query=query,
-        vibe_description=vibe["vibe_description"],
+        vibe_description=vibe_desc,
+        search_query=spotify_query,
         genres=vibe["genres"],
         songs=songs,
     )

@@ -70,19 +70,27 @@ class VibeSearchRequest(BaseModel):
 
 
 class VibeSearchSongItem(BaseModel):
-    song_id: int
+    """A vibe search result — can be a Spotify track or a local library song."""
+    song_id: Optional[int] = None        # catalog song id (if local)
     title: str
     artist: str
     style: Optional[str] = None
     energy: Optional[str] = None
-    distance: float = 0.0
+    distance: float = 0.0                # semantic distance (lower = better)
     in_library: bool = False
     library_song_id: Optional[str] = None
+    # Spotify fields
+    spotify_id: Optional[str] = None
+    preview_url: Optional[str] = None    # 30-sec preview audio
+    album_art: Optional[str] = None      # cover image URL
+    spotify_url: Optional[str] = None    # Spotify open link
+    source: str = "local"                # "spotify" | "local"
 
 
 class VibeSearchData(BaseModel):
     query: str
     vibe_description: str
+    search_query: str = ""
     genres: list[str]
     songs: list[VibeSearchSongItem]
 

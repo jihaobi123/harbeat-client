@@ -66,12 +66,30 @@ def _build_vibe_description(text: str) -> str:
     return base
 
 
+def _extract_year_filter(text: str) -> str:
+    lowered = text.lower()
+    if any(token in lowered for token in ["90s", "1990", "199", "九十"]):
+        return "year:1990-2005"
+    if any(token in lowered for token in ["80s", "1980", "198", "八十"]):
+        return "year:1980-1995"
+    if any(token in lowered for token in ["2000s", "2000", "千禧"]):
+        return "year:2000-2015"
+    return ""
+
+
 def interpret_vibe(text: str) -> dict:
     """Parse a vibe description into structured search hints."""
     genres = _extract_genres(text)
     vibe_description = _build_vibe_description(text)
+    year_filter = _extract_year_filter(text)
+    # Use original text as primary search — more reliable with Spotify API
+    parts = [text.strip()]
+    if year_filter:
+        parts.append(year_filter)
+    search_query = " ".join(parts)
     return {
         "genres": genres,
         "vibe_description": vibe_description,
+        "search_query": search_query,
         "original_text": text.strip(),
     }

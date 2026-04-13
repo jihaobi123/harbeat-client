@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
-import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
-import type { VibeSearchResult, VibeSearchSongItem } from '../types'
-import { getStreamUrl } from '../api/client'
+import type { VibeSearchResult } from '../types'
 
 const MOOD_PRESETS = [
   { label: '🌧️ 雨夜漫步', query: '雨夜 忧郁 慵懒 漫步' },
@@ -18,17 +16,10 @@ const MOOD_PRESETS = [
 
 export default function VibeSearch() {
   const { user } = useAuthStore()
-  const { loadSongs } = useMusicStore()
-  const { playSong } = useMusicStore()
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<VibeSearchResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [adding, setAdding] = useState<Set<number>>(new Set())
-  const [added, setAdded] = useState<Set<number>>(new Set())
-  const [indexing, setIndexing] = useState(false)
-  const [clapIndexing, setClapIndexing] = useState(false)
-  const [stats, setStats] = useState<{ count: number; text_count: number } | null>(null)
 
   const doSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return
@@ -57,114 +48,17 @@ export default function VibeSearch() {
     doSearch(presetQuery)
   }
 
-  const handleAdd = async (song: VibeSearchSongItem) => {
-    if (!user || song.in_library || adding.has(song.song_id) || added.has(song.song_id)) return
-    setAdding(prev => new Set(prev).add(song.song_id))
-    try {
-      await api.addSongToLibrary(user.id, song.song_id)
-      setAdded(prev => new Set(prev).add(song.song_id))
-      setResult(prev =>
-        prev
-          ? {
-              ...prev,
-              songs: prev.songs.map(s =>
-                s.song_id === song.song_id ? { ...s, in_library: true } : s,
-              ),
-            }
-          : prev,
-      )
-      loadSongs()
-    } catch (e: any) {
-      setError(e.message || '加入曲库失败')
-    } finally {
-      setAdding(prev => {
-        const next = new Set(prev)
-        next.delete(song.song_id)
-        return next
-      })
-    }
-  }
-
-  const handleReindex = async () => {
-    setIndexing(true)
-    try {
-      await api.reindexVectorStore()
-      await loadStats()
-    } catch (e: any) {
-      setError(e.message || '文本索引重建失败')
-    } finally {
-      setIndexing(false)
-    }
-  }
-
-  const handleClapReindex = async () => {
-    setClapIndexing(true)
-    setError('')
-    try {
-      const res = await api.reindexClap()
-      setError(`CLAP 重建完成: 成功 ${res.success} / 失败 ${res.failed} / 共 ${res.total}`)
-      await loadStats()
-    } catch (e: any) {
-      setError(e.message || 'CLAP 重建失败')
-    } finally {
-      setClapIndexing(false)
-    }
-  }
-
-  const loadStats = async () => {
-    try {
-      const res = await api.getVectorStoreStats()
-      setStats({ count: res.count, text_count: res.text_count })
-    } catch {
-      // ignore
-    }
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <span className="text-lg">🎭</span>
-            Vibe 语义搜索
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5 ml-7">
-            用自然语言描述你想要的音乐氛围（CLAP 跨模态音频匹配）
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {stats !== null && (
-            <span className="text-xs text-gray-500">
-              🎵 CLAP {stats.count} 首 · 📝 文本 {stats.text_count} 首
-            </span>
-          )}
-          {stats === null ? (
-            <button
-              onClick={loadStats}
-              className="text-xs px-2.5 py-1 rounded-full bg-surface hover:bg-surface-lighter text-gray-400 border border-gray-600 transition"
-            >
-              📊 查看索引
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={handleReindex}
-                disabled={indexing}
-                className="text-xs px-2.5 py-1 rounded-full bg-surface hover:bg-surface-lighter text-gray-400 border border-gray-600 transition disabled:opacity-50"
-              >
-                {indexing ? '建中...' : '📝 文本索引'}
-              </button>
-              <button
-                onClick={handleClapReindex}
-                disabled={clapIndexing}
-                className="text-xs px-2.5 py-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 transition disabled:opacity-50"
-              >
-                {clapIndexing ? '生成中(慢)...' : '🎵 CLAP 索引'}
-              </button>
-            </>
-          )}
-        </div>
+      <div>
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <span className="text-lg">🎭</span>
+          Vibe 语义搜索
+        </h3>
+        <p className="text-xs text-gray-500 mt-0.5 ml-7">
+          用自然语言描述你想要的音乐氛围，从 Spotify 海量曲库中发现新歌（CLAP 语义重排序）
+        </p>
       </div>
 
       {/* Search Bar */}
@@ -216,64 +110,82 @@ export default function VibeSearch() {
               </h3>
               <span className="text-xs text-gray-500">· {result.songs.length} 首</span>
             </div>
-            {result.genres.length > 0 && (
-              <div className="flex gap-1.5 mt-1.5 ml-7">
-                {result.genres.map(g => (
-                  <span
-                    key={g}
-                    className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary"
-                  >
-                    {g}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-7">
+              {result.genres.length > 0 && result.genres.map(g => (
+                <span
+                  key={g}
+                  className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary"
+                >
+                  {g}
+                </span>
+              ))}
+              {result.search_query && (
+                <span className="text-xs text-gray-600 ml-1">
+                  Spotify: {result.search_query}
+                </span>
+              )}
+            </div>
           </div>
           <div className="px-1 pb-2">
-            {result.songs.map(song => {
-              const isAdding = adding.has(song.song_id)
-              const isAdded = added.has(song.song_id) || song.in_library
+            {result.songs.map((song, idx) => {
+              const key = song.spotify_id || song.song_id || idx
+              const matchPct = Math.round(Math.max(0, 1 - song.distance) * 100)
               return (
                 <div
-                  key={song.song_id}
+                  key={key}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-lighter transition group"
                 >
+                  {/* Album art */}
+                  {song.album_art ? (
+                    <img
+                      src={song.album_art}
+                      alt=""
+                      className="w-10 h-10 rounded object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-surface flex items-center justify-center shrink-0">
+                      <span className="text-gray-600 text-lg">🎵</span>
+                    </div>
+                  )}
+                  {/* Title / Artist */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-white truncate">{song.title}</div>
                     <div className="text-xs text-gray-500 truncate">{song.artist}</div>
                   </div>
-                  {song.library_song_id && (
-                    <button
-                      onClick={() => playSong({
-                        id: song.library_song_id!,
-                        title: song.title,
-                        artist: song.artist,
-                      } as any)}
-                      className="text-xs px-2 py-1 rounded-full bg-surface hover:bg-surface-lighter text-gray-300 border border-gray-600 transition shrink-0"
-                    >
-                      ▶ 播放
-                    </button>
-                  )}
-                  {song.style && (
-                    <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">
-                      {song.style}
-                    </span>
-                  )}
+                  {/* Match % */}
                   <span className="text-xs text-gray-600 shrink-0 tabular-nums">
-                    {Math.round(Math.max(0, (2 - song.distance) / 2) * 100)}%
+                    {matchPct}%
                   </span>
-                  {isAdded ? (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 shrink-0">
-                      已在曲库
-                    </span>
-                  ) : (
+                  {/* Preview play */}
+                  {song.preview_url && (
                     <button
-                      onClick={() => handleAdd(song)}
-                      disabled={isAdding}
-                      className="text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition shrink-0 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                      onClick={() => {
+                        const a = document.getElementById('vibe-preview') as HTMLAudioElement
+                        if (a) {
+                          if (a.src === song.preview_url && !a.paused) {
+                            a.pause()
+                          } else {
+                            a.src = song.preview_url!
+                            a.volume = 0.5
+                            a.play().catch(() => {})
+                          }
+                        }
+                      }}
+                      className="text-xs px-2 py-1 rounded-full bg-green-500/20 hover:bg-green-500/30 text-green-400 transition shrink-0"
                     >
-                      {isAdding ? '添加中...' : '+ 加入曲库'}
+                      ▶ 试听
                     </button>
+                  )}
+                  {/* Spotify link */}
+                  {song.spotify_url && (
+                    <a
+                      href={song.spotify_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs px-2 py-1 rounded-full bg-[#1DB954]/20 hover:bg-[#1DB954]/30 text-[#1DB954] transition shrink-0"
+                    >
+                      Spotify
+                    </a>
                   )}
                 </div>
               )
@@ -281,6 +193,9 @@ export default function VibeSearch() {
           </div>
         </div>
       )}
+
+      {/* Hidden audio element for preview */}
+      <audio id="vibe-preview" className="hidden" />
 
       {/* Loading state */}
       {loading && (
