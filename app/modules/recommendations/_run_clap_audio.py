@@ -18,6 +18,29 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 CLAP_MODEL_NAME = "laion/clap-htsat-unfused"
+CLAP_LOCAL_PATH = "/app/data/clap_model"
+
+
+def _load_clap():
+    """Load CLAP model, preferring local path over download."""
+    from transformers import ClapModel, AutoProcessor
+
+    # 1. Try local directory (pre-downloaded)
+    if os.path.isdir(CLAP_LOCAL_PATH) and os.path.isfile(os.path.join(CLAP_LOCAL_PATH, "config.json")):
+        processor = AutoProcessor.from_pretrained(CLAP_LOCAL_PATH)
+        model = ClapModel.from_pretrained(CLAP_LOCAL_PATH)
+        return processor, model
+    # 2. Try HF cache
+    try:
+        processor = AutoProcessor.from_pretrained(CLAP_MODEL_NAME, local_files_only=True)
+        model = ClapModel.from_pretrained(CLAP_MODEL_NAME, local_files_only=True)
+        return processor, model
+    except Exception:
+        pass
+    # 3. Download from HuggingFace
+    processor = AutoProcessor.from_pretrained(CLAP_MODEL_NAME)
+    model = ClapModel.from_pretrained(CLAP_MODEL_NAME)
+    return processor, model
 
 
 def main() -> None:
@@ -34,22 +57,15 @@ def main() -> None:
         import librosa
         import numpy as np
         import torch
-        from transformers import ClapModel, AutoProcessor
 
-        # Load model (try local cache first)
-        try:
-            processor = AutoProcessor.from_pretrained(CLAP_MODEL_NAME, local_files_only=True)
-            model = ClapModel.from_pretrained(CLAP_MODEL_NAME, local_files_only=True)
-        except Exception:
-            processor = AutoProcessor.from_pretrained(CLAP_MODEL_NAME)
-            model = ClapModel.from_pretrained(CLAP_MODEL_NAME)
+        processor, model = _load_clap()
         model.eval()
 
         # Load audio at 48kHz (CLAP's expected sample rate)
         audio, sr = librosa.load(file_path, sr=48000, mono=True)
 
         # Generate audio embedding
-        inputs = processor(audios=audio, sampling_rate=sr, return_tensors="pt")
+        inputs = processor(audio=audio, sampling_rate=sr, return_tensors="pt")
         with torch.no_grad():
             features = model.get_audio_features(**inputs)
             if hasattr(features, "pooler_output") and features.pooler_output is not None:
