@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.jetson
+    container_name: harbeat-api
+    restart: unless-stopped
+    runtime: nvidia
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    volumes:
+      - music_data:/app/data/music-files
+      - clap_model:/app/data/clap_model
+      - chroma_data:/app/data/chroma_db
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 1G
+    environment:
+      - MALLOC_ARENA_MAX=2
+      - PYTHONDONTWRITEBYTECODE=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+  redis:
+    image: redis:7
+    container_name: harbeat-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+
+  nginx:
+    image: nginx:1.27
+    container_name: harbeat-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+volumes:
+  music_data:
+  clap_model:
+  chroma_data:
+  redis_data:
