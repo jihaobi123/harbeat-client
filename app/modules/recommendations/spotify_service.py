@@ -41,10 +41,14 @@ def search_tracks(query: str, limit: int = _DEFAULT_LIMIT) -> List[dict]:
         logger.warning("Spotify credentials not configured, returning empty results")
         return []
 
+    # Spotify API limit must be 1-50
+    safe_limit = max(1, min(int(limit), 50))
+
     try:
         sp = _get_client()
+        logger.info("Spotify search: q=%r, limit=%d", query, safe_limit)
         raw = (
-            sp.search(q=str(query), type="track", market=_MARKET, limit=limit)
+            sp.search(q=str(query), type="track", market=_MARKET, limit=safe_limit)
             .get("tracks", {})
             .get("items", [])
         )

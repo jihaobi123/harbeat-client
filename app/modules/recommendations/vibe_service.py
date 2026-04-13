@@ -78,13 +78,73 @@ def _build_vibe_description(text: str) -> str:
     return base
 
 
+# Map Chinese dance/mood keywords to English search terms
+_SEARCH_HINTS: Dict[str, str] = {
+    "炸场": "hype battle",
+    "高能量": "high energy",
+    "低沉": "dark bass heavy",
+    "有力": "powerful hard",
+    "轻松": "chill easy",
+    "华丽": "dramatic glamorous",
+    "机械感": "robotic mechanical",
+    "抒情": "emotional soulful",
+    "慢歌": "slow ballad",
+    "律动": "groovy bounce",
+    "popping": "funk popping",
+    "waacking": "disco waacking",
+    "locking": "funk locking",
+    "breaking": "breakbeat bboy",
+    "house": "house dance",
+    "battle": "battle hype",
+}
+
+
+def _build_search_query(text: str, genres: List[str]) -> str:
+    """Build a Spotify search query from user text + detected genres."""
+    lowered = text.lower()
+    parts: List[str] = []
+
+    # Add English search hints for Chinese terms
+    for cn, en in _SEARCH_HINTS.items():
+        if cn in lowered:
+            parts.append(en)
+
+    # Add genre as a keyword (not genre: filter)
+    if genres:
+        parts.append(genres[0])
+
+    # Keep any English words from the original query
+    for word in text.split():
+        if word.isascii() and len(word) > 1 and word.lower() not in ("the", "a", "an", "and", "or"):
+            parts.append(word.lower())
+
+    # Add translated vibe hints
+    for key, val in TRANSLATION_HINTS.items():
+        if key in text:
+            # Take first 2 words of English translation
+            parts.append(" ".join(val.split()[:2]))
+
+    # Year filter
+    year = _extract_year_filter(text)
+    if year:
+        parts.append(year)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique: List[str] = []
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            unique.append(p)
+
+    return " ".join(unique[:6]) if unique else "dance music"
+
+
 def interpret_vibe(text: str) -> dict:
     """Parse a vibe description into structured search hints."""
     genres = _extract_genres(text)
     vibe_description = _build_vibe_description(text)
-    year_filter = _extract_year_filter(text)
-    query_core = f"genre:{genres[0]}"
-    search_query = f"{query_core} {year_filter}".strip()
+    search_query = _build_search_query(text, genres)
     return {
         "genres": genres,
         "vibe_description": vibe_description,
