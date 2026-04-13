@@ -1,0 +1,9 @@
+streamlit
+spotipy
+yt-dlp
+transformers
+torch
+librosa
+chromadb
+python-dotenv
+numpy
