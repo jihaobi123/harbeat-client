@@ -5,8 +5,9 @@ child processes so that the heavy libraries (madmom, librosa, torch, demucs)
 never bloat the uvicorn worker's resident memory — prevents OOM kills.
 
 Resource safety:
-- A global threading lock ensures only ONE analysis pipeline runs at a time.
-- Child processes have a 2.5 GB RSS memory limit (Linux only) to prevent OOM.
+- A Redis-based lock ensures only ONE analysis pipeline runs at a time,
+  even across separate processes (API background tasks + batch scripts).
+- Child processes have a 1.5 GB RLIMIT_AS memory limit (Linux only).
 """
 from __future__ import annotations
 
@@ -16,15 +17,43 @@ import os
 import platform
 import subprocess
 import sys
-import threading
+import time
 
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-# ── Global lock: only one analysis pipeline at a time ─────────────────────
+# ── Redis lock: cross-process mutex for analysis pipeline ─────────────────
 
-_analysis_lock = threading.Lock()
+ANALYSIS_LOCK_KEY = "harbeat:analysis_lock"
+ANALYSIS_LOCK_TTL = 1800  # auto-expire after 30min (safety net if process dies)
+
+
+def _acquire_analysis_lock(timeout: int = 86400) -> bool:
+    """Acquire a Redis-based cross-process lock. Returns True if acquired."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        # SET NX with TTL — atomic acquire
+        if r.set(ANALYSIS_LOCK_KEY, "1", nx=True, ex=ANALYSIS_LOCK_TTL):
+            return True
+        time.sleep(1)
+    return False
+
+
+def _release_analysis_lock() -> None:
+    """Release the Redis-based cross-process lock."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    r.delete(ANALYSIS_LOCK_KEY)
+
+
+def _refresh_analysis_lock() -> None:
+    """Reset lock TTL (call periodically during long operations)."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    r.expire(ANALYSIS_LOCK_KEY, ANALYSIS_LOCK_TTL)
 
 # ── Memory limit for child processes (Linux only) ─────────────────────────
 
@@ -84,14 +113,14 @@ def run_analysis_and_separation(song_id: str) -> None:
     Uses a global lock to ensure only one heavy analysis runs at a time,
     preventing concurrent child processes from OOM-killing the container.
     """
-    acquired = _analysis_lock.acquire(timeout=900)  # wait up to 15 min for the lock
+    acquired = _acquire_analysis_lock(timeout=86400)  # wait up to 24h — songs queue up after batch import
     if not acquired:
         logger.warning("[bg-analysis] timed out waiting for analysis lock for %s, skipping", song_id)
         return
     try:
         _do_analysis_and_separation(song_id)
     finally:
-        _analysis_lock.release()
+        _release_analysis_lock()
 
 
 def _do_analysis_and_separation(song_id: str) -> None:
@@ -151,6 +180,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
             if not all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 python_exe = sys.executable
                 logger.info("[bg-analysis] starting demucs for %s", song_id)
+                _refresh_analysis_lock()  # reset TTL before long demucs run
                 result = subprocess.run(
                     [
                         python_exe, "-m", "demucs",
@@ -162,9 +192,14 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     capture_output=True,
                     text=True,
                     timeout=1800,
-                    check=True,
-                    preexec_fn=_get_preexec_fn(),
+                    # NOTE: no preexec_fn — demucs needs >1.5GB virtual address space
+                    # NOTE: no check=True — we handle errors below with better logging
                 )
+                if result.returncode != 0:
+                    stderr_tail = (result.stderr or "").strip()[-800:]
+                    raise RuntimeError(
+                        f"demucs exit={result.returncode} stderr={stderr_tail or '(empty)'}"
+                    )
                 logger.info("[bg-analysis] demucs finished for %s", song_id)
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
