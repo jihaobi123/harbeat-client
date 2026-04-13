@@ -120,6 +120,7 @@ export interface VibeSearchSongItem {
   energy: string | null
   distance: number
   in_library: boolean
+  library_song_id: string | null
 }
 
 export interface VibeSearchResult {

@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
 import type { VibeSearchResult, VibeSearchSongItem } from '../types'
+import { getStreamUrl } from '../api/client'
 
 const MOOD_PRESETS = [
   { label: '🌧️ 雨夜漫步', query: '雨夜 忧郁 慵懒 漫步' },
@@ -18,6 +19,7 @@ const MOOD_PRESETS = [
 export default function VibeSearch() {
   const { user } = useAuthStore()
   const { loadSongs } = useMusicStore()
+  const { playSong } = useMusicStore()
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<VibeSearchResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -240,13 +242,25 @@ export default function VibeSearch() {
                     <div className="text-sm text-white truncate">{song.title}</div>
                     <div className="text-xs text-gray-500 truncate">{song.artist}</div>
                   </div>
+                  {song.library_song_id && (
+                    <button
+                      onClick={() => playSong({
+                        id: song.library_song_id!,
+                        title: song.title,
+                        artist: song.artist,
+                      } as any)}
+                      className="text-xs px-2 py-1 rounded-full bg-surface hover:bg-surface-lighter text-gray-300 border border-gray-600 transition shrink-0"
+                    >
+                      ▶ 播放
+                    </button>
+                  )}
                   {song.style && (
                     <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">
                       {song.style}
                     </span>
                   )}
                   <span className="text-xs text-gray-600 shrink-0 tabular-nums">
-                    {(1 - song.distance).toFixed(0)}%
+                    {Math.round(Math.max(0, (2 - song.distance) / 2) * 100)}%
                   </span>
                   {isAdded ? (
                     <span className="text-xs px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 shrink-0">

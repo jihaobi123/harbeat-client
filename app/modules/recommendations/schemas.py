@@ -77,6 +77,7 @@ class VibeSearchSongItem(BaseModel):
     energy: Optional[str] = None
     distance: float = 0.0
     in_library: bool = False
+    library_song_id: Optional[str] = None
 
 
 class VibeSearchData(BaseModel):

@@ -401,8 +401,16 @@ def vibe_search(db: Session, query: str, user_id: Optional[int] = None, top_k: i
     results = search_songs(search_query, top_k=top_k)
 
     user_song_ids: set[int] = set()
+    lib_song_map: dict[int, str] = {}  # song_id -> library_song.id
     if user_id:
         user_song_ids = _user_library_song_ids(db, user_id)
+        # Also find library_song IDs for playback
+        lib_rows = (
+            db.query(LibrarySong.song_id, LibrarySong.id)
+            .filter(LibrarySong.user_id == user_id, LibrarySong.song_id.isnot(None))
+            .all()
+        )
+        lib_song_map = {r[0]: r[1] for r in lib_rows}
 
     # Enrich results with tag info from DB
     song_ids = []
@@ -431,7 +439,8 @@ def vibe_search(db: Session, query: str, user_id: Optional[int] = None, top_k: i
             style=t.style if t else r.get("style"),
             energy=t.energy if t else r.get("energy"),
             distance=r.get("distance", 0.0),
-            in_library=sid in user_song_ids,
+            in_library=sid in user_song_ids or sid in lib_song_map,
+            library_song_id=lib_song_map.get(sid),
         ))
 
     return VibeSearchData(
