@@ -1,0 +1,12 @@
+web/dist
+web/node_modules
+node_modules
+.git
+.env
+__pycache__
+*.pyc
+FinalReco
+Rec0
+scripts
+docs
+spotify-portal
