@@ -17,6 +17,8 @@ from app.modules.recommendations.schemas import (
     DiscoverSection,
     DiscoverSongItem,
     RecommendedSongItem,
+    VibeSearchData,
+    VibeSearchSongItem,
 )
 
 # ───────────────── Style → display info mapping ─────────────────
@@ -385,3 +387,56 @@ def recommend_songs(
         RecommendedSongItem(song_id=song.id, title=song.title, artist=song.artist, in_library=True)
         for _, song in ranked[:10]
     ]
+
+
+# ───────────── Vibe / Semantic search ─────────────
+
+def vibe_search(db: Session, query: str, user_id: Optional[int] = None, top_k: int = 12) -> VibeSearchData:
+    """Search songs by natural-language vibe description using ChromaDB."""
+    from app.modules.recommendations.vibe_service import interpret_vibe
+    from app.modules.recommendations.vector_store import search_songs
+
+    vibe = interpret_vibe(query)
+    search_query = vibe["vibe_description"]
+    results = search_songs(search_query, top_k=top_k)
+
+    user_song_ids: set[int] = set()
+    if user_id:
+        user_song_ids = _user_library_song_ids(db, user_id)
+
+    # Enrich results with tag info from DB
+    song_ids = []
+    for r in results:
+        try:
+            song_ids.append(int(r["song_id"]))
+        except (ValueError, KeyError):
+            pass
+
+    tag_map: dict[int, SongTag] = {}
+    if song_ids:
+        tags = db.query(SongTag).filter(SongTag.song_id.in_(song_ids)).all()
+        tag_map = {t.song_id: t for t in tags}
+
+    songs = []
+    for r in results:
+        try:
+            sid = int(r["song_id"])
+        except (ValueError, KeyError):
+            continue
+        t = tag_map.get(sid)
+        songs.append(VibeSearchSongItem(
+            song_id=sid,
+            title=r.get("title", ""),
+            artist=r.get("artist", ""),
+            style=t.style if t else r.get("style"),
+            energy=t.energy if t else r.get("energy"),
+            distance=r.get("distance", 0.0),
+            in_library=sid in user_song_ids,
+        ))
+
+    return VibeSearchData(
+        query=query,
+        vibe_description=vibe["vibe_description"],
+        genres=vibe["genres"],
+        songs=songs,
+    )

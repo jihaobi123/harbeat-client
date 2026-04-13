@@ -206,6 +206,33 @@ export async function addSongToLibrary(userId: number, songId: number) {
   )
 }
 
+export async function vibeSearch(query: string, userId?: number, topK: number = 12) {
+  return request<import('../types').VibeSearchResult>(
+    '/api/recommendations/vibe-search', {
+      method: 'POST',
+      body: JSON.stringify({ query, user_id: userId, top_k: topK }),
+    }
+  )
+}
+
+export async function reindexVectorStore() {
+  return request<{ indexed_count: number }>(
+    '/api/recommendations/reindex', { method: 'POST' }
+  )
+}
+
+export async function reindexClap() {
+  return request<{ success: number; failed: number; total: number }>(
+    '/api/recommendations/reindex-clap', { method: 'POST' }
+  )
+}
+
+export async function getVectorStoreStats() {
+  return request<{ collection: string; count: number; text_count: number }>(
+    '/api/recommendations/vector-stats'
+  )
+}
+
 // ---- Profiles ----
 export async function generateProfile(userId: number) {
   return request<import('../types').UserProfile>(

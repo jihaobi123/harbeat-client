@@ -60,3 +60,43 @@ class AddToLibraryData(BaseModel):
     library_song_id: str
     title: str
     artist: str
+
+
+# --- Vibe / semantic search ---
+class VibeSearchRequest(BaseModel):
+    query: str
+    user_id: Optional[int] = None
+    top_k: int = 12
+
+
+class VibeSearchSongItem(BaseModel):
+    song_id: int
+    title: str
+    artist: str
+    style: Optional[str] = None
+    energy: Optional[str] = None
+    distance: float = 0.0
+    in_library: bool = False
+
+
+class VibeSearchData(BaseModel):
+    query: str
+    vibe_description: str
+    genres: list[str]
+    songs: list[VibeSearchSongItem]
+
+
+class ReindexData(BaseModel):
+    indexed_count: int
+
+
+class ReindexClapData(BaseModel):
+    success: int
+    failed: int
+    total: int
+
+
+class VectorStoreStatsData(BaseModel):
+    collection: str
+    count: int
+    text_count: int = 0

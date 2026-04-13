@@ -210,6 +210,44 @@ def _do_analysis_and_separation(song_id: str) -> None:
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
 
+        # --- Phase 3: CLAP audio embedding + ChromaDB indexing ---
+        try:
+            from app.modules.playlists.models import Song, SongTag
+            catalog_song = db.query(Song).filter(Song.id == song.song_id).first() if song.song_id else None
+            if catalog_song and song.source_path and os.path.isfile(song.source_path):
+                tags = db.query(SongTag).filter(SongTag.song_id == catalog_song.id).first()
+                _refresh_analysis_lock()  # reset TTL before CLAP run
+
+                # CLAP audio embedding (subprocess, ~30-60s)
+                from app.modules.recommendations.vector_store import index_song_clap, index_song
+                ok = index_song_clap(
+                    song_id=str(catalog_song.id),
+                    audio_path=song.source_path,
+                    title=catalog_song.title,
+                    artist=catalog_song.artist,
+                    style=tags.style if tags else None,
+                    energy=tags.energy if tags else None,
+                    groove=tags.groove_tag if tags else None,
+                    bpm=float(tags.bpm) if tags and tags.bpm else (song.bpm if song.bpm else None),
+                )
+                if ok:
+                    logger.info("[bg-analysis] Phase 3: CLAP audio embedding done for %s", song_id)
+                else:
+                    logger.warning("[bg-analysis] Phase 3: CLAP embedding failed, using text fallback for %s", song_id)
+
+                # Always index text fallback too
+                index_song(
+                    song_id=str(catalog_song.id),
+                    title=catalog_song.title,
+                    artist=catalog_song.artist,
+                    style=tags.style if tags else None,
+                    energy=tags.energy if tags else None,
+                    groove=tags.groove_tag if tags else None,
+                    bpm=float(tags.bpm) if tags and tags.bpm else (song.bpm if song.bpm else None),
+                )
+        except Exception:
+            logger.exception("[bg-analysis] Phase 3 indexing failed for %s (non-fatal)", song_id)
+
         # Mark completed regardless of stem separation outcome
         song.analysis_status = "completed"
         db.commit()
