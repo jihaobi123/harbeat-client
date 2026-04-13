@@ -1,0 +1,52 @@
+{
+  "track_id": "fixture-track-e",
+  "title": "High Energy Drop",
+  "artist": "GrooveEngine Fixtures",
+  "path": "fixtures/audio/track_e_high_energy_drop.wav",
+  "duration_seconds": 19.01,
+  "sample_rate": 44100,
+  "channels": 2,
+  "beatgrid": {
+    "bpm": 101.0,
+    "beats": [
+      {"index": 1, "time": 0.0, "bar": 1, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 2, "time": 0.594059, "bar": 1, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 3, "time": 1.188119, "bar": 1, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 4, "time": 1.782178, "bar": 1, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 5, "time": 2.376238, "bar": 2, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 6, "time": 2.970297, "bar": 2, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 7, "time": 3.564356, "bar": 2, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 8, "time": 4.158416, "bar": 2, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 9, "time": 4.752475, "bar": 3, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 10, "time": 5.346535, "bar": 3, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 11, "time": 5.940594, "bar": 3, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 12, "time": 6.534653, "bar": 3, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 13, "time": 7.128713, "bar": 4, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 14, "time": 7.722772, "bar": 4, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 15, "time": 8.316832, "bar": 4, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 16, "time": 8.910891, "bar": 4, "beat_in_bar": 4, "is_downbeat": false}
+    ],
+    "bars": 4,
+    "downbeats": [0.0, 2.376238, 4.752475, 7.128713]
+  },
+  "phrases": [
+    {"phrase_type": "drop", "start_time": 0.0, "end_time": 4.752475, "start_bar": 1, "end_bar": 2, "confidence": 0.98},
+    {"phrase_type": "chorus", "start_time": 4.752475, "end_time": 9.50495, "start_bar": 3, "end_bar": 4, "confidence": 0.94}
+  ],
+  "energy_bars": [
+    {"bar": 1, "start_time": 0.0, "end_time": 2.376238, "rms": 0.90, "spectral_flux": 0.85, "combined": 0.89},
+    {"bar": 2, "start_time": 2.376238, "end_time": 4.752475, "rms": 0.93, "spectral_flux": 0.88, "combined": 0.92},
+    {"bar": 3, "start_time": 4.752475, "end_time": 7.128713, "rms": 0.88, "spectral_flux": 0.81, "combined": 0.86},
+    {"bar": 4, "start_time": 7.128713, "end_time": 9.50495, "rms": 0.86, "spectral_flux": 0.79, "combined": 0.84}
+  ],
+  "key": {
+    "tonic": "G",
+    "mode": "minor",
+    "camelot": "6A"
+  },
+  "analyzer_versions": {
+    "librosa": "fixture",
+    "songformer": "fixture",
+    "beatnet": "fixture"
+  }
+}

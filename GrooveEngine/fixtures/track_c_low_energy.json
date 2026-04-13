@@ -1,0 +1,52 @@
+{
+  "track_id": "fixture-track-c",
+  "title": "Low Energy Mismatch",
+  "artist": "GrooveEngine Fixtures",
+  "path": "fixtures/audio/track_c_low_energy.wav",
+  "duration_seconds": 20.0,
+  "sample_rate": 44100,
+  "channels": 2,
+  "beatgrid": {
+    "bpm": 112.0,
+    "beats": [
+      {"index": 1, "time": 0.0, "bar": 1, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 2, "time": 0.535714, "bar": 1, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 3, "time": 1.071429, "bar": 1, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 4, "time": 1.607143, "bar": 1, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 5, "time": 2.142857, "bar": 2, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 6, "time": 2.678571, "bar": 2, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 7, "time": 3.214286, "bar": 2, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 8, "time": 3.75, "bar": 2, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 9, "time": 4.285714, "bar": 3, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 10, "time": 4.821429, "bar": 3, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 11, "time": 5.357143, "bar": 3, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 12, "time": 5.892857, "bar": 3, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 13, "time": 6.428571, "bar": 4, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 14, "time": 6.964286, "bar": 4, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 15, "time": 7.5, "bar": 4, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 16, "time": 8.035714, "bar": 4, "beat_in_bar": 4, "is_downbeat": false}
+    ],
+    "bars": 4,
+    "downbeats": [0.0, 2.142857, 4.285714, 6.428571]
+  },
+  "phrases": [
+    {"phrase_type": "intro", "start_time": 0.0, "end_time": 4.285714, "start_bar": 1, "end_bar": 2, "confidence": 0.93},
+    {"phrase_type": "verse", "start_time": 4.285714, "end_time": 8.571429, "start_bar": 3, "end_bar": 4, "confidence": 0.88}
+  ],
+  "energy_bars": [
+    {"bar": 1, "start_time": 0.0, "end_time": 2.142857, "rms": 0.05, "spectral_flux": 0.04, "combined": 0.05},
+    {"bar": 2, "start_time": 2.142857, "end_time": 4.285714, "rms": 0.06, "spectral_flux": 0.05, "combined": 0.06},
+    {"bar": 3, "start_time": 4.285714, "end_time": 6.428571, "rms": 0.08, "spectral_flux": 0.06, "combined": 0.08},
+    {"bar": 4, "start_time": 6.428571, "end_time": 8.571429, "rms": 0.09, "spectral_flux": 0.07, "combined": 0.09}
+  ],
+  "key": {
+    "tonic": "D#",
+    "mode": "minor",
+    "camelot": "2A"
+  },
+  "analyzer_versions": {
+    "librosa": "fixture",
+    "songformer": "fixture",
+    "beatnet": "fixture"
+  }
+}
