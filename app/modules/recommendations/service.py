@@ -417,8 +417,8 @@ def vibe_search(
     vibe_desc = vibe["vibe_description"]
     genres = vibe.get("genres", [])
 
-    # Fetch Spotify candidates
-    spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 12)) if spotify_query else []
+    # Fetch Spotify candidates (Spotify client-credentials max is 10)
+    spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 10)) if spotify_query else []
 
     # Build response
     songs = []

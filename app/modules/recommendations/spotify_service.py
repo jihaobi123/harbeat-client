@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _MARKET = "US"
 _DEFAULT_LIMIT = 10
+_MAX_LIMIT = 10  # Spotify client-credentials cap
 
 
 def _client_id() -> str:
@@ -41,8 +42,8 @@ def search_tracks(query: str, limit: int = _DEFAULT_LIMIT) -> List[dict]:
         logger.warning("Spotify credentials not configured, returning empty results")
         return []
 
-    # Spotify API limit must be 1-50
-    safe_limit = max(1, min(int(limit), 50))
+    # Spotify client-credentials flow caps at 10 results per request
+    safe_limit = max(1, min(int(limit), _MAX_LIMIT))
 
     try:
         sp = _get_client()
