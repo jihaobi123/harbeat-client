@@ -112,30 +112,6 @@ export interface DiscoverSection {
   songs: DiscoverSongItem[]
 }
 
-export interface VibeSearchSongItem {
-  song_id: number | null
-  title: string
-  artist: string
-  style: string | null
-  energy: string | null
-  distance: number
-  in_library: boolean
-  library_song_id: string | null
-  spotify_id: string | null
-  preview_url: string | null
-  album_art: string | null
-  spotify_url: string | null
-  source: 'spotify' | 'local'
-}
-
-export interface VibeSearchResult {
-  query: string
-  vibe_description: string
-  search_query: string
-  genres: string[]
-  songs: VibeSearchSongItem[]
-}
-
 export interface UserProfile {
   favorite_style: string
   avg_bpm_preference: number | null
