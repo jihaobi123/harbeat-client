@@ -1,22 +1,130 @@
-"""Background tasks for automatic audio analysis and stem separation on import."""
+"""Background tasks for automatic audio analysis and stem separation on import.
+
+Both Phase 1 (BPM/key analysis) and Phase 2 (demucs stem separation) run in
+child processes so that the heavy libraries (madmom, librosa, torch, demucs)
+never bloat the uvicorn worker's resident memory — prevents OOM kills.
+
+Resource safety:
+- A Redis-based lock ensures only ONE analysis pipeline runs at a time,
+  even across separate processes (API background tasks + batch scripts).
+- Child processes have a 1.5 GB RLIMIT_AS memory limit (Linux only).
+"""
 from __future__ import annotations
 
+import json
 import logging
 import os
+import platform
 import subprocess
 import sys
+import time
 
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
+
+# ── Redis lock: cross-process mutex for analysis pipeline ─────────────────
+
+ANALYSIS_LOCK_KEY = "harbeat:analysis_lock"
+ANALYSIS_LOCK_TTL = 1800  # auto-expire after 30min (safety net if process dies)
+
+
+def _acquire_analysis_lock(timeout: int = 86400) -> bool:
+    """Acquire a Redis-based cross-process lock. Returns True if acquired."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        # SET NX with TTL — atomic acquire
+        if r.set(ANALYSIS_LOCK_KEY, "1", nx=True, ex=ANALYSIS_LOCK_TTL):
+            return True
+        time.sleep(1)
+    return False
+
+
+def _release_analysis_lock() -> None:
+    """Release the Redis-based cross-process lock."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    r.delete(ANALYSIS_LOCK_KEY)
+
+
+def _refresh_analysis_lock() -> None:
+    """Reset lock TTL (call periodically during long operations)."""
+    from app.shared.redis import get_redis
+    r = get_redis()
+    r.expire(ANALYSIS_LOCK_KEY, ANALYSIS_LOCK_TTL)
+
+# ── Memory limit for child processes (Linux only) ─────────────────────────
+
+_CHILD_MEM_LIMIT_BYTES = int(1.5 * 1024 * 1024 * 1024)  # 1.5 GB
+
+
+def _get_preexec_fn():
+    """Return a preexec_fn that sets RSS memory limit, or None on non-Linux."""
+    if platform.system() != "Linux":
+        return None
+    try:
+        import resource as _resource
+        def _limit_memory():
+            _resource.setrlimit(_resource.RLIMIT_AS, (_CHILD_MEM_LIMIT_BYTES, _CHILD_MEM_LIMIT_BYTES))
+        return _limit_memory
+    except ImportError:
+        return None
+
+# ── Helper: run Phase 1 analysis in a subprocess ──────────────────────────
+
+_ANALYSIS_SCRIPT = os.path.join(os.path.dirname(__file__), "_run_analysis.py")
+
+
+def _run_analysis_subprocess(file_path: str) -> dict:
+    """Run analyze_audio_file() in a child process and return the result dict.
+
+    This keeps madmom/librosa/numpy out of the uvicorn worker's memory.
+    Memory is capped at 2.5 GB to prevent OOM-killing the container.
+    """
+    result = subprocess.run(
+        [sys.executable, _ANALYSIS_SCRIPT, file_path],
+        capture_output=True,
+        text=True,
+        timeout=600,  # 10 min max for analysis
+        preexec_fn=_get_preexec_fn(),
+    )
+    if result.returncode != 0:
+        err = (result.stderr or "").strip()
+        out = (result.stdout or "").strip()
+        # returncode -9 = SIGKILL (OOM), -11 = SIGSEGV
+        raise RuntimeError(
+            f"analysis subprocess exit={result.returncode} "
+            f"{'(OOM KILLED)' if result.returncode == -9 else ''} "
+            f"stderr={err[-500:] if err else '(empty)'} "
+            f"stdout={out[-200:] if out else '(empty)'}"
+        )
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"analysis subprocess returned invalid JSON: {e}; stdout={result.stdout[:500]}")
 
 
 def run_analysis_and_separation(song_id: str) -> None:
     """Run BPM/key analysis + demucs stem separation in background.
 
     Called automatically after a song is downloaded.
-    Creates its own DB session since this runs outside the request lifecycle.
+    Uses a global lock to ensure only one heavy analysis runs at a time,
+    preventing concurrent child processes from OOM-killing the container.
     """
+    acquired = _acquire_analysis_lock(timeout=86400)  # wait up to 24h — songs queue up after batch import
+    if not acquired:
+        logger.warning("[bg-analysis] timed out waiting for analysis lock for %s, skipping", song_id)
+        return
+    try:
+        _do_analysis_and_separation(song_id)
+    finally:
+        _release_analysis_lock()
+
+
+def _do_analysis_and_separation(song_id: str) -> None:
+    """Internal: actual analysis logic, must be called while holding _analysis_lock."""
     db = SessionLocal()
     try:
         from app.modules.library.models import LibrarySong
@@ -35,9 +143,8 @@ def run_analysis_and_separation(song_id: str) -> None:
             db.commit()
 
             try:
-                from app.modules.library.analysis import analyze_audio_file
-
-                result = analyze_audio_file(song.source_path)
+                logger.info("[bg-analysis] starting Phase 1 analysis (subprocess) for %s", song_id)
+                result = _run_analysis_subprocess(song.source_path)
                 song.bpm = result["bpm"]
                 song.duration = result["duration"]
                 song.key = result.get("key")
@@ -53,9 +160,9 @@ def run_analysis_and_separation(song_id: str) -> None:
                     for i, c in enumerate(raw_cues)
                 ]
                 db.commit()
-                logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
+                logger.info("[bg-analysis] Phase 1 done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
             except Exception:
-                logger.exception("[bg-analysis] analysis failed for %s", song_id)
+                logger.exception("[bg-analysis] Phase 1 failed for %s", song_id)
                 song.analysis_status = "error"
                 db.commit()
 
@@ -73,19 +180,26 @@ def run_analysis_and_separation(song_id: str) -> None:
             if not all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 python_exe = sys.executable
                 logger.info("[bg-analysis] starting demucs for %s", song_id)
+                _refresh_analysis_lock()  # reset TTL before long demucs run
                 result = subprocess.run(
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "7",   # limit RAM: process 7s chunks (htdemucs max ~7.8)
+                        "--segment", "7",   # process 7s chunks (htdemucs max ~7.8, uses swap if needed)
                         "-o", stems_base,
                         song.source_path,
                     ],
                     capture_output=True,
                     text=True,
                     timeout=1800,
-                    check=True,
+                    # NOTE: no preexec_fn — demucs needs >1.5GB virtual address space
+                    # NOTE: no check=True — we handle errors below with better logging
                 )
+                if result.returncode != 0:
+                    stderr_tail = (result.stderr or "").strip()[-800:]
+                    raise RuntimeError(
+                        f"demucs exit={result.returncode} stderr={stderr_tail or '(empty)'}"
+                    )
                 logger.info("[bg-analysis] demucs finished for %s", song_id)
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
@@ -95,6 +209,44 @@ def run_analysis_and_separation(song_id: str) -> None:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
+
+        # --- Phase 3: CLAP audio embedding + ChromaDB indexing ---
+        try:
+            from app.modules.playlists.models import Song, SongTag
+            catalog_song = db.query(Song).filter(Song.id == song.song_id).first() if song.song_id else None
+            if catalog_song and song.source_path and os.path.isfile(song.source_path):
+                tags = db.query(SongTag).filter(SongTag.song_id == catalog_song.id).first()
+                _refresh_analysis_lock()  # reset TTL before CLAP run
+
+                # CLAP audio embedding (subprocess, ~30-60s)
+                from app.modules.recommendations.vector_store import index_song_clap, index_song
+                ok = index_song_clap(
+                    song_id=str(catalog_song.id),
+                    audio_path=song.source_path,
+                    title=catalog_song.title,
+                    artist=catalog_song.artist,
+                    style=tags.style if tags else None,
+                    energy=tags.energy if tags else None,
+                    groove=tags.groove_tag if tags else None,
+                    bpm=float(tags.bpm) if tags and tags.bpm else (song.bpm if song.bpm else None),
+                )
+                if ok:
+                    logger.info("[bg-analysis] Phase 3: CLAP audio embedding done for %s", song_id)
+                else:
+                    logger.warning("[bg-analysis] Phase 3: CLAP embedding failed, using text fallback for %s", song_id)
+
+                # Always index text fallback too
+                index_song(
+                    song_id=str(catalog_song.id),
+                    title=catalog_song.title,
+                    artist=catalog_song.artist,
+                    style=tags.style if tags else None,
+                    energy=tags.energy if tags else None,
+                    groove=tags.groove_tag if tags else None,
+                    bpm=float(tags.bpm) if tags and tags.bpm else (song.bpm if song.bpm else None),
+                )
+        except Exception:
+            logger.exception("[bg-analysis] Phase 3 indexing failed for %s (non-fatal)", song_id)
 
         # Mark completed regardless of stem separation outcome
         song.analysis_status = "completed"

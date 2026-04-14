@@ -47,6 +47,7 @@ export interface Playlist {
 
 export interface PlaylistSong {
   song_id: number
+  library_song_id: string | null
   title: string
   artist: string
   audio_url: string | null
@@ -109,6 +110,30 @@ export interface DiscoverSection {
   icon: string
   description: string
   songs: DiscoverSongItem[]
+}
+
+export interface VibeSearchSongItem {
+  song_id: number | null
+  title: string
+  artist: string
+  style: string | null
+  energy: string | null
+  distance: number
+  in_library: boolean
+  library_song_id: string | null
+  spotify_id: string | null
+  preview_url: string | null
+  album_art: string | null
+  spotify_url: string | null
+  source: 'spotify' | 'local'
+}
+
+export interface VibeSearchResult {
+  query: string
+  vibe_description: string
+  search_query: string
+  genres: string[]
+  songs: VibeSearchSongItem[]
 }
 
 export interface UserProfile {

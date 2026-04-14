@@ -10,6 +10,9 @@ from app.modules.recommendations.schemas import (
     DiscoverRequest,
     RecommendationData,
     RecommendationRequest,
+    ReindexClapData,
+    ReindexData,
+    VectorStoreStatsData,
     VibeSearchData,
     VibeSearchRequest,
 )
@@ -64,3 +67,27 @@ def vibe_search_endpoint(
 ):
     data = vibe_search(db, query=payload.query, user_id=payload.user_id, top_k=payload.top_k)
     return APIResponse(data=data)
+
+
+@router.post("/reindex", response_model=APIResponse[ReindexData])
+def reindex_endpoint(db: Session = Depends(get_db)):
+    """Rebuild the text-based ChromaDB index from all songs in the database."""
+    from app.modules.recommendations.vector_store import index_all_songs_from_db
+    count = index_all_songs_from_db()
+    return APIResponse(data=ReindexData(indexed_count=count))
+
+
+@router.post("/reindex-clap", response_model=APIResponse[ReindexClapData])
+def reindex_clap_endpoint(db: Session = Depends(get_db)):
+    """Regenerate CLAP audio embeddings for all songs (slow: ~30-60s/song)."""
+    from app.modules.recommendations.vector_store import reindex_all_clap
+    result = reindex_all_clap()
+    return APIResponse(data=ReindexClapData(**result))
+
+
+@router.get("/vector-stats", response_model=APIResponse[VectorStoreStatsData])
+def vector_stats_endpoint():
+    """Get ChromaDB vector store statistics (CLAP + text collections)."""
+    from app.modules.recommendations.vector_store import get_collection_stats
+    stats = get_collection_stats()
+    return APIResponse(data=VectorStoreStatsData(**stats))

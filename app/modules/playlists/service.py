@@ -130,6 +130,23 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
         .all()
     )
 
+    # Build a lookup from song_id → LibrarySong analysis data
+    from app.modules.library.models import LibrarySong
+    song_ids = [item.song_id for item in songs]
+    lib_songs = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.song_id.in_(song_ids))
+        .all()
+    ) if song_ids else []
+    # Map song_id → best LibrarySong (prefer one with bpm)
+    lib_map: dict[int, LibrarySong] = {}
+    for ls in lib_songs:
+        if ls.song_id is None:
+            continue
+        existing = lib_map.get(ls.song_id)
+        if existing is None or (existing.bpm is None and ls.bpm is not None):
+            lib_map[ls.song_id] = ls
+
     return PlaylistDetailData(
         id=playlist.id,
         user_id=playlist.user_id,
@@ -138,11 +155,16 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
         songs=[
             PlaylistSongData(
                 song_id=item.song.id,
+                library_song_id=lib_map[item.song_id].id if item.song_id in lib_map else None,
                 title=item.song.title,
                 artist=item.song.artist,
                 audio_url=item.song.audio_url,
-                duration=item.song.duration,
-                bpm=item.song.tags.bpm if item.song.tags else None,
+                duration=lib_map[item.song_id].duration if item.song_id in lib_map and lib_map[item.song_id].duration else item.song.duration,
+                bpm=lib_map[item.song_id].bpm if item.song_id in lib_map else (item.song.tags.bpm if item.song.tags else None),
+                key=lib_map[item.song_id].key if item.song_id in lib_map else None,
+                energy=lib_map[item.song_id].energy if item.song_id in lib_map else None,
+                format=lib_map[item.song_id].format if item.song_id in lib_map else None,
+                analysis_status=lib_map[item.song_id].analysis_status if item.song_id in lib_map else None,
                 tags=[part for part in (item.song.tags.style or "").split(",") if part] if item.song.tags else [],
                 order_index=item.order_index,
             )

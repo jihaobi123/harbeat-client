@@ -16,26 +16,24 @@ numpy<2
 pyloudnorm
 pedalboard
 pyrubberband
+soundfile==0.13.1
 
 # === Stem Separation (demucs) ===
-# torch CPU installed separately in Dockerfile (smaller, faster)
-# torch==2.6.0
-# torchaudio==2.6.0
-# torch runtime deps (needed because torch is installed with --no-deps)
+# NOTE: torch and torchaudio are pre-installed in l4t-pytorch base image
+# Do NOT install them here, or they will conflict with Jetson CUDA builds
 sympy==1.13.1
 networkx
 filelock
 jinja2
 fsspec
-soundfile==0.13.1
 demucs==4.0.1
 
 # === NCM Decryption ===
 pycryptodome==3.23.0
 
-# === Semantic Search (ChromaDB + CLAP) ===
+# === Semantic Search ===
 chromadb>=0.5.0
 transformers>=4.30.0
 
 # === Spotify API ===
-spotipy==2.24.0
+spotipy>=2.24.0

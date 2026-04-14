@@ -215,6 +215,24 @@ export async function vibeSearch(query: string, userId?: number, topK: number = 
   )
 }
 
+export async function reindexVectorStore() {
+  return request<{ indexed_count: number }>(
+    '/api/recommendations/reindex', { method: 'POST' }
+  )
+}
+
+export async function reindexClap() {
+  return request<{ success: number; failed: number; total: number }>(
+    '/api/recommendations/reindex-clap', { method: 'POST' }
+  )
+}
+
+export async function getVectorStoreStats() {
+  return request<{ collection: string; count: number; text_count: number }>(
+    '/api/recommendations/vector-stats'
+  )
+}
+
 // ---- Profiles ----
 export async function generateProfile(userId: number) {
   return request<import('../types').UserProfile>(

@@ -155,10 +155,13 @@ def _detect_structure(y: np.ndarray, sr: int, duration: float) -> list[dict]:
     if duration < 15:
         return [{"time": 0, "label": "Intro", "color": SECTION_COLORS["Intro"]}]
     try:
-        return _structure_via_ssm(y, sr, duration)
+        result = _structure_via_ssm(y, sr, duration)
+        if len(result) >= 2:
+            return result
+        logger.info("SSM returned only %d cue(s), falling back to energy method", len(result))
     except Exception:
         logger.warning("SSM structure detection failed, using energy fallback", exc_info=True)
-        return _structure_via_energy(y, sr, duration)
+    return _structure_via_energy(y, sr, duration)
 
 
 def _structure_via_ssm(y: np.ndarray, sr: int, duration: float) -> list[dict]:

@@ -87,3 +87,19 @@ class VibeSearchData(BaseModel):
     search_query: str = ""
     genres: list[str]
     songs: list[VibeSearchSongItem]
+
+
+class ReindexData(BaseModel):
+    indexed_count: int
+
+
+class ReindexClapData(BaseModel):
+    success: int
+    failed: int
+    total: int
+
+
+class VectorStoreStatsData(BaseModel):
+    collection: str
+    count: int
+    text_count: int = 0

@@ -1,0 +1,45 @@
+# ---- Stage 1: Build web frontend ----
+FROM node:20-slim AS web-builder
+WORKDIR /web
+RUN npm config set registry https://registry.npmmirror.com
+COPY web/package.json web/package-lock.json* ./
+RUN npm install
+COPY web/ .
+RUN npm run build
+
+# ---- Stage 2: Python API (Jetson ARM64 + CUDA) ----
+# NVIDIA L4T PyTorch base image (pre-installed CUDA + PyTorch for Jetson)
+# Check available tags at: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/l4t-pytorch
+FROM nvcr.io/nvidia/l4t-pytorch:r36.4.0-pth2.5-py3
+
+WORKDIR /app
+
+# System dependencies for audio processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 ffmpeg rubberband-cli \
+    libblas-dev liblapack-dev libopenblas-dev \
+    gfortran \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python dependencies (torch/torchaudio already in base image)
+COPY requirements.jetson.txt .
+RUN pip install --no-cache-dir --timeout 300 \
+    -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+    -r requirements.jetson.txt
+
+# Optional: madmom for RNN beat detection (fallback to librosa if fails)
+RUN pip install --no-cache-dir \
+    -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+    cython madmom 2>/dev/null || echo "[WARN] madmom install failed, will use librosa fallback"
+
+# Copy application code
+COPY app/ ./app/
+
+# Copy frontend build output
+COPY --from=web-builder /web/dist /app/web/dist
+
+# Create data directories
+RUN mkdir -p /app/data/music-files /app/data/clap_model /app/data/chroma_db
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
