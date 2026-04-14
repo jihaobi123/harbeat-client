@@ -11,6 +11,8 @@
       - redis
     volumes:
       - music_data:/app/data/music-files
+      - clap_model:/app/data/clap_model
+      - chroma_cache:/root/.cache/chroma
     deploy:
       resources:
         limits:
@@ -51,3 +53,5 @@
 volumes:
   music_data:
   redis_data:
+  clap_model:
+  chroma_cache:

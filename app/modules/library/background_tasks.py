@@ -56,6 +56,26 @@ def _refresh_analysis_lock() -> None:
     r = get_redis()
     r.expire(ANALYSIS_LOCK_KEY, ANALYSIS_LOCK_TTL)
 
+# ── Memory management ─────────────────────────────────────────────────────
+
+def _force_memory_release():
+    """Force glibc to return freed memory to OS.
+
+    Python's gc.collect() frees Python objects, but glibc's malloc keeps
+    freed pages in its arena for reuse.  malloc_trim(0) forces glibc to
+    release those pages back to the kernel, preventing RSS from growing
+    monotonically across multiple songs.
+    """
+    gc.collect()
+    if platform.system() == "Linux":
+        try:
+            import ctypes
+            libc = ctypes.CDLL("libc.so.6")
+            libc.malloc_trim(0)
+        except Exception:
+            pass
+
+
 # ── Memory limit for child processes (Linux only) ─────────────────────────
 
 _CHILD_MEM_LIMIT_BYTES = int(2.5 * 1024 * 1024 * 1024)  # 2.5 GB
@@ -122,6 +142,7 @@ def run_analysis_and_separation(song_id: str) -> None:
         _do_analysis_and_separation(song_id)
     finally:
         _release_analysis_lock()
+        _force_memory_release()  # return freed pages to OS after each song
 
 
 def _do_analysis_and_separation(song_id: str) -> None:
@@ -167,7 +188,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.analysis_status = "error"
                 db.commit()
 
-        gc.collect()  # free Phase 1 temporaries before heavy Phase 2
+        _force_memory_release()  # free Phase 1 temporaries + return pages to OS
 
         # --- Phase 2: Stem separation (demucs) ---
         try:
@@ -213,7 +234,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
 
-        gc.collect()  # free Phase 2 temporaries before CLAP
+        _force_memory_release()  # free Phase 2 temporaries + return pages to OS
 
         # --- Phase 3: CLAP audio embedding + ChromaDB indexing ---
         try:
