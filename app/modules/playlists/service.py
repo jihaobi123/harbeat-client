@@ -511,7 +511,7 @@ def _run_demucs_separation(audio_path: str, timeout_sec: int = 120) -> dict[str,
     def _invoke_demucs(source_path: str) -> tuple[bool, str]:
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "demucs", "-n", "htdemucs", "-o", stems_base, source_path],
+                [sys.executable, "-m", "demucs", "-n", "htdemucs", "--segment", "7", "-o", stems_base, source_path],
                 capture_output=True,
                 text=True,
                 timeout=max(15, int(timeout_sec)),
