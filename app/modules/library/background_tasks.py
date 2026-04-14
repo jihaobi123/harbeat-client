@@ -209,7 +209,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "4",   # process 4s chunks to reduce peak memory (~1.2GB vs ~2GB)
+                        "--segment", "7",   # 7s chunks: good balance of quality vs memory (~2GB peak)
                         "-o", stems_base,
                         song.source_path,
                     ],

@@ -20,64 +20,120 @@ const STEM_INFO: Record<string, { label: string; emoji: string; color: string }>
   other: { label: '其他', emoji: '🎹', color: '#60a5fa' },
 }
 
-/* ─── Synchronized Stem Player ─── */
+/* ─── Synchronized Stem Player (Web Audio API) ─── */
 function StemPlayer({ songId }: { songId: string }) {
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const gainNodesRef = useRef<Record<string, GainNode>>({})
+  const connectedRef = useRef(false)
+  const syncTimerRef = useRef<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volumes, setVolumes] = useState<Record<string, number>>({ vocals: 1, drums: 1, bass: 1, other: 1 })
   const [muted, setMuted] = useState<Record<string, boolean>>({ vocals: false, drums: false, bass: false, other: false })
   const [ready, setReady] = useState(false)
   const stemNames = ['vocals', 'drums', 'bass', 'other']
 
+  // Connect audio elements to Web Audio API graph (lazy, on first user gesture)
+  const ensureAudioGraph = useCallback(() => {
+    if (connectedRef.current) return
+    const ctx = new AudioContext()
+    audioCtxRef.current = ctx
+
+    stemNames.forEach(name => {
+      const audio = audioRefs.current[name]
+      if (audio) {
+        const source = ctx.createMediaElementSource(audio)
+        const gain = ctx.createGain()
+        source.connect(gain)
+        gain.connect(ctx.destination)
+        gainNodesRef.current[name] = gain
+      }
+    })
+    connectedRef.current = true
+  }, [])
+
   useEffect(() => {
-    // Reset state when songId changes
     setIsPlaying(false)
     setReady(false)
     setVolumes({ vocals: 1, drums: 1, bass: 1, other: 1 })
     setMuted({ vocals: false, drums: false, bass: false, other: false })
 
     let loaded = 0
-    const checkReady = () => { loaded++; if (loaded >= stemNames.length) setReady(true) }
+    const checkReady = () => {
+      loaded++
+      if (loaded >= stemNames.length) setReady(true)
+    }
 
     stemNames.forEach(name => {
       const audio = audioRefs.current[name]
       if (audio) {
         audio.src = getStemStreamUrl(songId, name)
-        audio.preload = 'metadata'
-        audio.volume = 1
-        audio.muted = false
+        audio.preload = 'auto'
+        audio.crossOrigin = 'anonymous'
         audio.oncanplaythrough = checkReady
         audio.onended = () => setIsPlaying(false)
       }
     })
 
     return () => {
+      if (syncTimerRef.current) cancelAnimationFrame(syncTimerRef.current)
       stemNames.forEach(name => {
         const audio = audioRefs.current[name]
         if (audio) { audio.pause(); audio.src = '' }
       })
+      audioCtxRef.current?.close()
+      audioCtxRef.current = null
+      gainNodesRef.current = {}
+      connectedRef.current = false
     }
   }, [songId])
 
+  // Drift correction: keep all stems within 30ms of master
+  const startSyncLoop = useCallback(() => {
+    const tick = () => {
+      const master = audioRefs.current.vocals
+      if (!master || master.paused) return
+      const masterTime = master.currentTime
+      stemNames.forEach(name => {
+        if (name === 'vocals') return
+        const audio = audioRefs.current[name]
+        if (audio && Math.abs(audio.currentTime - masterTime) > 0.03) {
+          audio.currentTime = masterTime
+        }
+      })
+      syncTimerRef.current = requestAnimationFrame(tick)
+    }
+    syncTimerRef.current = requestAnimationFrame(tick)
+  }, [])
+
   const togglePlay = useCallback(() => {
+    ensureAudioGraph()
+    const ctx = audioCtxRef.current
+    if (ctx?.state === 'suspended') ctx.resume()
+
     const refs = stemNames.map(n => audioRefs.current[n]).filter(Boolean) as HTMLAudioElement[]
     if (isPlaying) {
       refs.forEach(a => a.pause())
+      if (syncTimerRef.current) cancelAnimationFrame(syncTimerRef.current)
     } else {
-      // Sync all to master's time
+      // Sync all to master's time, then start simultaneously
       const master = refs[0]
       if (master) refs.forEach(a => { a.currentTime = master.currentTime })
-      refs.forEach(a => a.play().catch(() => {}))
+      Promise.all(refs.map(a => a.play())).catch(() => {})
+      startSyncLoop()
     }
     setIsPlaying(!isPlaying)
-  }, [isPlaying])
+  }, [isPlaying, ensureAudioGraph, startSyncLoop])
 
   const handleVolumeChange = useCallback((stem: string, value: number) => {
     setVolumes(prev => ({ ...prev, [stem]: value }))
-    const audio = audioRefs.current[stem]
-    if (audio) {
-      audio.volume = value
-      audio.muted = value === 0
+    const gain = gainNodesRef.current[stem]
+    if (gain) {
+      gain.gain.value = value
+    } else {
+      // Fallback before AudioContext is created
+      const audio = audioRefs.current[stem]
+      if (audio) audio.volume = value
     }
     setMuted(prev => ({ ...prev, [stem]: value === 0 }))
   }, [])
@@ -85,13 +141,23 @@ function StemPlayer({ songId }: { songId: string }) {
   const toggleMute = useCallback((stem: string) => {
     setMuted(prev => {
       const next = { ...prev, [stem]: !prev[stem] }
-      const audio = audioRefs.current[stem]
-      if (audio) {
-        audio.muted = next[stem]
-        if (!next[stem] && volumes[stem] === 0) {
-          // Unmuting from 0 → restore to 1
-          setVolumes(v => ({ ...v, [stem]: 1 }))
-          audio.volume = 1
+      const gain = gainNodesRef.current[stem]
+      if (gain) {
+        if (next[stem]) {
+          gain.gain.value = 0
+        } else {
+          const vol = volumes[stem] === 0 ? 1 : volumes[stem]
+          gain.gain.value = vol
+          if (volumes[stem] === 0) setVolumes(v => ({ ...v, [stem]: 1 }))
+        }
+      } else {
+        const audio = audioRefs.current[stem]
+        if (audio) {
+          audio.muted = next[stem]
+          if (!next[stem] && volumes[stem] === 0) {
+            setVolumes(v => ({ ...v, [stem]: 1 }))
+            audio.volume = 1
+          }
         }
       }
       return next
