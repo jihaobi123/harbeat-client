@@ -57,7 +57,7 @@ def _refresh_analysis_lock() -> None:
 
 # ── Memory limit for child processes (Linux only) ─────────────────────────
 
-_CHILD_MEM_LIMIT_BYTES = int(1.5 * 1024 * 1024 * 1024)  # 1.5 GB
+_CHILD_MEM_LIMIT_BYTES = int(2.5 * 1024 * 1024 * 1024)  # 2.5 GB
 
 
 def _get_preexec_fn():
@@ -185,7 +185,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "7",   # process 7s chunks (htdemucs max ~7.8, uses swap if needed)
+                        "--segment", "4",   # process 4s chunks to reduce peak memory (~1.2GB vs ~2GB)
                         "-o", stems_base,
                         song.source_path,
                     ],
