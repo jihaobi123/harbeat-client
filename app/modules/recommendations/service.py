@@ -389,7 +389,7 @@ def recommend_songs(
     ]
 
 
-# ───────────── Vibe search (FinalReco pipeline) ─────────────
+# ───────────── Vibe search (CLAP + Spotify hybrid) ─────────────
 
 import logging as _logging
 
@@ -404,10 +404,11 @@ def vibe_search(
 ) -> VibeSearchData:
     """Search songs by natural-language vibe description.
 
-    Pipeline (FinalReco approach from commit 1d65a9dc):
+    Pipeline:
     1. interpret_vibe  → genres + vibe_description + Spotify search_query
-    2. Spotify search  → candidate tracks from Spotify catalog
-    3. Return results sorted by Spotify relevance
+    2. CLAP text→audio → search local library via ChromaDB
+    3. Spotify search  → candidate tracks from Spotify catalog
+    4. Merge & sort by real similarity
     """
     from app.modules.recommendations.vibe_service import interpret_vibe
     from app.modules.recommendations.spotify_service import search_tracks
@@ -417,25 +418,80 @@ def vibe_search(
     vibe_desc = vibe["vibe_description"]
     genres = vibe.get("genres", [])
 
-    # Fetch Spotify candidates (Spotify client-credentials max is 10)
-    spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 10)) if spotify_query else []
+    songs: list[VibeSearchSongItem] = []
 
-    # Build response
-    songs = []
-    for i, track in enumerate(spotify_tracks):
-        # Simple relevance score based on position
-        match_pct = round((1.0 - i / max(len(spotify_tracks), 1)) * 100, 1)
-        songs.append(VibeSearchSongItem(
-            title=track["title"],
-            artist=track["artist"],
-            spotify_id=track.get("spotify_id"),
-            preview_url=track.get("preview_url"),
-            album_art=track.get("album_art"),
-            spotify_url=track.get("spotify_url"),
-            source="spotify",
-            in_library=False,
-            match_percentage=match_pct,
-        ))
+    # ── Step 1: CLAP cross-modal search in local library ──
+    try:
+        from app.modules.recommendations.vector_store import search_songs as clap_search
+        local_results = clap_search(vibe_desc, top_k=top_k)
+        _vibe_logger.info("[vibe] CLAP returned %d local results", len(local_results))
+
+        for row in local_results:
+            # cosine distance → match percentage (0=perfect, 2=worst for cosine)
+            distance = row.get("distance", 1.0)
+            match_pct = round(max(0, (1.0 - distance)) * 100, 1)
+            song_id_str = row.get("song_id")
+            song_id = int(song_id_str) if song_id_str else None
+
+            # Check if song is in user's library
+            in_lib = False
+            if song_id and user_id:
+                lib_song = (
+                    db.query(LibrarySong)
+                    .filter(LibrarySong.song_id == song_id, LibrarySong.user_id == user_id)
+                    .first()
+                )
+                in_lib = lib_song is not None
+
+            songs.append(VibeSearchSongItem(
+                song_id=song_id,
+                title=row.get("title", "Unknown"),
+                artist=row.get("artist", "Unknown"),
+                style=row.get("style"),
+                energy=row.get("energy"),
+                source="local",
+                in_library=in_lib,
+                match_percentage=match_pct,
+            ))
+    except Exception:
+        _vibe_logger.warning("[vibe] CLAP local search failed, skipping", exc_info=True)
+
+    # ── Step 2: Spotify search ──
+    spotify_songs: list[VibeSearchSongItem] = []
+    if spotify_query:
+        try:
+            spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 10))
+            _vibe_logger.info("[vibe] Spotify returned %d results", len(spotify_tracks))
+
+            for i, track in enumerate(spotify_tracks):
+                # Position-based score (Spotify relevance) scaled to [0, 80]
+                # Local CLAP results can score up to 100, Spotify max 80
+                match_pct = round((1.0 - i / max(len(spotify_tracks), 1)) * 80, 1)
+                spotify_songs.append(VibeSearchSongItem(
+                    title=track["title"],
+                    artist=track["artist"],
+                    spotify_id=track.get("spotify_id"),
+                    preview_url=track.get("preview_url"),
+                    album_art=track.get("album_art"),
+                    spotify_url=track.get("spotify_url"),
+                    source="spotify",
+                    in_library=False,
+                    match_percentage=match_pct,
+                ))
+        except Exception:
+            _vibe_logger.warning("[vibe] Spotify search failed, skipping", exc_info=True)
+
+    # ── Step 3: Merge & sort ──
+    # Deduplicate: if a Spotify track matches a local song by title+artist, keep local
+    local_keys = {(s.title.lower(), s.artist.lower()) for s in songs}
+    for sp_song in spotify_songs:
+        key = (sp_song.title.lower(), sp_song.artist.lower())
+        if key not in local_keys:
+            songs.append(sp_song)
+
+    # Sort by match_percentage descending
+    songs.sort(key=lambda s: s.match_percentage, reverse=True)
+    songs = songs[:top_k]
 
     return VibeSearchData(
         query=query,

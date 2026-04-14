@@ -62,7 +62,7 @@ class AddToLibraryData(BaseModel):
     artist: str
 
 
-# --- Vibe search (FinalReco pipeline) ---
+# --- Vibe search (CLAP + Spotify hybrid) ---
 class VibeSearchRequest(BaseModel):
     query: str
     user_id: Optional[int] = None
@@ -70,15 +70,18 @@ class VibeSearchRequest(BaseModel):
 
 
 class VibeSearchSongItem(BaseModel):
+    song_id: Optional[int] = None
     title: str
     artist: str
+    style: Optional[str] = None
+    energy: Optional[str] = None
     spotify_id: Optional[str] = None
     preview_url: Optional[str] = None
     album_art: Optional[str] = None
     spotify_url: Optional[str] = None
-    source: str = "spotify"
+    source: str = "local"  # "local" | "spotify"
     in_library: bool = False
-    match_percentage: Optional[float] = None
+    match_percentage: float = 0.0
 
 
 class VibeSearchData(BaseModel):

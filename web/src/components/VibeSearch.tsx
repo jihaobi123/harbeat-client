@@ -106,7 +106,7 @@ export default function VibeSearch() {
 
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <div className="text-gray-500 text-sm">正在用 Vibe 搜索音乐...</div>
+            <div className="text-gray-500 text-sm">正在用 CLAP + Spotify 搜索音乐...</div>
           </div>
         )}
 
@@ -145,7 +145,7 @@ export default function VibeSearch() {
                       key={id + i}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-light hover:bg-surface-lighter transition group"
                     >
-                      {/* Album art */}
+                      {/* Album art or source badge */}
                       {song.album_art ? (
                         <img
                           src={song.album_art}
@@ -153,16 +153,38 @@ export default function VibeSearch() {
                           className="w-10 h-10 rounded object-cover shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded bg-surface flex items-center justify-center text-gray-600 shrink-0">
-                          🎵
+                        <div className={`w-10 h-10 rounded flex items-center justify-center shrink-0 ${
+                          song.source === 'local' ? 'bg-primary/20 text-primary' : 'bg-surface text-gray-600'
+                        }`}>
+                          {song.source === 'local' ? '🎧' : '🎵'}
                         </div>
                       )}
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-white truncate">{song.title}</div>
-                        <div className="text-xs text-gray-500 truncate">{song.artist}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {song.artist}
+                          {song.style && <span className="ml-2 text-gray-600">· {song.style}</span>}
+                        </div>
                       </div>
+
+                      {/* Match percentage */}
+                      <div className={`text-xs font-medium shrink-0 ${
+                        song.match_percentage >= 70 ? 'text-green-400' :
+                        song.match_percentage >= 40 ? 'text-yellow-400' : 'text-gray-500'
+                      }`}>
+                        {song.match_percentage}%
+                      </div>
+
+                      {/* Source badge */}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                        song.source === 'local'
+                          ? 'bg-primary/20 text-primary'
+                          : 'bg-green-500/20 text-green-400'
+                      }`}>
+                        {song.source === 'local' ? '曲库' : 'Spotify'}
+                      </span>
 
                       {/* Preview button */}
                       {song.preview_url && (
@@ -182,14 +204,14 @@ export default function VibeSearch() {
                           rel="noopener noreferrer"
                           className="text-xs text-green-400 hover:text-green-300 shrink-0"
                         >
-                          Spotify ↗
+                          ↗
                         </a>
                       )}
 
                       {/* In library badge */}
-                      {song.in_library && (
+                      {song.in_library && song.source === 'local' && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 shrink-0">
-                          已在曲库
+                          已入库
                         </span>
                       )}
                     </div>

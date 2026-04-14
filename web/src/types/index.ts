@@ -212,15 +212,18 @@ export interface DjOfflineMixResult {
 
 // --- Vibe Search ---
 export interface VibeSearchSongItem {
+  song_id?: number | null
   title: string
   artist: string
-  spotify_id?: string
-  preview_url?: string
-  album_art?: string
-  spotify_url?: string
-  source: string
+  style?: string | null
+  energy?: string | null
+  spotify_id?: string | null
+  preview_url?: string | null
+  album_art?: string | null
+  spotify_url?: string | null
+  source: 'local' | 'spotify'
   in_library: boolean
-  match_percentage?: number
+  match_percentage: number
 }
 
 export interface VibeSearchResult {
