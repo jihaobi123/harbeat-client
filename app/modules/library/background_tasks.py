@@ -11,6 +11,7 @@ Resource safety:
 """
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import os
@@ -166,6 +167,8 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.analysis_status = "error"
                 db.commit()
 
+        gc.collect()  # free Phase 1 temporaries before heavy Phase 2
+
         # --- Phase 2: Stem separation (demucs) ---
         try:
             stems_base = os.path.join(os.path.dirname(os.path.abspath(song.source_path)), "..", "stems")
@@ -209,6 +212,8 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
+
+        gc.collect()  # free Phase 2 temporaries before CLAP
 
         # --- Phase 3: CLAP audio embedding + ChromaDB indexing ---
         try:
