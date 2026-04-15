@@ -17,7 +17,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 CLAP_MODEL_NAME = "laion/clap-htsat-unfused"
-CLAP_LOCAL_PATH = "/app/data/clap_model"
+CLAP_LOCAL_PATH = os.environ.get("CLAP_MODEL_PATH", os.path.join(_project_root, "data", "clap_model"))
 
 
 def _load_clap():

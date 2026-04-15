@@ -1,0 +1,10 @@
+serverAddr = "8.136.120.255"
+serverPort = 7000
+auth.token = "harbeat2026"
+
+[[proxies]]
+name = "harbeat-web"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8000
+remotePort = 8080

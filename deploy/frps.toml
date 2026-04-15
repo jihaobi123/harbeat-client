@@ -1,0 +1,7 @@
+bindPort = 7000
+auth.token = "harbeat2026"
+
+webServer.addr = "0.0.0.0"
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "harbeat"
