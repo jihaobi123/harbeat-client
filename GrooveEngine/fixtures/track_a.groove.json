@@ -1,0 +1,66 @@
+{
+  "track_id": "fixture-track-a",
+  "title": "Battle Seed A",
+  "artist": "GrooveEngine Fixtures",
+  "path": "fixtures/audio/battle_seed_a.wav",
+  "duration_seconds": 64.0,
+  "sample_rate": 44100,
+  "channels": 2,
+  "beatgrid": {
+    "bpm": 100.0,
+    "beats": [
+      {"index": 1, "time": 0.0, "bar": 1, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 2, "time": 0.6, "bar": 1, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 3, "time": 1.2, "bar": 1, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 4, "time": 1.8, "bar": 1, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 5, "time": 2.4, "bar": 2, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 6, "time": 3.0, "bar": 2, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 7, "time": 3.6, "bar": 2, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 8, "time": 4.2, "bar": 2, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 9, "time": 4.8, "bar": 3, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 10, "time": 5.4, "bar": 3, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 11, "time": 6.0, "bar": 3, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 12, "time": 6.6, "bar": 3, "beat_in_bar": 4, "is_downbeat": false},
+      {"index": 13, "time": 7.2, "bar": 4, "beat_in_bar": 1, "is_downbeat": true},
+      {"index": 14, "time": 7.8, "bar": 4, "beat_in_bar": 2, "is_downbeat": false},
+      {"index": 15, "time": 8.4, "bar": 4, "beat_in_bar": 3, "is_downbeat": false},
+      {"index": 16, "time": 9.0, "bar": 4, "beat_in_bar": 4, "is_downbeat": false}
+    ],
+    "bars": 16,
+    "downbeats": [0.0, 2.4, 4.8, 7.2, 9.6, 12.0, 14.4, 16.8, 19.2, 21.6, 24.0, 26.4, 28.8, 31.2, 33.6, 36.0]
+  },
+  "phrases": [
+    {"phrase_type": "intro", "start_time": 0.0, "end_time": 9.6, "start_bar": 1, "end_bar": 4, "confidence": 0.92},
+    {"phrase_type": "verse", "start_time": 9.6, "end_time": 19.2, "start_bar": 5, "end_bar": 8, "confidence": 0.9},
+    {"phrase_type": "build", "start_time": 19.2, "end_time": 28.8, "start_bar": 9, "end_bar": 12, "confidence": 0.88},
+    {"phrase_type": "chorus", "start_time": 28.8, "end_time": 38.4, "start_bar": 13, "end_bar": 16, "confidence": 0.95}
+  ],
+  "energy_bars": [
+    {"bar": 1, "start_time": 0.0, "end_time": 2.4, "rms": 0.22, "spectral_flux": 0.18, "combined": 0.20},
+    {"bar": 2, "start_time": 2.4, "end_time": 4.8, "rms": 0.24, "spectral_flux": 0.19, "combined": 0.22},
+    {"bar": 3, "start_time": 4.8, "end_time": 7.2, "rms": 0.26, "spectral_flux": 0.20, "combined": 0.24},
+    {"bar": 4, "start_time": 7.2, "end_time": 9.6, "rms": 0.28, "spectral_flux": 0.22, "combined": 0.26},
+    {"bar": 5, "start_time": 9.6, "end_time": 12.0, "rms": 0.36, "spectral_flux": 0.28, "combined": 0.34},
+    {"bar": 6, "start_time": 12.0, "end_time": 14.4, "rms": 0.39, "spectral_flux": 0.30, "combined": 0.37},
+    {"bar": 7, "start_time": 14.4, "end_time": 16.8, "rms": 0.42, "spectral_flux": 0.33, "combined": 0.40},
+    {"bar": 8, "start_time": 16.8, "end_time": 19.2, "rms": 0.45, "spectral_flux": 0.35, "combined": 0.43},
+    {"bar": 9, "start_time": 19.2, "end_time": 21.6, "rms": 0.55, "spectral_flux": 0.44, "combined": 0.52},
+    {"bar": 10, "start_time": 21.6, "end_time": 24.0, "rms": 0.62, "spectral_flux": 0.50, "combined": 0.59},
+    {"bar": 11, "start_time": 24.0, "end_time": 26.4, "rms": 0.70, "spectral_flux": 0.57, "combined": 0.67},
+    {"bar": 12, "start_time": 26.4, "end_time": 28.8, "rms": 0.76, "spectral_flux": 0.64, "combined": 0.74},
+    {"bar": 13, "start_time": 28.8, "end_time": 31.2, "rms": 0.84, "spectral_flux": 0.74, "combined": 0.82},
+    {"bar": 14, "start_time": 31.2, "end_time": 33.6, "rms": 0.88, "spectral_flux": 0.78, "combined": 0.86},
+    {"bar": 15, "start_time": 33.6, "end_time": 36.0, "rms": 0.91, "spectral_flux": 0.82, "combined": 0.90},
+    {"bar": 16, "start_time": 36.0, "end_time": 38.4, "rms": 0.94, "spectral_flux": 0.86, "combined": 0.93}
+  ],
+  "key": {
+    "tonic": "C",
+    "mode": "minor",
+    "camelot": "5A"
+  },
+  "analyzer_versions": {
+    "librosa": "fixture",
+    "songformer": "fixture",
+    "beatnet": "fixture"
+  }
+}

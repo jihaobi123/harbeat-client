@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GrooveEngine Transition Test Bench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="noise"></div>
+  <main class="test-shell">
+    <section class="test-header">
+      <div>
+        <p class="eyebrow">Temporary Listening Workflow</p>
+        <h1>Transition Test Bench</h1>
+        <p class="hero-copy compact">导入两首歌，生成候选接歌点，试听不同接歌方法与位置，仅保留人工听感测试和参数调整所需功能。</p>
+      </div>
+      <div id="status-banner" class="summary-card empty">先导入至少两首真实歌曲。</div>
+    </section>
+
+    <section class="tag-ribbon panel compact-panel">
+      <h2>快速听感标签</h2>
+      <div id="tag-palette" class="tag-palette">
+        <button type="button" class="tag-chip" data-tag="很顺">很顺</button>
+        <button type="button" class="tag-chip" data-tag="切入太早">切入太早</button>
+        <button type="button" class="tag-chip" data-tag="切入太晚">切入太晚</button>
+        <button type="button" class="tag-chip" data-tag="bass打架">bass打架</button>
+        <button type="button" class="tag-chip" data-tag="人声重叠">人声重叠</button>
+        <button type="button" class="tag-chip" data-tag="能量掉了">能量掉了</button>
+        <button type="button" class="tag-chip" data-tag="drop接得好">drop接得好</button>
+        <button type="button" class="tag-chip" data-tag="groove变软">groove变软</button>
+      </div>
+    </section>
+
+    <section class="panel panel-accent compact-panel">
+      <h2>1. 导入歌曲</h2>
+      <form id="upload-form" class="stack inline-stack">
+        <label class="upload-box slim-upload">
+          <span>选择本地音频文件</span>
+          <input type="file" name="audio" accept="audio/*" multiple>
+        </label>
+        <button type="submit">导入并分析</button>
+      </form>
+      <div id="import-log" class="import-log empty">暂无导入日志。</div>
+    </section>
+
+    <section class="test-grid">
+      <section class="panel compact-panel">
+        <h2>2. 曲库</h2>
+        <div id="track-library" class="library-list empty">暂无可测试歌曲。</div>
+      </section>
+
+      <section class="panel compact-panel">
+        <h2>3. 选择 A / B</h2>
+        <div id="mix-selection" class="library-list empty">请选择两首歌进行测试。</div>
+        <div class="chips tight-chips">
+          <button id="preview-transition-report" class="chip">生成候选</button>
+        </div>
+        <div id="pair-summary" class="summary-card empty">未选择测试对。</div>
+      </section>
+    </section>
+
+    <section class="panel compact-panel full-span-panel">
+      <div class="section-head">
+        <div>
+          <h2>4. 候选试听</h2>
+          <p class="muted">优先展示 shortlist，支持直接试听每个候选的接歌位置与方法。</p>
+        </div>
+        <label class="inline-control">shortlist 数量
+          <input id="shortlist-limit" type="number" min="1" max="8" value="3">
+        </label>
+      </div>
+      <div id="transition-report" class="result-card empty">尚未生成候选。</div>
+    </section>
+
+    <section class="test-grid bottom-grid">
+      <section class="panel compact-panel">
+        <h2>5. 当前试听</h2>
+        <div id="listen-result" class="result-card empty">点击候选中的“试听此接法”后，这里会出现试听音频与关键指标。</div>
+      </section>
+
+      <section class="panel compact-panel">
+        <h2>6. 备注</h2>
+        <textarea id="session-notes" class="notes-box" placeholder="记录人工听感：比如 bass 打架、人声重叠、切入太早、drop 接得好等。"></textarea>
+        <div id="tag-log" class="tag-log empty">还没有记录任何听感标签。</div>
+      </section>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
