@@ -122,6 +122,7 @@ class DJContextPlanner:
         context: SessionContext,
         target_length: int,
         target_energy_curve: Optional[List[float]] = None,
+        stage_targets: Optional[List[dict]] = None,
         explain: bool = False,
     ) -> Dict[str, Any]:
         if target_length <= 0:
@@ -190,7 +191,8 @@ class DJContextPlanner:
             beam = next_beam[: self.BEAM_WIDTH]
 
         best = max(beam, key=lambda s: (len(s.selected_indices), s.total_score))
-        ordered_tracks = [tracks[i].track_id for i in best.selected_indices]
+        ordered_track_objs = [tracks[i] for i in best.selected_indices]
+        ordered_tracks = [track.track_id for track in ordered_track_objs]
 
         transitions_json = []
         for i, transition in enumerate(best.transitions):
@@ -207,10 +209,13 @@ class DJContextPlanner:
                 item["explain"] = best.explain_steps[i + 1]
             transitions_json.append(item)
 
+        stage_report = self._build_stage_report(ordered_track_objs, stage_targets)
+
         output: Dict[str, Any] = {
             "session_context": {"scene": context.scene_type, "dominant_styles": self._dominant_styles(context)},
             "ordered_tracks": ordered_tracks,
             "transitions": transitions_json,
+            "stage_report": stage_report,
         }
         if explain:
             output["planner_debug"] = {
@@ -220,6 +225,40 @@ class DJContextPlanner:
                 "target_energy_curve": curve,
             }
         return output
+
+    def _build_stage_report(self, ordered_tracks: List[TrackCandidate], stage_targets: Optional[List[dict]]) -> List[dict]:
+        if not stage_targets:
+            return []
+
+        report: List[dict] = []
+        cursor = 0
+        for stage in stage_targets:
+            slot_count = int(stage.get("slot_count") or 0)
+            if slot_count <= 0:
+                continue
+            segment = ordered_tracks[cursor: cursor + slot_count]
+            cursor += slot_count
+
+            style_actual: Dict[str, int] = {}
+            energies: List[float] = []
+            for track in segment:
+                energies.append(track.energy)
+                key = track.dominant_styles[0] if track.dominant_styles else "unknown"
+                style_actual[key] = style_actual.get(key, 0) + 1
+
+            report.append(
+                {
+                    "stage_idx": stage.get("stage_idx"),
+                    "slot_count": slot_count,
+                    "energy_min": stage.get("energy_min"),
+                    "energy_max": stage.get("energy_max"),
+                    "target_curve": stage.get("target_curve") or [],
+                    "style_target": stage.get("style_target") or {},
+                    "style_actual": style_actual,
+                    "actual_avg_energy": round(sum(energies) / len(energies), 3) if energies else None,
+                }
+            )
+        return report
 
     def _score_candidate(
         self,

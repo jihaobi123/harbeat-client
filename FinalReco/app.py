@@ -13,7 +13,7 @@ import streamlit as st
 from services.dj_planner_service import DJContextPlanner, SessionContext
 from services.library_service import ingest_tracks, list_collections
 from services.rerank_service import rerank_tracks
-from services.search_service import fetch_with_multiplier, search_collection
+from services.search_service import fetch_stage_candidates, fetch_with_multiplier, search_collection
 from services.spotify_service import fetch_playlist_tracks, get_track_by_id, search_tracks
 from services.vibe_service import interpret_vibe
 from styles import inject_custom_css, render_hero_section, render_local_result_card, render_panel_header, render_track_card
@@ -63,21 +63,28 @@ def build_badges(item: dict) -> list[str]:
     return badges
 
 
-def parse_style_ratios(raw: str) -> dict[str, float]:
-    ratios: dict[str, float] = {}
-    for token in str(raw or "").split(","):
-        chunk = token.strip()
-        if not chunk or ":" not in chunk:
-            continue
-        name, value = chunk.split(":", 1)
-        name = name.strip().lower()
+def build_style_ratios_from_counts(style_counts: dict[str, int]) -> dict[str, float]:
+    cleaned: dict[str, float] = {}
+    for style, count in (style_counts or {}).items():
+        name = str(style or "").strip().lower()
         if not name:
             continue
         try:
-            ratios[name] = float(value.strip())
-        except ValueError:
+            value = int(count)
+        except (TypeError, ValueError):
             continue
-    return ratios
+        if value > 0:
+            cleaned[name] = float(value)
+
+    total = sum(cleaned.values())
+    if total <= 0:
+        return {}
+    return {k: v / total for k, v in cleaned.items()}
+
+
+def estimate_target_length_from_minutes(set_minutes: int) -> int:
+    # Planning granularity: ~3 minutes per selected track in a set.
+    return max(2, min(30, round((max(1, int(set_minutes)) * 60) / 180)))
 
 
 def parse_energy_curve(raw: str) -> list[float]:
@@ -336,32 +343,37 @@ with dj_col:
         index=0,
         key="dj_scene",
     )
-    dj_style_ratios_raw = st.text_input(
-        "Style ratios (optional)",
-        value="hiphop:0.6,popping:0.4",
-        key="dj_style_ratios",
-    )
-    dj_target_length = st.slider(
-        "Target set length",
-        min_value=2,
-        max_value=12,
-        value=6,
+
+    style_options = ["hiphop", "popping", "locking", "breaking", "house", "waacking"]
+    st.markdown("**Dancer counts by style**")
+    style_count_cols = st.columns(3)
+    style_counts: dict[str, int] = {}
+    for idx, style in enumerate(style_options):
+        with style_count_cols[idx % 3]:
+            style_counts[style] = st.number_input(
+                f"{style}",
+                min_value=0,
+                max_value=200,
+                value=0,
+                step=1,
+                key=f"dj_count_{style}",
+            )
+
+    dj_set_total_minutes = st.slider(
+        "Set total duration (minutes)",
+        min_value=6,
+        max_value=120,
+        value=18,
         step=1,
-        key="dj_target_length",
+        key="dj_set_total_minutes",
     )
+    estimated_target_length = estimate_target_length_from_minutes(dj_set_total_minutes)
+    st.caption(f"Estimated planning slots from duration: {estimated_target_length}")
     dj_energy_curve_raw = st.text_input(
         "Target energy curve (comma-separated, 1-10)",
         value="7.0,7.8,8.4,7.6,8.6,7.9",
         key="dj_energy_curve",
         help="长度不足会自动补齐，超出会截断。",
-    )
-    dj_mix_duration_minutes = st.slider(
-        "Target mix total duration (minutes)",
-        min_value=3,
-        max_value=60,
-        value=10,
-        step=1,
-        key="dj_mix_duration_minutes",
     )
 
     analyze_clicked = st.button("Analyze playlist and generate DJ plan", type="primary", key="dj_plan_button")
@@ -371,10 +383,11 @@ with dj_col:
             st.warning("Please provide a playlist link.")
         else:
             try:
-                style_ratios = parse_style_ratios(dj_style_ratios_raw)
+                style_ratios = build_style_ratios_from_counts(style_counts)
                 target_energy_curve = parse_energy_curve(dj_energy_curve_raw)
                 context = SessionContext(scene_type=dj_scene, style_ratios=style_ratios)
                 planner = DJContextPlanner()
+                target_length = estimate_target_length_from_minutes(dj_set_total_minutes)
 
                 playlist_tracks: list[dict] = []
                 successful_count = 0
@@ -393,13 +406,17 @@ with dj_col:
                         successful = []
                     successful_count = 0
 
-                oversampled_candidates = fetch_with_multiplier(
+                stage_bundle = fetch_stage_candidates(
                     collection_name=planning_collection,
-                    target_length=dj_target_length,
+                    target_length=target_length,
+                    target_energy_curve=target_energy_curve,
                     style_ratios=style_ratios,
-                    multiplier=5,
+                    multiplier=1,
                     query_text=None,
+                    recall_all_under=1000,
                 )
+                oversampled_candidates = stage_bundle.get("pool") or []
+                stage_targets = stage_bundle.get("stages") or []
 
                 bpm_by_track: dict[str, float] = {}
                 track_info: dict[str, dict] = {}
@@ -419,8 +436,9 @@ with dj_col:
                 plan = planner.generate_plan(
                     candidates=oversampled_candidates,
                     context=context,
-                    target_length=dj_target_length,
+                    target_length=target_length,
                     target_energy_curve=target_energy_curve,
+                    stage_targets=stage_targets,
                     explain=True,
                 )
 
@@ -438,7 +456,10 @@ with dj_col:
                         Planning source: <strong>{source_label}</strong><br/>
                         Playlist tracks fetched: <strong>{len(playlist_tracks)}</strong><br/>
                         Analyzed & stored: <strong>{successful_count}</strong><br/>
-                        Oversampled pool: <strong>{len(oversampled_candidates)}</strong><br/>
+                        Set duration (min): <strong>{dj_set_total_minutes}</strong><br/>
+                        Estimated slots: <strong>{target_length}</strong><br/>
+                        Recalled pool: <strong>{len(oversampled_candidates)}</strong><br/>
+                        Stage count: <strong>{len(stage_targets)}</strong><br/>
                         Planned order length: <strong>{len(plan.get('ordered_tracks', []))}</strong>
                     </div>
                     """,
@@ -487,6 +508,23 @@ with dj_col:
 
         st.markdown("**Transition scores**")
         st.dataframe(transition_rows, use_container_width=True, hide_index=True)
+
+        stage_rows = []
+        for stage in current_plan.get("stage_report", []):
+            stage_rows.append(
+                {
+                    "stage_idx": stage.get("stage_idx"),
+                    "slot_count": stage.get("slot_count"),
+                    "energy_min": stage.get("energy_min"),
+                    "energy_max": stage.get("energy_max"),
+                    "actual_avg_energy": stage.get("actual_avg_energy"),
+                    "style_target": stage.get("style_target"),
+                    "style_actual": stage.get("style_actual"),
+                }
+            )
+        if stage_rows:
+            st.markdown("**Stage quota report**")
+            st.dataframe(stage_rows, use_container_width=True, hide_index=True)
 
         st.info("Mix rendering is disabled in this branch. Planning outputs are available above.")
 
