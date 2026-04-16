@@ -32,13 +32,9 @@ from app.modules.playlists.schemas import (
     StyleMixRequest,
     StyleMixResult,
 )
-from app.modules.playlists.transition_planner import (
-    build_features,
-    build_fx_automation,
-    harmonic_compatible,
-    plan_phrase_transition,
-    score_transition,
-    within_tempo_shift,
+from app.modules.playlists.groove_adapter import (
+    library_song_to_track_metadata,
+    run_groove_engine_plan,
 )
 from app.modules.playlists.offline_renderer import (
     OfflineRenderTrackInput,
@@ -636,176 +632,40 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
             transition_plan=[],
         )
 
+    # ── Build GrooveEngine TrackMetadata for each song ────────────────
     song_ids = [track.song_id for track in playlist]
     songs = _song_map(db, song_ids)
     library_map = _library_context_map(db, payload.user_id, songs)
 
-    item_by_song_id = {item.song_id: item for item in playlist}
-    feature_by_song_id = {}
-    beat_by_song_id: dict[int, list[float]] = {}
-    cue_by_song_id: dict[int, list[dict]] = {}
-    energy_by_song_id: dict[int, str | None] = {}
-
+    track_metas = []
     for item in playlist:
-        song = songs.get(item.song_id)
         lib = library_map.get(item.song_id)
-        processed = style_result.processed_files.get(item.song_id, "")
-        song_energy = song.tags.energy if song and song.tags else None
+        audio_path = style_result.processed_files.get(item.song_id, "")
 
-        feature_by_song_id[item.song_id] = build_features(
+        meta = library_song_to_track_metadata(
             song_id=item.song_id,
-            duration=item.duration or (lib.duration if lib else None),
+            title=item.title,
+            artist=item.artist or "",
+            duration=item.duration or (lib.duration if lib else 180.0),
             bpm=item.bpm or (lib.bpm if lib else None),
+            key=lib.key if lib else None,
             camelot_key=lib.camelot_key if lib else None,
-            processed_file=processed,
-            allow_audio_estimation=False,
+            energy=lib.energy if lib else None,
+            beat_points=list(lib.beat_points) if lib and lib.beat_points else [],
+            downbeats=list(lib.downbeats) if lib and lib.downbeats else [],
+            phrase_map=list(lib.phrase_map) if lib and lib.phrase_map else [],
+            beat_confidence=lib.beat_confidence if lib else None,
+            audio_path=audio_path,
         )
-        beat_by_song_id[item.song_id] = list(lib.beat_points) if lib and lib.beat_points else []
-        cue_by_song_id[item.song_id] = list(lib.cue_points) if lib and lib.cue_points else []
-        energy_by_song_id[item.song_id] = _energy_bucket(song_energy) or _energy_bucket(lib.energy if lib else None)
+        track_metas.append(meta)
 
-    # Greedy reorder by transition quality (DJ-like flow), with controlled
-    # diversity to avoid repeatedly generating an identical sequence.
-    rng = random.Random(payload.random_seed) if payload.random_seed is not None else random.Random()
-    diversity = _clamp(float(payload.diversity), 0.0, 1.0)
-    candidate_window = max(1, int(payload.candidate_window))
-
-    ordered_ids: list[int] = []
-    remaining_ids = [item.song_id for item in playlist]
-    if remaining_ids:
-        if diversity <= 0.001:
-            ordered_ids.append(remaining_ids.pop(0))
-        else:
-            start_window = max(1, min(len(remaining_ids), max(2, candidate_window)))
-            start_id = rng.choice(remaining_ids[:start_window])
-            ordered_ids.append(start_id)
-            remaining_ids.remove(start_id)
-
-    while remaining_ids:
-        from_id = ordered_ids[-1]
-        from_feature = feature_by_song_id[from_id]
-        from_energy = energy_by_song_id.get(from_id)
-        from_song = songs.get(from_id)
-
-        hard_candidates: list[tuple[float, int]] = []
-        soft_candidates: list[tuple[float, int]] = []
-        for cand_id in remaining_ids:
-            cand_feature = feature_by_song_id[cand_id]
-            cand_energy = energy_by_song_id.get(cand_id)
-            cand_song = songs.get(cand_id)
-            score, _, _ = score_transition(
-                from_track=from_feature,
-                to_track=cand_feature,
-                from_energy=from_energy,
-                to_energy=cand_energy,
-                strict_harmonic=payload.strict_harmonic,
-                max_tempo_shift=payload.max_tempo_shift,
-                crossfade_sec=6.0,
-            )
-            if (
-                from_song
-                and cand_song
-                and from_song.artist
-                and cand_song.artist
-                and from_song.artist.strip().lower() == cand_song.artist.strip().lower()
-            ):
-                score -= 0.06
-
-            hard_ok = (
-                harmonic_compatible(from_feature.camelot_key, cand_feature.camelot_key, payload.strict_harmonic)
-                and within_tempo_shift(from_feature.bpm, cand_feature.bpm, payload.max_tempo_shift)
-            )
-            if hard_ok:
-                hard_candidates.append((score, cand_id))
-            soft_candidates.append((score, cand_id))
-
-        if payload.strict_harmonic:
-            candidate_pool = hard_candidates or soft_candidates
-        else:
-            hard_set = {sid for _, sid in hard_candidates}
-            candidate_pool = []
-            for score, sid in soft_candidates:
-                boosted = score + (0.08 if sid in hard_set else 0.0)
-                candidate_pool.append((boosted, sid))
-        if not candidate_pool:
-            chosen_id = remaining_ids[0]
-        else:
-            chosen_id = _ranked_pick(
-                candidate_pool,
-                rng=rng,
-                diversity=diversity,
-                candidate_window=candidate_window,
-            )
-        ordered_ids.append(chosen_id)
-        remaining_ids.remove(chosen_id)
-
-    ordered_playlist = [item_by_song_id[sid] for sid in ordered_ids if sid in item_by_song_id]
-
-    transition_plan: list[DjTransitionPlanItem] = []
-    default_crossfade = 6.0
-
-    for index in range(len(ordered_playlist) - 1):
-        current = ordered_playlist[index]
-        nxt = ordered_playlist[index + 1]
-        from_feature = feature_by_song_id[current.song_id]
-        to_feature = feature_by_song_id[nxt.song_id]
-
-        current_energy = energy_by_song_id.get(current.song_id)
-        next_energy = energy_by_song_id.get(nxt.song_id)
-        score, tempo_ratio, key_relation = score_transition(
-            from_track=from_feature,
-            to_track=to_feature,
-            from_energy=current_energy,
-            to_energy=next_energy,
-            strict_harmonic=payload.strict_harmonic,
-            max_tempo_shift=payload.max_tempo_shift,
-            crossfade_sec=default_crossfade,
-        )
-
-        timing = plan_phrase_transition(
-            from_track=from_feature,
-            to_track=to_feature,
-            crossfade_sec=default_crossfade,
-            from_beat_points=beat_by_song_id.get(current.song_id),
-            to_beat_points=beat_by_song_id.get(nxt.song_id),
-            from_cue_points=cue_by_song_id.get(current.song_id),
-        )
-
-        fx_automation = [
-            DjFxAutomationPoint(**point)
-            for point in build_fx_automation(
-                timing.crossfade_sec,
-                payload.energy or next_energy,
-                timing.technique,
-            )
-        ]
-
-        transition_plan.append(
-            DjTransitionPlanItem(
-                from_song_id=current.song_id,
-                to_song_id=nxt.song_id,
-                entry_beat=timing.entry_beat,
-                exit_beat=timing.exit_beat,
-                entry_time_sec=timing.entry_time_sec,
-                exit_time_sec=timing.exit_time_sec,
-                from_beat_interval_sec=timing.from_beat_interval_sec,
-                to_beat_interval_sec=timing.to_beat_interval_sec,
-                phase_anchor_sec=timing.phase_anchor_sec,
-                crossfade_sec=timing.crossfade_sec,
-                tempo_ratio=round(tempo_ratio, 4),
-                key_relation=key_relation,
-                transition_technique=timing.technique,
-                energy_target=payload.energy or next_energy or "medium",
-                fx_automation=fx_automation,
-                score=round(score, 4),
-            )
-        )
-
-    return DjMixPlanResult(
-        playlist=ordered_playlist,
+    # ── Run GrooveEngine playlist planning (11-factor scoring) ────────
+    return run_groove_engine_plan(
+        track_metas=track_metas,
+        song_playlist_data={item.song_id: item for item in playlist},
         processed_files=style_result.processed_files,
-        meta=style_result.meta,
-        transition_plan=transition_plan,
+        style_meta=style_result.meta,
+        energy_target=payload.energy,
     )
 
 
