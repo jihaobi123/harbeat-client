@@ -1,0 +1,14 @@
+[
+  {
+    "audio": "NotShy-ITZY-20s.wav",
+    "output": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_results\\NotShy-ITZY-20s.json"
+  },
+  {
+    "audio": "NotShy-ITZY있지-K12PBWZV.mp3",
+    "output": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_results\\NotShy-ITZY있지-K12PBWZV.json"
+  },
+  {
+    "audio": "tMUmAV-GOLD-ITZY_(있지).mp3",
+    "output": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_results\\tMUmAV-GOLD-ITZY_(있지).json"
+  }
+]
