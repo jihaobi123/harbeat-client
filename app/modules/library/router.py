@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.library.schemas import (
+    BeatCorrectionRequest,
     LibrarySongCreateRequest,
     LibrarySongData,
     LibrarySongListData,
@@ -207,6 +208,11 @@ def analyze_library_song_endpoint(
     song.camelot_key = result.get("camelot_key")
     song.energy = result.get("energy")
     song.beat_points = result.get("beat_points", [])
+    song.beat_confidence = result.get("beat_confidence")
+    song.beat_grid_offset = result.get("beat_grid_offset")
+    song.beat_grid_interval = result.get("beat_grid_interval")
+    song.beat_engines_used = result.get("beat_engines_used", [])
+    song.beat_needs_review = result.get("beat_needs_review", False)
     # Add IDs to cue points for frontend
     raw_cues = result.get("cue_points", [])
     song.cue_points = [
@@ -284,3 +290,72 @@ def separate_stems_endpoint(
     song.stems = stems
     db.commit()
     return APIResponse(data={"stems": stems})
+
+
+# ── Beat correction endpoints ─────────────────────────────────────────────
+
+
+@router.get("/songs/needs-review", response_model=APIResponse[LibrarySongListData])
+def list_needs_review_endpoint(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List songs with low beat confidence that need manual review."""
+    from app.modules.library.models import LibrarySong
+
+    songs = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id, LibrarySong.beat_needs_review == 1)
+        .all()
+    )
+    return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(s) for s in songs]))
+
+
+@router.post("/songs/{song_id}/correct-beats", response_model=APIResponse[LibrarySongData])
+def correct_beats_endpoint(
+    song_id: str,
+    payload: BeatCorrectionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Apply manual BPM/beatgrid correction from human review."""
+    from app.modules.library.models import LibrarySong
+    from app.modules.library.beat_engine import BeatResult, apply_manual_correction
+
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+
+    # Reconstruct current BeatResult from DB fields
+    current = BeatResult(
+        bpm=song.bpm or 120.0,
+        beat_points=song.beat_points or [],
+        downbeats=song.downbeats or [],
+        grid_offset=song.beat_grid_offset or 0.0,
+        grid_interval=song.beat_grid_interval or 0.5,
+        confidence=song.beat_confidence or 0.0,
+        engines_used=song.beat_engines_used or [],
+        needs_review=bool(song.beat_needs_review),
+    )
+
+    corrected = apply_manual_correction(
+        current,
+        corrected_bpm=payload.bpm,
+        corrected_offset=payload.grid_offset,
+        corrected_downbeat_phase=payload.downbeat_phase,
+        duration=song.duration or 0.0,
+    )
+
+    song.bpm = corrected.bpm
+    song.beat_points = corrected.beat_points
+    song.downbeats = corrected.downbeats
+    song.beat_grid_offset = corrected.grid_offset
+    song.beat_grid_interval = corrected.grid_interval
+    song.beat_confidence = corrected.confidence
+    song.beat_engines_used = corrected.engines_used
+    song.beat_needs_review = False
+    db.commit()
+    db.refresh(song)
+    return APIResponse(data=LibrarySongData.model_validate(song))

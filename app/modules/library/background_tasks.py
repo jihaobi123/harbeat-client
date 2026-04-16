@@ -176,6 +176,11 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.downbeats = result.get("downbeats", [])
                 song.phrase_map = result.get("phrase_map", [])
                 song.key_confidence = result.get("key_confidence")
+                song.beat_confidence = result.get("beat_confidence")
+                song.beat_grid_offset = result.get("beat_grid_offset")
+                song.beat_grid_interval = result.get("beat_grid_interval")
+                song.beat_engines_used = result.get("beat_engines_used", [])
+                song.beat_needs_review = result.get("beat_needs_review", False)
                 raw_cues = result.get("cue_points", [])
                 song.cue_points = [
                     {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}

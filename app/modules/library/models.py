@@ -36,6 +36,11 @@ class LibrarySong(Base):
     downbeats: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
     phrase_map: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     key_confidence: Mapped[float | None] = mapped_column(Float)
+    beat_confidence: Mapped[float | None] = mapped_column(Float)
+    beat_grid_offset: Mapped[float | None] = mapped_column(Float)
+    beat_grid_interval: Mapped[float | None] = mapped_column(Float)
+    beat_engines_used: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    beat_needs_review: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)
     stems: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

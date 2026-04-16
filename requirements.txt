@@ -17,6 +17,10 @@ pyloudnorm
 pedalboard
 pyrubberband
 
+# === Beat Detection (multi-engine) ===
+madmom>=0.16.1
+BeatNet>=1.0
+
 # === Stem Separation (demucs) ===
 # torch CPU installed separately in Dockerfile (smaller, faster)
 # torch==2.6.0

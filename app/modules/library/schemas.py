@@ -30,6 +30,11 @@ class LibrarySongBase(BaseModel):
     analysis_status: str = "none"
     beat_points: list[float] = Field(default_factory=list)
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
+    beat_confidence: float | None = None
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] = Field(default_factory=list)
+    beat_needs_review: bool = False
     stems: dict | None = None
     song_id: int | None = None
     created_at: datetime
@@ -56,7 +61,19 @@ class LibrarySongUpdateRequest(BaseModel):
     analysis_status: str | None = None
     beat_points: list[float] | None = None
     cue_points: list[LibraryCuePoint] | None = None
+    beat_confidence: float | None = None
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] | None = None
+    beat_needs_review: bool | None = None
     stems: dict | None = None
+
+
+class BeatCorrectionRequest(BaseModel):
+    """Manual beat/BPM correction from human review."""
+    bpm: float | None = None
+    grid_offset: float | None = None
+    downbeat_phase: int | None = Field(None, ge=0, le=3)
 
 
 class LibrarySongData(LibrarySongBase):

@@ -70,81 +70,39 @@ def camelot_score(key_a: str, key_b: str) -> int:
     return 0
 
 
-# ── Beat / Downbeat / BPM (madmom → librosa fallback) ─────────────────────
-
-_HAS_MADMOM: bool | None = None
-
-
-def _madmom_available() -> bool:
-    global _HAS_MADMOM
-    if _HAS_MADMOM is None:
-        try:
-            import madmom  # noqa: F401
-            _HAS_MADMOM = True
-        except Exception:
-            _HAS_MADMOM = False
-            logger.info("madmom not available — beat detection will use librosa")
-    return _HAS_MADMOM
+# ── Beat / Downbeat / BPM (multi-engine: madmom + BeatNet + librosa) ──────
 
 
 def _detect_beats_and_downbeats(
     file_path: str, y: np.ndarray, sr: int,
-) -> tuple[list[float], list[float], float]:
-    """Detect beats, downbeats, BPM.  Tries madmom RNN first, falls back to librosa."""
-    if _madmom_available():
-        try:
-            result = _beats_via_madmom(file_path)
-            logger.info("beat detection via madmom: BPM=%.1f, %d beats, %d downbeats",
-                        result[2], len(result[0]), len(result[1]))
-            return result
-        except Exception:
-            logger.warning("madmom beat detection failed, falling back to librosa", exc_info=True)
-    return _beats_via_librosa(y, sr)
+) -> tuple[list[float], list[float], float, dict]:
+    """Detect beats, downbeats, BPM using multi-engine beat analysis.
 
+    Returns (beat_points, downbeats, bpm, beat_meta) where beat_meta contains
+    confidence, grid info, and engine details.
+    """
+    from app.modules.library.beat_engine import analyze_beats
 
-def _beats_via_madmom(file_path: str) -> tuple[list[float], list[float], float]:
-    from madmom.features.beats import DBNBeatTrackingProcessor, RNNBeatProcessor
-    from madmom.features.downbeats import DBNDownBeatTrackingProcessor, RNNDownBeatProcessor
+    duration = float(len(y) / sr)
+    result = analyze_beats(file_path, y, sr, duration)
 
-    beat_act = RNNBeatProcessor()(file_path)
-    beats = DBNBeatTrackingProcessor(fps=100)(beat_act)
+    beat_meta = {
+        "confidence": result.confidence,
+        "confidence_details": result.confidence_details,
+        "grid_offset": result.grid_offset,
+        "grid_interval": result.grid_interval,
+        "engines_used": result.engines_used,
+        "needs_review": result.needs_review,
+    }
 
-    db_act = RNNDownBeatProcessor()(file_path)
-    db_result = DBNDownBeatTrackingProcessor(beats_per_bar=[4], fps=100)(db_act)
-    downbeats = [round(float(row[0]), 3) for row in db_result if int(round(row[1])) == 1]
+    logger.info(
+        "beat analysis: BPM=%.1f, %d beats, %d downbeats, confidence=%.2f, engines=%s%s",
+        result.bpm, len(result.beat_points), len(result.downbeats),
+        result.confidence, result.engines_used,
+        " [NEEDS REVIEW]" if result.needs_review else "",
+    )
 
-    bpm = 60.0 / float(np.median(np.diff(beats))) if len(beats) > 1 else 120.0
-    beat_points = [round(float(t), 3) for t in beats]
-    return beat_points, downbeats, round(bpm, 1)
-
-
-def _beats_via_librosa(y: np.ndarray, sr: int) -> tuple[list[float], list[float], float]:
-    import librosa
-
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
-    beat_points = [round(float(t), 3) for t in beat_times]
-
-    # Downbeats via onset-strength phasing (4/4 assumption)
-    if len(beat_times) < 4:
-        downbeats = [beat_points[0]] if beat_points else []
-    else:
-        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-        hop = 512
-        bf = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop)
-        bf = np.clip(bf, 0, len(onset_env) - 1)
-        strengths = onset_env[bf]
-        best_phase, best_score = 0, -1.0
-        for phase in range(4):
-            idx = list(range(phase, len(strengths), 4))
-            score = float(np.mean(strengths[idx])) if idx else 0.0
-            if score > best_score:
-                best_score = score
-                best_phase = phase
-        downbeats = [round(float(beat_times[i]), 3) for i in range(best_phase, len(beat_times), 4)]
-
-    return beat_points, downbeats, round(bpm, 1)
+    return result.beat_points, result.downbeats, result.bpm, beat_meta
 
 
 # ── Structure detection (SSM + Checkerboard Novelty → energy fallback) ────
@@ -448,8 +406,8 @@ def analyze_audio_file(file_path: str) -> dict:
     y, sr = librosa.load(file_path, sr=22050)
     duration = float(librosa.get_duration(y=y, sr=sr))
 
-    # Beats + downbeats + BPM  (madmom RNN → librosa fallback)
-    beat_points, downbeats, bpm = _detect_beats_and_downbeats(file_path, y, sr)
+    # Beats + downbeats + BPM  (multi-engine: madmom + BeatNet + librosa)
+    beat_points, downbeats, bpm, beat_meta = _detect_beats_and_downbeats(file_path, y, sr)
 
     # Energy
     rms = librosa.feature.rms(y=y)[0]
@@ -493,4 +451,10 @@ def analyze_audio_file(file_path: str) -> dict:
         "downbeats": downbeats,
         "cue_points": cue_points,
         "phrase_map": phrase_map,
+        "beat_confidence": beat_meta["confidence"],
+        "beat_confidence_details": beat_meta["confidence_details"],
+        "beat_grid_offset": beat_meta["grid_offset"],
+        "beat_grid_interval": beat_meta["grid_interval"],
+        "beat_engines_used": beat_meta["engines_used"],
+        "beat_needs_review": beat_meta["needs_review"],
     }
