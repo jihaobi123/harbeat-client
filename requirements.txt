@@ -18,6 +18,7 @@ pedalboard
 pyrubberband
 
 # === Beat Detection (multi-engine) ===
+essentia>=2.1b6
 madmom>=0.16.1
 BeatNet>=1.0
 
