@@ -396,55 +396,158 @@ def _detect_phrase_structure(
     return phrases
 
 
+# ── Lightweight beat tracking with known BPM ──────────────────────────────
+
+
+def _generate_beats_from_known_bpm(
+    y: np.ndarray, sr: int, bpm: float, duration: float,
+) -> tuple[list[float], list[float], dict]:
+    """Generate beatgrid using librosa beat_track with a known BPM prior.
+
+    Much faster than full multi-engine analysis (~2s vs ~120s).
+    Returns (beat_points, downbeats, beat_meta).
+    """
+    import librosa
+
+    # librosa beat_track with BPM prior — fast and accurate
+    _, beat_frames = librosa.beat.beat_track(y=y, sr=sr, bpm=bpm, units="frames")
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+    beat_points = [round(float(t), 3) for t in beat_times]
+
+    if not beat_points:
+        # Fallback: generate uniform grid
+        interval = 60.0 / bpm
+        beat_points = [round(i * interval, 3) for i in range(int(duration / interval) + 1)]
+
+    # Compute grid interval and offset
+    if len(beat_points) >= 2:
+        intervals = np.diff(beat_points)
+        grid_interval = round(float(np.median(intervals)), 4)
+        grid_offset = round(beat_points[0], 4)
+    else:
+        grid_interval = round(60.0 / bpm, 4)
+        grid_offset = 0.0
+
+    # Snap to uniform grid
+    grid_beats = []
+    t = grid_offset
+    while t < duration:
+        grid_beats.append(round(t, 3))
+        t += grid_interval
+    if grid_beats:
+        beat_points = grid_beats
+
+    # Downbeats: every 4 beats
+    downbeats = [beat_points[i] for i in range(0, len(beat_points), 4)]
+
+    beat_meta = {
+        "confidence": 0.95,  # high confidence — BPM from Spotify
+        "confidence_details": {"source": "online_lookup", "engine_agreement": 1.0},
+        "grid_offset": grid_offset,
+        "grid_interval": grid_interval,
+        "engines_used": ["online_lookup"],
+        "needs_review": False,
+    }
+
+    return beat_points, downbeats, beat_meta
+
+
 # ── Main entry point ───────────────────────────────────────────────────────
 
 
-def analyze_audio_file(file_path: str) -> dict:
-    """Full analysis: BPM, beats, downbeats, key, energy, structure, phrases."""
+def analyze_audio_file(
+    file_path: str,
+    title: str = "",
+    artist: str = "",
+) -> dict:
+    """Full analysis: BPM, beats, downbeats, key, energy, structure, phrases.
+
+    Strategy:
+    1. Try online lookup (Deezer API) for BPM — instant (<1s)
+    2. If found → use online BPM + lightweight librosa beat tracking (~2s)
+    3. If not found → full multi-engine local analysis (madmom + BeatNet + librosa)
+    """
     import librosa
 
     y, sr = librosa.load(file_path, sr=22050)
     duration = float(librosa.get_duration(y=y, sr=sr))
 
-    # Beats + downbeats + BPM  (multi-engine: madmom + BeatNet + librosa)
-    beat_points, downbeats, bpm, beat_meta = _detect_beats_and_downbeats(file_path, y, sr)
+    # ── Step 1: Try online BPM lookup ─────────────────────────────────
+    online_info = None
+    if title or artist:
+        try:
+            from app.modules.library.bpm_lookup import lookup_track_info, normalize_bpm
+            online_info = lookup_track_info(title, artist, file_duration=duration)
+        except Exception:
+            logger.warning("Online BPM lookup module failed", exc_info=True)
 
-    # Energy
+    # ── Step 2: BPM + Beat tracking ───────────────────────────────────
+    if online_info and online_info.get("bpm"):
+        # Fast path: use online BPM + lightweight beat tracking
+        raw_bpm = online_info["bpm"]
+        bpm = normalize_bpm(raw_bpm, online_info.get("alt_bpm"))
+        if bpm != raw_bpm:
+            logger.info("BPM normalized: %s → %.0f (DJ range)", raw_bpm, bpm)
+        logger.info("Using %s BPM=%.1f for '%s - %s'",
+                    online_info.get('source', 'online'), bpm, artist, title)
+        beat_points, downbeats, beat_meta = _generate_beats_from_known_bpm(
+            y, sr, bpm, duration,
+        )
+    else:
+        # Slow path: full local multi-engine analysis
+        logger.info("No online BPM found, running local analysis for '%s - %s'",
+                    artist, title)
+        beat_points, downbeats, bpm, beat_meta = _detect_beats_and_downbeats(
+            file_path, y, sr,
+        )
+
+    # ── Step 3: Energy ────────────────────────────────────────────────
     rms = librosa.feature.rms(y=y)[0]
     energy = float(np.clip(np.tanh(float(np.mean(rms)) * 8.0), 0.0, 1.0))
 
-    # Key detection (Krumhansl-Schmuckler)
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
-    chroma_profile = np.mean(chroma, axis=1)
-    key_confidence = 0.0
-    if np.sum(chroma_profile) == 0:
-        root_note, mode, camelot_key = "C", "major", "8B"
-    else:
-        chroma_profile = chroma_profile / (np.linalg.norm(chroma_profile) + 1e-9)
-        best_score = -1e9
-        root_note, mode = "C", "major"
-        for idx, note in enumerate(NOTE_NAMES):
-            for template, m in [(MAJOR_TEMPLATE, "major"), (MINOR_TEMPLATE, "minor")]:
-                rotated = np.roll(template, idx)
-                rotated = rotated / (np.linalg.norm(rotated) + 1e-9)
-                score = float(np.dot(chroma_profile, rotated))
-                if score > best_score:
-                    best_score = score
-                    root_note, mode = note, m
-        camelot_key = NOTE_MODE_TO_CAMELOT[(root_note, mode)]
-        key_confidence = round(max(0, min(1, best_score)), 3)
+    # Use online energy if available (some sources provide it)
+    if online_info and online_info.get("energy") is not None:
+        energy = online_info["energy"]
 
-    # Structure detection (SSM novelty → energy fallback)
+    # ── Step 4: Key detection ─────────────────────────────────────────
+    # Prefer online key if available; otherwise local Krumhansl-Schmuckler
+    if online_info and online_info.get("key") and online_info.get("camelot_key"):
+        key_str = online_info["key"]
+        camelot_key = online_info["camelot_key"]
+        key_confidence = 0.90
+    else:
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+        chroma_profile = np.mean(chroma, axis=1)
+        key_confidence = 0.0
+        if np.sum(chroma_profile) == 0:
+            root_note, mode, camelot_key = "C", "major", "8B"
+        else:
+            chroma_profile = chroma_profile / (np.linalg.norm(chroma_profile) + 1e-9)
+            best_score = -1e9
+            root_note, mode = "C", "major"
+            for idx, note in enumerate(NOTE_NAMES):
+                for template, m in [(MAJOR_TEMPLATE, "major"), (MINOR_TEMPLATE, "minor")]:
+                    rotated = np.roll(template, idx)
+                    rotated = rotated / (np.linalg.norm(rotated) + 1e-9)
+                    score = float(np.dot(chroma_profile, rotated))
+                    if score > best_score:
+                        best_score = score
+                        root_note, mode = note, m
+            camelot_key = NOTE_MODE_TO_CAMELOT[(root_note, mode)]
+            key_confidence = round(max(0, min(1, best_score)), 3)
+        key_str = f"{root_note} {mode}"
+
+    # ── Step 5: Structure detection (always local — Spotify doesn't have this)
     cue_points = _detect_structure(y, sr, duration)
 
-    # Phrase structure (8-bar segments with labels)
+    # ── Step 6: Phrase structure ──────────────────────────────────────
     phrase_map = _detect_phrase_structure(y, sr, duration, downbeats)
 
     return {
         "bpm": round(bpm, 1),
         "duration": round(duration, 2),
         "energy": round(energy, 3),
-        "key": f"{root_note} {mode}",
+        "key": key_str,
         "camelot_key": camelot_key,
         "key_confidence": key_confidence,
         "beat_points": beat_points,

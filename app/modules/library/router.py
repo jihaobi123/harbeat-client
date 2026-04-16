@@ -212,7 +212,11 @@ def analyze_library_song_endpoint(
 
     try:
         from app.modules.library.analysis import analyze_audio_file
-        result = analyze_audio_file(song.source_path)
+        result = analyze_audio_file(
+            song.source_path,
+            title=song.title or "",
+            artist=song.artist or "",
+        )
     except Exception as e:
         song.analysis_status = "error"
         db.commit()

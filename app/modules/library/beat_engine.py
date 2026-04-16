@@ -1,14 +1,15 @@
 """Commercial-grade BPM / beatgrid analysis engine.
 
 Architecture:
-    madmom (offline, BSD)           — primary beat/downbeat detector
-    BeatNet (real-time, MIT)        — secondary detector + live correction
+    essentia (RhythmExtractor2013 + Percival) — primary BPM detector
+    madmom (offline, BSD)           — secondary beat/downbeat detector
+    BeatNet+ (multi-model ensemble) — 3 models × dual inference, CUDA-accelerated
     librosa tempogram              — auxiliary BPM verification
     Self-built beatgrid alignment  — snap beats to uniform grid
     Confidence scoring layer       — multi-engine cross-validation
     Human correction API           — manual override support
 
-All components use MIT/BSD/ISC licenses — no commercial restrictions.
+All components use MIT/BSD/ISC/CC-BY licenses — no commercial restrictions.
 """
 from __future__ import annotations
 
@@ -178,7 +179,7 @@ def _run_madmom(file_path: str) -> dict:
 
     if len(beat_times) > 1:
         intervals = np.diff(beat_times)
-        bpm = 60.0 / float(np.median(intervals))
+        bpm = _bpm_from_intervals(intervals)
         # Beat regularity: low std/mean ratio = stable tempo
         regularity = 1.0 - min(1.0, float(np.std(intervals) / (np.mean(intervals) + 1e-9)))
     else:
@@ -193,42 +194,197 @@ def _run_madmom(file_path: str) -> dict:
     }
 
 
+def _bpm_from_intervals(intervals: np.ndarray) -> float:
+    """Robust BPM estimation from beat intervals using trimmed-mean.
+
+    Removes outlier intervals (pauses, double-hits) before computing BPM.
+    More accurate than simple median for tracks with tempo variations.
+    """
+    if len(intervals) < 2:
+        return 60.0 / float(np.median(intervals)) if len(intervals) == 1 else 0.0
+
+    # Remove extreme outliers (> 2x or < 0.5x the median)
+    med = float(np.median(intervals))
+    mask = (intervals > med * 0.5) & (intervals < med * 2.0)
+    clean = intervals[mask] if np.sum(mask) >= max(3, len(intervals) // 4) else intervals
+
+    # Trimmed mean: drop top/bottom 10%
+    n = len(clean)
+    trim = max(1, n // 10)
+    sorted_intervals = np.sort(clean)
+    trimmed = sorted_intervals[trim:-trim] if n > 2 * trim + 1 else sorted_intervals
+    return 60.0 / float(np.mean(trimmed))
+
+
 def _run_beatnet(file_path: str) -> dict:
-    """Run BeatNet offline inference. Returns dict with bpm, beats, downbeats."""
-    from BeatNet.BeatNet import BeatNet
+    """BeatNet+ GPU-accelerated: multi-model ensemble with shared feature extraction.
 
-    # mode=1: offline, inference_model must be "DBN" for offline mode
-    estimator = BeatNet(
-        1,
-        mode="offline",
-        inference_model="DBN",
-        plot=[],
-        thread=False,
-    )
-    output = estimator.process(file_path)
+    Optimized pipeline for Jetson AGX Orin:
+      1. Load audio ONCE (avoid redundant NAS reads)
+      2. Compute LOG_SPECT features ONCE (avoid redundant CPU STFT)
+      3. Run 3 BDA models on GPU with FP16 autocast
+      4. DBN postprocessing per model
+      5. Multi-model regularity-weighted consensus
 
-    # BeatNet output: Nx2 array, col0=time, col1=beat_type (1=downbeat, 2=beat)
-    if output is None or len(output) == 0:
+    Models: 1=GTZAN, 2=Ballroom, 3=Rock Corpus
+    """
+    import os
+    import time as _time
+
+    import torch
+    import librosa
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    logger.info("BeatNet+ GPU-optimized: device=%s", device)
+
+    # ── Step 1: Load audio ONCE ───────────────────────────────────────
+    t0 = _time.time()
+    audio, _ = librosa.load(file_path, sr=22050)
+    t_load = _time.time() - t0
+    logger.info("BeatNet+ audio loaded: %.1fs (%d samples, %.1fs duration)",
+                t_load, len(audio), len(audio) / 22050)
+
+    # ── Step 2: Compute LOG_SPECT features ONCE ──────────────────────
+    # Same params as BeatNet: sr=22050, hop=441 (20ms), win=1411 (64ms), n_bands=[24]
+    t1 = _time.time()
+    from BeatNet.log_spect import LOG_SPECT
+
+    sample_rate = 22050
+    hop_length = int(20 * 0.001 * sample_rate)   # 441
+    win_length = int(64 * 0.001 * sample_rate)   # 1411
+    proc = LOG_SPECT(sample_rate=sample_rate, win_length=win_length,
+                     hop_size=hop_length, n_bands=[24], mode='offline')
+    feats_raw = proc.process_audio(audio)  # returns feats.T → (n_features, n_frames)
+    # process_audio returns feats.T; BeatNet does .T again → (n_frames, n_features)
+    feats_np = feats_raw.T                 # (n_frames, n_features)
+    feats_tensor = torch.from_numpy(feats_np).unsqueeze(0).to(device)  # (1, T, F)
+    t_feat = _time.time() - t1
+    logger.info("BeatNet+ features: %.1fs, shape=%s", t_feat, feats_np.shape)
+
+    # ── Step 3: Run 3 models on same features ────────────────────────
+    from BeatNet.model import BDA
+    from madmom.features.downbeats import DBNDownBeatTrackingProcessor
+
+    import BeatNet.model as _bn_model_mod
+    pkg_dir = os.path.dirname(_bn_model_mod.__file__)
+    estimator = DBNDownBeatTrackingProcessor(beats_per_bar=[2, 3, 4], fps=50)
+
+    model_configs = [(1, "m1_DBN"), (2, "m2_DBN"), (3, "m3_DBN")]
+
+    sub_results: list[dict] = []
+    for model_id, tag in model_configs:
+        try:
+            t2 = _time.time()
+            model = BDA(272, 150, 2, device)
+            weight_path = os.path.join(pkg_dir, 'models',
+                                       f'model_{model_id}_weights.pt')
+            model.load_state_dict(
+                torch.load(weight_path, map_location=device), strict=False)
+            model.eval()
+
+            with torch.no_grad():
+                # Reset LSTM hidden/cell state for fresh sequence
+                model.hidden = torch.zeros(2, 1, model.dim_hd, device=device)
+                model.cell = torch.zeros(2, 1, model.dim_hd, device=device)
+                if device == 'cuda':
+                    with torch.cuda.amp.autocast():
+                        preds = model(feats_tensor)[0]      # (3, T)
+                        preds = model.final_pred(preds)      # softmax
+                else:
+                    preds = model(feats_tensor)[0]
+                    preds = model.final_pred(preds)
+
+            preds_np = preds.cpu().detach().float().numpy()  # (3, T)
+            activations = np.transpose(preds_np[:2, :])      # (T, 2)
+
+            # DBN postprocessing → beat/downbeat events
+            output = estimator(activations)
+
+            t_model = _time.time() - t2
+            n_events = len(output) if output is not None else 0
+            logger.info("BeatNet+ %s: %.2fs, %d events", tag, t_model, n_events)
+
+            if output is None or len(output) == 0:
+                continue
+
+            all_times = [float(row[0]) for row in output]
+            downbeats = [float(row[0]) for row in output if int(row[1]) == 1]
+            beat_times_arr = np.array(all_times)
+
+            if len(beat_times_arr) <= 1:
+                continue
+
+            intervals = np.diff(beat_times_arr)
+            bpm = _bpm_from_intervals(intervals)
+            regularity = 1.0 - min(
+                1.0,
+                float(np.std(intervals) / (np.mean(intervals) + 1e-9)))
+
+            sub_results.append({
+                "bpm": round(bpm, 2),
+                "beats": [round(t, 3) for t in all_times],
+                "downbeats": [round(t, 3) for t in downbeats],
+                "regularity": round(regularity, 3),
+                "_tag": tag,
+            })
+            logger.info("BeatNet+ %s: BPM=%.1f, %d beats, regularity=%.2f",
+                        tag, bpm, len(all_times), regularity)
+
+        except Exception as exc:
+            logger.warning("BeatNet+ %s failed: %s", tag, exc, exc_info=True)
+
+    logger.info("BeatNet+ total: audio=%.1fs + features=%.1fs + %d models",
+                t_load, t_feat, len(sub_results))
+
+    # ── Consensus ─────────────────────────────────────────────────────
+    if not sub_results:
         return {"bpm": 0.0, "beats": [], "downbeats": [], "regularity": 0.0}
 
-    all_times = [float(row[0]) for row in output]
-    downbeats = [float(row[0]) for row in output if int(row[1]) == 1]
-    beat_times = np.array(all_times)
+    if len(sub_results) == 1:
+        r = sub_results[0]
+        r.pop("_tag", None)
+        return r
 
-    if len(beat_times) > 1:
-        intervals = np.diff(beat_times)
-        bpm = 60.0 / float(np.median(intervals))
-        regularity = 1.0 - min(1.0, float(np.std(intervals) / (np.mean(intervals) + 1e-9)))
-    else:
-        bpm = 0.0
-        regularity = 0.0
+    bpms = np.array([r["bpm"] for r in sub_results])
+    regs = np.array([r["regularity"] for r in sub_results])
 
-    return {
-        "bpm": round(bpm, 2),
-        "beats": [round(t, 3) for t in all_times],
-        "downbeats": [round(t, 3) for t in downbeats],
-        "regularity": round(regularity, 3),
-    }
+    # Normalize to 70-170 range for clustering
+    norm_bpms = []
+    for b in bpms:
+        while b < 70:
+            b *= 2
+        while b > 170:
+            b /= 2
+        norm_bpms.append(b)
+    norm_bpms = np.array(norm_bpms)
+
+    sorted_idx = np.argsort(norm_bpms)
+    clusters: list[list[int]] = [[sorted_idx[0]]]
+    for i in sorted_idx[1:]:
+        if abs(norm_bpms[i] - norm_bpms[clusters[-1][-1]]) / norm_bpms[clusters[-1][-1]] < 0.04:
+            clusters[-1].append(i)
+        else:
+            clusters.append([i])
+
+    best_cluster = max(clusters, key=lambda c: (len(c), sum(regs[j] for j in c)))
+    cluster_bpms = norm_bpms[best_cluster]
+    cluster_regs = regs[best_cluster]
+
+    weights = cluster_regs + 0.1
+    consensus_bpm = float(np.average(cluster_bpms, weights=weights))
+
+    best_idx = best_cluster[int(np.argmax(cluster_regs))]
+    best_result = sub_results[best_idx].copy()
+    best_result["bpm"] = round(consensus_bpm, 2)
+    best_result.pop("_tag", None)
+
+    best_result["_sub_bpms"] = {r["_tag"]: r["bpm"] for r in sub_results}
+
+    logger.info("BeatNet+ consensus: %.1f BPM (from %d/%d models, cluster=%s)",
+                consensus_bpm, len(best_cluster), len(sub_results),
+                [round(b, 1) for b in cluster_bpms])
+
+    return best_result
 
 
 def _run_librosa_tempogram(y: np.ndarray, sr: int) -> dict:
@@ -623,7 +779,8 @@ def analyze_beats(
     Engine priority:
     1. essentia (RhythmExtractor2013 + Percival — industry standard, same as online tools)
     2. madmom (RNN, strong cross-validation)
-    3. librosa (tempogram, auxiliary verification + ambiguity resolution data)
+    3. BeatNet+ (multi-model ensemble, CUDA-accelerated on Jetson)
+    4. librosa (tempogram, auxiliary verification + ambiguity resolution data)
     """
     engine_results: dict[str, dict] = {}
     engines_used: list[str] = []
@@ -689,6 +846,11 @@ def analyze_beats(
             bpm_candidates.append(res["bpm_low_prior"])
         if "bpm_tempogram" in res and res["bpm_tempogram"] > 0:
             bpm_candidates.append(res["bpm_tempogram"])
+        # BeatNet+ sub-model BPMs contribute additional votes
+        if "_sub_bpms" in res:
+            for sub_bpm in res["_sub_bpms"].values():
+                if sub_bpm > 0:
+                    bpm_candidates.append(sub_bpm)
 
     final_bpm = _correct_octave_bpm(bpm_candidates)
 
@@ -731,8 +893,10 @@ def analyze_beats(
         confidence_details=conf_details,
         engines_used=engines_used,
         needs_review=needs_review,
-        raw_results={k: {"bpm": v.get("bpm", v.get("bpm_beat_track", 0))}
-                     for k, v in engine_results.items()},
+        raw_results={k: {
+            "bpm": v.get("bpm", v.get("bpm_beat_track", 0)),
+            **({"sub_bpms": v["_sub_bpms"]} if "_sub_bpms" in v else {}),
+        } for k, v in engine_results.items()},
     )
 
 
