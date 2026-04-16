@@ -12,10 +12,26 @@ All components use MIT/BSD/ISC licenses — no commercial restrictions.
 """
 from __future__ import annotations
 
+import collections
+import collections.abc
 import logging
 from dataclasses import dataclass, field
 
 import numpy as np
+
+# Python 3.10+ removed collections.MutableSequence etc.
+# madmom 0.16.1 still uses them — patch before importing.
+for _attr in ("MutableSequence", "MutableMapping", "MutableSet",
+              "Mapping", "Sequence", "Iterable", "Iterator"):
+    if not hasattr(collections, _attr) and hasattr(collections.abc, _attr):
+        setattr(collections, _attr, getattr(collections.abc, _attr))
+
+# NumPy 1.24+ removed deprecated aliases used by madmom 0.16.1.
+for _alias, _real in (("float", np.float64), ("int", np.int_),
+                       ("complex", np.complex128), ("object", np.object_),
+                       ("bool", np.bool_), ("str", np.str_)):
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _real)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +51,16 @@ class BeatResult:
     engines_used: list[str] = field(default_factory=list)
     needs_review: bool = False        # True if confidence < threshold
     raw_results: dict = field(default_factory=dict)  # per-engine raw results
+
+    def __post_init__(self):
+        """Coerce numpy types to Python builtins for DB compatibility."""
+        self.bpm = float(self.bpm)
+        self.beat_points = [float(x) for x in self.beat_points]
+        self.downbeats = [float(x) for x in self.downbeats]
+        self.grid_offset = float(self.grid_offset)
+        self.grid_interval = float(self.grid_interval)
+        self.confidence = float(self.confidence)
+        self.needs_review = bool(self.needs_review)
 
 
 # ── Engine availability checks ────────────────────────────────────────────
@@ -79,9 +105,13 @@ def _run_madmom(file_path: str) -> dict:
     beats = DBNBeatTrackingProcessor(fps=100)(beat_act)
     beat_times = np.array([float(t) for t in beats])
 
-    db_act = RNNDownBeatProcessor()(file_path)
-    db_result = DBNDownBeatTrackingProcessor(beats_per_bar=[4], fps=100)(db_act)
-    downbeats = [round(float(row[0]), 3) for row in db_result if int(round(row[1])) == 1]
+    try:
+        db_act = RNNDownBeatProcessor()(file_path)
+        db_result = DBNDownBeatTrackingProcessor(beats_per_bar=[4], fps=100)(db_act)
+        downbeats = [round(float(row[0]), 3) for row in db_result if int(round(row[1])) == 1]
+    except Exception:
+        logger.warning("madmom downbeat detection failed, using beats only")
+        downbeats = []
 
     if len(beat_times) > 1:
         intervals = np.diff(beat_times)
@@ -104,11 +134,11 @@ def _run_beatnet(file_path: str) -> dict:
     """Run BeatNet offline inference. Returns dict with bpm, beats, downbeats."""
     from BeatNet.BeatNet import BeatNet
 
-    # mode=1: offline, model=1: pre-trained CRNN
+    # mode=1: offline, inference_model must be "DBN" for offline mode
     estimator = BeatNet(
         1,
         mode="offline",
-        inference_model="PF",  # Particle Filtering
+        inference_model="DBN",
         plot=[],
         thread=False,
     )

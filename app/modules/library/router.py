@@ -49,6 +49,22 @@ def search_library_songs_endpoint(
     return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
 
 
+@router.get("/songs/needs-review", response_model=APIResponse[LibrarySongListData])
+def list_needs_review_endpoint(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List songs with low beat confidence that need manual review."""
+    from app.modules.library.models import LibrarySong
+
+    songs = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id, LibrarySong.beat_needs_review == 1)
+        .all()
+    )
+    return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(s) for s in songs]))
+
+
 @router.get("/songs/{song_id}", response_model=APIResponse[LibrarySongData])
 def get_library_song_endpoint(
     song_id: str,
@@ -212,7 +228,7 @@ def analyze_library_song_endpoint(
     song.beat_grid_offset = result.get("beat_grid_offset")
     song.beat_grid_interval = result.get("beat_grid_interval")
     song.beat_engines_used = result.get("beat_engines_used", [])
-    song.beat_needs_review = result.get("beat_needs_review", False)
+    song.beat_needs_review = int(result.get("beat_needs_review", False))
     # Add IDs to cue points for frontend
     raw_cues = result.get("cue_points", [])
     song.cue_points = [
@@ -295,22 +311,6 @@ def separate_stems_endpoint(
 # ── Beat correction endpoints ─────────────────────────────────────────────
 
 
-@router.get("/songs/needs-review", response_model=APIResponse[LibrarySongListData])
-def list_needs_review_endpoint(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """List songs with low beat confidence that need manual review."""
-    from app.modules.library.models import LibrarySong
-
-    songs = (
-        db.query(LibrarySong)
-        .filter(LibrarySong.user_id == current_user.id, LibrarySong.beat_needs_review == 1)
-        .all()
-    )
-    return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(s) for s in songs]))
-
-
 @router.post("/songs/{song_id}/correct-beats", response_model=APIResponse[LibrarySongData])
 def correct_beats_endpoint(
     song_id: str,
@@ -355,7 +355,7 @@ def correct_beats_endpoint(
     song.beat_grid_interval = corrected.grid_interval
     song.beat_confidence = corrected.confidence
     song.beat_engines_used = corrected.engines_used
-    song.beat_needs_review = False
+    song.beat_needs_review = 0
     db.commit()
     db.refresh(song)
     return APIResponse(data=LibrarySongData.model_validate(song))

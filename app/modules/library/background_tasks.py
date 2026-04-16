@@ -180,7 +180,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.beat_grid_offset = result.get("beat_grid_offset")
                 song.beat_grid_interval = result.get("beat_grid_interval")
                 song.beat_engines_used = result.get("beat_engines_used", [])
-                song.beat_needs_review = result.get("beat_needs_review", False)
+                song.beat_needs_review = int(result.get("beat_needs_review", False))
                 raw_cues = result.get("cue_points", [])
                 song.cue_points = [
                     {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
