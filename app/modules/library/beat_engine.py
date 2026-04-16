@@ -65,8 +65,21 @@ class BeatResult:
 
 # ── Engine availability checks ────────────────────────────────────────────
 
+_HAS_ESSENTIA: bool | None = None
 _HAS_MADMOM: bool | None = None
 _HAS_BEATNET: bool | None = None
+
+
+def _essentia_available() -> bool:
+    global _HAS_ESSENTIA
+    if _HAS_ESSENTIA is None:
+        try:
+            import essentia.standard  # noqa: F401
+            _HAS_ESSENTIA = True
+        except Exception:
+            _HAS_ESSENTIA = False
+            logger.info("essentia not available")
+    return _HAS_ESSENTIA
 
 
 def _madmom_available() -> bool:
@@ -94,6 +107,56 @@ def _beatnet_available() -> bool:
 
 
 # ── Individual engine runners ─────────────────────────────────────────────
+
+
+def _run_essentia(file_path: str) -> dict:
+    """Run Essentia RhythmExtractor2013 + PercivalBpmEstimator.
+
+    Essentia is the same engine used by most online BPM detection tools
+    (compiled to WebAssembly for browser use). Using the Python binding
+    gives identical results to the WASM version.
+
+    Returns dict with bpm, beats, confidence, percival_bpm, bpm_histogram.
+    """
+    import essentia.standard as es
+
+    loader = es.MonoLoader(filename=file_path, sampleRate=44100)
+    audio = loader()
+
+    # Primary: RhythmExtractor2013 (multifeature method)
+    rhythm = es.RhythmExtractor2013(method="multifeature")
+    bpm, beats, confidence, estimates, bpm_intervals = rhythm(audio)
+
+    beat_times = [round(float(t), 3) for t in beats]
+
+    # Compute regularity from beat intervals
+    if len(beats) > 1:
+        intervals = np.diff(beats)
+        regularity = 1.0 - min(1.0, float(np.std(intervals) / (np.mean(intervals) + 1e-9)))
+    else:
+        regularity = 0.0
+
+    # Secondary: PercivalBpmEstimator (independent verification)
+    percival = es.PercivalBpmEstimator()
+    percival_bpm = float(percival(audio))
+
+    # Build BPM histogram from beat intervals for metrical level analysis
+    bpm_histogram: dict[int, int] = {}
+    if len(bpm_intervals) > 0:
+        hist_bpms = 60.0 / bpm_intervals[bpm_intervals > 0]
+        for b in hist_bpms:
+            key = int(round(b))
+            bpm_histogram[key] = bpm_histogram.get(key, 0) + 1
+
+    return {
+        "bpm": round(float(bpm), 2),
+        "percival_bpm": round(percival_bpm, 2),
+        "beats": beat_times,
+        "downbeats": [],  # Essentia beat tracker doesn't separate downbeats
+        "confidence": round(float(confidence), 4),
+        "regularity": round(float(regularity), 3),
+        "bpm_histogram": bpm_histogram,
+    }
 
 
 def _run_madmom(file_path: str) -> dict:
@@ -176,6 +239,10 @@ def _run_librosa_tempogram(y: np.ndarray, sr: int) -> dict:
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
     bpm_basic = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
 
+    # Also run beat_track with a low start_bpm prior to catch half-time tempos
+    tempo_low, _ = librosa.beat.beat_track(y=y, sr=sr, start_bpm=80)
+    bpm_low_prior = float(tempo_low) if not hasattr(tempo_low, "__len__") else float(tempo_low[0])
+
     # Tempogram for spectral clarity
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr)
@@ -194,17 +261,28 @@ def _run_librosa_tempogram(y: np.ndarray, sr: int) -> dict:
         peak_val = ac_valid[peak_idx]
         mean_val = float(np.mean(ac_valid[valid]))
         clarity = min(1.0, peak_val / (mean_val + 1e-9) / 5.0)
+
+        # Collect top N tempogram peaks for ambiguity resolution
+        valid_indices = np.where(valid)[0]
+        valid_strengths = ac_global[valid_indices]
+        top_n = min(8, len(valid_indices))
+        top_indices = valid_indices[np.argsort(valid_strengths)[-top_n:][::-1]]
+        tempogram_peaks = [(round(float(freqs[i]), 1), round(float(ac_global[i]), 4))
+                           for i in top_indices]
     else:
         bpm_tempogram = bpm_basic
         clarity = 0.5
+        tempogram_peaks = []
 
     beat_times = librosa.frames_to_time(beat_frames, sr=sr)
 
     return {
         "bpm_beat_track": round(bpm_basic, 2),
+        "bpm_low_prior": round(bpm_low_prior, 2),
         "bpm_tempogram": round(bpm_tempogram, 2),
         "clarity": round(clarity, 3),
         "beats": [round(float(t), 3) for t in beat_times],
+        "tempogram_peaks": tempogram_peaks,
     }
 
 
@@ -298,6 +376,113 @@ def _correct_octave_bpm(candidates: list[float]) -> float:
     return round(float(np.median(best_cluster)), 1)
 
 
+# ── Perceptual metrical level selection ────────────────────────────────────
+
+
+def _onset_periodicity(onset_env: np.ndarray, lag: int) -> float:
+    """Normalized autocorrelation of onset envelope at a specific lag.
+
+    Returns a value in [-1, 1] where higher means stronger periodicity
+    at the given lag (tempo period).
+    """
+    n = len(onset_env) - lag
+    if n <= lag:  # need at least 2 full periods
+        return 0.0
+    x1 = onset_env[:n]
+    x2 = onset_env[lag:lag + n]
+    m1, m2 = float(np.mean(x1)), float(np.mean(x2))
+    s1, s2 = float(np.std(x1)), float(np.std(x2))
+    if s1 * s2 < 1e-9:
+        return 0.0
+    return float(np.mean((x1 - m1) * (x2 - m2)) / (s1 * s2))
+
+
+def _select_perceptual_tempo(
+    bpm: float,
+    y: np.ndarray,
+    sr: int,
+) -> float:
+    """Select perceptually correct metrical level using sub-bass prominence.
+
+    Beat trackers can lock onto a metrical level that differs from what
+    listeners perceive (e.g., hi-hat rate instead of kick pattern).
+
+    Uses "sub-bass prominence" scoring: a BPM that appears strongly in
+    the full band but weakly in the sub-bass (<80 Hz) is likely a
+    subdivision tempo (hi-hats, shakers) rather than the perceived beat.
+    The formula ``1.5 * ac_subbass - 0.5 * ac_full`` rewards tempos
+    driven by kick/bass energy and penalises hi-hat-only periodicity.
+
+    Only considers half-time relationship (×1/2). We intentionally avoid
+    ×2 upscaling because it introduces false positives on tracks where the
+    engine BPM is already correct.
+    """
+    import librosa
+    from scipy.signal import butter, sosfilt
+
+    # Generate metrical-level candidates (half-time only, no 3:2)
+    candidates = {round(bpm, 1)}
+    for ratio in [0.5]:
+        alt = bpm * ratio
+        if 70 <= alt <= 200:
+            candidates.add(round(alt, 1))
+
+    if len(candidates) <= 1:
+        return bpm
+
+    hop_length = 512
+    fps = sr / hop_length
+
+    # Full-band onset envelope
+    onset_full = librosa.onset.onset_strength(y=y, sr=sr)
+
+    # Sub-bass onset envelope (<80 Hz) — kick drum defines perceived tempo
+    try:
+        sos = butter(4, 80, btype='low', fs=sr, output='sos')
+        y_low = sosfilt(sos, y.astype(np.float64))
+        onset_low = librosa.onset.onset_strength(y=y_low.astype(np.float32), sr=sr)
+    except Exception:
+        onset_low = onset_full  # fallback
+
+    scores: dict[float, float] = {}
+    for c_bpm in candidates:
+        lag = int(round(60.0 / c_bpm * fps))
+        if lag <= 0 or lag >= len(onset_full) // 4:
+            continue
+
+        ac_full = _onset_periodicity(onset_full, lag)
+        ac_low = _onset_periodicity(onset_low, lag)
+
+        # Sub-bass prominence: reward kick-driven tempos, penalise
+        # tempos that only show up in higher frequencies (hi-hats).
+        score = 1.5 * ac_low - 0.5 * ac_full
+
+        # Small bias for the engine-detected BPM
+        if abs(c_bpm - bpm) / bpm < 0.02:
+            score += 0.02
+
+        scores[c_bpm] = round(score, 4)
+
+    if not scores:
+        return bpm
+
+    best = max(scores, key=scores.get)  # type: ignore[arg-type]
+
+    # Only switch away from engine BPM if alternative is meaningfully better
+    engine_score = scores.get(round(bpm, 1), 0)
+    if best != round(bpm, 1) and scores[best] - engine_score < 0.02:
+        logger.info("Perceptual tempo: %.1f (%.4f) not clearly better than "
+                    "engine %.1f (%.4f) — keeping engine BPM",
+                    best, scores[best], bpm, engine_score)
+        return bpm
+
+    if best != round(bpm, 1):
+        logger.info("Perceptual tempo correction: %.1f → %.1f (scores: %s)",
+                    bpm, best, scores)
+
+    return best
+
+
 # ── Confidence scoring ────────────────────────────────────────────────────
 
 REVIEW_THRESHOLD = 0.70
@@ -310,7 +495,7 @@ def _compute_confidence(
     """Compute overall confidence from multi-engine results.
 
     Factors:
-    1. Cross-engine BPM agreement
+    1. Cross-engine BPM agreement (accounts for 2:1 and 3:2 relationships)
     2. Beat regularity (per-engine)
     3. Tempogram spectral clarity
     4. Number of engines that ran successfully
@@ -327,15 +512,20 @@ def _compute_confidence(
             bpms.append(res["bpm_beat_track"])
 
     if len(bpms) >= 2:
-        # Normalize to same octave for comparison
+        # Normalize to final_bpm's metrical level for comparison.
+        # An engine BPM is "agreeing" if it (or a metrical variant) is close.
         norm_bpms = []
         for b in bpms:
-            nb = b
-            while nb < 70:
-                nb *= 2
-            while nb > 170:
-                nb /= 2
-            norm_bpms.append(nb)
+            # Find the variant of b closest to final_bpm
+            best_variant = b
+            best_dist = abs(b - final_bpm)
+            for ratio in [0.5, 2 / 3, 3 / 4, 1.0, 4 / 3, 3 / 2, 2.0]:
+                v = b * ratio
+                d = abs(v - final_bpm)
+                if d < best_dist:
+                    best_dist = d
+                    best_variant = v
+            norm_bpms.append(best_variant)
         max_dev = max(abs(b - final_bpm) / final_bpm for b in norm_bpms)
         agreement = max(0, 1.0 - max_dev * 10)  # 10% dev → 0.0 confidence
         details["engine_agreement"] = round(agreement, 3)
@@ -431,15 +621,27 @@ def analyze_beats(
     """Run multi-engine beat analysis with beatgrid alignment and confidence scoring.
 
     Engine priority:
-    1. madmom (RNN, most accurate offline)
-    2. BeatNet (CRNN + particle filter, cross-validation)
-    3. librosa (tempogram, auxiliary verification)
+    1. essentia (RhythmExtractor2013 + Percival — industry standard, same as online tools)
+    2. madmom (RNN, strong cross-validation)
+    3. librosa (tempogram, auxiliary verification + ambiguity resolution data)
     """
     engine_results: dict[str, dict] = {}
     engines_used: list[str] = []
     all_raw_downbeats: list[list[float]] = []
 
-    # ── Engine 1: madmom ──────────────────────────────────────────────
+    # ── Engine 1: Essentia (primary — same as online BPM tools) ───────
+    if _essentia_available():
+        try:
+            res = _run_essentia(file_path)
+            engine_results["essentia"] = res
+            engines_used.append("essentia")
+            logger.info("essentia: BPM=%.1f, percival=%.1f, %d beats, confidence=%.3f",
+                        res["bpm"], res["percival_bpm"], len(res["beats"]),
+                        res["confidence"])
+        except Exception:
+            logger.warning("essentia engine failed", exc_info=True)
+
+    # ── Engine 2: madmom ──────────────────────────────────────────────
     if _madmom_available():
         try:
             res = _run_madmom(file_path)
@@ -479,17 +681,24 @@ def analyze_beats(
     for name, res in engine_results.items():
         if "bpm" in res and res["bpm"] > 0:
             bpm_candidates.append(res["bpm"])
+        if "percival_bpm" in res and res["percival_bpm"] > 0:
+            bpm_candidates.append(res["percival_bpm"])
         if "bpm_beat_track" in res and res["bpm_beat_track"] > 0:
             bpm_candidates.append(res["bpm_beat_track"])
+        if "bpm_low_prior" in res and res["bpm_low_prior"] > 0:
+            bpm_candidates.append(res["bpm_low_prior"])
         if "bpm_tempogram" in res and res["bpm_tempogram"] > 0:
             bpm_candidates.append(res["bpm_tempogram"])
 
     final_bpm = _correct_octave_bpm(bpm_candidates)
 
+    # ── Post-correction: perceptual metrical level selection ─────────
+    final_bpm = _select_perceptual_tempo(final_bpm, y, sr)
+
     # ── Select best raw beats for grid alignment ──────────────────────
-    # Prefer madmom > beatnet > librosa based on regularity
+    # Prefer essentia > madmom > beatnet > librosa based on regularity
     best_beats: np.ndarray | None = None
-    for name in ["madmom", "beatnet", "librosa"]:
+    for name in ["essentia", "madmom", "beatnet", "librosa"]:
         if name in engine_results and engine_results[name].get("beats"):
             best_beats = np.array(engine_results[name]["beats"])
             break
