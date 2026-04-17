@@ -22,7 +22,6 @@ import sys
 from typing import List, Optional
 
 import chromadb
-from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +69,23 @@ def _get_safe_embedding_function():
         return SentenceTransformerEmbeddingFunction(
             model_name="all-MiniLM-L6-v2",
         )
-    except Exception:
-        logger.warning("[vector_store] SentenceTransformerEmbeddingFunction unavailable, using default")
-        return DefaultEmbeddingFunction()
+    except Exception as exc:
+        logger.warning("[vector_store] SentenceTransformerEmbeddingFunction unavailable (%s), using noop", exc)
+        # DO NOT fall back to DefaultEmbeddingFunction — it uses onnxruntime
+        # which crashes with SIGABRT on Jetson ARM64.
+        return _NoopEmbeddingFunction()
+
+
+class _NoopEmbeddingFunction:
+    """Minimal embedding function that returns zero vectors.
+
+    Used as last-resort fallback so ChromaDB can still operate without
+    onnxruntime (which crashes on Jetson ARM64).  Semantic quality is
+    lost but the server stays alive.
+    """
+
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        return [[0.0] * 384 for _ in input]
 
 
 # ── Subprocess helpers ──────────────────────────────────────────────
