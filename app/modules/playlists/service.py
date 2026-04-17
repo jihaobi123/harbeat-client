@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import random
 import re
@@ -8,6 +9,8 @@ import subprocess
 import sys
 import time
 from hashlib import sha1
+
+logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -265,6 +268,7 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
             .all()
         )
         songs = [rel.song for rel in ordered_relations if rel.song is not None]
+        logger.warning("[DJ-MIX] Loaded %d songs from playlist_id=%d", len(songs), payload.playlist_id)
     else:
         # Default to current user's own library-mapped songs only.
         library_rows = (
@@ -359,6 +363,8 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
     candidate_window = max(1, min(8, int(1 + round(diversity * 5.0))))
     pending_songs = list(songs)
 
+    logger.warning("[DJ-MIX] Starting selection: %d candidate songs, target=%ds", len(pending_songs), target_seconds)
+
     while pending_songs and total_seconds < target_seconds:
         if diversity <= 0.001:
             song = pending_songs.pop(0)
@@ -370,17 +376,23 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
 
         audio_path = _resolve_user_song_audio_path(db, song, user_id)
         if not audio_path:
+            logger.warning("[DJ-MIX] SKIP song_id=%d (%s) - no audio_path. audio_url=%s", song.id, song.title, song.audio_url)
             continue
 
         duration = _resolve_user_song_duration_fast(db, song, user_id)
         if duration is None or duration <= 0:
+            logger.warning("[DJ-MIX] SKIP song_id=%d (%s) - duration=%s", song.id, song.title, duration)
             continue
+
+        logger.warning("[DJ-MIX] SELECTED song_id=%d (%s) audio=%s dur=%.1f", song.id, song.title, audio_path, duration)
 
         if song.duration is None or song.duration <= 0:
             song.duration = duration
 
         selected.append((song, audio_path, duration))
         total_seconds += int(duration)
+
+    logger.warning("[DJ-MIX] Selection done: %d songs selected, total_seconds=%d", len(selected), total_seconds)
 
     playlist_data: list[PlaylistSongData] = []
     processed_files: dict[int, str] = {}
@@ -394,6 +406,7 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
         and len(selected) <= 2
         and all((d or 0) <= 6 * 60 for _, _, d in selected)
     )
+    logger.warning("[DJ-MIX] Processing selected songs, allow_heavy_batch=%s, quality_mode=%s", allow_heavy_batch, payload.quality_mode)
 
     for song, audio_path, duration in selected:
         if song.audio_url != audio_path:
@@ -422,9 +435,13 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
             }
 
         if not processed_path or not os.path.isfile(processed_path):
+            logger.warning("[DJ-MIX] Building processed fallback for song_id=%d, audio_path=%s", song.id, audio_path)
             processed_path = _build_processed_fallback(audio_path, song.id, payload.style, payload.quality_mode)
         if not processed_path or not os.path.isfile(processed_path):
+            logger.warning("[DJ-MIX] SKIP processed: song_id=%d - processed_path=%s", song.id, processed_path)
             continue
+
+        logger.warning("[DJ-MIX] OK processed: song_id=%d -> %s", song.id, processed_path)
 
         order_index = len(playlist_data)
         playlist_data.append(
@@ -609,6 +626,9 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
     if payload.user_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id is required")
 
+    logger.warning("[DJ-MIX-PLAN] Starting: playlist_id=%s, style=%s, duration=%s min", payload.playlist_id, payload.style, payload.duration_minutes)
+    t0 = time.time()
+
     style_result = generate_style_mix_playlist(
         db,
         StyleMixRequest(
@@ -624,8 +644,11 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
         user_id=payload.user_id,
     )
 
+    logger.warning("[DJ-MIX-PLAN] style_mix done in %.1fs, playlist_len=%d", time.time() - t0, len(style_result.playlist))
+
     playlist = style_result.playlist
     if len(playlist) < 2:
+        logger.warning("[DJ-MIX-PLAN] Less than 2 songs, returning early")
         return DjMixPlanResult(
             playlist=playlist,
             processed_files=style_result.processed_files,
@@ -661,13 +684,17 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
         track_metas.append(meta)
 
     # ── Run GrooveEngine playlist planning (11-factor scoring) ────────
-    return run_groove_engine_plan(
+    logger.warning("[DJ-MIX-PLAN] Running GrooveEngine plan with %d tracks...", len(track_metas))
+    t1 = time.time()
+    result = run_groove_engine_plan(
         track_metas=track_metas,
         song_playlist_data={item.song_id: item for item in playlist},
         processed_files=style_result.processed_files,
         style_meta=style_result.meta,
         energy_target=payload.energy,
     )
+    logger.warning("[DJ-MIX-PLAN] GrooveEngine done in %.1fs, final playlist=%d, transitions=%d", time.time() - t1, len(result.playlist), len(result.transition_plan))
+    return result
 
 
 def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOfflineMixResult:
