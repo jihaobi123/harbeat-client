@@ -58,14 +58,17 @@ def main() -> None:
         import numpy as np
         import torch
 
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         processor, model = _load_clap()
-        model.eval()
+        model.to(device).eval()
 
         # Load audio at 48kHz (CLAP's expected sample rate)
         audio, sr = librosa.load(file_path, sr=48000, mono=True)
 
         # Generate audio embedding
         inputs = processor(audio=audio, sampling_rate=sr, return_tensors="pt")
+        inputs = {k: v.to(device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         with torch.no_grad():
             features = model.get_audio_features(**inputs)
             if hasattr(features, "pooler_output") and features.pooler_output is not None:

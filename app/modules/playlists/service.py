@@ -279,7 +279,8 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
         )
         seen_song_ids: set[int] = set()
         for lib_song in library_rows:
-            if not lib_song.source_path or not os.path.isfile(lib_song.source_path):
+            audio_path = _remap_audio_path(lib_song.source_path or "")
+            if not audio_path:
                 continue
 
             song: Song | None = None
@@ -914,9 +915,23 @@ def reorder_playlist_songs(
     db.commit()
 
 
+def _remap_audio_path(path: str) -> str | None:
+    """Remap legacy Docker paths (/app/...) to the current working directory."""
+    if not path:
+        return None
+    if os.path.isfile(path):
+        return path
+    if path.startswith("/app/"):
+        remapped = os.path.join(os.getcwd(), path[len("/app/"):])
+        if os.path.isfile(remapped):
+            return remapped
+    return None
+
+
 def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str | None:
-    if song.audio_url and os.path.isfile(song.audio_url):
-        return song.audio_url
+    resolved = _remap_audio_path(song.audio_url or "")
+    if resolved:
+        return resolved
 
     by_song_id = (
         db.query(LibrarySong)
@@ -930,8 +945,9 @@ def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str 
         .all()
     )
     for item in by_song_id:
-        if item.source_path and os.path.isfile(item.source_path):
-            return item.source_path
+        resolved = _remap_audio_path(item.source_path or "")
+        if resolved:
+            return resolved
 
     by_title_artist = (
         db.query(LibrarySong)
@@ -946,8 +962,9 @@ def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str 
         .all()
     )
     for item in by_title_artist:
-        if item.source_path and os.path.isfile(item.source_path):
-            return item.source_path
+        resolved = _remap_audio_path(item.source_path or "")
+        if resolved:
+            return resolved
 
     return None
 

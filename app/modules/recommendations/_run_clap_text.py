@@ -53,10 +53,13 @@ def main() -> None:
         import numpy as np
         import torch
 
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         processor, model = _load_clap()
-        model.eval()
+        model.to(device).eval()
 
         inputs = processor(text=[query_text], return_tensors="pt", padding=True, truncation=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
             features = model.get_text_features(**inputs)
             if hasattr(features, "pooler_output") and features.pooler_output is not None:

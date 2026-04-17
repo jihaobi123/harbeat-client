@@ -52,9 +52,27 @@ def get_clap_collection():
 
 
 def get_text_collection():
-    """Get the text-based fallback collection (uses ChromaDB default embeddings)."""
+    """Get the text-based fallback collection.
+
+    Uses a PyTorch-backed sentence-transformer embedding function instead of
+    ChromaDB's DefaultEmbeddingFunction (which relies on onnxruntime and
+    crashes with SIGABRT on Jetson ARM64).
+    """
     client = _get_client()
-    return client.get_or_create_collection(name=COLLECTION_TEXT)
+    ef = _get_safe_embedding_function()
+    return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
+
+
+def _get_safe_embedding_function():
+    """Return a ChromaDB-compatible embedding function that does NOT use onnxruntime."""
+    try:
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        return SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2",
+        )
+    except Exception:
+        logger.warning("[vector_store] SentenceTransformerEmbeddingFunction unavailable, using default")
+        return DefaultEmbeddingFunction()
 
 
 # ── Subprocess helpers ──────────────────────────────────────────────
@@ -189,17 +207,24 @@ def search_songs(query: str, top_k: int = 12) -> List[dict]:
         except Exception:
             logger.warning("[clap] CLAP text subprocess failed, falling back to text search", exc_info=True)
 
-    # Fallback: text-based search
-    text_col = get_text_collection()
-    if text_col.count() == 0:
-        return []
-
-    results = text_col.query(
-        query_texts=[query],
-        n_results=min(top_k, text_col.count()),
-        include=["metadatas", "distances", "documents"],
-    )
-    return _parse_results(results)
+    # Fallback: text-based semantic search via sentence-transformers (PyTorch).
+    # Uses SentenceTransformerEmbeddingFunction instead of ChromaDB's
+    # DefaultEmbeddingFunction to avoid onnxruntime SIGABRT on Jetson ARM64.
+    try:
+        text_col = get_text_collection()
+        if text_col.count() > 0:
+            results = text_col.query(
+                query_texts=[query],
+                n_results=min(top_k, text_col.count()),
+                include=["metadatas", "distances", "documents"],
+            )
+            rows = _parse_results(results)
+            if rows:
+                logger.info("[clap] fallback text search returned %d results", len(rows))
+                return rows
+    except Exception:
+        logger.warning("[clap] text fallback search failed", exc_info=True)
+    return []
 
 
 def _parse_results(results: dict) -> List[dict]:
