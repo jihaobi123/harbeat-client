@@ -34,7 +34,7 @@ class LibrarySongBase(BaseModel):
     beat_grid_offset: float | None = None
     beat_grid_interval: float | None = None
     beat_engines_used: list[str] = Field(default_factory=list)
-    beat_needs_review: bool = False
+    beat_needs_review: int = 0
     stems: dict | None = None
     song_id: int | None = None
     created_at: datetime

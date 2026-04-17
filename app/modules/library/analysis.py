@@ -559,5 +559,5 @@ def analyze_audio_file(
         "beat_grid_offset": float(beat_meta["grid_offset"]),
         "beat_grid_interval": float(beat_meta["grid_interval"]),
         "beat_engines_used": beat_meta["engines_used"],
-        "beat_needs_review": bool(beat_meta["needs_review"]),
+        "beat_needs_review": int(beat_meta["needs_review"]),
     }
