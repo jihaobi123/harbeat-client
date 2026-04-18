@@ -66,8 +66,12 @@ def _get_safe_embedding_function():
     """Return a ChromaDB-compatible embedding function that does NOT use onnxruntime."""
     try:
         from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("[vector_store] SentenceTransformer device=%s", device)
         return SentenceTransformerEmbeddingFunction(
             model_name="all-MiniLM-L6-v2",
+            device=device,
         )
     except Exception as exc:
         logger.warning("[vector_store] SentenceTransformerEmbeddingFunction unavailable (%s), using noop", exc)
@@ -83,6 +87,9 @@ class _NoopEmbeddingFunction:
     onnxruntime (which crashes on Jetson ARM64).  Semantic quality is
     lost but the server stays alive.
     """
+
+    def name(self) -> str:
+        return "noop"
 
     def __call__(self, input: list[str]) -> list[list[float]]:
         return [[0.0] * 384 for _ in input]
