@@ -210,10 +210,16 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 python_exe = sys.executable
                 logger.info("[bg-analysis] starting demucs for %s", song_id)
                 _refresh_analysis_lock()  # reset TTL before long demucs run
+
+                import torch as _torch
+                _demucs_device = "cuda" if _torch.cuda.is_available() else "cpu"
+                logger.info("[bg-analysis] demucs device=%s", _demucs_device)
+
                 result = subprocess.run(
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
+                        "-d", _demucs_device,
                         "--segment", "7",   # 7s chunks: good balance of quality vs memory (~2GB peak)
                         "-o", stems_base,
                         song.source_path,
