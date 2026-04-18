@@ -231,21 +231,22 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
       setDuration(audio.duration)
       setIsLoading(false)
       if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+
+      // Load waveform peaks AFTER metadata is ready, so it doesn't compete
+      // for bandwidth with the audio element's initial buffering
+      extractPeaks(streamUrl, NUM_BARS).then(peaks => {
+        if (destroyed) return
+        peaksRef.current = peaks
+        if (canvasRef.current && audio.duration) {
+          drawWaveform(canvasRef.current, peaks, audio.duration > 0 ? audio.currentTime / audio.duration : 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+        }
+      })
     })
     audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
     audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
     audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
 
     startAnimLoop()
-
-    // Load waveform peaks in background (non-blocking)
-    extractPeaks(streamUrl, NUM_BARS).then(peaks => {
-      if (destroyed) return
-      peaksRef.current = peaks
-      if (canvasRef.current && audio.duration) {
-        drawWaveform(canvasRef.current, peaks, audio.duration > 0 ? audio.currentTime / audio.duration : 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
-      }
-    })
 
     return () => {
       destroyed = true
