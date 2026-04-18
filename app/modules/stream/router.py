@@ -230,5 +230,13 @@ def stream_stem(
     if not file_path or not os.path.isfile(file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="stem file not found on disk")
 
+    # Prefer MP3 version for faster streaming (~10x smaller than WAV)
+    mp3_path = os.path.splitext(file_path)[0] + ".mp3"
+    if os.path.isfile(mp3_path):
+        file_path = mp3_path
+        content_type = "audio/mpeg"
+    else:
+        content_type = "audio/wav"
+
     file_size = os.path.getsize(file_path)
-    return _range_response(file_path, file_size, "audio/wav", request)
+    return _range_response(file_path, file_size, content_type, request)

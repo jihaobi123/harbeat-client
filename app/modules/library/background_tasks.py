@@ -240,6 +240,25 @@ def _do_analysis_and_separation(song_id: str) -> None:
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
                 logger.info("[bg-analysis] stems separated for %s", song_id)
+
+                # Convert WAV stems to MP3 for faster streaming (WAV ~43MB → MP3 ~4MB)
+                import shutil
+                ffmpeg = shutil.which("ffmpeg")
+                if ffmpeg:
+                    for s in stem_names:
+                        wav_path = os.path.join(stems_dir, f"{s}.wav")
+                        mp3_path = os.path.join(stems_dir, f"{s}.mp3")
+                        if os.path.isfile(wav_path) and not os.path.isfile(mp3_path):
+                            try:
+                                subprocess.run(
+                                    [ffmpeg, "-i", wav_path, "-b:a", "192k", "-y", mp3_path],
+                                    capture_output=True, timeout=120,
+                                )
+                            except Exception:
+                                logger.warning("[bg-analysis] ffmpeg WAV→MP3 failed for %s/%s", song_id, s)
+                    logger.info("[bg-analysis] MP3 stems generated for %s", song_id)
+                else:
+                    logger.warning("[bg-analysis] ffmpeg not found, skipping MP3 stem conversion")
             else:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
         except Exception:
