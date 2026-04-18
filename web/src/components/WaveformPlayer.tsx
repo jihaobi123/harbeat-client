@@ -242,6 +242,12 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
         }
       })
     })
+
+    // Allow play button to enable as soon as any data is available
+    audio.addEventListener('canplay', () => {
+      if (destroyed) return
+      setIsLoading(false)
+    })
     audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
     audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
     audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
@@ -271,8 +277,12 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
   const togglePlay = useCallback(() => {
     const a = audioRef.current
     if (!a) return
-    if (a.paused) a.play().catch(() => {})
-    else a.pause()
+    if (a.paused) {
+      setIsLoading(false) // unlock UI immediately on user gesture
+      a.play().catch(() => {})
+    } else {
+      a.pause()
+    }
   }, [])
 
   const skip = useCallback((delta: number) => {
@@ -336,8 +346,7 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
           <button onClick={() => skip(-5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏪</button>
           <button
             onClick={togglePlay}
-            disabled={isLoading}
-            className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark text-white flex items-center justify-center text-sm transition disabled:opacity-40"
+            className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark text-white flex items-center justify-center text-sm transition"
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
