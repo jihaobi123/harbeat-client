@@ -67,10 +67,17 @@ function StemPlayer({ songId }: { songId: string }) {
     stemNames.forEach(name => {
       const audio = audioRefs.current[name]
       if (audio) {
-        audio.src = getStemStreamUrl(songId, name)
-        audio.preload = 'auto'
+        // Set crossOrigin BEFORE src so the CORS request is made from the start
         audio.crossOrigin = 'anonymous'
-        audio.oncanplaythrough = checkReady
+        audio.preload = 'auto'
+        audio.src = getStemStreamUrl(songId, name)
+        // Use 'canplay' instead of 'canplaythrough' — large WAV files
+        // may never fire 'canplaythrough' over slow connections
+        audio.oncanplay = checkReady
+        audio.onerror = () => {
+          console.warn(`[StemPlayer] Failed to load stem: ${name}`)
+          checkReady() // count as loaded so button isn't stuck disabled
+        }
         audio.onended = () => setIsPlaying(false)
       }
     })

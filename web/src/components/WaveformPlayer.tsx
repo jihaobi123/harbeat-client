@@ -219,31 +219,33 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
     let destroyed = false
     const streamUrl = getStreamUrl(song.id)
 
-    const init = async () => {
-      const peaks = await extractPeaks(streamUrl, NUM_BARS)
+    // Create audio element immediately so playback can start without waiting for waveform
+    const audio = document.createElement('audio')
+    audio.preload = 'auto'
+    audio.src = streamUrl
+    audio.volume = volume
+    audioRef.current = audio
+
+    audio.addEventListener('loadedmetadata', () => {
+      if (destroyed) return
+      setDuration(audio.duration)
+      setIsLoading(false)
+      if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+    })
+    audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
+    audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
+    audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
+
+    startAnimLoop()
+
+    // Load waveform peaks in background (non-blocking)
+    extractPeaks(streamUrl, NUM_BARS).then(peaks => {
       if (destroyed) return
       peaksRef.current = peaks
-
-      const audio = document.createElement('audio')
-      audio.preload = 'metadata'
-      audio.src = streamUrl
-      audio.volume = volume
-      audioRef.current = audio
-
-      audio.addEventListener('loadedmetadata', () => {
-        if (destroyed) return
-        setDuration(audio.duration)
-        setIsLoading(false)
-        if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
-      })
-      audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
-      audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
-      audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
-
-      startAnimLoop()
-    }
-
-    init()
+      if (canvasRef.current && audio.duration) {
+        drawWaveform(canvasRef.current, peaks, audio.duration > 0 ? audio.currentTime / audio.duration : 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+      }
+    })
 
     return () => {
       destroyed = true
