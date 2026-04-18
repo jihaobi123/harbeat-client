@@ -59,12 +59,22 @@ def get_text_collection():
     """
     client = _get_client()
     ef = _get_safe_embedding_function()
-    return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
+    try:
+        return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
+    except ValueError:
+        # Embedding function conflict: collection was created with a different EF.
+        # Delete and recreate with the current EF.
+        logger.warning("[vector_store] EF conflict on %s, recreating collection", COLLECTION_TEXT)
+        client.delete_collection(name=COLLECTION_TEXT)
+        return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
 
 
 def _get_safe_embedding_function():
     """Return a ChromaDB-compatible embedding function that does NOT use onnxruntime."""
     try:
+        # Use HuggingFace mirror for Chinese network
+        import os
+        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
         from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
         import torch
         device = "cuda" if torch.cuda.is_available() else "cpu"
