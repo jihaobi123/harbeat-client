@@ -553,7 +553,7 @@ function StyleProcessor({ songId, title }: { songId: string; title: string }) {
 }
 
 /* ─── Main SongDetail ─── */
-export default function SongDetail() {
+export default function SongDetail({ onBack }: { onBack?: () => void } = {}) {
   const { selectedSong, playSong, analyzeSong, deleteSong, updateLibrarySongLocal } = useMusicStore()
   const [analyzing, setAnalyzing] = useState(false)
   const [separating, setSeparating] = useState(false)
@@ -618,16 +618,28 @@ export default function SongDetail() {
   }[song.analysis_status] || '未分析'
 
   return (
-    <div className="hidden md:flex w-96 bg-surface-light border-l border-gray-700 flex-col shrink-0 overflow-y-auto">
+    <div className="flex flex-col w-full md:w-96 bg-surface-light md:border-l border-gray-700 shrink-0 overflow-y-auto">
+      {/* Mobile back button */}
+      {onBack && (
+        <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-gray-700 shrink-0">
+          <button
+            onClick={onBack}
+            className="text-sm px-2 py-1 bg-surface-lighter"
+          >
+            ← 返回
+          </button>
+          <span className="text-sm font-semibold truncate flex-1">{song.title}</span>
+        </div>
+      )}
       {/* Header */}
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="w-full aspect-video bg-surface rounded-xl flex items-center justify-center text-5xl mb-4">🎵</div>
         <h3 className="text-lg font-bold text-white truncate">{song.title}</h3>
         <p className="text-sm text-gray-400 truncate">{song.artist}</p>
       </div>
 
       {/* Analysis cards */}
-      <div className="px-5 space-y-3">
+      <div className="px-4 sm:px-5 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <MetaCard label="BPM" value={song.bpm ? `${Math.round(song.bpm)}` : analysisText} accent={!!song.bpm} />
           <MetaCard label="Key" value={song.key ? `${song.camelot_key} · ${song.key}` : analysisText} accent={!!song.key} />
@@ -667,12 +679,12 @@ export default function SongDetail() {
       </div>
 
       {/* Waveform player */}
-      <div className="px-5 mt-4">
+      <div className="px-4 sm:px-5 mt-4">
         <WaveformPlayer song={song} />
       </div>
 
       {/* Stem separation */}
-      <div className="px-5 mt-4 space-y-3">
+      <div className="px-4 sm:px-5 mt-4 space-y-3">
         {!song.stems && analysisInProgress && (
           <div className="bg-surface rounded-xl p-4">
             <div className="flex items-center gap-2">
@@ -711,7 +723,7 @@ export default function SongDetail() {
       </div>
 
       {/* Actions */}
-      <div className="p-5 mt-auto space-y-2">
+      <div className="p-4 sm:p-5 mt-auto space-y-2">
         <button
           onClick={() => playSong(song)}
           className="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition"

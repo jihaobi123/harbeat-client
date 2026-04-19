@@ -184,3 +184,23 @@ input[type="range"]::-webkit-slider-thumb,
   box-shadow: 1px 1px 0 #111;
   cursor: pointer;
 }
+
+/* Mobile: reduce heavy borders & shadows for compact look */
+@media (max-width: 639px) {
+  .street-sticker {
+    border-width: 2px;
+    box-shadow: 3px 3px 0 var(--street-ink);
+    border-radius: 8px;
+  }
+  .street-theme .bg-surface,
+  .street-theme .bg-surface-light,
+  .street-theme .bg-surface-lighter {
+    border-width: 2px;
+    box-shadow: 2px 2px 0 var(--street-ink);
+    border-radius: 8px;
+  }
+  .street-theme button {
+    border-width: 2px;
+    box-shadow: 2px 2px 0 var(--street-ink);
+  }
+}
