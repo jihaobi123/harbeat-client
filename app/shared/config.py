@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/music-files"
     spotipy_client_id: str = ""
     spotipy_client_secret: str = ""
+    essentia_discogs_effnet_model_path: str = ""
+    essentia_discogs_classifier_model_path: str = ""
+    essentia_genre_top_k: int = 8
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 

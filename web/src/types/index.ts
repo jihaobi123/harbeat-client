@@ -22,6 +22,21 @@ export interface LibrarySong {
   key: string | null
   camelot_key: string | null
   energy: number | null
+  genres: Array<{ name: string; confidence: number; source?: string }> | null
+  genre_status: string | null
+  genre_source: string | null
+  music_features: {
+    features?: Record<string, number>
+    top_features?: Array<{ name: string; value: number }>
+    matched_genres?: string[]
+    beat_stability?: number | null
+    source?: string
+  } | null
+  dance_styles: Array<{ style: DanceStyle; score: number; confidence?: number; reasons?: string[]; source?: string; feature_scores?: Record<string, number> }> | null
+  dance_style_scores: Record<string, number> | null
+  dance_style_status: string | null
+  classifier_params: Record<string, unknown> | null
+  classifier_version: string | null
   analysis_status: string
   beat_points: number[]
   cue_points: CuePoint[]

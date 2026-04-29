@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.modules.auth.dependencies import get_current_user
 from app.modules.library.schemas import (
     BeatCorrectionRequest,
+    DanceStyleClassifyRequest,
     LibrarySongCreateRequest,
     LibrarySongData,
     LibrarySongListData,
@@ -227,6 +228,15 @@ def analyze_library_song_endpoint(
     song.key = result.get("key")
     song.camelot_key = result.get("camelot_key")
     song.energy = result.get("energy")
+    song.genres = result.get("genres", [])
+    song.genre_status = result.get("genre_status", "none")
+    song.genre_source = result.get("genre_source")
+    song.music_features = result.get("music_features", {})
+    song.dance_styles = result.get("dance_styles", [])
+    song.dance_style_scores = result.get("dance_style_scores", {})
+    song.dance_style_status = result.get("dance_style_status", "none")
+    song.classifier_params = result.get("classifier_params", {})
+    song.classifier_version = result.get("classifier_version")
     song.beat_points = result.get("beat_points", [])
     song.beat_confidence = result.get("beat_confidence")
     song.beat_grid_offset = result.get("beat_grid_offset")
@@ -240,6 +250,56 @@ def analyze_library_song_endpoint(
         for i, c in enumerate(raw_cues)
     ]
     song.analysis_status = "completed"
+    db.commit()
+    db.refresh(song)
+    return APIResponse(data=LibrarySongData.model_validate(song))
+
+
+def _get_owned_library_song(db: Session, song_id: str, user_id: int):
+    from app.modules.library.models import LibrarySong
+
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    return song
+
+
+@router.post("/songs/{song_id}/classify-dance-styles", response_model=APIResponse[LibrarySongData])
+def classify_dance_styles_endpoint(
+    song_id: str,
+    payload: DanceStyleClassifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    song = _get_owned_library_song(db, song_id, current_user.id)
+
+    try:
+        from app.modules.library.dance_style_classifier import classify_dance_styles
+        classification = classify_dance_styles(
+            genres=song.genres or [],
+            bpm=song.bpm,
+            energy=song.energy,
+            beat_confidence=song.beat_confidence,
+            beat_points=song.beat_points or [],
+            phrase_map=song.phrase_map or [],
+            params=payload.params,
+            top_k=payload.top_k,
+            threshold=payload.threshold,
+        )
+    except Exception as exc:
+        song.dance_style_status = "error"
+        song.dance_style_scores = {"error": str(exc)}
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"classification failed: {exc}")
+
+    song.music_features = classification["music_features"]
+    song.dance_styles = classification["dance_styles"]
+    song.dance_style_scores = classification["dance_style_scores"]
+    song.dance_style_status = "completed"
+    song.classifier_params = payload.params
+    song.classifier_version = classification["classifier_version"]
     db.commit()
     db.refresh(song)
     return APIResponse(data=LibrarySongData.model_validate(song))

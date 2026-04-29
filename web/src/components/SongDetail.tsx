@@ -554,8 +554,9 @@ function StyleProcessor({ songId, title }: { songId: string; title: string }) {
 
 /* ─── Main SongDetail ─── */
 export default function SongDetail({ onBack }: { onBack?: () => void } = {}) {
-  const { selectedSong, playSong, analyzeSong, deleteSong, updateLibrarySongLocal } = useMusicStore()
+  const { selectedSong, playSong, analyzeSong, classifyDanceStyles, deleteSong, updateLibrarySongLocal } = useMusicStore()
   const [analyzing, setAnalyzing] = useState(false)
+  const [classifying, setClassifying] = useState(false)
   const [separating, setSeparating] = useState(false)
   const [stemError, setStemError] = useState('')
 
@@ -581,6 +582,11 @@ export default function SongDetail({ onBack }: { onBack?: () => void } = {}) {
   const handleAnalyze = async () => {
     setAnalyzing(true)
     try { await analyzeSong(song.id) } finally { setAnalyzing(false) }
+  }
+
+  const handleClassifyDanceStyles = async () => {
+    setClassifying(true)
+    try { await classifyDanceStyles(song.id) } finally { setClassifying(false) }
   }
 
   const handleSeparateStems = async () => {
@@ -649,6 +655,96 @@ export default function SongDetail({ onBack }: { onBack?: () => void } = {}) {
           {analysisCompleted && (
             <MetaCard label="Beat 节拍" value={`${song.beat_points.length} 个`} accent />
           )}
+        </div>
+
+        {/* Music genre and dance style recommendations */}
+        <div className="bg-surface rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-white">音乐画像</h4>
+              <p className="text-[10px] text-gray-500">
+                {song.genre_status === 'completed' ? `流派来源：${song.genre_source || 'Essentia'}` : '分析后显示音乐流派和推荐舞种'}
+              </p>
+            </div>
+            <button
+              onClick={handleClassifyDanceStyles}
+              disabled={classifying || !song.bpm}
+              className="text-xs bg-primary/20 hover:bg-primary/30 disabled:opacity-40 text-primary px-3 py-1 rounded-lg transition shrink-0"
+            >
+              {classifying ? '评分中...' : '重新评分'}
+            </button>
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">音乐流派</div>
+            {song.genres?.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {song.genres.slice(0, 8).map((genre, idx) => (
+                  <span key={`${genre.name}-${idx}`} className="px-2 py-1 rounded-full bg-surface-lighter text-[11px] text-gray-200 border border-gray-700">
+                    {genre.name}
+                    <span className="ml-1 text-gray-500">{Math.round((genre.confidence || 0) * 100)}%</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无流派结果，请先运行分析。</p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">中间音乐特征</div>
+            {song.music_features?.top_features?.length ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {song.music_features.top_features.slice(0, 6).map((feature) => (
+                  <div key={feature.name} className="bg-surface-lighter rounded-lg px-2 py-1.5 border border-gray-700/70">
+                    <div className="flex items-center justify-between text-[10px] mb-1">
+                      <span className="text-gray-400">{feature.name}</span>
+                      <span className="text-gray-300">{Math.round(feature.value * 100)}%</span>
+                    </div>
+                    <div className="h-1 bg-surface rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${Math.round(feature.value * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无中间特征。完成流派分析后会由 genre + BPM + energy + beat + phrase 推导。</p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">推荐舞种</div>
+            {song.dance_styles?.length ? (
+              <div className="space-y-2">
+                {song.dance_styles.map((item, idx) => {
+                  const style = item.style as DanceStyle
+                  const color = DANCE_STYLE_COLORS[style] || '#64748b'
+                  return (
+                    <div key={`${item.style}-${idx}`} className="bg-surface-lighter rounded-lg p-3 border border-gray-700/70">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                        <span className="text-sm font-medium text-white">{DANCE_STYLE_LABELS[style] || item.style}</span>
+                        <span className="ml-auto text-xs font-semibold" style={{ color }}>{Math.round((item.score || 0) * 100)}分</span>
+                      </div>
+                      {item.reasons?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {item.reasons.map((reason, rIdx) => (
+                            <span key={rIdx} className="text-[10px] bg-surface px-1.5 py-0.5 rounded text-gray-400">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-gray-500">基于 BPM、能量、节拍稳定度和结构特征评分。</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无推荐舞种，请先完成歌曲分析或点击重新评分。</p>
+            )}
+          </div>
         </div>
 
         {/* Cue Points */}

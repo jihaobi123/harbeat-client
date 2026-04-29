@@ -543,6 +543,43 @@ def analyze_audio_file(
     # ── Step 6: Phrase structure ──────────────────────────────────────
     phrase_map = _detect_phrase_structure(y, sr, duration, downbeats)
 
+    # ── Step 7: Genre analysis via Essentia Discogs EffNet ─────────────
+    try:
+        from app.modules.library.genre_analysis import analyze_genres
+        genre_result = analyze_genres(file_path, title=title, artist=artist)
+    except Exception as exc:
+        logger.warning("Genre analysis wrapper failed", exc_info=True)
+        genre_result = {
+            "genres": [],
+            "genre_status": "error",
+            "genre_source": "essentia_discogs_effnet",
+            "genre_error": str(exc),
+        }
+
+    # ── Step 8: Dance style feature scoring ───────────────────────────
+    try:
+        from app.modules.library.dance_style_classifier import classify_dance_styles
+        classification = classify_dance_styles(
+            genres=genre_result.get("genres", []),
+            bpm=bpm,
+            energy=energy,
+            beat_confidence=float(beat_meta["confidence"]),
+            beat_points=beat_points,
+            phrase_map=phrase_map,
+        )
+        dance_styles = classification["dance_styles"]
+        dance_style_status = "completed"
+        dance_style_scores = classification["dance_style_scores"]
+        music_features = classification["music_features"]
+        classifier_version = classification["classifier_version"]
+    except Exception as exc:
+        logger.warning("Dance style classification failed", exc_info=True)
+        dance_styles = []
+        dance_style_status = "error"
+        dance_style_scores = {"error": str(exc)}
+        music_features = {}
+        classifier_version = "feature_scoring_v2"
+
     return {
         "bpm": round(bpm, 1),
         "duration": round(duration, 2),
@@ -560,4 +597,14 @@ def analyze_audio_file(
         "beat_grid_interval": float(beat_meta["grid_interval"]),
         "beat_engines_used": beat_meta["engines_used"],
         "beat_needs_review": int(beat_meta["needs_review"]),
+        "genres": genre_result.get("genres", []),
+        "genre_status": genre_result.get("genre_status", "none"),
+        "genre_source": genre_result.get("genre_source"),
+        "genre_error": genre_result.get("genre_error"),
+        "music_features": music_features,
+        "dance_styles": dance_styles,
+        "dance_style_scores": dance_style_scores,
+        "dance_style_status": dance_style_status,
+        "classifier_params": {},
+        "classifier_version": classifier_version,
     }

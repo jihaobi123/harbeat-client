@@ -99,6 +99,15 @@ export async function analyzeSong(songId: string) {
   return request<import('../types').LibrarySong>(`/api/library/songs/${songId}/analyze`, { method: 'POST' })
 }
 
+export async function classifyDanceStyles(songId: string, data: {
+  params?: Record<string, unknown>; top_k?: number; threshold?: number
+} = {}) {
+  return request<import('../types').LibrarySong>(
+    `/api/library/songs/${songId}/classify-dance-styles`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+}
+
 export async function deleteSong(songId: string) {
   return request<{ success: boolean }>(`/api/library/songs/${songId}`, { method: 'DELETE' })
 }
