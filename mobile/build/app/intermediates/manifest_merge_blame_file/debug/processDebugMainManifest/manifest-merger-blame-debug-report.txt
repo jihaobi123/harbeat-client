@@ -1,0 +1,207 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.harbeat_mobile"
+4    android:versionCode="1"
+5    android:versionName="0.1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="35" />
+10    <!--
+11         The INTERNET permission is required for development. Specifically,
+12         the Flutter tool needs it to communicate with the running application
+13         to allow setting breakpoints, to provide hot reload, etc.
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:5-67
+15-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:22-64
+16    <uses-permission android:name="android.permission.WAKE_LOCK" />
+16-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:3:5-68
+16-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:3:22-65
+17    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+17-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:4:5-77
+17-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:4:22-74
+18    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+18-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:5:5-92
+18-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:5:22-89
+19    <!--
+20 Required to query activities that can process text, see:
+21         https://developer.android.com/training/package-visibility and
+22         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+23
+24         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+25    -->
+26    <queries>
+26-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:59:5-64:15
+27        <intent>
+27-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:60:9-63:18
+28            <action android:name="android.intent.action.PROCESS_TEXT" />
+28-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:61:13-72
+28-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:61:21-70
+29
+30            <data android:mimeType="text/plain" />
+30-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:13-50
+30-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:19-48
+31        </intent>
+32        <intent>
+32-->[:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-12:18
+33            <action android:name="android.intent.action.GET_CONTENT" />
+33-->[:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-72
+33-->[:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:21-69
+34
+35            <data android:mimeType="*/*" />
+35-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:13-50
+35-->F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:19-48
+36        </intent>
+37    </queries>
+38
+39    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+39-->[androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:22:5-79
+39-->[androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:22:22-76
+40
+41    <permission
+41-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+42        android:name="com.example.harbeat_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+42-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+43        android:protectionLevel="signature" />
+43-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+44
+45    <uses-permission android:name="com.example.harbeat_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+45-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+45-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+46
+47    <application
+48        android:name="android.app.Application"
+49        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+49-->[androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+50        android:debuggable="true"
+51        android:extractNativeLibs="true"
+52        android:icon="@mipmap/ic_launcher"
+53        android:label="harbeat_mobile"
+54        android:usesCleartextTraffic="true" >
+55        <activity
+56            android:name="com.ryanheise.audioservice.AudioServiceActivity"
+57            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+58            android:exported="true"
+59            android:hardwareAccelerated="true"
+60            android:launchMode="singleTop"
+61            android:taskAffinity=""
+62            android:theme="@style/LaunchTheme"
+63            android:windowSoftInputMode="adjustResize" >
+64
+65            <!--
+66                 Specifies an Android theme to apply to this Activity as soon as
+67                 the Android process has started. This theme is visible to the user
+68                 while the Flutter UI initializes. After that, this theme continues
+69                 to determine the Window background behind the Flutter UI.
+70            -->
+71            <meta-data
+72                android:name="io.flutter.embedding.android.NormalTheme"
+73                android:resource="@style/NormalTheme" />
+74
+75            <intent-filter>
+76                <action android:name="android.intent.action.MAIN" />
+77
+78                <category android:name="android.intent.category.LAUNCHER" />
+79            </intent-filter>
+80        </activity>
+81        <!--
+82             Don't delete the meta-data below.
+83             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
+84        -->
+85        <meta-data
+86            android:name="flutterEmbedding"
+87            android:value="2" />
+88
+89        <service
+90            android:name="com.ryanheise.audioservice.AudioService"
+91            android:exported="true"
+92            android:foregroundServiceType="mediaPlayback" >
+93            <intent-filter>
+94                <action android:name="android.media.browse.MediaBrowserService" />
+95            </intent-filter>
+96        </service>
+97
+98        <receiver
+99            android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+100            android:exported="true" >
+101            <intent-filter>
+102                <action android:name="android.intent.action.MEDIA_BUTTON" />
+103            </intent-filter>
+104        </receiver>
+105
+106        <uses-library
+106-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:23:9-25:40
+107            android:name="androidx.window.extensions"
+107-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:24:13-54
+108            android:required="false" />
+108-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:25:13-37
+109        <uses-library
+109-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:26:9-28:40
+110            android:name="androidx.window.sidecar"
+110-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:27:13-51
+111            android:required="false" />
+111-->[androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:28:13-37
+112
+113        <provider
+113-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:24:9-32:20
+114            android:name="androidx.startup.InitializationProvider"
+114-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:25:13-67
+115            android:authorities="com.example.harbeat_mobile.androidx-startup"
+115-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:26:13-68
+116            android:exported="false" >
+116-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:27:13-37
+117            <meta-data
+117-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+118                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+118-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+119                android:value="androidx.startup" />
+119-->[androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+120            <meta-data
+120-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+121                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+122                android:value="androidx.startup" />
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+123        </provider>
+124
+125        <receiver
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+126            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+127            android:directBootAware="false"
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+128            android:enabled="true"
+128-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+129            android:exported="true"
+129-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+130            android:permission="android.permission.DUMP" >
+130-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+131            <intent-filter>
+131-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+132                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+132-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+133            </intent-filter>
+134            <intent-filter>
+134-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+135                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+135-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+136            </intent-filter>
+137            <intent-filter>
+137-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+138                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+138-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+139            </intent-filter>
+140            <intent-filter>
+140-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+141                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+141-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+141-->[androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+142            </intent-filter>
+143        </receiver>
+144    </application>
+145
+146</manifest>

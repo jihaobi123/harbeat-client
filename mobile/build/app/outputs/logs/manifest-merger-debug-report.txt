@@ -1,0 +1,401 @@
+-- Merging decision tree log ---
+application
+INJECTED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:6:5-53:19
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+MERGED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:22:5-29:19
+MERGED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:22:5-29:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:28:5-89
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f4acd3caa862dcbed3a362594c122bb4\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f4acd3caa862dcbed3a362594c122bb4\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
+	android:extractNativeLibs
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+	android:name
+		INJECTED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml
+manifest
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:1:1-65:12
+MERGED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:1:1-65:12
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml:1:1-7:12
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml:1:1-7:12
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml:1:1-7:12
+MERGED from [:shared_preferences_android] F:\harbeat\mobile\build\shared_preferences_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:audio_service] F:\harbeat\mobile\build\audio_service\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-15:12
+MERGED from [:just_audio] F:\harbeat\mobile\build\just_audio\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:audio_session] F:\harbeat\mobile\build\audio_session\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:flutter_plugin_android_lifecycle] F:\harbeat\mobile\build\flutter_plugin_android_lifecycle\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:path_provider_android] F:\harbeat\mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:sqflite_android] F:\harbeat\mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.media:media:1.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\4d8f7c67e84c9d350a2fe244df3c0db5\transformed\media-1.7.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.media3:media3-extractor:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3a7e472a283d111ffa04dbce9512edf\transformed\media3-extractor-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-container:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\469d5e95d325f98eafdf6dce7fd2a18a\transformed\media3-container-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-datasource:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7cb1c0c7e16641f223e6a85d0ed02929\transformed\media3-datasource-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-decoder:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\14d1dbe45b2130fd2b9e7e5f437cd9f2\transformed\media3-decoder-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-database:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ffa12820eba7733a5673d63546903c7d\transformed\media3-database-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.media3:media3-exoplayer-dash:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\22bc452f5380324a102cbd166d593cdd\transformed\media3-exoplayer-dash-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-exoplayer-hls:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b17d4546cb1fff1eef670bc2fecbce\transformed\media3-exoplayer-hls-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-exoplayer-smoothstreaming:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\0dfddd67704cccbdf9e8334c46270d5c\transformed\media3-exoplayer-smoothstreaming-1.4.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.media3:media3-exoplayer:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a6e1762bb83fce6759f72cdbefa2bee1\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.preference:preference:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\aaa8e1d9fe9a223edcf6857fde1cf209\transformed\preference-1.2.1\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.recyclerview:recyclerview:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f464c9a01623c8d5b45341268aa958de\transformed\recyclerview-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6c4f9e80a18c7deb5a7bf0d926bf791a\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\798b32a2f189adc046d82b33f25bd7ed\transformed\slidingpanelayout-1.2.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.window:window-java:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\33cc8192c23d2222e4dcefda596972ad\transformed\window-java-1.2.0\AndroidManifest.xml:17:1-21:12
+MERGED from [androidx.appcompat:appcompat:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6ebc59183ec491e4760093ac9ad5bd5a\transformed\appcompat-1.1.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.fragment:fragment-ktx:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8a294eff2def89987d45e58e74d16889\transformed\fragment-ktx-1.7.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.fragment:fragment:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\51781d51332c22f71e2f04c18dbf18c2\transformed\fragment-1.7.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-ktx:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\43293d610581d2fe00a3b92bafa59140\transformed\activity-ktx-1.8.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2d5695fd5e61408f01278064857171ca\transformed\activity-1.8.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2b77d3ff6fba6fc7d86a54fcda8e0d39\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8d7af038a5b79124eff4e8811915ce45\transformed\loader-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\80fa87081470ecf04a84346c1fe358e5\transformed\viewpager-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8f020b951c70f1806909d788eb2ac9da\transformed\lifecycle-runtime-ktx-2.7.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7e977f7f16ee252b098fa5bce0681280\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b5f771c0fc592271e9df84e2dafb2c6e\transformed\lifecycle-livedata-core-ktx-2.7.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a28479b1fbb1950f32c78c401dad4dcd\transformed\lifecycle-viewmodel-ktx-2.7.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\cc71fce180b51a533ede9f38789effa7\transformed\lifecycle-viewmodel-2.7.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7a4df357fea02942ff761b9f57f07d82\transformed\lifecycle-livedata-core-2.7.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\32b7a1ffe56396fcc2423ead75cce528\transformed\savedstate-ktx-1.2.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e225c721368899ee1df1fdef8916187f\transformed\savedstate-1.2.1\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\827bcc884ba8cb61c4530a507e296a23\transformed\lifecycle-runtime-2.7.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b65f0808b84ae2964203a3a6899f9dbf\transformed\lifecycle-viewmodel-savedstate-2.7.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-ktx:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ac3c8deb3fe2fc591b3d2700d5d18965\transformed\core-ktx-1.13.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.appcompat:appcompat-resources:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a0262901297b0cf203cadd581bb504b7\transformed\appcompat-resources-1.1.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3f95d3170beacae0db1943010b7d972\transformed\drawerlayout-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\bf1cb91fccbd23233c2800e0577e835c\transformed\coordinatorlayout-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.customview:customview:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d3a0af452fc3fdd4e555f3388c441769\transformed\customview-1.1.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.transition:transition:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\92688a08650d05e9f8b03a4126c5ccc8\transformed\transition-1.4.1\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d9127d7a15396ba003bcb272bd0ca03d\transformed\vectordrawable-animated-1.1.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b05689cdb6d8c1c834d35c86e3dcc8\transformed\vectordrawable-1.1.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\23a7940eabc2ce198ff18adf78d5f58e\transformed\swiperefreshlayout-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\621c54e7c90577d347ec919d5648af53\transformed\asynclayoutinflater-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d2d22faccd7b50f831d7ad5212a3292b\transformed\annotation-experimental-1.4.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\263556c0c361449eb3dd9be8294783b6\transformed\tracing-1.2.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e4c1df67c4649c088791144deea40edf\transformed\interpolator-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f4acd3caa862dcbed3a362594c122bb4\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] F:\harbeat\.gradle-user-home\caches\8.14\transforms\db6d8b169838af5e67fff6e7f921d05a\transformed\exifinterface-1.3.6\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.datastore:datastore-preferences-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fc6de7e87a22e922b2eaa7bc568ba288\transformed\datastore-preferences-core-release\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\29a9317d620a671f27982c23bcd2fc02\transformed\datastore-core-release\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3d89a2b3ff09f65293a1afaf326ccbca\transformed\datastore-preferences-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.datastore:datastore-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8c5f2bfaf21aa5a12379f1336122251e\transformed\datastore-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\825fe2eee8d88638757c7be9fb82804a\transformed\core-runtime-2.2.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\45fc5e381f8def96d704b3cbbff746e6\transformed\cursoradapter-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.window.extensions.core:core:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\36c738e45430e22f47c40965da3768a9\transformed\core-1.0.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\046b8de896173259b2710022177cab5c\transformed\documentfile-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\9a87ff4367d9d59c8d3ed8ef1af7f2b7\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3f5f7883252752096cda71381290a3dd\transformed\print-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c087253c7f4dd44e8cef96aa019a333e\transformed\relinker-1.4.5\AndroidManifest.xml:2:1-7:12
+	package
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+	android:versionName
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+	android:versionCode
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+	xmlns:android
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:1:11-69
+uses-permission#android.permission.INTERNET
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:5-67
+MERGED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:5-67
+MERGED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:5-67
+	android:name
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:2:22-64
+uses-permission#android.permission.WAKE_LOCK
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:3:5-68
+	android:name
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:3:22-65
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:4:5-77
+	android:name
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:4:22-74
+uses-permission#android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:5:5-92
+	android:name
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:5:22-89
+queries
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:59:5-64:15
+MERGED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-13:15
+MERGED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-13:15
+intent#action:name:android.intent.action.PROCESS_TEXT+data:mimeType:text/plain
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:60:9-63:18
+action#android.intent.action.PROCESS_TEXT
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:61:13-72
+	android:name
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:61:21-70
+data
+ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:13-50
+	android:mimeType
+		ADDED from F:\harbeat\mobile\android\app\src\main\AndroidManifest.xml:62:19-48
+uses-sdk
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+MERGED from [:shared_preferences_android] F:\harbeat\mobile\build\shared_preferences_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:shared_preferences_android] F:\harbeat\mobile\build\shared_preferences_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:audio_service] F:\harbeat\mobile\build\audio_service\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:audio_service] F:\harbeat\mobile\build\audio_service\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:just_audio] F:\harbeat\mobile\build\just_audio\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:just_audio] F:\harbeat\mobile\build\just_audio\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:audio_session] F:\harbeat\mobile\build\audio_session\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:audio_session] F:\harbeat\mobile\build\audio_session\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:flutter_plugin_android_lifecycle] F:\harbeat\mobile\build\flutter_plugin_android_lifecycle\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:flutter_plugin_android_lifecycle] F:\harbeat\mobile\build\flutter_plugin_android_lifecycle\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:path_provider_android] F:\harbeat\mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:path_provider_android] F:\harbeat\mobile\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:sqflite_android] F:\harbeat\mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:sqflite_android] F:\harbeat\mobile\build\sqflite_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [androidx.media:media:1.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\4d8f7c67e84c9d350a2fe244df3c0db5\transformed\media-1.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.media:media:1.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\4d8f7c67e84c9d350a2fe244df3c0db5\transformed\media-1.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.media3:media3-extractor:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3a7e472a283d111ffa04dbce9512edf\transformed\media3-extractor-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-extractor:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3a7e472a283d111ffa04dbce9512edf\transformed\media3-extractor-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-container:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\469d5e95d325f98eafdf6dce7fd2a18a\transformed\media3-container-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-container:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\469d5e95d325f98eafdf6dce7fd2a18a\transformed\media3-container-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-datasource:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7cb1c0c7e16641f223e6a85d0ed02929\transformed\media3-datasource-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-datasource:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7cb1c0c7e16641f223e6a85d0ed02929\transformed\media3-datasource-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-decoder:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\14d1dbe45b2130fd2b9e7e5f437cd9f2\transformed\media3-decoder-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-decoder:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\14d1dbe45b2130fd2b9e7e5f437cd9f2\transformed\media3-decoder-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-database:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ffa12820eba7733a5673d63546903c7d\transformed\media3-database-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-database:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ffa12820eba7733a5673d63546903c7d\transformed\media3-database-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-dash:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\22bc452f5380324a102cbd166d593cdd\transformed\media3-exoplayer-dash-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-dash:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\22bc452f5380324a102cbd166d593cdd\transformed\media3-exoplayer-dash-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b17d4546cb1fff1eef670bc2fecbce\transformed\media3-exoplayer-hls-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-hls:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b17d4546cb1fff1eef670bc2fecbce\transformed\media3-exoplayer-hls-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-smoothstreaming:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\0dfddd67704cccbdf9e8334c46270d5c\transformed\media3-exoplayer-smoothstreaming-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer-smoothstreaming:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\0dfddd67704cccbdf9e8334c46270d5c\transformed\media3-exoplayer-smoothstreaming-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a6e1762bb83fce6759f72cdbefa2bee1\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.media3:media3-exoplayer:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a6e1762bb83fce6759f72cdbefa2bee1\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.preference:preference:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\aaa8e1d9fe9a223edcf6857fde1cf209\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.preference:preference:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\aaa8e1d9fe9a223edcf6857fde1cf209\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f464c9a01623c8d5b45341268aa958de\transformed\recyclerview-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f464c9a01623c8d5b45341268aa958de\transformed\recyclerview-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6c4f9e80a18c7deb5a7bf0d926bf791a\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-ui:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6c4f9e80a18c7deb5a7bf0d926bf791a\transformed\legacy-support-core-ui-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\798b32a2f189adc046d82b33f25bd7ed\transformed\slidingpanelayout-1.2.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\798b32a2f189adc046d82b33f25bd7ed\transformed\slidingpanelayout-1.2.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.window:window-java:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\33cc8192c23d2222e4dcefda596972ad\transformed\window-java-1.2.0\AndroidManifest.xml:19:5-44
+MERGED from [androidx.window:window-java:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\33cc8192c23d2222e4dcefda596972ad\transformed\window-java-1.2.0\AndroidManifest.xml:19:5-44
+MERGED from [androidx.appcompat:appcompat:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6ebc59183ec491e4760093ac9ad5bd5a\transformed\appcompat-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.appcompat:appcompat:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6ebc59183ec491e4760093ac9ad5bd5a\transformed\appcompat-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment-ktx:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8a294eff2def89987d45e58e74d16889\transformed\fragment-ktx-1.7.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment-ktx:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8a294eff2def89987d45e58e74d16889\transformed\fragment-ktx-1.7.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\51781d51332c22f71e2f04c18dbf18c2\transformed\fragment-1.7.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment:1.7.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\51781d51332c22f71e2f04c18dbf18c2\transformed\fragment-1.7.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\43293d610581d2fe00a3b92bafa59140\transformed\activity-ktx-1.8.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\43293d610581d2fe00a3b92bafa59140\transformed\activity-ktx-1.8.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2d5695fd5e61408f01278064857171ca\transformed\activity-1.8.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.8.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2d5695fd5e61408f01278064857171ca\transformed\activity-1.8.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2b77d3ff6fba6fc7d86a54fcda8e0d39\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\2b77d3ff6fba6fc7d86a54fcda8e0d39\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8d7af038a5b79124eff4e8811915ce45\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8d7af038a5b79124eff4e8811915ce45\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\80fa87081470ecf04a84346c1fe358e5\transformed\viewpager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\80fa87081470ecf04a84346c1fe358e5\transformed\viewpager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8f020b951c70f1806909d788eb2ac9da\transformed\lifecycle-runtime-ktx-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8f020b951c70f1806909d788eb2ac9da\transformed\lifecycle-runtime-ktx-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7e977f7f16ee252b098fa5bce0681280\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7e977f7f16ee252b098fa5bce0681280\transformed\lifecycle-livedata-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b5f771c0fc592271e9df84e2dafb2c6e\transformed\lifecycle-livedata-core-ktx-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b5f771c0fc592271e9df84e2dafb2c6e\transformed\lifecycle-livedata-core-ktx-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a28479b1fbb1950f32c78c401dad4dcd\transformed\lifecycle-viewmodel-ktx-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a28479b1fbb1950f32c78c401dad4dcd\transformed\lifecycle-viewmodel-ktx-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\cc71fce180b51a533ede9f38789effa7\transformed\lifecycle-viewmodel-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\cc71fce180b51a533ede9f38789effa7\transformed\lifecycle-viewmodel-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7a4df357fea02942ff761b9f57f07d82\transformed\lifecycle-livedata-core-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\7a4df357fea02942ff761b9f57f07d82\transformed\lifecycle-livedata-core-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\32b7a1ffe56396fcc2423ead75cce528\transformed\savedstate-ktx-1.2.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\32b7a1ffe56396fcc2423ead75cce528\transformed\savedstate-ktx-1.2.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e225c721368899ee1df1fdef8916187f\transformed\savedstate-1.2.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e225c721368899ee1df1fdef8916187f\transformed\savedstate-1.2.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\827bcc884ba8cb61c4530a507e296a23\transformed\lifecycle-runtime-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\827bcc884ba8cb61c4530a507e296a23\transformed\lifecycle-runtime-2.7.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b65f0808b84ae2964203a3a6899f9dbf\transformed\lifecycle-viewmodel-savedstate-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b65f0808b84ae2964203a3a6899f9dbf\transformed\lifecycle-viewmodel-savedstate-2.7.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-ktx:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ac3c8deb3fe2fc591b3d2700d5d18965\transformed\core-ktx-1.13.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\ac3c8deb3fe2fc591b3d2700d5d18965\transformed\core-ktx-1.13.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a0262901297b0cf203cadd581bb504b7\transformed\appcompat-resources-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.appcompat:appcompat-resources:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a0262901297b0cf203cadd581bb504b7\transformed\appcompat-resources-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3f95d3170beacae0db1943010b7d972\transformed\drawerlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b3f95d3170beacae0db1943010b7d972\transformed\drawerlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\bf1cb91fccbd23233c2800e0577e835c\transformed\coordinatorlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\bf1cb91fccbd23233c2800e0577e835c\transformed\coordinatorlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d3a0af452fc3fdd4e555f3388c441769\transformed\customview-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d3a0af452fc3fdd4e555f3388c441769\transformed\customview-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\92688a08650d05e9f8b03a4126c5ccc8\transformed\transition-1.4.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\92688a08650d05e9f8b03a4126c5ccc8\transformed\transition-1.4.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d9127d7a15396ba003bcb272bd0ca03d\transformed\vectordrawable-animated-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d9127d7a15396ba003bcb272bd0ca03d\transformed\vectordrawable-animated-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b05689cdb6d8c1c834d35c86e3dcc8\transformed\vectordrawable-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c0b05689cdb6d8c1c834d35c86e3dcc8\transformed\vectordrawable-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\23a7940eabc2ce198ff18adf78d5f58e\transformed\swiperefreshlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\23a7940eabc2ce198ff18adf78d5f58e\transformed\swiperefreshlayout-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\621c54e7c90577d347ec919d5648af53\transformed\asynclayoutinflater-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.asynclayoutinflater:asynclayoutinflater:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\621c54e7c90577d347ec919d5648af53\transformed\asynclayoutinflater-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:20:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d2d22faccd7b50f831d7ad5212a3292b\transformed\annotation-experimental-1.4.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\d2d22faccd7b50f831d7ad5212a3292b\transformed\annotation-experimental-1.4.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\263556c0c361449eb3dd9be8294783b6\transformed\tracing-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\263556c0c361449eb3dd9be8294783b6\transformed\tracing-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e4c1df67c4649c088791144deea40edf\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\e4c1df67c4649c088791144deea40edf\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f4acd3caa862dcbed3a362594c122bb4\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\f4acd3caa862dcbed3a362594c122bb4\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] F:\harbeat\.gradle-user-home\caches\8.14\transforms\db6d8b169838af5e67fff6e7f921d05a\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.6] F:\harbeat\.gradle-user-home\caches\8.14\transforms\db6d8b169838af5e67fff6e7f921d05a\transformed\exifinterface-1.3.6\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.datastore:datastore-preferences-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fc6de7e87a22e922b2eaa7bc568ba288\transformed\datastore-preferences-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-preferences-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fc6de7e87a22e922b2eaa7bc568ba288\transformed\datastore-preferences-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\29a9317d620a671f27982c23bcd2fc02\transformed\datastore-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-core-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\29a9317d620a671f27982c23bcd2fc02\transformed\datastore-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3d89a2b3ff09f65293a1afaf326ccbca\transformed\datastore-preferences-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-preferences-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3d89a2b3ff09f65293a1afaf326ccbca\transformed\datastore-preferences-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8c5f2bfaf21aa5a12379f1336122251e\transformed\datastore-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.datastore:datastore-android:1.1.7] F:\harbeat\.gradle-user-home\caches\8.14\transforms\8c5f2bfaf21aa5a12379f1336122251e\transformed\datastore-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\825fe2eee8d88638757c7be9fb82804a\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\825fe2eee8d88638757c7be9fb82804a\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\45fc5e381f8def96d704b3cbbff746e6\transformed\cursoradapter-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\45fc5e381f8def96d704b3cbbff746e6\transformed\cursoradapter-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.window.extensions.core:core:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\36c738e45430e22f47c40965da3768a9\transformed\core-1.0.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.window.extensions.core:core:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\36c738e45430e22f47c40965da3768a9\transformed\core-1.0.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\046b8de896173259b2710022177cab5c\transformed\documentfile-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\046b8de896173259b2710022177cab5c\transformed\documentfile-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\9a87ff4367d9d59c8d3ed8ef1af7f2b7\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\9a87ff4367d9d59c8d3ed8ef1af7f2b7\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3f5f7883252752096cda71381290a3dd\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3f5f7883252752096cda71381290a3dd\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c087253c7f4dd44e8cef96aa019a333e\transformed\relinker-1.4.5\AndroidManifest.xml:5:5-43
+MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] F:\harbeat\.gradle-user-home\caches\8.14\transforms\c087253c7f4dd44e8cef96aa019a333e\transformed\relinker-1.4.5\AndroidManifest.xml:5:5-43
+	android:targetSdkVersion
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from F:\harbeat\mobile\android\app\src\debug\AndroidManifest.xml
+intent#action:name:android.intent.action.GET_CONTENT+data:mimeType:*/*
+ADDED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-12:18
+action#android.intent.action.GET_CONTENT
+ADDED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-72
+	android:name
+		ADDED from [:file_picker] F:\harbeat\mobile\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:21-69
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from [androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:22:5-79
+MERGED from [androidx.media3:media3-exoplayer:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a6e1762bb83fce6759f72cdbefa2bee1\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:22:5-79
+MERGED from [androidx.media3:media3-exoplayer:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\a6e1762bb83fce6759f72cdbefa2bee1\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:22:5-79
+	android:name
+		ADDED from [androidx.media3:media3-common:1.4.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fe60de15e3a71778f21a9ffa04b36e50\transformed\media3-common-1.4.1\AndroidManifest.xml:22:22-76
+uses-library#androidx.window.extensions
+ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:23:9-25:40
+	android:required
+		ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:25:13-37
+	android:name
+		ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:24:13-54
+uses-library#androidx.window.sidecar
+ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:26:9-28:40
+	android:required
+		ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:28:13-37
+	android:name
+		ADDED from [androidx.window:window:1.2.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\3bec5e06d5364cce2dc547ee9713a032\transformed\window-1.2.0\AndroidManifest.xml:27:13-51
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\fa450f015f8e12de751e515a0c346f75\transformed\startup-runtime-1.1.1\AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:25:13-67
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.7.0] F:\harbeat\.gradle-user-home\caches\8.14\transforms\267276e5a70fe9de0837887bcf7a828f\transformed\lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+permission#com.example.harbeat_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+uses-permission#com.example.harbeat_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.13.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\b06d5622dc7e639726092a5d2af79bc6\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.1] F:\harbeat\.gradle-user-home\caches\8.14\transforms\6e93b215f35d295ff6807a7b5e661432\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
