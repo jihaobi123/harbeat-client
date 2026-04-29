@@ -1,0 +1,43 @@
+{
+  "audio_file": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_audio\\tMUmAV-GOLD-ITZY_(있지).mp3",
+  "device": "cuda",
+  "task": "music_structure_analysis",
+  "note": "SongFormer predicts song structure segments, not melody/chord transcription.",
+  "segments": [
+    {
+      "label": "verse",
+      "start": 0.0,
+      "end": 18.00072002880115
+    },
+    {
+      "label": "verse",
+      "start": 18.00072002880115,
+      "end": 52.20208808352334
+    },
+    {
+      "label": "chorus",
+      "start": 52.20208808352334,
+      "end": 86.40345613824553
+    },
+    {
+      "label": "verse",
+      "start": 86.40345613824553,
+      "end": 109.324372974919
+    },
+    {
+      "label": "chorus",
+      "start": 109.324372974919,
+      "end": 143.6457458298332
+    },
+    {
+      "label": "inst",
+      "start": 143.6457458298332,
+      "end": 157.9263170526821
+    },
+    {
+      "label": "chorus",
+      "start": 157.9263170526821,
+      "end": 187.20748829953197
+    }
+  ]
+}

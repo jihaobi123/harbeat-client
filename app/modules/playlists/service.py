@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import random
 import re
@@ -8,6 +9,8 @@ import subprocess
 import sys
 import time
 from hashlib import sha1
+
+logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -32,13 +35,9 @@ from app.modules.playlists.schemas import (
     StyleMixRequest,
     StyleMixResult,
 )
-from app.modules.playlists.transition_planner import (
-    build_features,
-    build_fx_automation,
-    harmonic_compatible,
-    plan_phrase_transition,
-    score_transition,
-    within_tempo_shift,
+from app.modules.playlists.groove_adapter import (
+    library_song_to_track_metadata,
+    run_groove_engine_plan,
 )
 from app.modules.playlists.offline_renderer import (
     OfflineRenderTrackInput,
@@ -269,6 +268,7 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
             .all()
         )
         songs = [rel.song for rel in ordered_relations if rel.song is not None]
+        logger.warning("[DJ-MIX] Loaded %d songs from playlist_id=%d", len(songs), payload.playlist_id)
     else:
         # Default to current user's own library-mapped songs only.
         library_rows = (
@@ -283,7 +283,8 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
         )
         seen_song_ids: set[int] = set()
         for lib_song in library_rows:
-            if not lib_song.source_path or not os.path.isfile(lib_song.source_path):
+            audio_path = _remap_audio_path(lib_song.source_path or "")
+            if not audio_path:
                 continue
 
             song: Song | None = None
@@ -362,6 +363,8 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
     candidate_window = max(1, min(8, int(1 + round(diversity * 5.0))))
     pending_songs = list(songs)
 
+    logger.warning("[DJ-MIX] Starting selection: %d candidate songs, target=%ds", len(pending_songs), target_seconds)
+
     while pending_songs and total_seconds < target_seconds:
         if diversity <= 0.001:
             song = pending_songs.pop(0)
@@ -373,17 +376,23 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
 
         audio_path = _resolve_user_song_audio_path(db, song, user_id)
         if not audio_path:
+            logger.warning("[DJ-MIX] SKIP song_id=%d (%s) - no audio_path. audio_url=%s", song.id, song.title, song.audio_url)
             continue
 
         duration = _resolve_user_song_duration_fast(db, song, user_id)
         if duration is None or duration <= 0:
+            logger.warning("[DJ-MIX] SKIP song_id=%d (%s) - duration=%s", song.id, song.title, duration)
             continue
+
+        logger.warning("[DJ-MIX] SELECTED song_id=%d (%s) audio=%s dur=%.1f", song.id, song.title, audio_path, duration)
 
         if song.duration is None or song.duration <= 0:
             song.duration = duration
 
         selected.append((song, audio_path, duration))
         total_seconds += int(duration)
+
+    logger.warning("[DJ-MIX] Selection done: %d songs selected, total_seconds=%d", len(selected), total_seconds)
 
     playlist_data: list[PlaylistSongData] = []
     processed_files: dict[int, str] = {}
@@ -397,6 +406,7 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
         and len(selected) <= 2
         and all((d or 0) <= 6 * 60 for _, _, d in selected)
     )
+    logger.warning("[DJ-MIX] Processing selected songs, allow_heavy_batch=%s, quality_mode=%s", allow_heavy_batch, payload.quality_mode)
 
     for song, audio_path, duration in selected:
         if song.audio_url != audio_path:
@@ -425,9 +435,13 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
             }
 
         if not processed_path or not os.path.isfile(processed_path):
+            logger.warning("[DJ-MIX] Building processed fallback for song_id=%d, audio_path=%s", song.id, audio_path)
             processed_path = _build_processed_fallback(audio_path, song.id, payload.style, payload.quality_mode)
         if not processed_path or not os.path.isfile(processed_path):
+            logger.warning("[DJ-MIX] SKIP processed: song_id=%d - processed_path=%s", song.id, processed_path)
             continue
+
+        logger.warning("[DJ-MIX] OK processed: song_id=%d -> %s", song.id, processed_path)
 
         order_index = len(playlist_data)
         playlist_data.append(
@@ -511,7 +525,7 @@ def _run_demucs_separation(audio_path: str, timeout_sec: int = 120) -> dict[str,
     def _invoke_demucs(source_path: str) -> tuple[bool, str]:
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "demucs", "-n", "htdemucs", "-o", stems_base, source_path],
+                [sys.executable, "-m", "demucs", "-n", "htdemucs", "--segment", "7", "-o", stems_base, source_path],
                 capture_output=True,
                 text=True,
                 timeout=max(15, int(timeout_sec)),
@@ -612,6 +626,9 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
     if payload.user_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id is required")
 
+    logger.warning("[DJ-MIX-PLAN] Starting: playlist_id=%s, style=%s, duration=%s min", payload.playlist_id, payload.style, payload.duration_minutes)
+    t0 = time.time()
+
     style_result = generate_style_mix_playlist(
         db,
         StyleMixRequest(
@@ -627,8 +644,11 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
         user_id=payload.user_id,
     )
 
+    logger.warning("[DJ-MIX-PLAN] style_mix done in %.1fs, playlist_len=%d", time.time() - t0, len(style_result.playlist))
+
     playlist = style_result.playlist
     if len(playlist) < 2:
+        logger.warning("[DJ-MIX-PLAN] Less than 2 songs, returning early")
         return DjMixPlanResult(
             playlist=playlist,
             processed_files=style_result.processed_files,
@@ -636,177 +656,45 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
             transition_plan=[],
         )
 
+    # ── Build GrooveEngine TrackMetadata for each song ────────────────
     song_ids = [track.song_id for track in playlist]
     songs = _song_map(db, song_ids)
     library_map = _library_context_map(db, payload.user_id, songs)
 
-    item_by_song_id = {item.song_id: item for item in playlist}
-    feature_by_song_id = {}
-    beat_by_song_id: dict[int, list[float]] = {}
-    cue_by_song_id: dict[int, list[dict]] = {}
-    energy_by_song_id: dict[int, str | None] = {}
-
+    track_metas = []
     for item in playlist:
-        song = songs.get(item.song_id)
         lib = library_map.get(item.song_id)
-        processed = style_result.processed_files.get(item.song_id, "")
-        song_energy = song.tags.energy if song and song.tags else None
+        audio_path = style_result.processed_files.get(item.song_id, "")
 
-        feature_by_song_id[item.song_id] = build_features(
+        meta = library_song_to_track_metadata(
             song_id=item.song_id,
-            duration=item.duration or (lib.duration if lib else None),
+            title=item.title,
+            artist=item.artist or "",
+            duration=item.duration or (lib.duration if lib else 180.0),
             bpm=item.bpm or (lib.bpm if lib else None),
+            key=lib.key if lib else None,
             camelot_key=lib.camelot_key if lib else None,
-            processed_file=processed,
-            allow_audio_estimation=False,
+            energy=lib.energy if lib else None,
+            beat_points=list(lib.beat_points) if lib and lib.beat_points else [],
+            downbeats=list(lib.downbeats) if lib and lib.downbeats else [],
+            phrase_map=list(lib.phrase_map) if lib and lib.phrase_map else [],
+            beat_confidence=lib.beat_confidence if lib else None,
+            audio_path=audio_path,
         )
-        beat_by_song_id[item.song_id] = list(lib.beat_points) if lib and lib.beat_points else []
-        cue_by_song_id[item.song_id] = list(lib.cue_points) if lib and lib.cue_points else []
-        energy_by_song_id[item.song_id] = _energy_bucket(song_energy) or _energy_bucket(lib.energy if lib else None)
+        track_metas.append(meta)
 
-    # Greedy reorder by transition quality (DJ-like flow), with controlled
-    # diversity to avoid repeatedly generating an identical sequence.
-    rng = random.Random(payload.random_seed) if payload.random_seed is not None else random.Random()
-    diversity = _clamp(float(payload.diversity), 0.0, 1.0)
-    candidate_window = max(1, int(payload.candidate_window))
-
-    ordered_ids: list[int] = []
-    remaining_ids = [item.song_id for item in playlist]
-    if remaining_ids:
-        if diversity <= 0.001:
-            ordered_ids.append(remaining_ids.pop(0))
-        else:
-            start_window = max(1, min(len(remaining_ids), max(2, candidate_window)))
-            start_id = rng.choice(remaining_ids[:start_window])
-            ordered_ids.append(start_id)
-            remaining_ids.remove(start_id)
-
-    while remaining_ids:
-        from_id = ordered_ids[-1]
-        from_feature = feature_by_song_id[from_id]
-        from_energy = energy_by_song_id.get(from_id)
-        from_song = songs.get(from_id)
-
-        hard_candidates: list[tuple[float, int]] = []
-        soft_candidates: list[tuple[float, int]] = []
-        for cand_id in remaining_ids:
-            cand_feature = feature_by_song_id[cand_id]
-            cand_energy = energy_by_song_id.get(cand_id)
-            cand_song = songs.get(cand_id)
-            score, _, _ = score_transition(
-                from_track=from_feature,
-                to_track=cand_feature,
-                from_energy=from_energy,
-                to_energy=cand_energy,
-                strict_harmonic=payload.strict_harmonic,
-                max_tempo_shift=payload.max_tempo_shift,
-                crossfade_sec=6.0,
-            )
-            if (
-                from_song
-                and cand_song
-                and from_song.artist
-                and cand_song.artist
-                and from_song.artist.strip().lower() == cand_song.artist.strip().lower()
-            ):
-                score -= 0.06
-
-            hard_ok = (
-                harmonic_compatible(from_feature.camelot_key, cand_feature.camelot_key, payload.strict_harmonic)
-                and within_tempo_shift(from_feature.bpm, cand_feature.bpm, payload.max_tempo_shift)
-            )
-            if hard_ok:
-                hard_candidates.append((score, cand_id))
-            soft_candidates.append((score, cand_id))
-
-        if payload.strict_harmonic:
-            candidate_pool = hard_candidates or soft_candidates
-        else:
-            hard_set = {sid for _, sid in hard_candidates}
-            candidate_pool = []
-            for score, sid in soft_candidates:
-                boosted = score + (0.08 if sid in hard_set else 0.0)
-                candidate_pool.append((boosted, sid))
-        if not candidate_pool:
-            chosen_id = remaining_ids[0]
-        else:
-            chosen_id = _ranked_pick(
-                candidate_pool,
-                rng=rng,
-                diversity=diversity,
-                candidate_window=candidate_window,
-            )
-        ordered_ids.append(chosen_id)
-        remaining_ids.remove(chosen_id)
-
-    ordered_playlist = [item_by_song_id[sid] for sid in ordered_ids if sid in item_by_song_id]
-
-    transition_plan: list[DjTransitionPlanItem] = []
-    default_crossfade = 6.0
-
-    for index in range(len(ordered_playlist) - 1):
-        current = ordered_playlist[index]
-        nxt = ordered_playlist[index + 1]
-        from_feature = feature_by_song_id[current.song_id]
-        to_feature = feature_by_song_id[nxt.song_id]
-
-        current_energy = energy_by_song_id.get(current.song_id)
-        next_energy = energy_by_song_id.get(nxt.song_id)
-        score, tempo_ratio, key_relation = score_transition(
-            from_track=from_feature,
-            to_track=to_feature,
-            from_energy=current_energy,
-            to_energy=next_energy,
-            strict_harmonic=payload.strict_harmonic,
-            max_tempo_shift=payload.max_tempo_shift,
-            crossfade_sec=default_crossfade,
-        )
-
-        timing = plan_phrase_transition(
-            from_track=from_feature,
-            to_track=to_feature,
-            crossfade_sec=default_crossfade,
-            from_beat_points=beat_by_song_id.get(current.song_id),
-            to_beat_points=beat_by_song_id.get(nxt.song_id),
-            from_cue_points=cue_by_song_id.get(current.song_id),
-        )
-
-        fx_automation = [
-            DjFxAutomationPoint(**point)
-            for point in build_fx_automation(
-                timing.crossfade_sec,
-                payload.energy or next_energy,
-                timing.technique,
-            )
-        ]
-
-        transition_plan.append(
-            DjTransitionPlanItem(
-                from_song_id=current.song_id,
-                to_song_id=nxt.song_id,
-                entry_beat=timing.entry_beat,
-                exit_beat=timing.exit_beat,
-                entry_time_sec=timing.entry_time_sec,
-                exit_time_sec=timing.exit_time_sec,
-                from_beat_interval_sec=timing.from_beat_interval_sec,
-                to_beat_interval_sec=timing.to_beat_interval_sec,
-                phase_anchor_sec=timing.phase_anchor_sec,
-                crossfade_sec=timing.crossfade_sec,
-                tempo_ratio=round(tempo_ratio, 4),
-                key_relation=key_relation,
-                transition_technique=timing.technique,
-                energy_target=payload.energy or next_energy or "medium",
-                fx_automation=fx_automation,
-                score=round(score, 4),
-            )
-        )
-
-    return DjMixPlanResult(
-        playlist=ordered_playlist,
+    # ── Run GrooveEngine playlist planning (11-factor scoring) ────────
+    logger.warning("[DJ-MIX-PLAN] Running GrooveEngine plan with %d tracks...", len(track_metas))
+    t1 = time.time()
+    result = run_groove_engine_plan(
+        track_metas=track_metas,
+        song_playlist_data={item.song_id: item for item in playlist},
         processed_files=style_result.processed_files,
-        meta=style_result.meta,
-        transition_plan=transition_plan,
+        style_meta=style_result.meta,
+        energy_target=payload.energy,
     )
+    logger.warning("[DJ-MIX-PLAN] GrooveEngine done in %.1fs, final playlist=%d, transitions=%d", time.time() - t1, len(result.playlist), len(result.transition_plan))
+    return result
 
 
 def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOfflineMixResult:
@@ -1054,9 +942,23 @@ def reorder_playlist_songs(
     db.commit()
 
 
+def _remap_audio_path(path: str) -> str | None:
+    """Remap legacy Docker paths (/app/...) to the current working directory."""
+    if not path:
+        return None
+    if os.path.isfile(path):
+        return path
+    if path.startswith("/app/"):
+        remapped = os.path.join(os.getcwd(), path[len("/app/"):])
+        if os.path.isfile(remapped):
+            return remapped
+    return None
+
+
 def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str | None:
-    if song.audio_url and os.path.isfile(song.audio_url):
-        return song.audio_url
+    resolved = _remap_audio_path(song.audio_url or "")
+    if resolved:
+        return resolved
 
     by_song_id = (
         db.query(LibrarySong)
@@ -1070,8 +972,9 @@ def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str 
         .all()
     )
     for item in by_song_id:
-        if item.source_path and os.path.isfile(item.source_path):
-            return item.source_path
+        resolved = _remap_audio_path(item.source_path or "")
+        if resolved:
+            return resolved
 
     by_title_artist = (
         db.query(LibrarySong)
@@ -1086,8 +989,9 @@ def _resolve_user_song_audio_path(db: Session, song: Song, user_id: int) -> str 
         .all()
     )
     for item in by_title_artist:
-        if item.source_path and os.path.isfile(item.source_path):
-            return item.source_path
+        resolved = _remap_audio_path(item.source_path or "")
+        if resolved:
+            return resolved
 
     return None
 

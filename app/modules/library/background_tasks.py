@@ -11,6 +11,7 @@ Resource safety:
 """
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import os
@@ -55,9 +56,29 @@ def _refresh_analysis_lock() -> None:
     r = get_redis()
     r.expire(ANALYSIS_LOCK_KEY, ANALYSIS_LOCK_TTL)
 
+# ── Memory management ─────────────────────────────────────────────────────
+
+def _force_memory_release():
+    """Force glibc to return freed memory to OS.
+
+    Python's gc.collect() frees Python objects, but glibc's malloc keeps
+    freed pages in its arena for reuse.  malloc_trim(0) forces glibc to
+    release those pages back to the kernel, preventing RSS from growing
+    monotonically across multiple songs.
+    """
+    gc.collect()
+    if platform.system() == "Linux":
+        try:
+            import ctypes
+            libc = ctypes.CDLL("libc.so.6")
+            libc.malloc_trim(0)
+        except Exception:
+            pass
+
+
 # ── Memory limit for child processes (Linux only) ─────────────────────────
 
-_CHILD_MEM_LIMIT_BYTES = int(1.5 * 1024 * 1024 * 1024)  # 1.5 GB
+_CHILD_MEM_LIMIT_BYTES = int(2.5 * 1024 * 1024 * 1024)  # 2.5 GB
 
 
 def _get_preexec_fn():
@@ -121,6 +142,7 @@ def run_analysis_and_separation(song_id: str) -> None:
         _do_analysis_and_separation(song_id)
     finally:
         _release_analysis_lock()
+        _force_memory_release()  # return freed pages to OS after each song
 
 
 def _do_analysis_and_separation(song_id: str) -> None:
@@ -154,6 +176,11 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.downbeats = result.get("downbeats", [])
                 song.phrase_map = result.get("phrase_map", [])
                 song.key_confidence = result.get("key_confidence")
+                song.beat_confidence = result.get("beat_confidence")
+                song.beat_grid_offset = result.get("beat_grid_offset")
+                song.beat_grid_interval = result.get("beat_grid_interval")
+                song.beat_engines_used = result.get("beat_engines_used", [])
+                song.beat_needs_review = int(result.get("beat_needs_review", False))
                 raw_cues = result.get("cue_points", [])
                 song.cue_points = [
                     {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
@@ -165,6 +192,8 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 logger.exception("[bg-analysis] Phase 1 failed for %s", song_id)
                 song.analysis_status = "error"
                 db.commit()
+
+        _force_memory_release()  # free Phase 1 temporaries + return pages to OS
 
         # --- Phase 2: Stem separation (demucs) ---
         try:
@@ -181,11 +210,17 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 python_exe = sys.executable
                 logger.info("[bg-analysis] starting demucs for %s", song_id)
                 _refresh_analysis_lock()  # reset TTL before long demucs run
+
+                import torch as _torch
+                _demucs_device = "cuda" if _torch.cuda.is_available() else "cpu"
+                logger.info("[bg-analysis] demucs device=%s", _demucs_device)
+
                 result = subprocess.run(
                     [
                         python_exe, "-m", "demucs",
                         "-n", "htdemucs",
-                        "--segment", "7",   # process 7s chunks (htdemucs max ~7.8, uses swap if needed)
+                        "-d", _demucs_device,
+                        "--segment", "7",   # 7s chunks: good balance of quality vs memory (~2GB peak)
                         "-o", stems_base,
                         song.source_path,
                     ],
@@ -205,10 +240,31 @@ def _do_analysis_and_separation(song_id: str) -> None:
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
                 logger.info("[bg-analysis] stems separated for %s", song_id)
+
+                # Convert WAV stems to MP3 for faster streaming (WAV ~43MB → MP3 ~4MB)
+                import shutil
+                ffmpeg = shutil.which("ffmpeg")
+                if ffmpeg:
+                    for s in stem_names:
+                        wav_path = os.path.join(stems_dir, f"{s}.wav")
+                        mp3_path = os.path.join(stems_dir, f"{s}.mp3")
+                        if os.path.isfile(wav_path) and not os.path.isfile(mp3_path):
+                            try:
+                                subprocess.run(
+                                    [ffmpeg, "-i", wav_path, "-b:a", "192k", "-y", mp3_path],
+                                    capture_output=True, timeout=120,
+                                )
+                            except Exception:
+                                logger.warning("[bg-analysis] ffmpeg WAV→MP3 failed for %s/%s", song_id, s)
+                    logger.info("[bg-analysis] MP3 stems generated for %s", song_id)
+                else:
+                    logger.warning("[bg-analysis] ffmpeg not found, skipping MP3 stem conversion")
             else:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
+
+        _force_memory_release()  # free Phase 2 temporaries + return pages to OS
 
         # --- Phase 3: CLAP audio embedding + ChromaDB indexing ---
         try:

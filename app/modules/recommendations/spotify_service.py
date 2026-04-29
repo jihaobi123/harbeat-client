@@ -1,76 +1,74 @@
-"""Spotify search integration for vibe search.
+"""Spotify search service — ported from FinalReco (commit 1d65a9dc).
 
-Uses spotipy client credentials flow (no user login needed).
+Uses spotipy client-credentials flow (no user auth needed).
 """
 from __future__ import annotations
 
 import logging
 import os
-from typing import List, Optional
+from typing import List
 
 logger = logging.getLogger(__name__)
 
-_sp_client = None
+_MARKET = "US"
+_DEFAULT_LIMIT = 10
+_MAX_LIMIT = 10  # Spotify client-credentials cap
+
+
+def _client_id() -> str:
+    return os.getenv("SPOTIPY_CLIENT_ID", "").strip()
+
+
+def _client_secret() -> str:
+    return os.getenv("SPOTIPY_CLIENT_SECRET", "").strip()
 
 
 def _get_client():
-    global _sp_client
-    if _sp_client is not None:
-        return _sp_client
-    try:
-        import spotipy
-        from spotipy.oauth2 import SpotifyClientCredentials
-    except ImportError:
-        logger.warning("spotipy not installed — Spotify search disabled")
-        return None
+    """Lazy import + create spotipy client."""
+    import spotipy
+    from spotipy.oauth2 import SpotifyClientCredentials
 
-    client_id = os.getenv("SPOTIPY_CLIENT_ID", "").strip()
-    client_secret = os.getenv("SPOTIPY_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
-        logger.warning("SPOTIPY_CLIENT_ID/SECRET not set — Spotify search disabled")
-        return None
-
-    try:
-        _sp_client = spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=client_id,
-                client_secret=client_secret,
-            )
+    return spotipy.Spotify(
+        auth_manager=SpotifyClientCredentials(
+            client_id=_client_id(),
+            client_secret=_client_secret(),
         )
-        return _sp_client
-    except Exception:
-        logger.exception("Failed to init Spotify client")
-        return None
+    )
 
 
-def search_tracks(search_query: str, limit: int = 10) -> List[dict]:
-    """Search Spotify and return normalized track dicts."""
-    sp = _get_client()
-    if sp is None:
+def search_tracks(query: str, limit: int = _DEFAULT_LIMIT) -> List[dict]:
+    """Search Spotify and return normalised track dicts."""
+    if not _client_id() or not _client_secret():
+        logger.warning("Spotify credentials not configured, returning empty results")
         return []
+
+    # Spotify client-credentials flow caps at 10 results per request
+    safe_limit = max(1, min(int(limit), _MAX_LIMIT))
 
     try:
-        results = sp.search(q=search_query, type="track", market="US", limit=limit)
-        items = results.get("tracks", {}).get("items", [])
-    except Exception:
-        logger.exception("Spotify search failed for query: %s", search_query)
+        sp = _get_client()
+        logger.info("Spotify search: q=%r, limit=%d", query, safe_limit)
+        raw = (
+            sp.search(q=str(query), type="track", market=_MARKET, limit=safe_limit)
+            .get("tracks", {})
+            .get("items", [])
+        )
+    except Exception as exc:
+        logger.error("Spotify search failed: %s", exc)
         return []
 
-    tracks = []
-    for item in items:
-        if not item or not item.get("id"):
-            continue
-        artists = ", ".join(
-            a.get("name", "") for a in (item.get("artists") or []) if a.get("name")
-        ) or "Unknown Artist"
-        album_images = item.get("album", {}).get("images", [])
-        album_art = album_images[0]["url"] if album_images else None
-        tracks.append({
-            "spotify_id": item["id"],
-            "title": item.get("name", "Unknown"),
+    results: List[dict] = []
+    for item in raw:
+        artists = ", ".join(a.get("name", "") for a in (item.get("artists") or []))
+        album = item.get("album") or {}
+        images = album.get("images") or []
+        results.append({
+            "title": item.get("name", ""),
             "artist": artists,
+            "spotify_id": item.get("id"),
             "preview_url": item.get("preview_url"),
-            "album_art": album_art,
-            "spotify_url": item.get("external_urls", {}).get("spotify"),
+            "album_art": images[0]["url"] if images else None,
+            "spotify_url": (item.get("external_urls") or {}).get("spotify"),
         })
-    return tracks
+
+    return results

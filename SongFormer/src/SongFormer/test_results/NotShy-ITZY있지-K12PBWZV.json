@@ -1,0 +1,53 @@
+{
+  "audio_file": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_audio\\NotShy-ITZY있지-K12PBWZV.mp3",
+  "device": "cuda",
+  "task": "music_structure_analysis",
+  "note": "SongFormer predicts song structure segments, not melody/chord transcription.",
+  "segments": [
+    {
+      "label": "chorus",
+      "start": 0.0,
+      "end": 9.600384015360614
+    },
+    {
+      "label": "verse",
+      "start": 9.600384015360614,
+      "end": 28.681147245889836
+    },
+    {
+      "label": "chorus",
+      "start": 28.681147245889836,
+      "end": 47.52190087603504
+    },
+    {
+      "label": "chorus",
+      "start": 47.52190087603504,
+      "end": 66.60266410656426
+    },
+    {
+      "label": "verse",
+      "start": 66.60266410656426,
+      "end": 85.32341293651746
+    },
+    {
+      "label": "chorus",
+      "start": 85.32341293651746,
+      "end": 104.6441857674307
+    },
+    {
+      "label": "chorus",
+      "start": 104.6441857674307,
+      "end": 126.00504020160807
+    },
+    {
+      "label": "verse",
+      "start": 126.00504020160807,
+      "end": 144.96579863194526
+    },
+    {
+      "label": "chorus",
+      "start": 144.96579863194526,
+      "end": 177.72710908436338
+    }
+  ]
+}

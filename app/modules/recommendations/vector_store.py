@@ -22,7 +22,6 @@ import sys
 from typing import List, Optional
 
 import chromadb
-from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +51,58 @@ def get_clap_collection():
 
 
 def get_text_collection():
-    """Get the text-based fallback collection (uses ChromaDB default embeddings)."""
+    """Get the text-based fallback collection.
+
+    Uses a PyTorch-backed sentence-transformer embedding function instead of
+    ChromaDB's DefaultEmbeddingFunction (which relies on onnxruntime and
+    crashes with SIGABRT on Jetson ARM64).
+    """
     client = _get_client()
-    return client.get_or_create_collection(name=COLLECTION_TEXT)
+    ef = _get_safe_embedding_function()
+    try:
+        return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
+    except ValueError:
+        # Embedding function conflict: collection was created with a different EF.
+        # Delete and recreate with the current EF.
+        logger.warning("[vector_store] EF conflict on %s, recreating collection", COLLECTION_TEXT)
+        client.delete_collection(name=COLLECTION_TEXT)
+        return client.get_or_create_collection(name=COLLECTION_TEXT, embedding_function=ef)
+
+
+def _get_safe_embedding_function():
+    """Return a ChromaDB-compatible embedding function that does NOT use onnxruntime."""
+    try:
+        # Use HuggingFace mirror for Chinese network
+        import os
+        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("[vector_store] SentenceTransformer device=%s", device)
+        return SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2",
+            device=device,
+        )
+    except Exception as exc:
+        logger.warning("[vector_store] SentenceTransformerEmbeddingFunction unavailable (%s), using noop", exc)
+        # DO NOT fall back to DefaultEmbeddingFunction — it uses onnxruntime
+        # which crashes with SIGABRT on Jetson ARM64.
+        return _NoopEmbeddingFunction()
+
+
+class _NoopEmbeddingFunction:
+    """Minimal embedding function that returns zero vectors.
+
+    Used as last-resort fallback so ChromaDB can still operate without
+    onnxruntime (which crashes on Jetson ARM64).  Semantic quality is
+    lost but the server stays alive.
+    """
+
+    def name(self) -> str:
+        return "noop"
+
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        return [[0.0] * 384 for _ in input]
 
 
 # ── Subprocess helpers ──────────────────────────────────────────────
@@ -189,17 +237,24 @@ def search_songs(query: str, top_k: int = 12) -> List[dict]:
         except Exception:
             logger.warning("[clap] CLAP text subprocess failed, falling back to text search", exc_info=True)
 
-    # Fallback: text-based search
-    text_col = get_text_collection()
-    if text_col.count() == 0:
-        return []
-
-    results = text_col.query(
-        query_texts=[query],
-        n_results=min(top_k, text_col.count()),
-        include=["metadatas", "distances", "documents"],
-    )
-    return _parse_results(results)
+    # Fallback: text-based semantic search via sentence-transformers (PyTorch).
+    # Uses SentenceTransformerEmbeddingFunction instead of ChromaDB's
+    # DefaultEmbeddingFunction to avoid onnxruntime SIGABRT on Jetson ARM64.
+    try:
+        text_col = get_text_collection()
+        if text_col.count() > 0:
+            results = text_col.query(
+                query_texts=[query],
+                n_results=min(top_k, text_col.count()),
+                include=["metadatas", "distances", "documents"],
+            )
+            rows = _parse_results(results)
+            if rows:
+                logger.info("[clap] fallback text search returned %d results", len(rows))
+                return rows
+    except Exception:
+        logger.warning("[clap] text fallback search failed", exc_info=True)
+    return []
 
 
 def _parse_results(results: dict) -> List[dict]:

@@ -16,7 +16,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export default function MainLayout() {
   const { user } = useAuthStore()
-  const { loadSongs, loadPlaylists, searchSongs, setSearchQuery, searchQuery } = useMusicStore()
+  const { loadSongs, loadPlaylists, searchSongs, setSearchQuery, searchQuery, selectedSong, selectSong } = useMusicStore()
   const [showUpload, setShowUpload] = useState(false)
   const [showPlaylistImport, setShowPlaylistImport] = useState(false)
   const [currentView, setCurrentView] = useState<NavView>('library')
@@ -46,6 +46,10 @@ export default function MainLayout() {
     setSidebarOpen(false)
   }, [])
 
+  const handleBack = useCallback(() => {
+    selectSong(null)
+  }, [selectSong])
+
   const renderMainContent = () => {
     switch (currentView) {
       case 'platform':
@@ -60,8 +64,20 @@ export default function MainLayout() {
       default:
         return (
           <>
-            <SongList />
-            <SongDetail />
+            {/* Mobile: show detail full-screen when song selected */}
+            <div className={`md:hidden flex-1 min-w-0 ${selectedSong ? 'hidden' : 'flex flex-col'}`}>
+              <SongList />
+            </div>
+            {selectedSong && (
+              <div className="md:hidden flex-1 min-w-0 flex flex-col">
+                <SongDetail onBack={handleBack} />
+              </div>
+            )}
+            {/* Desktop: side-by-side */}
+            <div className="hidden md:contents">
+              <SongList />
+              <SongDetail />
+            </div>
           </>
         )
     }
@@ -111,9 +127,10 @@ export default function MainLayout() {
           </button>
           <button
             onClick={() => setShowPlaylistImport(true)}
-            className="hidden sm:block bg-surface-lighter text-sm font-semibold px-3 py-2 rounded-md"
+            className="bg-surface-lighter text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1.5 sm:py-2 rounded-md"
           >
-            Import Playlist
+            <span className="hidden sm:inline">Import Playlist</span>
+            <span className="sm:hidden">📥</span>
           </button>
           <button
             onClick={() => setShowUpload(true)}

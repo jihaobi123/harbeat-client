@@ -27,9 +27,23 @@ class LibrarySongBase(BaseModel):
     key: str | None = None
     camelot_key: str | None = None
     energy: float | None = None
+    genres: list[dict] = Field(default_factory=list)
+    genre_status: str = "none"
+    genre_source: str | None = None
+    music_features: dict = Field(default_factory=dict)
+    dance_styles: list[dict] = Field(default_factory=list)
+    dance_style_scores: dict = Field(default_factory=dict)
+    dance_style_status: str = "none"
+    classifier_params: dict = Field(default_factory=dict)
+    classifier_version: str | None = None
     analysis_status: str = "none"
     beat_points: list[float] = Field(default_factory=list)
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
+    beat_confidence: float | None = None
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] = Field(default_factory=list)
+    beat_needs_review: int = 0
     stems: dict | None = None
     song_id: int | None = None
     created_at: datetime
@@ -53,10 +67,37 @@ class LibrarySongUpdateRequest(BaseModel):
     key: str | None = None
     camelot_key: str | None = None
     energy: float | None = None
+    genres: list[dict] | None = None
+    genre_status: str | None = None
+    genre_source: str | None = None
+    music_features: dict | None = None
+    dance_styles: list[dict] | None = None
+    dance_style_scores: dict | None = None
+    dance_style_status: str | None = None
+    classifier_params: dict | None = None
+    classifier_version: str | None = None
     analysis_status: str | None = None
     beat_points: list[float] | None = None
     cue_points: list[LibraryCuePoint] | None = None
+    beat_confidence: float | None = None
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] | None = None
+    beat_needs_review: bool | None = None
     stems: dict | None = None
+
+
+class DanceStyleClassifyRequest(BaseModel):
+    params: dict = Field(default_factory=dict)
+    top_k: int = Field(5, ge=1, le=13)
+    threshold: float = Field(0.35, ge=0.0, le=1.0)
+
+
+class BeatCorrectionRequest(BaseModel):
+    """Manual beat/BPM correction from human review."""
+    bpm: float | None = None
+    grid_offset: float | None = None
+    downbeat_phase: int | None = Field(None, ge=0, le=3)
 
 
 class LibrarySongData(LibrarySongBase):

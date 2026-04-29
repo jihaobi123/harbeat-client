@@ -62,29 +62,26 @@ class AddToLibraryData(BaseModel):
     artist: str
 
 
-# --- Vibe / semantic search ---
+# --- Vibe search (CLAP + Spotify hybrid) ---
 class VibeSearchRequest(BaseModel):
     query: str
     user_id: Optional[int] = None
-    top_k: int = 12
+    top_k: int = 10
 
 
 class VibeSearchSongItem(BaseModel):
-    """A vibe search result — can be a Spotify track or a local library song."""
-    song_id: Optional[int] = None        # catalog song id (if local)
+    song_id: Optional[int] = None
     title: str
     artist: str
     style: Optional[str] = None
     energy: Optional[str] = None
-    distance: float = 0.0                # semantic distance (lower = better)
-    in_library: bool = False
-    library_song_id: Optional[str] = None
-    # Spotify fields
     spotify_id: Optional[str] = None
-    preview_url: Optional[str] = None    # 30-sec preview audio
-    album_art: Optional[str] = None      # cover image URL
-    spotify_url: Optional[str] = None    # Spotify open link
-    source: str = "local"                # "spotify" | "local"
+    preview_url: Optional[str] = None
+    album_art: Optional[str] = None
+    spotify_url: Optional[str] = None
+    source: str = "local"  # "local" | "spotify"
+    in_library: bool = False
+    match_percentage: float = 0.0
 
 
 class VibeSearchData(BaseModel):

@@ -17,7 +17,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 CLAP_MODEL_NAME = "laion/clap-htsat-unfused"
-CLAP_LOCAL_PATH = "/app/data/clap_model"
+CLAP_LOCAL_PATH = os.environ.get("CLAP_MODEL_PATH", os.path.join(_project_root, "data", "clap_model"))
 
 
 def _load_clap():
@@ -53,10 +53,13 @@ def main() -> None:
         import numpy as np
         import torch
 
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         processor, model = _load_clap()
-        model.eval()
+        model.to(device).eval()
 
         inputs = processor(text=[query_text], return_tensors="pt", padding=True, truncation=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
             features = model.get_text_features(**inputs)
             if hasattr(features, "pooler_output") and features.pooler_output is not None:

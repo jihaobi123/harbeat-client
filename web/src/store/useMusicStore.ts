@@ -29,6 +29,7 @@ interface MusicState {
   selectSong: (song: LibrarySong | null) => void
   uploadFile: (file: File, title?: string, artist?: string) => Promise<void>
   analyzeSong: (songId: string) => Promise<void>
+  classifyDanceStyles: (songId: string, params?: Record<string, unknown>) => Promise<void>
   deleteSong: (songId: string) => Promise<void>
   playSong: (song: LibrarySong) => void
   togglePlay: () => void
@@ -92,6 +93,16 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   analyzeSong: async (songId) => {
     try {
       const updated = await api.analyzeSong(songId)
+      set((state) => ({
+        songs: state.songs.map((s) => (s.id === songId ? updated : s)),
+        selectedSong: state.selectedSong?.id === songId ? updated : state.selectedSong,
+      }))
+    } catch { /* ignore */ }
+  },
+
+  classifyDanceStyles: async (songId, params = {}) => {
+    try {
+      const updated = await api.classifyDanceStyles(songId, { params })
       set((state) => ({
         songs: state.songs.map((s) => (s.id === songId ? updated : s)),
         selectedSong: state.selectedSong?.id === songId ? updated : state.selectedSong,

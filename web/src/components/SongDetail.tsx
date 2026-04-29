@@ -20,64 +20,127 @@ const STEM_INFO: Record<string, { label: string; emoji: string; color: string }>
   other: { label: '其他', emoji: '🎹', color: '#60a5fa' },
 }
 
-/* ─── Synchronized Stem Player ─── */
+/* ─── Synchronized Stem Player (Web Audio API) ─── */
 function StemPlayer({ songId }: { songId: string }) {
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const gainNodesRef = useRef<Record<string, GainNode>>({})
+  const connectedRef = useRef(false)
+  const syncTimerRef = useRef<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volumes, setVolumes] = useState<Record<string, number>>({ vocals: 1, drums: 1, bass: 1, other: 1 })
   const [muted, setMuted] = useState<Record<string, boolean>>({ vocals: false, drums: false, bass: false, other: false })
   const [ready, setReady] = useState(false)
   const stemNames = ['vocals', 'drums', 'bass', 'other']
 
+  // Connect audio elements to Web Audio API graph (lazy, on first user gesture)
+  const ensureAudioGraph = useCallback(() => {
+    if (connectedRef.current) return
+    const ctx = new AudioContext()
+    audioCtxRef.current = ctx
+
+    stemNames.forEach(name => {
+      const audio = audioRefs.current[name]
+      if (audio) {
+        const source = ctx.createMediaElementSource(audio)
+        const gain = ctx.createGain()
+        source.connect(gain)
+        gain.connect(ctx.destination)
+        gainNodesRef.current[name] = gain
+      }
+    })
+    connectedRef.current = true
+  }, [])
+
   useEffect(() => {
-    // Reset state when songId changes
     setIsPlaying(false)
     setReady(false)
     setVolumes({ vocals: 1, drums: 1, bass: 1, other: 1 })
     setMuted({ vocals: false, drums: false, bass: false, other: false })
 
     let loaded = 0
-    const checkReady = () => { loaded++; if (loaded >= stemNames.length) setReady(true) }
+    const checkReady = () => {
+      loaded++
+      if (loaded >= stemNames.length) setReady(true)
+    }
 
     stemNames.forEach(name => {
       const audio = audioRefs.current[name]
       if (audio) {
+        // Set crossOrigin BEFORE src so the CORS request is made from the start
+        audio.crossOrigin = 'anonymous'
+        audio.preload = 'auto'
         audio.src = getStemStreamUrl(songId, name)
-        audio.preload = 'metadata'
-        audio.volume = 1
-        audio.muted = false
-        audio.oncanplaythrough = checkReady
+        // Use 'canplay' instead of 'canplaythrough' — large WAV files
+        // may never fire 'canplaythrough' over slow connections
+        audio.oncanplay = checkReady
+        audio.onerror = () => {
+          console.warn(`[StemPlayer] Failed to load stem: ${name}`)
+          checkReady() // count as loaded so button isn't stuck disabled
+        }
         audio.onended = () => setIsPlaying(false)
       }
     })
 
     return () => {
+      if (syncTimerRef.current) cancelAnimationFrame(syncTimerRef.current)
       stemNames.forEach(name => {
         const audio = audioRefs.current[name]
         if (audio) { audio.pause(); audio.src = '' }
       })
+      audioCtxRef.current?.close()
+      audioCtxRef.current = null
+      gainNodesRef.current = {}
+      connectedRef.current = false
     }
   }, [songId])
 
+  // Drift correction: keep all stems within 30ms of master
+  const startSyncLoop = useCallback(() => {
+    const tick = () => {
+      const master = audioRefs.current.vocals
+      if (!master || master.paused) return
+      const masterTime = master.currentTime
+      stemNames.forEach(name => {
+        if (name === 'vocals') return
+        const audio = audioRefs.current[name]
+        if (audio && Math.abs(audio.currentTime - masterTime) > 0.03) {
+          audio.currentTime = masterTime
+        }
+      })
+      syncTimerRef.current = requestAnimationFrame(tick)
+    }
+    syncTimerRef.current = requestAnimationFrame(tick)
+  }, [])
+
   const togglePlay = useCallback(() => {
+    ensureAudioGraph()
+    const ctx = audioCtxRef.current
+    if (ctx?.state === 'suspended') ctx.resume()
+
     const refs = stemNames.map(n => audioRefs.current[n]).filter(Boolean) as HTMLAudioElement[]
     if (isPlaying) {
       refs.forEach(a => a.pause())
+      if (syncTimerRef.current) cancelAnimationFrame(syncTimerRef.current)
     } else {
-      // Sync all to master's time
+      // Sync all to master's time, then start simultaneously
       const master = refs[0]
       if (master) refs.forEach(a => { a.currentTime = master.currentTime })
-      refs.forEach(a => a.play().catch(() => {}))
+      Promise.all(refs.map(a => a.play())).catch(() => {})
+      startSyncLoop()
     }
     setIsPlaying(!isPlaying)
-  }, [isPlaying])
+  }, [isPlaying, ensureAudioGraph, startSyncLoop])
 
   const handleVolumeChange = useCallback((stem: string, value: number) => {
     setVolumes(prev => ({ ...prev, [stem]: value }))
-    const audio = audioRefs.current[stem]
-    if (audio) {
-      audio.volume = value
-      audio.muted = value === 0
+    const gain = gainNodesRef.current[stem]
+    if (gain) {
+      gain.gain.value = value
+    } else {
+      // Fallback before AudioContext is created
+      const audio = audioRefs.current[stem]
+      if (audio) audio.volume = value
     }
     setMuted(prev => ({ ...prev, [stem]: value === 0 }))
   }, [])
@@ -85,13 +148,23 @@ function StemPlayer({ songId }: { songId: string }) {
   const toggleMute = useCallback((stem: string) => {
     setMuted(prev => {
       const next = { ...prev, [stem]: !prev[stem] }
-      const audio = audioRefs.current[stem]
-      if (audio) {
-        audio.muted = next[stem]
-        if (!next[stem] && volumes[stem] === 0) {
-          // Unmuting from 0 → restore to 1
-          setVolumes(v => ({ ...v, [stem]: 1 }))
-          audio.volume = 1
+      const gain = gainNodesRef.current[stem]
+      if (gain) {
+        if (next[stem]) {
+          gain.gain.value = 0
+        } else {
+          const vol = volumes[stem] === 0 ? 1 : volumes[stem]
+          gain.gain.value = vol
+          if (volumes[stem] === 0) setVolumes(v => ({ ...v, [stem]: 1 }))
+        }
+      } else {
+        const audio = audioRefs.current[stem]
+        if (audio) {
+          audio.muted = next[stem]
+          if (!next[stem] && volumes[stem] === 0) {
+            setVolumes(v => ({ ...v, [stem]: 1 }))
+            audio.volume = 1
+          }
         }
       }
       return next
@@ -480,9 +553,10 @@ function StyleProcessor({ songId, title }: { songId: string; title: string }) {
 }
 
 /* ─── Main SongDetail ─── */
-export default function SongDetail() {
-  const { selectedSong, playSong, analyzeSong, deleteSong, updateLibrarySongLocal } = useMusicStore()
+export default function SongDetail({ onBack }: { onBack?: () => void } = {}) {
+  const { selectedSong, playSong, analyzeSong, classifyDanceStyles, deleteSong, updateLibrarySongLocal } = useMusicStore()
   const [analyzing, setAnalyzing] = useState(false)
+  const [classifying, setClassifying] = useState(false)
   const [separating, setSeparating] = useState(false)
   const [stemError, setStemError] = useState('')
 
@@ -508,6 +582,11 @@ export default function SongDetail() {
   const handleAnalyze = async () => {
     setAnalyzing(true)
     try { await analyzeSong(song.id) } finally { setAnalyzing(false) }
+  }
+
+  const handleClassifyDanceStyles = async () => {
+    setClassifying(true)
+    try { await classifyDanceStyles(song.id) } finally { setClassifying(false) }
   }
 
   const handleSeparateStems = async () => {
@@ -545,16 +624,28 @@ export default function SongDetail() {
   }[song.analysis_status] || '未分析'
 
   return (
-    <div className="hidden md:flex w-96 bg-surface-light border-l border-gray-700 flex-col shrink-0 overflow-y-auto">
+    <div className="flex flex-col w-full md:w-96 bg-surface-light md:border-l border-gray-700 shrink-0 overflow-y-auto">
+      {/* Mobile back button */}
+      {onBack && (
+        <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-gray-700 shrink-0">
+          <button
+            onClick={onBack}
+            className="text-sm px-2 py-1 bg-surface-lighter"
+          >
+            ← 返回
+          </button>
+          <span className="text-sm font-semibold truncate flex-1">{song.title}</span>
+        </div>
+      )}
       {/* Header */}
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="w-full aspect-video bg-surface rounded-xl flex items-center justify-center text-5xl mb-4">🎵</div>
         <h3 className="text-lg font-bold text-white truncate">{song.title}</h3>
         <p className="text-sm text-gray-400 truncate">{song.artist}</p>
       </div>
 
       {/* Analysis cards */}
-      <div className="px-5 space-y-3">
+      <div className="px-4 sm:px-5 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <MetaCard label="BPM" value={song.bpm ? `${Math.round(song.bpm)}` : analysisText} accent={!!song.bpm} />
           <MetaCard label="Key" value={song.key ? `${song.camelot_key} · ${song.key}` : analysisText} accent={!!song.key} />
@@ -564,6 +655,96 @@ export default function SongDetail() {
           {analysisCompleted && (
             <MetaCard label="Beat 节拍" value={`${song.beat_points.length} 个`} accent />
           )}
+        </div>
+
+        {/* Music genre and dance style recommendations */}
+        <div className="bg-surface rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-semibold text-white">音乐画像</h4>
+              <p className="text-[10px] text-gray-500">
+                {song.genre_status === 'completed' ? `流派来源：${song.genre_source || 'Essentia'}` : '分析后显示音乐流派和推荐舞种'}
+              </p>
+            </div>
+            <button
+              onClick={handleClassifyDanceStyles}
+              disabled={classifying || !song.bpm}
+              className="text-xs bg-primary/20 hover:bg-primary/30 disabled:opacity-40 text-primary px-3 py-1 rounded-lg transition shrink-0"
+            >
+              {classifying ? '评分中...' : '重新评分'}
+            </button>
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">音乐流派</div>
+            {song.genres?.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {song.genres.slice(0, 8).map((genre, idx) => (
+                  <span key={`${genre.name}-${idx}`} className="px-2 py-1 rounded-full bg-surface-lighter text-[11px] text-gray-200 border border-gray-700">
+                    {genre.name}
+                    <span className="ml-1 text-gray-500">{Math.round((genre.confidence || 0) * 100)}%</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无流派结果，请先运行分析。</p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">中间音乐特征</div>
+            {song.music_features?.top_features?.length ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {song.music_features.top_features.slice(0, 6).map((feature) => (
+                  <div key={feature.name} className="bg-surface-lighter rounded-lg px-2 py-1.5 border border-gray-700/70">
+                    <div className="flex items-center justify-between text-[10px] mb-1">
+                      <span className="text-gray-400">{feature.name}</span>
+                      <span className="text-gray-300">{Math.round(feature.value * 100)}%</span>
+                    </div>
+                    <div className="h-1 bg-surface rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${Math.round(feature.value * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无中间特征。完成流派分析后会由 genre + BPM + energy + beat + phrase 推导。</p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-[10px] text-gray-500 mb-1.5">推荐舞种</div>
+            {song.dance_styles?.length ? (
+              <div className="space-y-2">
+                {song.dance_styles.map((item, idx) => {
+                  const style = item.style as DanceStyle
+                  const color = DANCE_STYLE_COLORS[style] || '#64748b'
+                  return (
+                    <div key={`${item.style}-${idx}`} className="bg-surface-lighter rounded-lg p-3 border border-gray-700/70">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                        <span className="text-sm font-medium text-white">{DANCE_STYLE_LABELS[style] || item.style}</span>
+                        <span className="ml-auto text-xs font-semibold" style={{ color }}>{Math.round((item.score || 0) * 100)}分</span>
+                      </div>
+                      {item.reasons?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {item.reasons.map((reason, rIdx) => (
+                            <span key={rIdx} className="text-[10px] bg-surface px-1.5 py-0.5 rounded text-gray-400">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-gray-500">基于 BPM、能量、节拍稳定度和结构特征评分。</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">暂无推荐舞种，请先完成歌曲分析或点击重新评分。</p>
+            )}
+          </div>
         </div>
 
         {/* Cue Points */}
@@ -594,12 +775,12 @@ export default function SongDetail() {
       </div>
 
       {/* Waveform player */}
-      <div className="px-5 mt-4">
+      <div className="px-4 sm:px-5 mt-4">
         <WaveformPlayer song={song} />
       </div>
 
       {/* Stem separation */}
-      <div className="px-5 mt-4 space-y-3">
+      <div className="px-4 sm:px-5 mt-4 space-y-3">
         {!song.stems && analysisInProgress && (
           <div className="bg-surface rounded-xl p-4">
             <div className="flex items-center gap-2">
@@ -638,7 +819,7 @@ export default function SongDetail() {
       </div>
 
       {/* Actions */}
-      <div className="p-5 mt-auto space-y-2">
+      <div className="p-4 sm:p-5 mt-auto space-y-2">
         <button
           onClick={() => playSong(song)}
           className="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition"

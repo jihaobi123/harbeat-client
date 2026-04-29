@@ -113,35 +113,40 @@ async def _resolve_qq_id(input_val: str) -> str:
 
 async def _fetch_qqmusic(input_val: str) -> dict:
     disstid = await _resolve_qq_id(input_val)
-    api_url = "https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg"
-    params = {
-        "type": "1",
-        "utf8": "1",
-        "disstid": disstid,
-        "format": "json",
-        "inCharset": "utf8",
-        "outCharset": "utf-8",
+    api_url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+    body = {
+        "req_0": {
+            "module": "srf_diss_info.DissInfoServer",
+            "method": "CgiGetDiss",
+            "param": {
+                "disstid": int(disstid),
+                "onlysonglist": 0,
+                "song_begin": 0,
+                "song_num": 500,
+            },
+        }
     }
     async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(api_url, params=params, headers={
+        resp = await client.post(api_url, json=body, headers={
             "User-Agent": _UA,
             "Referer": "https://y.qq.com/",
         })
         resp.raise_for_status()
         data = resp.json()
 
-    cdlist = data.get("cdlist", [])
-    if not cdlist:
+    req0 = data.get("req_0", {})
+    if req0.get("code") != 0:
         raise ValueError("获取QQ音乐歌单失败")
 
-    cd = cdlist[0]
+    diss_data = req0.get("data", {})
+    dirinfo = diss_data.get("dirinfo", {})
     tracks = [
         {
-            "title": t.get("songname", ""),
+            "title": t.get("title", ""),
             "artist": " / ".join(s.get("name", "") for s in t.get("singer", [])) or "未知",
-            "album": t.get("albumname", ""),
+            "album": (t.get("album") or {}).get("name", ""),
             "duration": t.get("interval", 0),
         }
-        for t in cd.get("songlist", [])
+        for t in diss_data.get("songlist", [])
     ]
-    return {"name": cd.get("dissname", "未知歌单"), "platform": "qqmusic", "tracks": tracks}
+    return {"name": dirinfo.get("title", "未知歌单"), "platform": "qqmusic", "tracks": tracks}

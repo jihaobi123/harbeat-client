@@ -1,0 +1,18 @@
+{
+  "audio_file": "D:\\harbeat\\SongFormer\\src\\SongFormer\\test_audio\\NotShy-ITZY-20s.wav",
+  "device": "cuda",
+  "task": "music_structure_analysis",
+  "note": "SongFormer predicts song structure segments, not melody/chord transcription.",
+  "segments": [
+    {
+      "label": "chorus",
+      "start": 0.0,
+      "end": 9.600384015360614
+    },
+    {
+      "label": "verse",
+      "start": 9.600384015360614,
+      "end": 19.920796831873275
+    }
+  ]
+}

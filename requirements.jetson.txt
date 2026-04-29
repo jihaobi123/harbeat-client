@@ -1,0 +1,39 @@
+# === Backend (FastAPI) ===
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+sqlalchemy==2.0.43
+psycopg2-binary==2.9.11
+redis==6.4.0
+pydantic-settings==2.10.1
+email-validator==2.2.0
+PyJWT==2.9.0
+python-multipart==0.0.20
+httpx==0.28.1
+
+# === Audio Analysis ===
+librosa==0.10.2.post1
+numpy<2
+pyloudnorm
+pedalboard
+pyrubberband
+soundfile==0.13.1
+
+# === Stem Separation (demucs) ===
+# NOTE: torch and torchaudio are pre-installed in l4t-pytorch base image
+# Do NOT install them here, or they will conflict with Jetson CUDA builds
+sympy==1.13.1
+networkx
+filelock
+jinja2
+fsspec
+demucs==4.0.1
+
+# === NCM Decryption ===
+pycryptodome==3.23.0
+
+# === Semantic Search ===
+chromadb>=0.5.0
+transformers>=4.30.0
+
+# === Spotify API ===
+spotipy>=2.24.0

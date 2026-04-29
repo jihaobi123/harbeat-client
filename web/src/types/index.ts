@@ -22,6 +22,21 @@ export interface LibrarySong {
   key: string | null
   camelot_key: string | null
   energy: number | null
+  genres: Array<{ name: string; confidence: number; source?: string }> | null
+  genre_status: string | null
+  genre_source: string | null
+  music_features: {
+    features?: Record<string, number>
+    top_features?: Array<{ name: string; value: number }>
+    matched_genres?: string[]
+    beat_stability?: number | null
+    source?: string
+  } | null
+  dance_styles: Array<{ style: DanceStyle; score: number; confidence?: number; reasons?: string[]; source?: string; feature_scores?: Record<string, number> }> | null
+  dance_style_scores: Record<string, number> | null
+  dance_style_status: string | null
+  classifier_params: Record<string, unknown> | null
+  classifier_version: string | null
   analysis_status: string
   beat_points: number[]
   cue_points: CuePoint[]
@@ -110,30 +125,6 @@ export interface DiscoverSection {
   icon: string
   description: string
   songs: DiscoverSongItem[]
-}
-
-export interface VibeSearchSongItem {
-  song_id: number | null
-  title: string
-  artist: string
-  style: string | null
-  energy: string | null
-  distance: number
-  in_library: boolean
-  library_song_id: string | null
-  spotify_id: string | null
-  preview_url: string | null
-  album_art: string | null
-  spotify_url: string | null
-  source: 'spotify' | 'local'
-}
-
-export interface VibeSearchResult {
-  query: string
-  vibe_description: string
-  search_query: string
-  genres: string[]
-  songs: VibeSearchSongItem[]
 }
 
 export interface UserProfile {
@@ -232,4 +223,28 @@ export interface DjOfflineMixResult {
   stem_rule_events: Array<Record<string, string | number | boolean | string[]>>
   sample_rate: number
   duration_sec: number
+}
+
+// --- Vibe Search ---
+export interface VibeSearchSongItem {
+  song_id?: number | null
+  title: string
+  artist: string
+  style?: string | null
+  energy?: string | null
+  spotify_id?: string | null
+  preview_url?: string | null
+  album_art?: string | null
+  spotify_url?: string | null
+  source: 'local' | 'spotify'
+  in_library: boolean
+  match_percentage: number
+}
+
+export interface VibeSearchResult {
+  query: string
+  vibe_description: string
+  search_query: string
+  genres: string[]
+  songs: VibeSearchSongItem[]
 }

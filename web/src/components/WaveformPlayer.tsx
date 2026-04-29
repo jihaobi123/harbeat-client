@@ -219,31 +219,40 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
     let destroyed = false
     const streamUrl = getStreamUrl(song.id)
 
-    const init = async () => {
-      const peaks = await extractPeaks(streamUrl, NUM_BARS)
+    // Create audio element immediately so playback can start without waiting for waveform
+    const audio = document.createElement('audio')
+    audio.preload = 'auto'
+    audio.src = streamUrl
+    audio.volume = volume
+    audioRef.current = audio
+
+    audio.addEventListener('loadedmetadata', () => {
       if (destroyed) return
-      peaksRef.current = peaks
+      setDuration(audio.duration)
+      setIsLoading(false)
+      if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
 
-      const audio = document.createElement('audio')
-      audio.preload = 'metadata'
-      audio.src = streamUrl
-      audio.volume = volume
-      audioRef.current = audio
-
-      audio.addEventListener('loadedmetadata', () => {
+      // Load waveform peaks AFTER metadata is ready, so it doesn't compete
+      // for bandwidth with the audio element's initial buffering
+      extractPeaks(streamUrl, NUM_BARS).then(peaks => {
         if (destroyed) return
-        setDuration(audio.duration)
-        setIsLoading(false)
-        if (canvasRef.current) drawWaveform(canvasRef.current, peaksRef.current, 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+        peaksRef.current = peaks
+        if (canvasRef.current && audio.duration) {
+          drawWaveform(canvasRef.current, peaks, audio.duration > 0 ? audio.currentTime / audio.duration : 0, song.cue_points, audio.duration, null, null, fadeIn, fadeOut)
+        }
       })
-      audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
-      audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
-      audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
+    })
 
-      startAnimLoop()
-    }
+    // Allow play button to enable as soon as any data is available
+    audio.addEventListener('canplay', () => {
+      if (destroyed) return
+      setIsLoading(false)
+    })
+    audio.addEventListener('play', () => !destroyed && setIsPlaying(true))
+    audio.addEventListener('pause', () => !destroyed && setIsPlaying(false))
+    audio.addEventListener('ended', () => { if (!destroyed) { setIsPlaying(false); setCurrentTime(0) } })
 
-    init()
+    startAnimLoop()
 
     return () => {
       destroyed = true
@@ -268,8 +277,12 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
   const togglePlay = useCallback(() => {
     const a = audioRef.current
     if (!a) return
-    if (a.paused) a.play().catch(() => {})
-    else a.pause()
+    if (a.paused) {
+      setIsLoading(false) // unlock UI immediately on user gesture
+      a.play().catch(() => {})
+    } else {
+      a.pause()
+    }
   }, [])
 
   const skip = useCallback((delta: number) => {
@@ -333,8 +346,7 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
           <button onClick={() => skip(-5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏪</button>
           <button
             onClick={togglePlay}
-            disabled={isLoading}
-            className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark text-white flex items-center justify-center text-sm transition disabled:opacity-40"
+            className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark text-white flex items-center justify-center text-sm transition"
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
