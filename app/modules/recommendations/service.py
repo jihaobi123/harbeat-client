@@ -500,3 +500,123 @@ def vibe_search(
         genres=genres,
         songs=songs,
     )
+
+
+# ───────────── Import from vibe / playlist pipelines ─────────────
+
+
+def import_from_vibe(
+    db: Session,
+    user_id: int,
+    vibe_description: str,
+    top_k: int = 5,
+    auto_import: bool = True,
+) -> dict:
+    """Full pipeline: vibe → Spotify search → CLAP rerank → download → index.
+
+    Returns ImportFromVibeData-compatible dict.
+    """
+    from app.modules.recommendations.vibe_service import interpret_vibe
+    from app.modules.recommendations.spotify_service import search_tracks
+    from app.modules.recommendations.rerank_service import rerank_tracks
+    from app.modules.recommendations.ingest_service import ingest_spotify_tracks
+
+    vibe = interpret_vibe(vibe_description)
+    spotify_query = vibe["search_query"]
+    vibe_desc = vibe["vibe_description"]
+    genres = vibe.get("genres", [])
+
+    # Step 1: Spotify search
+    spotify_raw = search_tracks(spotify_query, limit=min(top_k * 3, 10))
+    spotify_candidates: list[dict] = []
+    for item in spotify_raw:
+        spotify_candidates.append(VibeSearchSongItem(
+            title=item["title"],
+            artist=item["artist"],
+            spotify_id=item.get("spotify_id"),
+            preview_url=item.get("preview_url"),
+            album_art=item.get("album_art"),
+            spotify_url=item.get("spotify_url"),
+            source="spotify",
+            in_library=False,
+            match_percentage=0.0,
+        ))
+
+    # Step 2: CLAP rerank
+    if spotify_raw:
+        reranked = rerank_tracks(vibe_desc, spotify_raw)
+    else:
+        reranked = []
+    top_tracks = reranked[:top_k]
+
+    # Build enriched song items for reranked results
+    reranked_items: list[dict] = []
+    for t in top_tracks:
+        t_info = t.get("track") or t
+        reranked_items.append({
+            "title": str(t_info.get("name") or t.get("title") or ""),
+            "artist": (
+                ", ".join(a.get("name", "") for a in (t_info.get("artists") or []))
+                or str(t.get("artist") or "")
+            ),
+            "spotify_id": str(t_info.get("id") or t.get("spotify_id") or ""),
+            "semantic_score": t.get("semantic_score", 0),
+        })
+
+    # Step 3: Download + index
+    ingested: list[dict] = []
+    if auto_import and top_tracks:
+        ingested = ingest_spotify_tracks(top_tracks)
+
+    success_count = sum(1 for r in ingested if r.get("success"))
+    return {
+        "vibe_description": vibe_desc,
+        "search_query": spotify_query,
+        "genres": genres,
+        "spotify_candidates": spotify_candidates,
+        "reranked_candidates": reranked_items,
+        "ingested_tracks": ingested,
+        "pipeline_summary": (
+            f"Spotify returned {len(spotify_raw)} tracks, "
+            f"CLAP reranked to {len(reranked_items)}, "
+            f"ingested {success_count}/{len(ingested)} successfully."
+        ),
+    }
+
+
+def import_playlist_spotify(
+    db: Session,
+    user_id: int,
+    playlist_url: str,
+    auto_import: bool = True,
+) -> dict:
+    """Import a Spotify playlist: fetch tracks → download → index.
+
+    Returns ImportPlaylistData-compatible dict.
+    """
+    from app.modules.recommendations.spotify_service import fetch_playlist_tracks
+    from app.modules.recommendations.ingest_service import ingest_spotify_tracks
+
+    tracks = fetch_playlist_tracks(playlist_url)
+    if not tracks:
+        return {
+            "playlist_name": "",
+            "track_count": 0,
+            "ingested_tracks": [],
+            "pipeline_summary": "No tracks found in playlist.",
+        }
+
+    ingested: list[dict] = []
+    if auto_import:
+        ingested = ingest_spotify_tracks(tracks)
+
+    success_count = sum(1 for r in ingested if r.get("success"))
+    return {
+        "playlist_name": f"Spotify playlist ({len(tracks)} tracks)",
+        "track_count": len(tracks),
+        "ingested_tracks": ingested,
+        "pipeline_summary": (
+            f"Fetched {len(tracks)} tracks, "
+            f"ingested {success_count}/{len(ingested)} successfully."
+        ),
+    }

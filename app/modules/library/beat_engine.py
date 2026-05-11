@@ -16,6 +16,7 @@ from __future__ import annotations
 import collections
 import collections.abc
 import logging
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -28,11 +29,13 @@ for _attr in ("MutableSequence", "MutableMapping", "MutableSet",
         setattr(collections, _attr, getattr(collections.abc, _attr))
 
 # NumPy 1.24+ removed deprecated aliases used by madmom 0.16.1.
-for _alias, _real in (("float", np.float64), ("int", np.int_),
-                       ("complex", np.complex128), ("object", np.object_),
-                       ("bool", np.bool_), ("str", np.str_)):
-    if not hasattr(np, _alias):
-        setattr(np, _alias, _real)
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", FutureWarning)
+    for _alias, _real in (("float", np.float64), ("int", np.int_),
+                           ("complex", np.complex128), ("object", np.object_),
+                           ("bool", np.bool_), ("str", np.str_)):
+        if not hasattr(np, _alias):
+            setattr(np, _alias, _real)
 
 logger = logging.getLogger(__name__)
 

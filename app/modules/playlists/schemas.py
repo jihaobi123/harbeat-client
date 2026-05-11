@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -105,6 +105,86 @@ class DjFxAutomationPoint(BaseModel):
     eq_high_db: float = 0.0
 
 
+
+
+MixDeck = Literal["A", "B"]
+MixCurve = Literal["linear", "ease_in_out", "equal_power_in", "equal_power_out"]
+MixParam = Literal[
+    "gain",
+    "low_eq",
+    "mid_eq",
+    "high_eq",
+    "highpass_hz",
+    "lowpass_hz",
+    "playback_rate",
+]
+OnlineMixMode = Literal["full_mix", "short_fade", "hard_cut", "normal_crossfade"]
+
+
+class OnlineMixSafety(BaseModel):
+    online_mix_safe: bool = True
+    recommended_mode: OnlineMixMode = "normal_crossfade"
+    fallback_mode: OnlineMixMode = "short_fade"
+    min_prepare_sec: float = 8.0
+    preload_before_sec: float = 8.0
+    reasons: list[str] = Field(default_factory=list)
+
+
+class DeckLoadEvent(BaseModel):
+    type: Literal["deck_load"] = "deck_load"
+    deck: MixDeck
+    time_sec: float
+    song_id: int
+    position_sec: Optional[float] = None
+
+
+class DeckPlayEvent(BaseModel):
+    type: Literal["deck_play"] = "deck_play"
+    deck: MixDeck
+    time_sec: float
+    position_sec: Optional[float] = None
+    playback_rate: Optional[float] = None
+    key_lock: bool = False
+
+
+class DeckStopEvent(BaseModel):
+    type: Literal["deck_stop"] = "deck_stop"
+    deck: MixDeck
+    time_sec: float
+
+
+class ParamRampEvent(BaseModel):
+    type: Literal["param_ramp"] = "param_ramp"
+    deck: MixDeck
+    time_sec: float
+    duration_sec: float
+    param: MixParam
+    from_: float = Field(alias="from")
+    to: float
+    curve: Optional[MixCurve] = None
+
+    model_config = {"populate_by_name": True}
+
+
+class ParamSetEvent(BaseModel):
+    type: Literal["param_set"] = "param_set"
+    deck: MixDeck
+    time_sec: float
+    param: MixParam
+    value: float
+
+
+MixControlEvent = Union[DeckLoadEvent, DeckPlayEvent, DeckStopEvent, ParamRampEvent, ParamSetEvent]
+
+
+class MixControlTimeline(BaseModel):
+    transition_id: Optional[str] = None
+    mode: OnlineMixMode = "normal_crossfade"
+    start_at_from_time_sec: Optional[float] = None
+    duration_sec: float
+    events: list[MixControlEvent] = Field(default_factory=list)
+
+
 class DjTransitionPlanItem(BaseModel):
     from_song_id: int
     to_song_id: int
@@ -122,6 +202,8 @@ class DjTransitionPlanItem(BaseModel):
     energy_target: str
     fx_automation: list[DjFxAutomationPoint] = Field(default_factory=list)
     score: float = 0.0
+    online_mix_safety: Optional[OnlineMixSafety] = None
+    mix_control_timeline: Optional[MixControlTimeline] = None
 
 
 class DjMixPlanRequest(BaseModel):
@@ -137,6 +219,9 @@ class DjMixPlanRequest(BaseModel):
     diversity: float = Field(default=0.35, ge=0.0, le=1.0)
     candidate_window: int = Field(default=4, ge=1, le=8)
     user_id: Optional[int] = None
+    scene_type: Optional[str] = None
+    style_ratios: Optional[dict[str, float]] = None
+    use_context_planner: bool = False
 
 
 class DjMixPlanResult(BaseModel):

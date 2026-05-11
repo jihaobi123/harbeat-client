@@ -14,7 +14,7 @@ try:
 except Exception:
     pass
 
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism")
+os.environ.setdefault("DATABASE_URL", "sqlite:///./data/harbeat_dev.db")
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session

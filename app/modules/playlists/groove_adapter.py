@@ -12,6 +12,8 @@ import os
 import sys
 from typing import Optional
 
+import numpy as np
+
 # ── GrooveEngine is a sibling directory without a top-level __init__.py.
 #    Its internal imports use bare module names (``from core.datatypes …``),
 #    so we add GrooveEngine/ to *sys.path* once.
@@ -35,6 +37,7 @@ from core.enums import FXType, PhraseType  # noqa: E402
 from logic.brain import TransitionPlanner  # noqa: E402
 from logic.playlist import PlaylistPlanner  # noqa: E402
 
+from app.modules.playlists.online_mix_planner import build_online_transition_payload
 from app.modules.playlists.schemas import (
     DjFxAutomationPoint,
     DjMixPlanResult,
@@ -563,6 +566,9 @@ def run_groove_engine_plan(
             to_meta=to_meta,
             energy_target=energy_target,
         )
+        online_payload = build_online_transition_payload(from_meta, to_meta, item)
+        item.online_mix_safety = online_payload["online_mix_safety"]
+        item.mix_control_timeline = online_payload["mix_control_timeline"]
         transition_items.append(item)
 
     return DjMixPlanResult(
@@ -571,3 +577,52 @@ def run_groove_engine_plan(
         meta=style_meta,
         transition_plan=transition_items,
     )
+
+
+def identify_loop_friendly_segments(
+    metadata: TrackMetadata,
+    min_bars: int = 4,
+    max_bars: int = 16,
+) -> list[dict]:
+    """Identify segments suitable for looping (consistent BPM, key, and energy).
+
+    Finds contiguous bar ranges where:
+    - BPM stability is adequate (beat_analysis.local_window_stability_min >= 0.6)
+    - Energy variance is low (stddev of energy_bars in range < 0.15)
+    - Phrase type is suitable (CHORUS, DROP, or VERSE)
+
+    Returns list of dicts with ``start_bar``, ``end_bar``, ``phrase_type``.
+    """
+    from core.enums import PhraseType
+
+    suitable_phrases = {PhraseType.CHORUS, PhraseType.DROP, PhraseType.VERSE}
+    stable = metadata.beat_analysis.local_window_stability_min >= 0.6
+
+    segments: list[dict] = []
+    for phrase in metadata.phrases:
+        if phrase.phrase_type not in suitable_phrases:
+            continue
+        length = phrase.end_bar - phrase.start_bar + 1
+        if length < min_bars or length > max_bars:
+            continue
+
+        # Check energy variance in this phrase range
+        energies = [
+            e.combined
+            for e in metadata.energy_bars
+            if phrase.start_bar <= e.bar <= phrase.end_bar
+        ]
+        if energies and len(energies) >= 2:
+            variance = float(np.std(energies))
+            if variance > 0.15:
+                continue
+
+        segments.append({
+            "start_bar": phrase.start_bar,
+            "end_bar": phrase.end_bar,
+            "phrase_type": phrase.phrase_type.value,
+            "confidence": phrase.confidence,
+            "stable": stable,
+        })
+
+    return segments

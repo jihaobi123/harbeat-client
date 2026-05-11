@@ -104,7 +104,12 @@ def _cleanup_old_mix_files(max_age_hours: int = 1):
 
 
 def _schedule_pending_analyses():
-    """Find songs that need analysis/stems and queue them."""
+    """Find songs that need analysis and queue a limited batch on startup.
+
+    Only queues songs that were explicitly imported (fangpi/library upload),
+    not dev_mix placeholder entries. Limits to 3 songs per startup to avoid
+    flooding the system with heavy Demucs processing.
+    """
     import os
     import threading
     from app.shared.database import SessionLocal
@@ -113,10 +118,10 @@ def _schedule_pending_analyses():
 
     db = SessionLocal()
     try:
-        # Pick up songs never analyzed AND songs stuck in "analyzing" (interrupted by restart)
         pending = db.query(LibrarySong).filter(
-            LibrarySong.analysis_status.in_(["none", "pending", "analyzing"])
-        ).all()
+            LibrarySong.analysis_status.in_(["none", "pending", "analyzing"]),
+            LibrarySong.source_type != "local_dev_scan",
+        ).order_by(LibrarySong.created_at.desc()).limit(3).all()
         to_analyze = [s.id for s in pending if s.source_path and os.path.isfile(s.source_path)]
         db.close()
     except Exception:
@@ -128,7 +133,7 @@ def _schedule_pending_analyses():
 
     import logging
     logger = logging.getLogger(__name__)
-    logger.info("[startup] Queuing analysis for %d unanalyzed songs", len(to_analyze))
+    logger.info("[startup] Queuing analysis for %d pending songs (max 3)", len(to_analyze))
 
     def _run_all(song_ids: list[str]):
         from app.modules.library.background_tasks import run_analysis_and_separation

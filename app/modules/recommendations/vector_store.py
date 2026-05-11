@@ -131,6 +131,19 @@ def _run_clap_text_subprocess(query: str) -> List[float]:
     return json.loads(result.stdout)
 
 
+def _run_clap_text_batch_subprocess(texts: List[str]) -> List[List[float]]:
+    """Run CLAP text embedding in batch mode. Returns list of 512-d vectors."""
+    result = subprocess.run(
+        [sys.executable, _CLAP_TEXT_SCRIPT, "--batch"],
+        input=json.dumps(texts),
+        capture_output=True, text=True, timeout=300,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()[-500:]
+        raise RuntimeError(f"CLAP text batch subprocess exit={result.returncode} stderr={stderr}")
+    return json.loads(result.stdout)
+
+
 # ── Build metadata text (for display & fallback) ────────────────────
 
 def _build_document(title: str, artist: str, style: Optional[str] = None,
@@ -268,6 +281,283 @@ def _parse_results(results: dict) -> List[dict]:
         item["document"] = doc
         rows.append(item)
     return rows
+
+
+# ── Collection-aware search (ported from FinalReco search_service.py) ──
+
+
+def search_collection(
+    query_text: str,
+    collection_name: str = COLLECTION_CLAP,
+    top_k: int = 10,
+) -> List[dict]:
+    """Semantic search within a named ChromaDB collection.
+
+    Uses CLAP text→audio cross-modal when collection has vectors;
+    falls back to text-based search for collections using an embedding function.
+    """
+    try:
+        collection = _get_client().get_collection(name=collection_name)
+    except Exception:
+        logger.warning("[vector_store] collection %s not found", collection_name)
+        return []
+
+    # Try CLAP text embedding for cross-modal search
+    try:
+        query_embedding = _run_clap_text_subprocess(query_text)
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=min(top_k, collection.count()),
+            include=["metadatas", "distances", "documents"],
+        )
+        return _parse_results(results)
+    except Exception:
+        logger.debug("[vector_store] CLAP search failed, trying text fallback")
+
+    # Text fallback
+    try:
+        results = collection.query(
+            query_texts=[query_text],
+            n_results=min(top_k, collection.count()),
+            include=["metadatas", "distances", "documents"],
+        )
+        return _parse_results(results)
+    except Exception:
+        logger.warning("[vector_store] search_collection failed", exc_info=True)
+        return []
+
+
+def fetch_with_multiplier(
+    collection_name: str,
+    target_length: int,
+    multiplier: int = 5,
+    query_text: Optional[str] = None,
+    recall_all_under: int = 0,
+) -> List[dict]:
+    """Fetch oversampled candidate pool from a ChromaDB collection.
+
+    Used by DJ planning to get more candidates than needed, so downstream
+    filtering (energy/style scoring) has enough material to work with.
+    """
+    if target_length <= 0:
+        return []
+
+    try:
+        collection = _get_client().get_collection(name=collection_name)
+    except Exception:
+        return []
+
+    collection_size = collection.count()
+    top_k = max(target_length * max(1, multiplier), target_length)
+    if recall_all_under > 0 and collection_size > 0 and collection_size <= recall_all_under:
+        top_k = collection_size
+
+    if query_text and query_text.strip():
+        try:
+            query_embedding = _run_clap_text_subprocess(query_text)
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=min(top_k, collection_size),
+                include=["metadatas", "distances", "documents"],
+            )
+            return _parse_results(results)
+        except Exception:
+            logger.warning("[vector_store] CLAP query failed in fetch_with_multiplier")
+
+    # No query: fetch all available
+    payload = collection.get(
+        limit=top_k,
+        include=["metadatas", "documents"],
+    )
+    metadatas = payload.get("metadatas", []) or []
+    documents = payload.get("documents", []) or []
+    rows: List[dict] = []
+    for idx, meta in enumerate(metadatas):
+        item = dict(meta or {})
+        item["distance"] = 1.0
+        item["document"] = documents[idx] if idx < len(documents) else ""
+        rows.append(item)
+    return rows[:top_k]
+
+
+def fetch_stage_candidates(
+    collection_name: str,
+    target_length: int,
+    target_energy_curve: List[float],
+    style_ratios: Dict[str, float],
+    multiplier: int = 5,
+    query_text: Optional[str] = None,
+    recall_all_under: int = 0,
+) -> Dict[str, object]:
+    """Stage-wise candidate recall with energy band + style quota filtering.
+
+    Ported from FinalReco/services/search_service.py.
+
+    Returns {"pool": merged_candidates, "stages": stage_outputs}.
+    """
+    from math import floor
+
+    base_rows = fetch_with_multiplier(
+        collection_name=collection_name,
+        target_length=target_length,
+        multiplier=multiplier,
+        query_text=query_text,
+        recall_all_under=recall_all_under,
+    )
+
+    # Normalize style_ratios
+    cleaned: Dict[str, float] = {}
+    for k, v in (style_ratios or {}).items():
+        name = str(k).strip().lower()
+        if not name:
+            continue
+        try:
+            ratio = float(v)
+        except (TypeError, ValueError):
+            continue
+        if ratio > 0:
+            cleaned[name] = ratio
+    total = sum(cleaned.values())
+    if total > 0:
+        cleaned = {k: v / total for k, v in cleaned.items()}
+
+    # Split energy curve into 3 macro stages
+    curve = [max(1.0, min(10.0, float(v))) for v in (target_energy_curve or [])]
+    if not curve:
+        curve = [7.0] * target_length
+    if len(curve) < target_length:
+        curve.extend([curve[-1]] * (target_length - len(curve)))
+    curve = curve[:target_length]
+
+    stage_count = min(3, target_length)
+    base = target_length // stage_count
+    remainder = target_length % stage_count
+    stages: List[dict] = []
+    cursor = 0
+    for stage_idx in range(stage_count):
+        slot_count = base + (1 if stage_idx < remainder else 0)
+        values = curve[cursor:cursor + slot_count]
+        cursor += slot_count
+        e_min = max(1.0, min(values) - 0.6)
+        e_max = min(10.0, max(values) + 0.6)
+        stages.append({
+            "stage_idx": stage_idx,
+            "slot_count": slot_count,
+            "energy_min": round(e_min, 3),
+            "energy_max": round(e_max, 3),
+            "target_curve": values,
+        })
+
+    def _extract_energy(row: dict) -> float:
+        raw = row.get("energy", 5.0)
+        try:
+            return max(1.0, min(10.0, float(raw)))
+        except (TypeError, ValueError):
+            return 5.0
+
+    def _extract_styles(row: dict) -> List[str]:
+        styles = row.get("dominant_styles") or []
+        if isinstance(styles, list):
+            return [str(s).strip().lower() for s in styles if str(s).strip()]
+        if styles:
+            return [str(styles).strip().lower()]
+        return []
+
+    def _style_bonus(row: dict) -> float:
+        if not cleaned:
+            return 0.0
+        styles = _extract_styles(row)
+        return max((cleaned.get(s, 0.0) for s in styles), default=0.0)
+
+    used_ids: set[str] = set()
+    merged_pool: List[dict] = []
+    stage_outputs: List[dict] = []
+
+    for stage in stages:
+        slot_count = int(stage["slot_count"])
+        e_min = float(stage["energy_min"])
+        e_max = float(stage["energy_max"])
+
+        energy_filtered = [
+            row for row in base_rows
+            if e_min <= _extract_energy(row) <= e_max
+        ]
+        if not energy_filtered:
+            energy_filtered = list(base_rows)
+
+        energy_filtered.sort(key=lambda r: (r.get("distance", 1.0), -_style_bonus(r)))
+
+        # Style quota allocation
+        style_target: Dict[str, int] = {}
+        if cleaned and slot_count > 0:
+            floors: Dict[str, int] = {}
+            fractional: List[tuple] = []
+            used = 0
+            for style, ratio in cleaned.items():
+                raw = ratio * slot_count
+                val = floor(raw)
+                floors[style] = val
+                used += val
+                fractional.append((raw - val, style))
+            fractional.sort(reverse=True)
+            idx = 0
+            while used < slot_count and fractional:
+                s = fractional[idx % len(fractional)][1]
+                floors[s] = floors.get(s, 0) + 1
+                used += 1
+                idx += 1
+            style_target = floors
+
+        local_used = set(used_ids)
+        stage_selected: List[dict] = []
+
+        for style, quota in style_target.items():
+            picked: List[dict] = []
+            for row in energy_filtered:
+                track_id = str(row.get("spotify_id") or row.get("track_id") or row.get("id") or "").strip()
+                if not track_id or track_id in local_used:
+                    continue
+                if style in _extract_styles(row):
+                    picked.append(row)
+                    local_used.add(track_id)
+                    if len(picked) >= quota:
+                        break
+            stage_selected.extend(picked)
+
+        for row in energy_filtered:
+            if len(stage_selected) >= slot_count:
+                break
+            track_id = str(row.get("spotify_id") or row.get("track_id") or row.get("id") or "").strip()
+            if not track_id or track_id in local_used:
+                continue
+            stage_selected.append(row)
+            local_used.add(track_id)
+
+        used_ids = local_used
+        merged_pool.extend(stage_selected)
+        stage_outputs.append({
+            "stage_idx": stage["stage_idx"],
+            "slot_count": slot_count,
+            "energy_min": stage["energy_min"],
+            "energy_max": stage["energy_max"],
+            "target_curve": stage["target_curve"],
+            "style_target": style_target,
+            "style_actual": {},  # filled by caller
+            "candidates": stage_selected,
+        })
+
+    # Fill missing slots
+    if len(merged_pool) < target_length:
+        for row in base_rows:
+            track_id = str(row.get("spotify_id") or row.get("track_id") or row.get("id") or "").strip()
+            if not track_id or track_id in used_ids:
+                continue
+            merged_pool.append(row)
+            used_ids.add(track_id)
+            if len(merged_pool) >= target_length:
+                break
+
+    return {"pool": merged_pool, "stages": stage_outputs}
 
 
 # ── Batch reindex ────────────────────────────────────────────────────

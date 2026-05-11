@@ -1,7 +1,15 @@
+import os
+
 from sqlalchemy import create_engine, text
 
-DB = 'postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism'
-engine = create_engine(DB)
+engine = create_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/harbeat_dev.db"))
+_dialect = engine.dialect.name
+_beat_bump = (
+    "GREATEST(COALESCE(beat_confidence, 0), 0.95)"
+    if _dialect == "postgresql"
+    else "MAX(COALESCE(beat_confidence, 0), 0.95)"
+)
+_ts_now = "NOW()" if _dialect == "postgresql" else "datetime('now')"
 
 fixes = [
     # title_like, artist_like, bpm
@@ -18,10 +26,10 @@ with engine.begin() as conn:
             text("""
             SELECT id, title, artist, bpm, beat_confidence, beat_engines_used
             FROM library_songs
-            WHERE title ILIKE :t AND artist ILIKE :a
+            WHERE lower(title) LIKE :t AND lower(artist) LIKE :a
             ORDER BY id
             """),
-            {"t": f"%{t}%", "a": f"%{a}%"},
+            {"t": f"%{t.lower()}%", "a": f"%{a.lower()}%"},
         ).fetchall()
         for r in rows:
             print(f"  id={r.id} | {r.title} | {r.artist} | bpm={r.bpm} | conf={r.beat_confidence} | engines={r.beat_engines_used}")
@@ -30,14 +38,14 @@ with engine.begin() as conn:
     total = 0
     for t, a, bpm in fixes:
         result = conn.execute(
-            text("""
+            text(f"""
             UPDATE library_songs
             SET bpm = :bpm,
-                beat_confidence = GREATEST(COALESCE(beat_confidence, 0), 0.95),
-                updated_at = NOW()
-            WHERE title ILIKE :t AND artist ILIKE :a
+                beat_confidence = {_beat_bump},
+                updated_at = {_ts_now}
+            WHERE lower(title) LIKE :t AND lower(artist) LIKE :a
             """),
-            {"bpm": bpm, "t": f"%{t}%", "a": f"%{a}%"},
+            {"bpm": bpm, "t": f"%{t.lower()}%", "a": f"%{a.lower()}%"},
         )
         total += result.rowcount or 0
         print(f"  {t} / {a} -> bpm={bpm} | affected={result.rowcount}")
@@ -50,10 +58,10 @@ with engine.begin() as conn:
             text("""
             SELECT id, title, artist, bpm, beat_confidence
             FROM library_songs
-            WHERE title ILIKE :t AND artist ILIKE :a
+            WHERE lower(title) LIKE :t AND lower(artist) LIKE :a
             ORDER BY id
             """),
-            {"t": f"%{t}%", "a": f"%{a}%"},
+            {"t": f"%{t.lower()}%", "a": f"%{a.lower()}%"},
         ).fetchall()
         for r in rows:
             print(f"  id={r.id} | {r.title} | {r.artist} | bpm={r.bpm} | conf={r.beat_confidence}")

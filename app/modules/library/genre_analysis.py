@@ -85,6 +85,8 @@ def _metadata_fallback_genres(title: str, artist: str, top_k: int) -> list[dict[
         logger.debug("genre metadata fallback failed", exc_info=True)
         return []
 
+    if not info:
+        return []
     raw_genres = info.get("genres") or info.get("genre") or []
     if isinstance(raw_genres, str):
         raw_genres = [raw_genres]

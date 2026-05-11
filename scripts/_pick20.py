@@ -1,9 +1,10 @@
 """Pick 20 random songs from library_songs for BPM accuracy test."""
-from sqlalchemy import create_engine, text
 import json
+import os
 
-DB = 'postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism'
-e = create_engine(DB)
+from sqlalchemy import create_engine, text
+
+e = create_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/harbeat_dev.db"))
 
 with e.connect() as c:
     rows = c.execute(text("""

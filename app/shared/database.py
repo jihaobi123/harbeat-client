@@ -10,7 +10,12 @@ class Base(DeclarativeBase):
 
 settings = get_settings()
 
-engine = create_engine(settings.database_url, future=True, pool_pre_ping=True)
+_engine_kwargs: dict = {"future": True, "pool_pre_ping": True}
+if settings.database_url.startswith("sqlite"):
+    # FastAPI/uvicorn may hand sessions across threads; SQLite default checks same thread only.
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(settings.database_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

@@ -106,3 +106,35 @@ class VectorStoreStatsData(BaseModel):
     collection: str
     count: int
     text_count: int = 0
+
+
+# --- Import from vibe / playlist ---
+
+class ImportFromVibeRequest(BaseModel):
+    user_id: int
+    vibe_description: str
+    top_k: int = 5
+    auto_import: bool = True
+
+
+class ImportFromVibeData(BaseModel):
+    vibe_description: str
+    search_query: str
+    genres: list[str]
+    spotify_candidates: list[VibeSearchSongItem]
+    reranked_candidates: list[VibeSearchSongItem]
+    ingested_tracks: list[dict]
+    pipeline_summary: str
+
+
+class ImportPlaylistRequest(BaseModel):
+    user_id: int
+    playlist_url: str
+    auto_import: bool = True
+
+
+class ImportPlaylistData(BaseModel):
+    playlist_name: str = ""
+    track_count: int
+    ingested_tracks: list[dict]
+    pipeline_summary: str

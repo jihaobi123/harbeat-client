@@ -8,6 +8,10 @@ from app.modules.recommendations.schemas import (
     AddToLibraryRequest,
     DiscoverData,
     DiscoverRequest,
+    ImportFromVibeData,
+    ImportFromVibeRequest,
+    ImportPlaylistData,
+    ImportPlaylistRequest,
     RecommendationData,
     RecommendationRequest,
     ReindexClapData,
@@ -19,6 +23,8 @@ from app.modules.recommendations.schemas import (
 from app.modules.recommendations.service import (
     add_song_to_library,
     discover_songs,
+    import_from_vibe,
+    import_playlist_spotify,
     recommend_songs,
     vibe_search,
 )
@@ -91,3 +97,40 @@ def vector_stats_endpoint():
     from app.modules.recommendations.vector_store import get_collection_stats
     stats = get_collection_stats()
     return APIResponse(data=VectorStoreStatsData(**stats))
+
+
+@router.post("/import-from-vibe", response_model=APIResponse[ImportFromVibeData])
+def import_from_vibe_endpoint(
+    payload: ImportFromVibeRequest,
+    db: Session = Depends(get_db),
+):
+    """Import songs from a vibe description.
+
+    Pipeline: interpret vibe → Spotify search → CLAP rerank → download → index.
+    """
+    result = import_from_vibe(
+        db,
+        user_id=payload.user_id,
+        vibe_description=payload.vibe_description,
+        top_k=payload.top_k,
+        auto_import=payload.auto_import,
+    )
+    return APIResponse(data=ImportFromVibeData(**result))
+
+
+@router.post("/import-playlist", response_model=APIResponse[ImportPlaylistData])
+def import_playlist_spotify_endpoint(
+    payload: ImportPlaylistRequest,
+    db: Session = Depends(get_db),
+):
+    """Import tracks from a Spotify playlist.
+
+    Pipeline: fetch playlist → download → analyze → index.
+    """
+    result = import_playlist_spotify(
+        db,
+        user_id=payload.user_id,
+        playlist_url=payload.playlist_url,
+        auto_import=payload.auto_import,
+    )
+    return APIResponse(data=ImportPlaylistData(**result))

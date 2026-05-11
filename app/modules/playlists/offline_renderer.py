@@ -344,3 +344,72 @@ def convert_wav_to_mp3(wav_path: str, mp3_path: str) -> tuple[bool, str | None]:
 
     brief = last_err.splitlines()[-1] if last_err else "no mp3 encoder available in ffmpeg build"
     return False, f"mp3 export skipped: {brief} (install ffmpeg build with libmp3lame)"
+
+
+# ── Loop rendering ───────────────────────────────────────────────────
+
+
+def render_looped_section(
+    audio: np.ndarray,
+    loop_start_samples: int,
+    loop_end_samples: int,
+    repeat_count: int,
+    crossfade_samples: int = 2048,
+    sample_rate: int = 44100,
+) -> np.ndarray:
+    """Render a repeated audio segment with crossfade at loop boundaries.
+
+    Concatenates [prefix] + [loop * repeat_count with crossfades] + [suffix].
+    Each loop iteration crossfades the tail with the next iteration's head
+    to avoid audible clicks (~46 ms at 44.1 kHz).
+
+    Args:
+        audio: Mono or stereo float32 numpy array.
+        loop_start_samples: Start of the loop region (sample index).
+        loop_end_samples: End of the loop region (sample index).
+        repeat_count: How many times to repeat the loop.
+        crossfade_samples: Crossfade length in samples.
+        sample_rate: For reference only (not used).
+
+    Returns:
+        Float32 numpy array with the looped result.
+    """
+    is_mono = audio.ndim == 1
+    if is_mono:
+        audio = audio.reshape(-1, 1)
+
+    prefix = audio[:loop_start_samples]
+    loop_body = audio[loop_start_samples:loop_end_samples]
+    suffix = audio[loop_end_samples:]
+
+    if len(loop_body) < crossfade_samples * 2:
+        # Loop is too short for crossfade; just repeat without it
+        repeated = np.tile(loop_body, (repeat_count, 1))
+    else:
+        chunks = []
+        for i in range(repeat_count):
+            if i == 0:
+                chunks.append(loop_body)
+            else:
+                # Crossfade: tail of previous iteration + head of this iteration
+                tail = chunks[-1][-crossfade_samples:]
+                head = loop_body[:crossfade_samples]
+                # Equal-power crossfade curves
+                fade_out = np.sqrt(
+                    np.linspace(1.0, 0.0, crossfade_samples, dtype=np.float32)
+                ).reshape(-1, 1)
+                fade_in = np.sqrt(
+                    np.linspace(0.0, 1.0, crossfade_samples, dtype=np.float32)
+                ).reshape(-1, 1)
+                blended = tail * fade_out + head * fade_in
+                # Replace the tail of the previous chunk
+                chunks[-1] = np.concatenate([chunks[-1][:-crossfade_samples], blended])
+                chunks.append(loop_body[crossfade_samples:])
+
+        repeated = np.concatenate(chunks)
+
+    result = np.concatenate([prefix, repeated, suffix])
+
+    if is_mono:
+        return result.flatten().astype(np.float32)
+    return result.astype(np.float32)

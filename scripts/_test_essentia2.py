@@ -1,13 +1,14 @@
 """Deep dive into Essentia's BPM estimates - check if 86 BPM is in candidates."""
+import os
+
 import essentia.standard as es
 import numpy as np
 from sqlalchemy import create_engine, text
 
-DB_URL = "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism"
-engine = create_engine(DB_URL)
+engine = create_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/harbeat_dev.db"))
 with engine.connect() as conn:
     row = conn.execute(text(
-        "SELECT title, source_path FROM library_songs WHERE title ILIKE '%fired%' LIMIT 1"
+        "SELECT title, source_path FROM library_songs WHERE lower(title) LIKE '%fired%' LIMIT 1"
     )).fetchone()
     file_path = row[1]
     print(f"Song: {row[0]}")

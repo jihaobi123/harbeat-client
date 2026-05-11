@@ -1,73 +1,101 @@
-import { create } from 'zustand'
-import type { User } from '../types'
-import { clearToken, getMe, login, register, setToken } from '../api/client'
+import { create } from 'zustand';
+import { authApi } from '../api/auth';
 
 interface AuthState {
-  user: User | null
-  loading: boolean
-  error: string | null
+  token: string | null;
+  userId: number | null;
+  username: string | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  error: string | null;
 
-  doLogin: (username: string, password: string) => Promise<void>
-  doRegister: (username: string, password: string, danceStyle?: string, level?: string, favoriteStyle?: string) => Promise<void>
-  doLogout: () => void
-  checkAuth: () => Promise<void>
+  login: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string, danceStyle?: string) => Promise<boolean>;
+  logout: () => void;
+  checkAuth: () => Promise<boolean>;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  loading: true,
+  token: localStorage.getItem('harbeat_token'),
+  userId: null,
+  username: null,
+  isAuthenticated: false,
+  loading: false,
   error: null,
 
-  doLogin: async (username, password) => {
-    set({ error: null })
+  login: async (username, password) => {
+    set({ loading: true, error: null });
     try {
-      const res = await login(username, password)
-      setToken(res.access_token)
-      // Use token response data directly, then try to enrich with getMe
-      const user: User = { id: res.user_id, username: res.username, dance_style: '', level: '', favorite_style: '' }
-      try {
-        const me = await getMe()
-        set({ user: me as User, loading: false })
-      } catch {
-        set({ user, loading: false })
-      }
-    } catch (e: any) {
-      set({ error: e.message })
-      throw e
+      const res = await authApi.login({ username, password });
+      const { access_token, user_id, username: uname } = res.data.data;
+      localStorage.setItem('harbeat_token', access_token);
+      set({
+        token: access_token,
+        userId: user_id,
+        username: uname,
+        isAuthenticated: true,
+        loading: false,
+      });
+      return true;
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? 'Login failed';
+      set({ loading: false, error: msg });
+      return false;
     }
   },
 
-  doRegister: async (username, password, dance_style = 'hiphop', level = 'beginner', favorite_style = 'hiphop') => {
-    set({ error: null })
+  register: async (username, password, danceStyle) => {
+    set({ loading: true, error: null });
     try {
-      const res = await register({ username, password, dance_style, level, favorite_style })
-      setToken(res.access_token)
-      // Set user immediately from known data, don't depend on getMe
-      const user: User = { id: res.user_id, username: res.username, dance_style, level, favorite_style }
-      set({ user, loading: false })
-    } catch (e: any) {
-      set({ error: e.message })
-      throw e
+      const res = await authApi.register({ username, password, dance_style: danceStyle });
+      const { access_token, user_id, username: uname } = res.data.data;
+      localStorage.setItem('harbeat_token', access_token);
+      set({
+        token: access_token,
+        userId: user_id,
+        username: uname,
+        isAuthenticated: true,
+        loading: false,
+      });
+      return true;
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? 'Registration failed';
+      set({ loading: false, error: msg });
+      return false;
     }
   },
 
-  doLogout: () => {
-    clearToken()
-    set({ user: null, loading: false, error: null })
+  logout: () => {
+    localStorage.removeItem('harbeat_token');
+    set({
+      token: null,
+      userId: null,
+      username: null,
+      isAuthenticated: false,
+    });
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('harbeat_token')
-    if (!token) {
-      set({ loading: false })
-      return
-    }
+    const token = localStorage.getItem('harbeat_token');
+    if (!token) return false;
     try {
-      const me = await getMe()
-      set({ user: me as User, loading: false })
+      const res = await authApi.me();
+      set({
+        token,
+        userId: res.data.data.user_id,
+        username: res.data.data.username,
+        isAuthenticated: true,
+      });
+      return true;
     } catch {
-      clearToken()
-      set({ user: null, loading: false })
+      localStorage.removeItem('harbeat_token');
+      set({ token: null, isAuthenticated: false });
+      return false;
     }
   },
-}))
+
+  clearError: () => set({ error: null }),
+}));

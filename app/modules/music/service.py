@@ -188,7 +188,7 @@ def process_song_for_styles(db: Session, song_id: int, payload: SongProcessReque
             "style_engine": pick_style_engine(style, payload.quality_mode),
         }
 
-        output_path = f"data/music-files/shared/processed/{song_id}_{style}_{payload.quality_mode}.wav"
+        output_path = f"data/music-files/shared/cache/{song_id}_{style}_{payload.quality_mode}.wav"
         note = "model bundle selected; fallback path generated"
         try:
             if os.path.isfile(output_path):

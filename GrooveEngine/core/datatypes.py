@@ -425,3 +425,15 @@ class DeckStatus:
     high_pass: float = 0.0
     active_fx: list[FXType] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class MixCommand:
+    """A command sent from the control thread to the audio engine.
+
+    Used by CLI, voice control, and any other control surface to enqueue
+    playback and transition actions.
+    """
+
+    command: str  # "play", "pause", "stop", "apply_plan", "hold", "release", "next"
+    payload: dict[str, Any] = field(default_factory=dict)

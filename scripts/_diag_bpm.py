@@ -14,17 +14,17 @@ for _alias, _real in (("float", np.float64), ("int", np.int_),
     if not hasattr(np, _alias):
         setattr(np, _alias, _real)
 
+import os
+
 import librosa
 from sqlalchemy import create_engine, text
 
-DB_URL = "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism"
-
 # Find the song
-engine = create_engine(DB_URL)
+engine = create_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/harbeat_dev.db"))
 with engine.connect() as conn:
     row = conn.execute(text(
         "SELECT id, title, source_path, bpm, beat_confidence, beat_engines_used "
-        "FROM library_songs WHERE title ILIKE '%fired%' LIMIT 1"
+        "FROM library_songs WHERE lower(title) LIKE '%fired%' LIMIT 1"
     )).fetchone()
     if row:
         print(f"Song: id={row[0]}, title={row[1]}")

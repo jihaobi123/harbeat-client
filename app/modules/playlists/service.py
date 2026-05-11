@@ -160,6 +160,8 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
                 audio_url=item.song.audio_url,
                 duration=lib_map[item.song_id].duration if item.song_id in lib_map and lib_map[item.song_id].duration else item.song.duration,
                 bpm=lib_map[item.song_id].bpm if item.song_id in lib_map else (item.song.tags.bpm if item.song.tags else None),
+                replay_gain_db=_library_replay_gain_db(lib_map.get(item.song_id)),
+                loudness_lufs=_library_loudness_lufs(lib_map.get(item.song_id)),
                 key=lib_map[item.song_id].key if item.song_id in lib_map else None,
                 energy=lib_map[item.song_id].energy if item.song_id in lib_map else None,
                 format=lib_map[item.song_id].format if item.song_id in lib_map else None,
@@ -398,6 +400,8 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
     processed_files: dict[int, str] = {}
     meta: dict[int, dict[str, str]] = {}
     changed_song_audio = False
+    selected_song_map = {song.id: song for song, _, _ in selected}
+    selected_library_map = _library_context_map(db, payload.user_id, selected_song_map) if payload.user_id else {}
 
     # Batch mix must remain interactive. Heavy per-track DSP (Demucs + mastering)
     # is only allowed for very small HQ jobs; otherwise we use fast stream-copy fallback.
@@ -444,14 +448,18 @@ def generate_style_mix_playlist(db: Session, payload: StyleMixRequest, user_id: 
         logger.warning("[DJ-MIX] OK processed: song_id=%d -> %s", song.id, processed_path)
 
         order_index = len(playlist_data)
+        lib_context = selected_library_map.get(song.id)
         playlist_data.append(
             PlaylistSongData(
                 song_id=song.id,
+                library_song_id=next((ls.id for ls in db.query(LibrarySong).filter(LibrarySong.user_id == user_id, LibrarySong.song_id == song.id).all() if _remap_audio_path(ls.source_path or "")), None),
                 title=song.title,
                 artist=song.artist,
                 audio_url=audio_path,
                 duration=duration,
                 bpm=song.tags.bpm if song.tags else None,
+                replay_gain_db=_library_replay_gain_db(lib_context),
+                loudness_lufs=_library_loudness_lufs(lib_context),
                 tags=[part for part in (song.tags.style or "").split(",") if part] if song.tags else [],
                 order_index=order_index,
             )
@@ -596,6 +604,40 @@ def _clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def _feature_float(features: dict | None, *keys: str) -> float | None:
+    if not isinstance(features, dict):
+        return None
+    for key in keys:
+        value = features.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+    nested = features.get("features")
+    if isinstance(nested, dict):
+        for key in keys:
+            value = nested.get(key)
+            if isinstance(value, (int, float)):
+                return float(value)
+    return None
+
+
+def _library_replay_gain_db(lib: LibrarySong | None) -> float | None:
+    if not lib:
+        return None
+    value = _feature_float(lib.music_features, "replay_gain_db", "replayGainDb")
+    if value is not None:
+        return max(-12.0, min(12.0, value))
+    loudness = _library_loudness_lufs(lib)
+    if loudness is None:
+        return None
+    return max(-8.0, min(8.0, -14.0 - loudness))
+
+
+def _library_loudness_lufs(lib: LibrarySong | None) -> float | None:
+    if not lib:
+        return None
+    return _feature_float(lib.music_features, "loudness_lufs", "integrated_lufs", "lufs")
+
+
 def _ranked_pick(
     ranked_candidates: list[tuple[float, int]],
     rng: random.Random,
@@ -693,6 +735,56 @@ def generate_dj_mix_plan(db: Session, payload: DjMixPlanRequest) -> DjMixPlanRes
         style_meta=style_result.meta,
         energy_target=payload.energy,
     )
+
+    # ── Two-tier context planner (optional) ──────────────────────────
+    if payload.use_context_planner and payload.scene_type:
+        try:
+            from app.modules.playlists.dj_context_planner import DJContextPlanner, SessionContext
+
+            context = SessionContext(
+                scene_type=payload.scene_type,
+                style_ratios=payload.style_ratios or {},
+            )
+            # Build candidates from track_metas
+            candidates = [
+                {
+                    "track_id": str(item.song_id),
+                    "bpm": item.bpm or (lib.bpm if lib else 120.0),
+                    "key": lib.camelot_key if lib else "",
+                    "energy": lib.energy if lib else 5.0,
+                    "dominant_styles": [payload.style] if payload.style else [],
+                    "distance": 0.5,
+                    "song_id": item.song_id,
+                }
+                for item in playlist
+                for lib in [library_map.get(item.song_id)]
+            ]
+
+            tp = TransitionPlanner()
+            context_planner = DJContextPlanner(transition_planner=tp)
+            ctx_plan = context_planner.generate_plan(
+                candidates=candidates,
+                context=context,
+                target_length=len(playlist),
+                explain=True,
+            )
+            # Merge context planner stage report into transition items
+            if ctx_plan.get("transitions"):
+                for i, tr_item in enumerate(result.transition_plan):
+                    if i < len(ctx_plan["transitions"]):
+                        ctx_tr = ctx_plan["transitions"][i]
+                        tr_item.score = max(tr_item.score, ctx_tr.get("score", 0.0))
+                        tr_item.transition_technique = ctx_tr.get("strategy", tr_item.transition_technique)
+
+            logger.warning(
+                "[DJ-MIX-PLAN] Two-tier context planner: scene=%s, ordered=%d, stages=%d",
+                payload.scene_type,
+                len(ctx_plan.get("ordered_tracks", [])),
+                len(ctx_plan.get("stage_report", [])),
+            )
+        except Exception:
+            logger.exception("[DJ-MIX-PLAN] Two-tier context planner failed, using GrooveEngine-only result")
+
     logger.warning("[DJ-MIX-PLAN] GrooveEngine done in %.1fs, final playlist=%d, transitions=%d", time.time() - t1, len(result.playlist), len(result.transition_plan))
     return result
 
@@ -1077,16 +1169,13 @@ def _resolve_user_song_duration_fast(db: Session, song: Song, user_id: int) -> f
 
 
 def _build_processed_fallback(audio_path: str, song_id: int, style: str, quality_mode: str) -> str | None:
+    """Return the original audio path directly — no file copying.
+
+    Previously this copied audio into shared/processed/ which created duplicate
+    files that were then picked up by the dev scanner as spurious library entries
+    (e.g. "13 hiphop fast raw"). The caller already has access to the source
+    file and the processed/ cache is unused during online playback.
+    """
     if not audio_path or not os.path.isfile(audio_path):
         return None
-    ext = os.path.splitext(audio_path)[1].lower() or ".wav"
-    safe_ext = ext if len(ext) <= 8 else ".wav"
-    out_dir = os.path.join("data", "music-files", "shared", "processed")
-    os.makedirs(out_dir, exist_ok=True)
-    filename = f"{song_id}_{style}_{quality_mode}_raw{safe_ext}"
-    out_path = os.path.join(out_dir, filename)
-    try:
-        shutil.copyfile(audio_path, out_path)
-        return out_path.replace("\\", "/")
-    except Exception:
-        return None
+    return audio_path.replace("\\", "/")

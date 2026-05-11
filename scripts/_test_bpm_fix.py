@@ -2,17 +2,17 @@
 import sys
 sys.path.insert(0, "/app")
 
+import os
+
 import numpy as np
 import librosa
 from sqlalchemy import create_engine, text
 
-DB_URL = "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism"
-
 # Find the song
-engine = create_engine(DB_URL)
+engine = create_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/harbeat_dev.db"))
 with engine.connect() as conn:
     row = conn.execute(text(
-        "SELECT id, title, source_path, bpm FROM library_songs WHERE title ILIKE '%fired%' LIMIT 1"
+        "SELECT id, title, source_path, bpm FROM library_songs WHERE lower(title) LIKE '%fired%' LIMIT 1"
     )).fetchone()
     print(f"Song: {row[1]}, current DB BPM: {row[3]}")
     file_path = row[2]

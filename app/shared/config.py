@@ -1,6 +1,10 @@
+import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = os.environ.get("HARBEAT_ENV_FILE",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"))
 
 
 class Settings(BaseSettings):
@@ -8,7 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
-    database_url: str = "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism"
+    database_url: str = "sqlite:///./data/harbeat_dev.db"
     redis_url: str = "redis://localhost:6379/0"
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
@@ -22,7 +26,7 @@ class Settings(BaseSettings):
     essentia_discogs_classifier_model_path: str = ""
     essentia_genre_top_k: int = 8
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 
 
 @lru_cache
