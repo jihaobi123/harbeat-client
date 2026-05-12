@@ -25,9 +25,3 @@ export interface PendingCrossfade {
   durationSec: number;
   triggered: boolean;
 }
-
-export interface ScheduledLoopEvent {
-  sourceNode: AudioBufferSourceNode;
-  gainNode: GainNode;
-  stopTime: number;
-}

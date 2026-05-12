@@ -49,6 +49,14 @@ class TransitionPlanner:
         plan.automation = STRATEGY_REGISTRY[best.strategy].build_automation(plan)
         return plan
 
+    def plan_with_strategy(self, a: TrackMetadata, b: TrackMetadata, strategy: TransitionType) -> TransitionPlan:
+        candidates = self.top_candidates(a, b, limit=20)
+        match = next((c for c in candidates if c.strategy == strategy), None)
+        best = match or candidates[0]
+        plan = TransitionPlan(mix_start_time=self._bar_start_time(a, best.track_a_exit_bar), overlap_duration_beats=best.overlap_beats, target_bpm=best.target_bpm, phase_offset_beats=best.phase_offset_beats, alignment_confidence=best.alignment_confidence, handoff_profile=best.handoff_profile, strategy=best.strategy, track_a_exit_bar=best.track_a_exit_bar, track_b_entry_bar=best.track_b_entry_bar, automation=[], score_breakdown=best)
+        plan.automation = STRATEGY_REGISTRY[best.strategy].build_automation(plan)
+        return plan
+
     def top_candidates(self, a: TrackMetadata, b: TrackMetadata, limit: int = 5) -> list[TransitionWindowScore]:
         ranked = sorted((self._score_candidate(a, b, c) for c in self._generate_search_candidates(a, b)), key=lambda x: x.total_score, reverse=True)
         for i, item in enumerate(ranked, start=1):

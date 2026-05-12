@@ -65,6 +65,9 @@ async def lifespan(_: FastAPI):
     if _is_primary:
         # Clean up old DJ mix files on startup
         _cleanup_old_mix_files()
+        # Purge shared/processed — this directory was historically used to cache
+        # audio copies named "{id}_hiphop_fast_raw.mp3" but is no longer needed.
+        _purge_processed_cache()
         # Auto-analyze songs that have files but were never analyzed
         if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
             _schedule_pending_analyses()
@@ -101,6 +104,28 @@ def _cleanup_old_mix_files(max_age_hours: int = 1):
                 pass
     if removed:
         logger.info("[startup] Cleaned up %d old mix files from %s", removed, mixes_dir)
+
+
+def _purge_processed_cache() -> None:
+    """Remove the deprecated shared/processed cache directory entirely.
+
+    Historical versions of _build_processed_fallback copied audio into this
+    directory as "{song_id}_{style}_{quality_mode}_raw.mp3". Those copies are
+    never used by the online playback path and were being picked up by the
+    dev scanner as spurious library entries.
+    """
+    import logging, shutil
+    logger = logging.getLogger(__name__)
+    proc_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..",
+        "data", "music-files", "shared", "processed",
+    )
+    if os.path.isdir(proc_dir):
+        try:
+            shutil.rmtree(proc_dir)
+            logger.info("[startup] Purged deprecated processed cache: %s", proc_dir)
+        except OSError as exc:
+            logger.warning("[startup] Could not purge processed cache: %s", exc)
 
 
 def _schedule_pending_analyses():

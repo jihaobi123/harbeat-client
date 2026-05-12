@@ -12,10 +12,9 @@ import type {
   MixCurve,
   MixParam,
 } from '../types/api';
-import type { DeckState, PendingCrossfade, ScheduledLoopEvent } from '../types/engine';
+import type { DeckState, PendingCrossfade } from '../types/engine';
 
 const LOOK_AHEAD = 0.15;
-const LOOP_CROSSFADE = 0.015;
 
 const EVENT_ORDER: Record<string, number> = {
   deck_load: 0,
@@ -76,8 +75,9 @@ export class MixAudioEngine {
   private loopA: number | null = null;
   private loopB: number | null = null;
   private loopActive = false;
+  /** Prevents stacking multiple loop crossfades from RAF bursts near loop end. */
+  private loopCrossfadeLock = false;
   private activeDeck: 'A' | 'B' = 'A';
-  private scheduledLoops: ScheduledLoopEvent[] = [];
 
   private timelineTimers: number[] = [];
 
@@ -294,8 +294,8 @@ export class MixAudioEngine {
           const physical = this.logicalToPhysical(ev.deck, outgoingPhy);
           const d = this.getDeckState(physical);
           const stopWall = Math.max(whenWall, ctx.currentTime + 0.05);
-          // Safety fade-out: ramp gain to 0 over 500ms before stopping source
-          const fadeStart = Math.max(ctx.currentTime, stopWall - 0.5);
+          // Fade-out ramp: 4s from current gain to 0 then stop source
+          const fadeStart = Math.max(ctx.currentTime, stopWall - 4.0);
           d.gainNode.gain.cancelScheduledValues(fadeStart);
           d.gainNode.gain.setValueAtTime(d.gainNode.gain.value, fadeStart);
           d.gainNode.gain.linearRampToValueAtTime(0, stopWall);
@@ -485,9 +485,11 @@ export class MixAudioEngine {
     source.buffer = d.buffer;
     source.playbackRate.value = 1;
 
-    const effectiveOffset = this.loopActive && this.loopA !== null
-      ? Math.max(this.loopA, offsetSec)
-      : offsetSec;
+    let effectiveOffset = offsetSec;
+    if (this.loopActive && this.loopA !== null && this.loopB !== null) {
+      const hi = Math.max(this.loopA + 0.01, this.loopB - 0.01);
+      effectiveOffset = Math.min(hi, Math.max(this.loopA, offsetSec));
+    }
 
     source.connect(d.eqInput);
     d.gainNode.gain.cancelScheduledValues(now);
@@ -501,10 +503,8 @@ export class MixAudioEngine {
     d.isPlaying = true;
     this.activeDeck = deck;
 
-    const stopTime = (this.loopActive && this.loopB !== null)
-      ? this.loopB
-      : d.buffer.duration;
-    const wallStop = now + (stopTime - effectiveOffset);
+    const stopTime = this.loopActive && this.loopB !== null ? this.loopB : d.buffer.duration;
+    const wallStop = now + Math.max(0.05, stopTime - effectiveOffset);
     try {
       source.stop(wallStop);
     } catch {
@@ -513,11 +513,23 @@ export class MixAudioEngine {
 
     const other = deck === 'A' ? this.deckB : this.deckA;
     if (other.isPlaying && other.sourceNode) {
-      const xfadeSec = Math.max(0.8, dualCrossfadeSec);
+      const xfadeSec = Math.max(4.0, dualCrossfadeSec);
       this.crossfadeTo(deck, xfadeSec);
     }
 
     this.startScheduler();
+  }
+
+  /** Hard stop one deck (gain 0 + stop source). Used so loop mode never overlaps the idle deck. */
+  silenceDeckImmediate(deck: 'A' | 'B'): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const d = deck === 'A' ? this.deckA : this.deckB;
+    const now = ctx.currentTime;
+    d.gainNode.gain.cancelScheduledValues(now);
+    d.gainNode.gain.setValueAtTime(0, now);
+    this.stopDeckSource(d, now + 0.01);
+    d.isPlaying = false;
   }
 
   pause(deck?: 'A' | 'B'): void {
@@ -531,22 +543,41 @@ export class MixAudioEngine {
     const now = ctx.currentTime;
     d.gainNode.gain.cancelScheduledValues(now);
     d.gainNode.gain.setValueAtTime(d.gainNode.gain.value, now);
-    d.gainNode.gain.linearRampToValueAtTime(0, now + 0.8);
+    d.gainNode.gain.linearRampToValueAtTime(0, now + 4.0);
 
-    this.stopDeckSource(d, now + 0.85);
+    this.stopDeckSource(d, now + 4.05);
     d.isPlaying = false;
   }
 
-  seek(deck: 'A' | 'B', timeSec: number): void {
+  /**
+   * @param silence_other_deck 为 true 时先静音另一 Deck，避免误判「双 Deck 同时在播」而触发 4s crossfade 把当前 scrub 的 deck 增益曲线冲掉导致无声。Mix Lab 进度条 scrub 应传 true。
+   */
+  seek(deck: 'A' | 'B', timeSec: number, silence_other_deck = false): void {
     const d = deck === 'A' ? this.deckA : this.deckB;
     if (!d.buffer) return;
     const clamped = Math.max(0, Math.min(timeSec, d.buffer.duration));
-    if (d.isPlaying) {
-      this.pause(deck);
-      window.setTimeout(() => this.play(deck, clamped), 30);
-    } else {
-      this.play(deck, clamped);
+
+    this.cancelScheduledTimeline();
+    this.pendingXfade = null;
+    this.clearScheduledLoops();
+
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+
+    if (silence_other_deck) {
+      const other: 'A' | 'B' = deck === 'A' ? 'B' : 'A';
+      this.silenceDeckImmediate(other);
     }
+
+    /* 只要还有 source 就硬切（含 isPlaying 未同步或已播完但未清节点），避免只走 play 时 crossfade 分支异常 */
+    if (d.sourceNode) {
+      d.gainNode.gain.cancelScheduledValues(now);
+      d.gainNode.gain.setValueAtTime(0, now);
+      this.stopDeckSource(d, now + 0.01);
+    }
+    d.isPlaying = false;
+
+    this.play(deck, clamped, 0);
   }
 
   getPosition(deck?: 'A' | 'B'): number {
@@ -564,6 +595,10 @@ export class MixAudioEngine {
     return this.activeDeck;
   }
 
+  getAudioContext(): AudioContext {
+    return this.ensureContext();
+  }
+
   getAnalyserData(): Uint8Array {
     if (!this.analyser) return new Uint8Array(0);
     const data = new Uint8Array(this.analyser.frequencyBinCount);
@@ -574,6 +609,25 @@ export class MixAudioEngine {
   setMasterVolume(value: number): void {
     if (this.masterGain) {
       this.masterGain.gain.value = Math.max(0, Math.min(1, value));
+    }
+  }
+
+  /** One-shot SFX on the same master bus as decks (does not touch deck buffers or timelines). */
+  playSfxBuffer(buffer: AudioBuffer, gain_linear = 0.62): void {
+    const ctx = this.ensureContext();
+    if (!this.masterGain) return;
+    const g = ctx.createGain();
+    g.gain.value = Math.max(0, Math.min(1, gain_linear));
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(g);
+    g.connect(this.masterGain);
+    const t0 = ctx.currentTime;
+    src.start(t0);
+    try {
+      src.stop(t0 + buffer.duration + 0.02);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -639,8 +693,18 @@ export class MixAudioEngine {
     return this.loopActive;
   }
 
+  /** Set loop region active without flipping (caller must pair with setLoopPoints / clearLoop). */
+  setLoopActive(active: boolean): void {
+    this.loopActive = active;
+    if (!active) {
+      this.loopCrossfadeLock = false;
+      this.clearScheduledLoops();
+    }
+  }
+
   clearLoop(): void {
     this.loopActive = false;
+    this.loopCrossfadeLock = false;
     this.loopA = null;
     this.loopB = null;
     this.clearScheduledLoops();
@@ -685,10 +749,11 @@ export class MixAudioEngine {
       this.onTimeUpdate(currentTime, deck.buffer.duration);
     }
 
-    if (this.loopActive && this.loopA !== null && this.loopB !== null) {
-      const timeToLoopEnd = this.loopB - currentTime;
-      if (timeToLoopEnd <= LOOK_AHEAD && timeToLoopEnd > 0) {
-        this.scheduleLoopCrossfade(this.loopA, this.loopB, currentTime);
+    if (this.loopActive && this.loopA !== null && this.loopB !== null && !this.loopCrossfadeLock) {
+      const time_to_loop_end = this.loopB - currentTime;
+      /* 含略过终点的漏帧（后台标签等），避免永远不触发重启 */
+      if (time_to_loop_end <= LOOK_AHEAD && time_to_loop_end > -1.0) {
+        this.restartLoopSegment();
       }
     }
 
@@ -703,54 +768,29 @@ export class MixAudioEngine {
     }
   }
 
-  private scheduleLoopCrossfade(loopStart: number, loopEnd: number, currentTime: number): void {
+  /** 从 loop 起点重新起一段 BufferSource（仍受 loopEnd 的 stop 约束），实现自动循环。 */
+  private restartLoopSegment(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    if (!this.loopActive || this.loopA == null || this.loopB == null) return;
+    if (this.loopCrossfadeLock) return;
 
-    const deck = this.activeDeck === 'A' ? this.deckA : this.deckB;
-    if (!deck.buffer || !deck.sourceNode) return;
+    const deck_key = this.activeDeck;
+    const d = this.getDeckState(deck_key);
+    if (!d.buffer || !d.sourceNode) return;
 
-    const now = ctx.currentTime;
-    const timeUntilLoopEnd = loopEnd - currentTime;
-    const scheduleAt = now + timeUntilLoopEnd - LOOP_CROSSFADE;
+    this.loopCrossfadeLock = true;
+    this.play(deck_key, this.loopA, 0);
 
-    deck.gainNode.gain.setValueAtTime(1, scheduleAt);
-    deck.gainNode.gain.linearRampToValueAtTime(0, scheduleAt + LOOP_CROSSFADE);
-
-    const loopSource = ctx.createBufferSource();
-    loopSource.buffer = deck.buffer;
-
-    const loopGain = ctx.createGain();
-    loopGain.gain.value = 0;
-    loopGain.connect(deck.eqInput);
-    loopSource.connect(loopGain);
-
-    loopGain.gain.setValueAtTime(0, scheduleAt);
-    loopGain.gain.linearRampToValueAtTime(1, scheduleAt + LOOP_CROSSFADE);
-    loopSource.start(scheduleAt, loopStart);
-
-    const oldSource = deck.sourceNode;
-    oldSource.stop(scheduleAt + LOOP_CROSSFADE + 0.005);
-
-    deck.sourceNode = loopSource;
-    deck.startTime = scheduleAt;
-    deck.startOffset = loopStart;
-
-    this.scheduledLoops.push({
-      sourceNode: loopSource,
-      gainNode: loopGain,
-      stopTime: scheduleAt + (loopEnd - loopStart),
-    });
-
-    loopSource.stop(scheduleAt + (loopEnd - loopStart));
+    const seg_sec = Math.max(0.05, this.loopB - this.loopA);
+    const hold_ms = Math.min(220, Math.max(28, seg_sec * 90));
+    window.setTimeout(() => {
+      this.loopCrossfadeLock = false;
+    }, hold_ms);
   }
 
   private clearScheduledLoops(): void {
-    for (const evt of this.scheduledLoops) {
-      try { evt.sourceNode.stop(); } catch { /* noop */ }
-      try { evt.gainNode.disconnect(); } catch { /* noop */ }
-    }
-    this.scheduledLoops = [];
+    this.loopCrossfadeLock = false;
   }
 
   private computePosition(deck: 'A' | 'B'): number {

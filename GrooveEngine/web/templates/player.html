@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Groove DJ — Online Mix Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='player.css') }}">
+</head>
+<body>
+  <div class="noise"></div>
+
+  <div class="dj-console">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <header class="console-header">
+      <div class="header-brand">
+        <span class="brand-icon">♫</span>
+        <div>
+          <h1>GROOVE<span class="accent">DJ</span></h1>
+          <p class="tagline">Online Real-Time Mix Console</p>
+        </div>
+      </div>
+      <div class="header-status">
+        <div id="engine-status" class="engine-badge idle">
+          <span class="status-ring"></span>
+          <span id="engine-status-text">等待加载</span>
+        </div>
+        <div id="mode-display" class="mode-display">
+          <span class="mode-letter">—</span>
+          <span class="mode-name">未启动</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══════════ MAIN GRID ═══════════ -->
+    <div class="console-grid">
+
+      <!-- ── LEFT: Import & Library ── -->
+      <aside class="sidebar">
+
+        <!-- Music folder import -->
+        <section class="card import-card">
+          <h3>📂 曲库导入</h3>
+          <p class="hint">将音频文件放入 <code>GrooveEngine/music/</code> 文件夹</p>
+          <div class="import-actions">
+            <button id="btn-scan" class="btn btn-outline">🔍 扫描文件夹</button>
+            <button id="btn-analyze-all" class="btn btn-primary" disabled>⚡ 全部分析</button>
+          </div>
+          <div id="scan-status" class="scan-status"></div>
+        </section>
+
+        <!-- Track library -->
+        <section class="card library-card">
+          <h3>🎵 已分析曲库 <span id="lib-count" class="badge-sm">0</span></h3>
+          <div id="track-library-mini" class="track-list-mini">
+            <p class="empty-msg">暂无歌曲，请先扫描并分析</p>
+          </div>
+        </section>
+
+        <!-- Queue management -->
+        <section class="card queue-card">
+          <h3>📋 播放队列</h3>
+          <div id="playlist-queue" class="queue-display">
+            <p class="empty-msg">选择曲库中的歌曲拖入队列</p>
+          </div>
+          <div class="queue-actions">
+            <button id="btn-load-queue" class="btn btn-accent" disabled>加载到播放器</button>
+            <button id="btn-clear-queue" class="btn btn-outline btn-sm">清空</button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- ── CENTER: Decks & Controls ── -->
+      <main class="main-stage">
+
+        <!-- Dual Deck Display -->
+        <section class="deck-arena">
+          <!-- Deck A -->
+          <div class="deck-panel" id="deck-a">
+            <div class="deck-top">
+              <span class="deck-name">DECK <strong>A</strong></span>
+              <span class="deck-badge active-deck">播放中</span>
+            </div>
+            <div class="deck-body">
+              <div class="deck-track-title" id="deck-a-title">---</div>
+              <div class="deck-meta" id="deck-a-meta"></div>
+              <div class="progress-track">
+                <div class="progress-fill" id="deck-a-bar"></div>
+              </div>
+              <div class="deck-time" id="deck-a-time">--:--</div>
+            </div>
+            <div class="deck-wave" id="deck-a-wave"></div>
+          </div>
+
+          <!-- Transition Zone -->
+          <div class="xzone" id="xzone">
+            <div class="xzone-arrows">◄ ═══ ►</div>
+            <div class="xzone-label" id="xzone-label">等待混音</div>
+            <div class="xzone-strategy" id="xzone-strategy"></div>
+          </div>
+
+          <!-- Deck B -->
+          <div class="deck-panel idle" id="deck-b">
+            <div class="deck-top">
+              <span class="deck-name">DECK <strong>B</strong></span>
+              <span class="deck-badge idle-deck">待命</span>
+            </div>
+            <div class="deck-body">
+              <div class="deck-track-title" id="deck-b-title">---</div>
+              <div class="deck-meta" id="deck-b-meta"></div>
+              <div class="progress-track">
+                <div class="progress-fill" id="deck-b-bar"></div>
+              </div>
+              <div class="deck-time" id="deck-b-time">--:--</div>
+            </div>
+            <div class="deck-wave" id="deck-b-wave"></div>
+          </div>
+        </section>
+
+        <!-- Transport Controls -->
+        <section class="transport-section">
+          <div class="transport-group">
+            <button id="btn-play" class="btn-transport play" disabled>
+              <span class="icon">▶</span> 播放
+            </button>
+            <button id="btn-pause" class="btn-transport pause" disabled>
+              <span class="icon">⏸</span> 暂停
+            </button>
+            <button id="btn-stop" class="btn-transport stop" disabled>
+              <span class="icon">⏹</span> 停止
+            </button>
+          </div>
+
+          <!-- MANUAL button -->
+          <button id="btn-manual" class="btn-manual" disabled>
+            <span class="manual-hand">✋</span>
+            <span class="manual-main">MANUAL</span>
+            <span class="manual-sub">人工切歌</span>
+          </button>
+        </section>
+
+        <!-- Strategy Selector -->
+        <section class="strategy-section">
+          <h4>🎛 选择下一首混音策略 <span class="hint">（仅影响下一首过渡，不影响当前播放）</span></h4>
+          <div class="strategy-grid" id="strategy-grid">
+            {% for s in strategies %}
+            <label class="strategy-card" data-strategy="{{ s.value }}">
+              <input type="radio" name="strategy" value="{{ s.value }}" {{ 'checked' if loop.first }}>
+              <span class="strategy-name">{{ s.name }}</span>
+              <span class="strategy-desc">{{ s.label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div id="strategy-active" class="strategy-active-info">
+            当前生效: <strong>自动决策 (AUTO)</strong>
+          </div>
+        </section>
+
+        <!-- Insert track (future use) -->
+        <section class="insert-section">
+          <h4>📌 插入歌曲到队列</h4>
+          <select id="insert-track-select" class="insert-select" disabled>
+            <option value="">-- 选择一首已分析的歌曲 --</option>
+          </select>
+          <button id="btn-insert" class="btn btn-outline btn-sm" disabled>插入到当前播放之后</button>
+          <span class="hint">插入后自动作为下一首播放</span>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- ═══════════ EVENT LOG ═══════════ -->
+    <footer class="log-bar">
+      <h4>📜 事件日志</h4>
+      <div id="event-log" class="log-scroll">
+        <span class="log-line empty">等待操作...</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='player.js') }}"></script>
+</body>
+</html>

@@ -9,17 +9,21 @@ from audio.artifacts import export_playlist_artifact, export_candidate_search_re
 from audio.offline_renderer import OfflineDualDeckRenderer
 from analyzer.extractor import TrackAnalyzer
 from analyzer.storage import MetadataStorage
-from core.datatypes import TransitionPlan
+from core.datatypes import TrackMetadata, TransitionPlan
 from core.enums import PhraseType, TransitionType
+from engine.online_controller import OnlineDJController
 from logic.brain import TransitionPlanner
 from logic.playlist import PlaylistPlanner
 from logic.strategies import STRATEGY_REGISTRY
 
 B=Path(__file__).resolve().parent; S=B.parent/'SongFormer'; SP=S/'.venv'/'Scripts'/'python.exe'; SI=S/'infer_single.py'; SR=S/'src'/'SongFormer'/'test_results'; F=B/'fixtures'
 U=B/'temp_uploads'; R=B/'temp_songformer_results'; M=B/'temp_metadata'; O=B/'temp_outputs'; A=B/'temp_artifacts'
-for d in [U,R,M,O,A]: d.mkdir(exist_ok=True)
+MUSIC_DIR=B/'music'
+for d in [U,R,M,O,A, MUSIC_DIR]: d.mkdir(exist_ok=True)
 app=Flask(__name__,template_folder=str(B/'web'/'templates'),static_folder=str(B/'web'/'static'))
 planner=TransitionPlanner(); playlist_planner=PlaylistPlanner(planner); analyzer=TrackAnalyzer(); renderer=OfflineDualDeckRenderer(); LIB={}
+online_ctrl: OnlineDJController | None = None  # online playback controller singleton
+
 
 def f(x,d=0.0):
     try:return float(x)
@@ -222,6 +226,215 @@ def mix_api():
 
 @app.get('/outputs/<path:name>')
 def outputs(name:str): return send_from_directory(O,name,as_attachment=False)
+
+# ══════════════════════════════════════════════════════════════════════
+# Online DJ player routes
+# ══════════════════════════════════════════════════════════════════════
+
+@app.route('/player')
+def player_page():
+    return render_template('player.html',
+        strategies=[{'value': s.value, 'name': s.value.replace('_', ' ').title(), 'label': _strategy_label(s)} for s in TransitionType])
+
+@app.post('/api/online/load')
+def online_load():
+    global online_ctrl
+    p = request.get_json(force=True)
+    ids = p.get('track_ids', [])
+    if len(ids) < 1:
+        return jsonify({'error': 'Need at least one track.'}), 400
+    items = ordered_renderables(ids)
+    metadata_list: list[TrackMetadata] = [
+        MetadataStorage.load(item['metadata_path']) for item in items
+    ]
+    online_ctrl = OnlineDJController(sample_rate=44100, block_size=1024)
+    online_ctrl.load_playlist(metadata_list)
+    online_ctrl._scheduler.metadata_lookup = lambda tid: _lookup_metadata(tid)
+    return jsonify({
+        'status': 'loaded',
+        'track_count': len(metadata_list),
+        'titles': [md.title for md in metadata_list],
+    })
+
+@app.post('/api/online/start')
+def online_start():
+    global online_ctrl
+    if online_ctrl is None:
+        return jsonify({'error': 'No playlist loaded.'}), 400
+    online_ctrl.start()
+    return jsonify({'status': 'playing'})
+
+@app.post('/api/online/stop')
+def online_stop():
+    global online_ctrl
+    if online_ctrl is None:
+        return jsonify({'error': 'Not running.'}), 400
+    online_ctrl.stop()
+    online_ctrl = None
+    return jsonify({'status': 'stopped'})
+
+@app.post('/api/online/pause')
+def online_pause():
+    if online_ctrl is None:
+        return jsonify({'error': 'Not running.'}), 400
+    online_ctrl.press_pause()
+    return jsonify({'status': 'paused'})
+
+@app.post('/api/online/resume')
+def online_resume():
+    if online_ctrl is None:
+        return jsonify({'error': 'Not running.'}), 400
+    online_ctrl.press_resume()
+    return jsonify({'status': 'resumed'})
+
+@app.post('/api/online/manual')
+def online_manual():
+    if online_ctrl is None:
+        return jsonify({'error': 'Not running.'}), 400
+    p = request.get_json(force=True)
+    strategy_str = p.get('strategy')
+    strategy = None
+    if strategy_str:
+        try:
+            strategy = TransitionType(strategy_str)
+        except ValueError:
+            return jsonify({'error': f'Invalid strategy: {strategy_str}'}), 400
+    online_ctrl.press_manual(strategy)
+    return jsonify({
+        'status': 'manual_queued',
+        'override_strategy': strategy.value if strategy else 'auto',
+    })
+
+@app.get('/api/online/status')
+def online_status():
+    if online_ctrl is None:
+        return jsonify({'running': False, 'mode': 'idle'})
+    snapshot = online_ctrl.status_snapshot()
+    snapshot['running'] = True
+    return jsonify(snapshot)
+
+@app.get('/api/online/strategies')
+def online_strategies():
+    return jsonify({
+        'strategies': [
+            {'value': s.value, 'label': _strategy_label(s)}
+            for s in TransitionType
+        ]
+    })
+
+# ── Music folder scan & batch analyze ──────────────────────────
+
+@app.get('/api/music/scan')
+def music_scan():
+    """Scan the music/ folder for audio files and report which are already analyzed."""
+    audio_exts = {'.wav', '.mp3', '.flac', '.ogg', '.aiff', '.aif', '.m4a'}
+    files = []
+    for fpath in sorted(MUSIC_DIR.iterdir()):
+        if fpath.suffix.lower() in audio_exts:
+            track_id = f"music-{fpath.stem.lower().replace(' ','-')}"
+            already = any(t.get('track_id') == track_id for t in LIB.values())
+            files.append({
+                'name': fpath.name,
+                'stem': fpath.stem,
+                'path': str(fpath),
+                'track_id': track_id,
+                'analyzed': already,
+            })
+    return jsonify({'music_dir': str(MUSIC_DIR), 'files': files, 'total': len(files)})
+
+@app.post('/api/music/analyze-all')
+def music_analyze_all():
+    """Analyze all un-analyzed audio files in music/ folder. Runs sequentially."""
+    audio_exts = {'.wav', '.mp3', '.flac', '.ogg', '.aiff', '.aif', '.m4a'}
+    to_analyze = []
+    for fpath in sorted(MUSIC_DIR.iterdir()):
+        if fpath.suffix.lower() in audio_exts:
+            track_id = f"music-{fpath.stem.lower().replace(' ','-')}"
+            if not any(t.get('track_id') == track_id for t in LIB.values()):
+                to_analyze.append(fpath)
+
+    if not to_analyze:
+        return jsonify({'status': 'all_done', 'message': '所有歌曲已分析完毕', 'analyzed': 0})
+
+    results = []
+    errors = []
+    for i, fpath in enumerate(to_analyze):
+        try:
+            payload = analyze_upload(fpath)
+            results.append({'name': fpath.name, 'track_id': payload['track_id'], 'title': payload['title'], 'bpm': payload.get('bpm'), 'status': 'ok'})
+        except Exception as exc:
+            errors.append({'name': fpath.name, 'error': str(exc), 'status': 'failed'})
+
+    return jsonify({
+        'status': 'complete',
+        'analyzed': len(results),
+        'failed': len(errors),
+        'results': results,
+        'errors': errors,
+        'library_count': len(LIB),
+    })
+
+# ── Online queue insert ─────────────────────────────────────────
+
+@app.post('/api/online/insert')
+def online_insert():
+    """Insert a track into the online playlist at a given position (1-based, after current)."""
+    global online_ctrl
+    p = request.get_json(force=True)
+    track_id = p.get('track_id')
+    position = p.get('position')  # 1-based, None = append after current
+
+    if not track_id:
+        return jsonify({'error': 'track_id required'}), 400
+    if track_id not in LIB:
+        return jsonify({'error': f'Track not found: {track_id}'}), 400
+    item = LIB[track_id]
+    if not item.get('metadata_path'):
+        return jsonify({'error': 'Track not analyzed yet'}), 400
+
+    md = MetadataStorage.load(item['metadata_path'])
+
+    if online_ctrl is None or not online_ctrl._running:
+        return jsonify({'error': 'No active online session. Load a playlist first.'}), 400
+
+    # Insert after current index
+    insert_at = online_ctrl._current_index + 1
+    if position is not None:
+        insert_at = max(online_ctrl._current_index + 1, min(int(position), len(online_ctrl._playlist)))
+
+    online_ctrl._playlist.insert(insert_at, md)
+    if online_ctrl._next_index >= insert_at:
+        online_ctrl._next_index += 1
+
+    # Reload the inserted track onto idle deck if idle is free
+    idle = online_ctrl._decks.idle_deck
+    if not idle.loaded or idle.finished:
+        online_ctrl._decks.load_idle(md)
+
+    return jsonify({
+        'status': 'inserted',
+        'position': insert_at,
+        'track_title': md.title,
+        'playlist_length': len(online_ctrl._playlist),
+        'titles': [t.title for t in online_ctrl._playlist],
+    })
+
+def _strategy_label(s: TransitionType) -> str:
+    labels = {
+        TransitionType.CLEAN_BLEND: 'Clean Blend (长混低频切换)',
+        TransitionType.ECHO_OUT: 'Echo Out (回声尾音)',
+        TransitionType.RISER: 'Riser (上升堆积)',
+        TransitionType.CUT_SWAP: 'Cut Swap (快速切换/淡入淡出)',
+        TransitionType.TRIPLET_SWAP: 'Triplet Swap (三步音量)',
+        TransitionType.MELODIC_RESET: 'Melodic Reset (旋律重置)',
+    }
+    return labels.get(s, s.value)
+
+def _lookup_metadata(track_id: str) -> TrackMetadata:
+    item = LIB.get(track_id)
+    if item and item.get('metadata_path'):
+        return MetadataStorage.load(item['metadata_path'])
+    raise KeyError(f'Track not found in library: {track_id}')
 
 def open_browser(): webbrowser.open('http://127.0.0.1:5055')
 if __name__=='__main__': Timer(1.2,open_browser).start(); app.run(host='127.0.0.1',port=5055,debug=False,use_reloader=False)

@@ -152,6 +152,10 @@ def _ensure_scanned_library(db: Session, user_id: int, limit: int) -> None:
     for path in _scan_local_audio_files()[:limit]:
         if os.path.normcase(path) in existing_paths:
             continue
+        # Hard guard: never allow shared/processed or shared/cache paths
+        norm = path.replace("\\", "/").lower()
+        if "/shared/processed/" in norm or "/shared/cache/" in norm:
+            continue
         base = os.path.splitext(os.path.basename(path))[0]
         fmt = os.path.splitext(path)[1].lstrip(".").lower() or "wav"
         duration = _audio_duration(path)
@@ -329,18 +333,21 @@ def _nearest_grid_time(times: list[float], target: float, duration: float, lower
 
 
 def _choose_exit_time(row: LibrarySong) -> float:
+    """Pick the auto-transition exit point 5-8s before the track ends."""
     duration = float(row.duration or 180.0)
     phrase_candidates: list[float] = []
     for phrase in row.phrase_map or []:
         end = float(phrase.get("end", 0) or 0)
         label = str(phrase.get("label", "")).lower()
-        if 45.0 <= end <= duration - 24.0 and label not in {"intro"}:
+        # Prefer phrase ends within 4-16s of the track end
+        if duration - 16.0 <= end <= duration - 3.0 and label not in {"intro"}:
             phrase_candidates.append(end)
-    target = duration * 0.68
+    # Target: 6.5s before end (middle of 5-8s window)
+    target = max(8.0, duration - 6.5)
     if phrase_candidates:
         target = min(phrase_candidates, key=lambda t: abs(t - target))
     grid = list(row.downbeats or row.beat_points or [])
-    return round(_nearest_grid_time(grid, target, duration, lower=32.0), 3)
+    return round(_nearest_grid_time(grid, target, duration, lower=max(8.0, duration - 16.0)), 3)
 
 
 def _choose_entry_time(row: LibrarySong) -> float:
@@ -362,12 +369,12 @@ def _smooth_crossfade_sec(from_row: LibrarySong, to_row: LibrarySong) -> float:
     tempo_delta = abs(math.log2(max(a, 1) / max(b, 1)))
     key_dist = _camelot_distance(from_row.camelot_key, to_row.camelot_key)
     if tempo_delta <= 0.045 and key_dist <= 2:
-        return 16.0
+        return 8.0
     if tempo_delta <= 0.08 and key_dist <= 4:
-        return 14.0
+        return 7.0
     if tempo_delta <= 0.14:
-        return 12.0
-    return 10.0
+        return 6.0
+    return 5.0
 
 
 def _playlist_item(row: LibrarySong, index: int) -> PlaylistSongData:
@@ -417,7 +424,7 @@ def _build_mixtape_plan(rows: list[LibrarySong]) -> DjMixPlanResult:
             crossfade_sec=round(crossfade, 3),
             tempo_ratio=round(rate, 4),
             key_relation="smooth" if _camelot_distance(a.camelot_key, b.camelot_key) <= 2 else "managed",
-            transition_technique="smooth_filter_blend",
+            transition_technique="clean_blend",
             energy_target="medium",
             fx_automation=[],
             score=round(1.0 / (1.0 + abs(raw_rate - 1.0) * 4.0 + _camelot_distance(a.camelot_key, b.camelot_key) * 0.25), 4),
@@ -437,7 +444,7 @@ def _attach_online_timeline(plan: DjMixPlanResult) -> DjMixPlanResult:
         to_track = by_song.get(tr.to_song_id)
         if not from_track or not to_track:
             continue
-        crossfade = max(2.0, min(16.0, float(tr.crossfade_sec or 8.0)))
+        crossfade = max(4.0, min(10.0, float(tr.crossfade_sec or 6.5)))
         from_duration = float(from_track.duration or 180.0)
         start_at = tr.exit_time_sec if tr.exit_time_sec is not None else max(0.0, from_duration - crossfade - 2.0)
         start_at = max(0.0, min(start_at, max(0.0, from_duration - crossfade)))

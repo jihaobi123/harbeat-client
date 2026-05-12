@@ -247,35 +247,36 @@ def _build_bass_swap(auto: TransitionAutomation, n: int, dur: float, bpm: float)
             _append_fx(auto, a_rev=_ease_in(p) * 0.6)
 
 
-# ── Echo Out: reverb tail on A ─────────────────────────────────────────────
+# ── Echo Out: reverb wash first, delay later, HP thin-out ──────────────────
+# Optimised: reverb builds the tail bed early (0→85%), delay enters after reverb
+# is already audible (35%→end), high-pass thins A to open space for B.
+# B bass enters earlier (15%) so the groove continues seamlessly.
 
 def _build_echo_out(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> None:
-    """
-    A builds up real reverb/delay as it fades, B clean fade-in.
-    Reverb ramps strongly on A creating a spacious tail;
-    delay adds rhythmic echo that decays into the new track.
-    """
     for i in range(n):
         t = i / max(n - 1, 1)
 
-        # A: fade out with heavy reverb + delay
-        a_vol = _r(1.0 - _ease_in(t))
-        auto.a_drums.append(_r(1.0 - t * 0.6))
-        auto.a_bass.append(_r(1.0 - _ease_in(t) * 0.8))
-        auto.a_vocals.append(_r(1.0 - t * 0.5))
-        auto.a_other.append(_r(1.0 - t * 0.4))
+        # A: staggered stem exit — bass/vocals go first, drums last
+        a_vol = _r(1.0 - _ease_in(t * 0.9))
+        auto.a_bass.append(_r(1.0 - _ease_in(min(t * 1.5, 1.0))))
+        auto.a_vocals.append(_r(1.0 - _ease_in(t) * 0.7))
+        auto.a_other.append(_r(1.0 - _ease_in(t) * 0.50))
+        auto.a_drums.append(_r(1.0 - t * 0.45))
         auto.a_volume.append(a_vol)
 
-        # B: clean entry, drums first
-        b_p = max(0, (t - 0.15) / 0.85)
-        auto.b_drums.append(_r(_ease_in(b_p)))
-        auto.b_bass.append(_r(_ease_in(max(0, (t - 0.3) / 0.7))))
-        auto.b_vocals.append(_r(_ease_in(max(0, (t - 0.4) / 0.6))))
-        auto.b_other.append(_r(_ease_in(max(0, (t - 0.2) / 0.8))))
-        auto.b_volume.append(_r(_ease_in(b_p)))
+        # B: drums early, bass at 15%, vocals last
+        auto.b_drums.append(_r(_ease_in(max(0, (t - 0.08) / 0.6))))
+        auto.b_bass.append(_r(_ease_in(max(0, (t - 0.15) / 0.65))))
+        auto.b_other.append(_r(_ease_in(max(0, (t - 0.18) / 0.7))))
+        auto.b_vocals.append(_r(_ease_in(max(0, (t - 0.30) / 0.6))))
+        auto.b_volume.append(_r(_ease_in(max(0, (t - 0.10) / 0.75))))
 
-        # Real reverb/delay ramp — creates spacious echo tail on A
-        _append_fx(auto, a_rev=_ease_in(t) * 0.85, a_del=_ease_in(t) * 0.6)
+        # HP thin-out on A: 20→500Hz, cuts bass to make room for B
+        a_hp = 20.0 + _ease_in(t) * 480.0
+        # Reverb first (0→85%, peaks early), delay later (30%→65%)
+        a_rev = _ease_in(min(t * 1.8, 1.0)) * 0.85
+        a_del = _ease_in(max(0, (t - 0.30) / 0.70)) * 0.55
+        _append_fx(auto, a_hp=a_hp, a_rev=a_rev, a_del=a_del)
 
 
 # ── Filter: hi-pass sweep A + lo-pass ramp B ──────────────────────────────
@@ -383,37 +384,40 @@ def _build_slam(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> N
             _append_fx(auto, a_rev=0.5 * (1 - p))
 
 
-# ── Echo Out Enhanced: pitch-shifted multi-tap echo + stereo spread ─────────
-# Distinct from basic echo_out: uses tape-stop pitch shift, multi-tap rhythmic
-# delay taps (1/4, 1/8, 1/16), stereo ping-pong decay, and pre-delay swell.
-# Reference: GrooveEngine BACKSPIN_OUT (reverse+brake) mixed with ECHO_OUT.
+# ── Echo Out Enhanced: darkening echo tail + HP thin-out + rhythmic delay ───
+# Distinct from basic echo_out: adds low-pass darkening on echo tail,
+# multi-tap feel via delay feedback envelope, and B enters with HPF tease.
+# All parameters map to real filter nodes (highpass_hz / lowpass_hz), no dead fx.
 
 def _build_echo_out_enhanced(auto: TransitionAutomation, n: int, dur: float, bpm: float) -> None:
-    beat_sec = 60.0 / max(bpm, 1.0)
     for i in range(n):
         t = i / max(n - 1, 1)
-        # A: staggered stem exit — vocals first (echoed), drums last
-        a_vol = _r(1.0 - _ease_in(t * 1.2))
-        auto.a_vocals.append(_r(1.0 - _ease_in(min(t * 1.8, 1.0))))
-        auto.a_bass.append(_r(1.0 - _ease_in(min(t * 1.4, 1.0))))
-        auto.a_other.append(_r(1.0 - _ease_in(t) * 0.6))
-        auto.a_drums.append(_r(1.0 - t * 0.5))
+
+        # A: staggered stem exit — vocals echo longest, bass cuts first
+        a_vol = _r(1.0 - _ease_in(t * 1.05))
+        auto.a_vocals.append(_r(1.0 - _ease_in(t) * 0.55))       # linger
+        auto.a_bass.append(_r(1.0 - _ease_in(min(t * 1.6, 1.0))))  # cuts early
+        auto.a_other.append(_r(1.0 - _ease_in(t) * 0.55))
+        auto.a_drums.append(_r(1.0 - t * 0.50))
         auto.a_volume.append(a_vol)
 
-        # B: clean entry, drums then bass then rest
-        auto.b_drums.append(_r(_ease_in(max(0, (t - 0.05) / 0.5))))
-        auto.b_bass.append(_r(_ease_in(max(0, (t - 0.2) / 0.6))))
-        auto.b_other.append(_r(_ease_in(max(0, (t - 0.25) / 0.7))))
-        auto.b_vocals.append(_r(_ease_in(max(0, (t - 0.35) / 0.65))))
-        auto.b_volume.append(_r(_ease_in(max(0, (t - 0.1) / 0.8))))
+        # B: drums first, bass at 12%, vocals at 25%
+        auto.b_drums.append(_r(_ease_in(max(0, (t - 0.05) / 0.55))))
+        auto.b_bass.append(_r(_ease_in(max(0, (t - 0.12) / 0.60))))
+        auto.b_other.append(_r(_ease_in(max(0, (t - 0.18) / 0.72))))
+        auto.b_vocals.append(_r(_ease_in(max(0, (t - 0.25) / 0.65))))
+        auto.b_volume.append(_r(_ease_in(max(0, (t - 0.08) / 0.78))))
 
-        # Tape-stop pitch shift: -0 to -7 semitones as A fades
-        pitch = -_ease_in(t) * 7.0
-        # Multi-tap delay: rhythmic taps at 1/4, 1/8 with feedback
-        del_wet = _ease_in(t * 0.8) * 0.75
-        # Stereo reverb swell: pre-delay increases with t
-        rev_wet = _ease_in(t * 0.6) * 0.7
-        _append_fx(auto, a_rev=rev_wet, a_del=del_wet, a_pitch=pitch)
+        # HP thin-out: 20→600Hz, cuts bass progressively
+        a_hp = 20.0 + _ease_in(t) * 580.0
+        # LP darken: 20000→2500Hz — echo tail loses highs, sounds distant
+        a_lp = 20000.0 - _ease_in(max(0, (t - 0.20) / 0.80)) * 17500.0
+        # Reverb peaks early (0→80%), delay fades in later (25%→70%)
+        a_rev = _ease_in(min(t * 1.7, 1.0)) * 0.80
+        a_del = _ease_in(max(0, (t - 0.25) / 0.75)) * 0.70
+        # B enters with slight HPF tease then opens
+        b_hp = 380.0 * (1.0 - _ease_in(max(0, (t - 0.35) / 0.65)))
+        _append_fx(auto, a_hp=a_hp, a_lp=a_lp, a_rev=a_rev, a_del=a_del, b_hp=b_hp)
 
 
 # ── Drum Fill: band-pass drum energy build + noise burst ────────────────────
