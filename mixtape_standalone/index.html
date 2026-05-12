@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mixtape 导入与导出测试站</title>
+  <style>
+    body { margin:0; font-family: Inter,Segoe UI,Arial,sans-serif; background:#0b1220; color:#e8eefc; }
+    .app { max-width:1100px; margin:0 auto; padding:18px; display:grid; gap:12px; }
+    .card { background:#131d32; border:1px solid #2a3a62; border-radius:12px; padding:12px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .col { display:grid; gap:8px; }
+    .grid-2 { display:grid; gap:12px; grid-template-columns: 1.1fr 0.9fr; }
+    .stack { display:grid; gap:10px; }
+    .panel-title { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    input,select,button,textarea { background:#0f1730; color:#e8eefc; border:1px solid #2a3a62; border-radius:8px; padding:8px 10px; position:relative; z-index:2; pointer-events:auto; }
+    button { -webkit-appearance:none; appearance:none; cursor:pointer; }
+    textarea { min-height:88px; resize:vertical; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th,td { border-bottom:1px solid #2a3a62; padding:7px 6px; text-align:left; vertical-align:top; }
+    .muted { color:#9eb0d8; font-size:13px; }
+    .ok { color:#34d399; } .bad { color:#ef4444; } .warn { color:#f59e0b; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; border:1px solid #2a3a62; color:#bfd0f8; font-size:12px; }
+    .result-list { display:grid; gap:10px; }
+    .result-card { border:1px solid #2a3a62; border-radius:12px; padding:10px; background:#0f1730; }
+    .result-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .result-title { margin:0; font-size:15px; }
+    .result-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .result-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .source-badge { font-size:12px; padding:2px 8px; border-radius:999px; background:#16213f; border:1px solid #314677; color:#cfe1ff; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <h2>Mixtape 导入与导出测试站</h2>
+    <div class="muted">支持歌单导入，也支持方式 B 的舞种/风格推荐和方式 C 的 vibe 语义排序，再加入歌单和导出混音。</div>
+  </div>
+
+  <div class="card">
+    <h3>1) 登录</h3>
+    <div class="row">
+      <input id="baseUrl" value="http://127.0.0.1:8000" style="min-width:280px" />
+      <input id="username" placeholder="用户名" />
+      <input id="password" type="password" placeholder="密码" />
+      <button id="loginBtn" type="button">登录</button>
+      <button id="spotifyAuthBtn" type="button">Spotify 授权</button>
+      <span id="loginMsg" class="muted">未登录</span>
+    </div>
+    <div id="spotifyAuthMsg" class="muted" style="margin-top:8px">未授权 Spotify</div>
+  </div>
+
+  <div class="card">
+    <h3>2) 导入混音歌单</h3>
+    <div class="row" style="margin-bottom:10px">
+      <label for="importMode">选择导入方式：</label>
+      <select id="importMode">
+        <option value="playlist">方式 A：导入现有歌单到待混音列表</option>
+        <option value="semantic">方式 B：按舞种/风格推荐</option>
+        <option value="vibe">方式 C：按 vibe 语义排序推荐</option>
+      </select>
+      <span class="muted">方式 B 只做舞种/风格推荐；方式 C 只做 vibe 语义排序</span>
+    </div>
+
+    <div id="playlistImportPanel" class="card" style="margin:0">
+      <h4 style="margin-top:0">方式 A：导入现有歌单</h4>
+      <div class="row">
+        <input id="playlistUrl" placeholder="粘贴 QQ/网易云/Spotify 歌单链接" style="min-width:620px" />
+        <button id="parseBtn" disabled>解析歌单</button>
+        <button id="importBtn" disabled>导入并下载歌曲</button>
+      </div>
+      <div id="parseMsg" class="muted" style="margin-top:8px">未解析</div>
+    </div>
+
+    <div id="styleImportPanel" class="card" style="margin:10px 0 0; display:none">
+      <h4 style="margin-top:0">方式 B：按舞种/风格推荐</h4>
+      <div class="stack">
+        <div class="row" style="align-items:flex-start">
+          <div class="col" style="min-width:320px; flex:1">
+            <label class="muted">先多选舞种/风格标签</label>
+            <div id="styleTagGroup" class="row" style="gap:8px"></div>
+            <div class="muted" style="margin-top:6px">左侧：按已选标签和风格权重排序</div>
+          </div>
+        </div>
+        <div class="row">
+          <button id="vibeSearchBtn" disabled>按标签排序推荐</button>
+          <button id="clearVibeBtn">清空结果</button>
+          <span id="vibeMsg" class="muted">先选舞种/风格标签</span>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="panel-title"><h4 style="margin:0">本地推荐结果</h4><span class="source-badge">标签权重排序</span></div>
+          <div id="localResults" class="result-list" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="vibeImportPanel" class="card" style="margin:10px 0 0; display:none">
+      <h4 style="margin-top:0">方式 C：按 vibe 语义排序推荐</h4>
+      <div class="stack">
+        <div class="row" style="align-items:flex-start">
+          <div class="col" style="min-width:420px; flex:1.4">
+            <label class="muted" for="vibeQuery">输入 vibe 语义进行排序</label>
+            <textarea id="vibeQuery" placeholder="例如：雨夜里适合独自开车的歌 / 适合跳舞的复古 hip-hop / 温暖、松弛、带一点怀旧感的音乐"></textarea>
+          </div>
+        </div>
+        <div class="row">
+          <button id="semanticSearchBtn" disabled>按 vibe 排序推荐</button>
+          <button id="clearSemanticBtn">清空结果</button>
+          <span id="semanticMsg" class="muted">输入 vibe 后再搜索</span>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="panel-title"><h4 style="margin:0">方案 C 结果</h4><span class="source-badge">vibe 语义排序</span></div>
+          <div id="semanticResults" class="result-list" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>4) 每首歌选择乐段（默认全要，会实际裁剪参与混音的音频）</h3>
+    <table id="tracksTable">
+      <thead><tr><th>#</th><th>歌名</th><th>歌手</th><th>乐段</th><th>导入状态</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>5) 转场与混音选项</h3>
+    <div class="row">
+      <label>转场：</label>
+      <select id="transitionMode">
+        <option value="fade">淡入淡出（默认）</option>
+        <option value="hard_cut">Hard Cut</option>
+        <option value="clean_blend">CLEAN BLEND</option>
+        <option value="echo_out">ECHO OUT</option>
+        <option value="riser">RISER</option>
+        <option value="cut_swap">CUT SWAP</option>
+        <option value="triplet_swap">TRIPLET SWAP</option>
+        <option value="melodic_reset">MELODIC RESET</option>
+      </select>
+      <label><input id="drumBoost" type="checkbox" /> 加强鼓点</label>
+      <button id="renderBtn" disabled>生成并导出 Mixtape</button>
+    </div>
+    <div class="muted" style="margin-top:8px">转场预览</div>
+    <audio id="transitionPreview" controls preload="auto" style="width:100%; margin-top:8px"></audio>
+    <div id="mixMsg" class="muted" style="margin-top:8px">未开始混音</div>
+    <div id="mixDownloads" class="row" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<script src="./config.js"></script>
+<script>
+const CFG = window.MIXTAPE_CONFIG || {};
+const state = { token:'', userId:null, parsed:null, imported:[], playlistId:null, spotifyAccessToken:'', spotifyOAuthState:'', vibeResults:{ spotify:[], local:[] }, semanticResults:[], selectedStyleTags:[] };
+const SPOTIFY_REDIRECT_URI = CFG.spotifyRedirectUri || 'http://127.0.0.1:5500/index.html';
+const SEGMENTS = ['all','intro','build','verse','drop','bridge','outro'];
+const el = (id)=>document.getElementById(id);
+
+function setDisabled(id, disabled){ const node = el(id); if (node) node.disabled = disabled; }
+function updateActionAvailability(){ const loggedIn = !!state.token; setDisabled('parseBtn', !loggedIn); setDisabled('vibeSearchBtn', !loggedIn); setDisabled('semanticSearchBtn', !loggedIn); setDisabled('retagAllBtn', !loggedIn); }
+function updateTransitionPreview(){ const mode = el('transitionMode')?.value || 'fade'; const audio = el('transitionPreview'); if (!audio) return; const map = { fade:'clean_blend.WAV', hard_cut:'hard_cut.WAV', clean_blend:'clean_blend.WAV', echo_out:'echo_out.WAV', riser:'riser.WAV', cut_swap:'cut_swap.WAV', triplet_swap:'triplet_swap.WAV', melodic_reset:'melodic_reset.WAV' }; const base = CFG.previewBase || 'http://127.0.0.1:8000/Preview_mu'; audio.src = `${base}/${encodeURIComponent(map[mode] || 'clean_blend.WAV')}`; }
+function updateImportModeView(){ const mode = el('importMode')?.value || 'playlist'; const playlistPanel = el('playlistImportPanel'); const stylePanel = el('styleImportPanel'); const vibePanel = el('vibeImportPanel'); if (playlistPanel) playlistPanel.style.display = mode === 'playlist' ? 'block' : 'none'; if (stylePanel) stylePanel.style.display = mode === 'semantic' ? 'block' : 'none'; if (vibePanel) vibePanel.style.display = mode === 'vibe' ? 'block' : 'none'; updateActionAvailability(); }
+(() => { const b = localStorage.getItem('mixtape_api_base') || ''; const u = localStorage.getItem('mixtape_username') || ''; const t = localStorage.getItem('mixtape_token') || ''; const uid = localStorage.getItem('mixtape_user_id') || ''; if (b) el('baseUrl').value = b; if (u) el('username').value = u; if (t) { state.token = t; state.userId = uid ? Number(uid) : null; setMsg('loginMsg', `已恢复登录 user_id=${state.userId ?? '-'}`, 'ok'); } updateActionAvailability(); })();
+function apiBase(){ return el('baseUrl').value.trim().replace(/\/$/, ''); }
+function setMsg(id, text, cls='muted'){ const n=el(id); if (!n) return; n.className=cls; n.textContent=text; }
+async function api(path, opts={}){ const headers = { ...(opts.headers||{}) }; if(state.token) headers['Authorization'] = `Bearer ${state.token}`; const r = await fetch(`${apiBase()}${path}`, {...opts, headers}); const j = await r.json(); if(!r.ok || (typeof j.code==='number' && j.code!==0)) throw new Error(j.message || `HTTP ${r.status}`); return j.data; }
+function renderTracks(){ const tbody = el('tracksTable')?.querySelector('tbody'); if (!tbody) return; const arr = state.parsed?.tracks || []; tbody.innerHTML = arr.map((t,i)=>`<tr><td>${i+1}</td><td>${t.title||''}</td><td>${t.artist||''}</td><td><select data-seg="${i}">${SEGMENTS.map(s=>`<option value="${s}" ${s==='all'?'selected':''}>${s}</option>`).join('')}</select></td><td id="imp_${i}" class="muted">未导入</td></tr>`).join(''); }
+function renderStyleTags(){ const tags = ['hiphop','breaking','popping','locking','krump','waacking','vogue','house','urban','commercial','jazzfunk','contemporary']; const group = el('styleTagGroup'); if (!group) return; group.innerHTML = tags.map(tag => `<label class="pill" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer"><input type="checkbox" value="${tag}" data-style-tag /><span>${tag}</span></label>`).join(''); group.querySelectorAll('[data-style-tag]').forEach(cb => cb.addEventListener('change', () => { state.selectedStyleTags = Array.from(group.querySelectorAll('[data-style-tag]:checked')).map(x => x.value); const msg = el('vibeMsg'); if (msg) msg.textContent = state.selectedStyleTags.length ? `已选择：${state.selectedStyleTags.join(' / ')}` : '先选舞种/风格标签'; updateActionAvailability(); })); }
+function wireButton(btnId, handler){ const btn = el(btnId); if(!btn) return; btn.addEventListener('click', e => { e.preventDefault(); handler(e); }); }
+function ensureSection4State(){ if (!state.parsed) state.parsed = { tracks: [] }; if (!Array.isArray(state.parsed.tracks)) state.parsed.tracks = []; return state.parsed.tracks; }
+function addSongToSection4(song){ const tracks = ensureSection4State(); tracks.push({ title: song.title, artist: song.artist || 'Unknown Artist', segment: 'all', source: song.source || 'semantic-result', song_id: song.songId || song.id || '' }); renderTracks(); }
+function renderVibeResults(){ const localEl = el('localResults'); if (!localEl) return; const list = state.vibeResults.local || []; localEl.innerHTML = list.length ? list.map((item, idx) => { const title = item.title || item.name || item.track_name || item.song_name || '未命名歌曲'; const artist = item.artist || item.artists || item.primary_artist || ''; const score = typeof item.score === 'number' ? item.score : (typeof item.relevance === 'number' ? item.relevance : null); const reason = item.reason || item.matched_reason || item.explanation || ''; const songId = item.song_id || item.id || item.track_id || ''; const payload = encodeURIComponent(JSON.stringify({ songId, title, artist })); return `<div class="result-card"><div class="result-head"><div><h5 class="result-title">${title}</h5><div class="muted">${artist || '未知歌手'}</div></div><span class="source-badge">${score !== null ? `相关度 ${(score * 100).toFixed(0)}%` : `推荐 ${idx + 1}`}</span></div><div class="result-meta">${item.bpm ? `<span class="pill">BPM ${item.bpm}</span>` : ''}${item.key ? `<span class="pill">${item.key}</span>` : ''}${item.genre ? `<span class="pill">${item.genre}</span>` : ''}${item.tags?.length ? `<span class="pill">${item.tags.join(' · ')}</span>` : ''}</div>${item.tag_scores ? `<div class="muted" style="margin-top:8px; line-height:1.6">${Object.entries(item.tag_scores).map(([k,v])=>`${k}: ${Number(v).toFixed(2)}`).join('<br/>')}<br/>总分 = ${Object.entries(item.tag_scores).map(([,v])=>Number(v).toFixed(2)).join(' + ')} = ${(item.score ?? 0).toFixed(2)}</div>` : ''}${reason ? `<div class="muted" style="margin-top:8px">${reason}</div>` : ''}<div class="result-actions"><button data-add-semantic="${payload}">加入待混音列表</button></div></div>`; }).join('') : '<div class="muted">暂无推荐结果</div>'; localEl.querySelectorAll('[data-add-semantic]').forEach(btn => btn.addEventListener('click', async () => { try { const data = JSON.parse(decodeURIComponent(btn.getAttribute('data-add-semantic'))); if (!state.playlistId) { const created = await api(CFG.endpoints.createPlaylist, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:`Mixtape_${Date.now()}`}) }); state.playlistId = created.id; } setMsg('vibeMsg', `正在加入：${data.title}`, 'warn'); const res = await api(CFG.endpoints.fangpiDownload, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ music_id: data.songId || data.id || data.title, title: data.title, artist: data.artist || 'Unknown Artist', tags: ['local-vibe'], source: 'local-semantic' }) }); await api(CFG.endpoints.addSongs(state.playlistId), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ library_song_ids: [res.id] }) }); addSongToSection4({ title: data.title, artist: data.artist, songId: data.songId, source: 'semantic-result' }); setMsg('vibeMsg', `已加入待混音列表并刷新第4区块：${data.title}`, 'ok'); } catch (e) { setMsg('vibeMsg', `加入失败：${e.message}`, 'bad'); } })); }
+function renderSemanticResults(){ const semanticEl = el('semanticResults'); if (!semanticEl) return; const list = state.semanticResults || []; semanticEl.innerHTML = list.length ? list.map((item, idx) => { const title = item.title || item.name || item.track_name || '未命名歌曲'; const artist = item.artist || item.artists || item.primary_artist || ''; const reason = item.reason || item.matched_reason || item.explanation || ''; const songId = item.song_id || item.id || item.track_id || ''; const payload = encodeURIComponent(JSON.stringify({ songId, title, artist })); return `<div class="result-card"><div class="result-head"><div><h5 class="result-title">${title}</h5><div class="muted">${artist || '未知歌手'}</div></div><span class="source-badge">推荐 ${idx + 1}</span></div><div class="result-meta">${item.bpm ? `<span class="pill">BPM ${item.bpm}</span>` : ''}${item.key ? `<span class="pill">${item.key}</span>` : ''}${item.genre ? `<span class="pill">${item.genre}</span>` : ''}${item.tags?.length ? `<span class="pill">${item.tags.join(' · ')}</span>` : ''}</div>${item.tag_scores ? (() => { const entries = Object.entries(item.tag_scores); const total = entries.reduce((sum, [, v]) => sum + Number(v || 0), 0); return `<div class="muted" style="margin-top:8px; line-height:1.6">${entries.map(([k, v]) => `${k}: ${Number(v).toFixed(2)}`).join('<br/>')}<br/>总分 = ${entries.map(([, v]) => Number(v).toFixed(2)).join(' + ')} = ${total.toFixed(2)}</div>`; })() : ''}${reason ? `<div class="muted" style="margin-top:8px">${reason}</div>` : ''}<div class="result-actions"><button data-add-semantic="${payload}">加入待混音列表</button></div></div>`; }).join('') : '<div class="muted">暂无推荐结果</div>'; semanticEl.querySelectorAll('[data-add-semantic]').forEach(btn => btn.addEventListener('click', async () => { try { const data = JSON.parse(decodeURIComponent(btn.getAttribute('data-add-semantic'))); if (!state.playlistId) { const created = await api(CFG.endpoints.createPlaylist, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:`Mixtape_${Date.now()}`}) }); state.playlistId = created.id; } setMsg('semanticMsg', `正在加入：${data.title}`, 'warn'); const res = await api(CFG.endpoints.fangpiDownload, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ music_id: data.songId || data.id || data.title, title: data.title, artist: data.artist || 'Unknown Artist', tags: ['semantic-search'], source: 'local-semantic' }) }); await api(CFG.endpoints.addSongs(state.playlistId), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ library_song_ids: [res.id] }) }); addSongToSection4({ title: data.title, artist: data.artist, songId: data.songId, source: 'semantic-result' }); setMsg('semanticMsg', `已加入待混音列表并刷新第4区块：${data.title}`, 'ok'); } catch (e) { setMsg('semanticMsg', `加入失败：${e.message}`, 'bad'); } })); }
+function mixDownloadUrl(filename){ return `${apiBase()}/api/stream/mixes/${encodeURIComponent(filename)}?token=${encodeURIComponent(state.token)}&download=true`; }
+function randomState(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function getSpotifyAuthorizeUrl(){ const clientId = CFG.spotifyClientId || 'ea17a2d5e2b24926ae4a80adadd73435'; const redirectUri = SPOTIFY_REDIRECT_URI; const scope = 'playlist-read-private playlist-read-collaborative'; state.spotifyOAuthState = randomState(); localStorage.setItem('mixtape_sp_state', state.spotifyOAuthState); return `https://accounts.spotify.com/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state.spotifyOAuthState)}`; }
+async function handleSpotifyAuthCallback(){ const usp = new URLSearchParams(window.location.search); const code = usp.get('code') || ''; const stateVal = usp.get('state') || ''; if(!code) return; const saved = localStorage.getItem('mixtape_sp_state') || ''; if(saved && stateVal !== saved){ setMsg('spotifyAuthMsg', 'Spotify 授权状态校验失败', 'bad'); return; } try { const data = await api(CFG.endpoints.spotifyExchange, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, redirect_uri: SPOTIFY_REDIRECT_URI }) }); const token = data?.access_token || ''; if(token){ state.spotifyAccessToken = token; localStorage.setItem('mixtape_sp_token', token); setMsg('spotifyAuthMsg', 'Spotify 授权成功', 'ok'); } else { setMsg('spotifyAuthMsg', 'Spotify 授权失败：未返回 access_token', 'bad'); } updateActionAvailability(); } catch (e) { setMsg('spotifyAuthMsg', `Spotify 授权失败：${e.message}`, 'bad'); } history.replaceState(null, '', location.pathname); }
+function loadSpotifyToken(){ const t = localStorage.getItem('mixtape_sp_token') || ''; if(t){ state.spotifyAccessToken = t; setMsg('spotifyAuthMsg', '已加载 Spotify 授权', 'ok'); } updateActionAvailability(); }
+async function vibeSearch(){ const tags = state.selectedStyleTags || []; if (!tags.length) { setMsg('vibeMsg', '请先选择至少一个舞种/风格标签', 'warn'); return; } try { setMsg('vibeMsg', '搜索中：按标签筛选本地曲库...', 'warn'); const styleResp = await api(CFG.endpoints.vibeSearch, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ vibe:'', tags, mode:'style', limit:50 }) }); state.vibeResults = { spotify:[], local: styleResp.local_results || [] }; renderVibeResults(); setMsg('vibeMsg', `完成：筛选出 ${state.vibeResults.local.length} 条匹配音乐`, 'ok'); } catch (e) { setMsg('vibeMsg', `搜索失败：${e.message}`, 'bad'); } }
+async function semanticSearch(){ const query = el('vibeQuery').value.trim(); try { setMsg('semanticMsg', query ? '搜索中：按 vibe 语义排序...' : '请输入 vibe 进行排序', 'warn'); if (!query) { state.semanticResults = []; renderSemanticResults(); return; } const data = await api(CFG.endpoints.semanticSearch, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ vibe: query, tags: [], mode: 'vibe', limit: 10 }) }); state.semanticResults = data.local_results || []; renderSemanticResults(); setMsg('semanticMsg', `完成：找到 ${state.semanticResults.length} 条推荐`, 'ok'); } catch (e) { setMsg('semanticMsg', `搜索失败：${e.message}`, 'bad'); } }
+async function retagAllMusic(){ try { setMsg('retagMsg', '正在重新打标全部音乐...', 'warn'); const data = await api(CFG.endpoints.reanalyzeAll, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ force: true }) }); setMsg('retagMsg', `完成：更新 ${data.updated ?? 0} 首，跳过 ${data.skipped ?? 0} 首${data.failed?.length ? `，失败 ${data.failed.length} 首` : ''}`, data.failed?.length ? 'warn' : 'ok'); } catch (e) { setMsg('retagMsg', `重打标失败：${e.message}`, 'bad'); } }
+function clearSemanticResults(){ state.semanticResults = []; renderSemanticResults(); setMsg('semanticMsg', '已清空结果', 'muted'); }
+function clearVibeResults(){ state.vibeResults = { spotify: [], local: [] }; renderVibeResults(); setMsg('vibeMsg', state.selectedStyleTags.length ? `已清空结果，当前标签：${state.selectedStyleTags.join(' / ')}` : '已清空结果', 'muted'); }
+function clearStyleTags(){ state.selectedStyleTags = []; el('styleTagGroup').querySelectorAll('[data-style-tag]').forEach(cb => { cb.checked = false; }); updateActionAvailability(); }
+
+wireButton('loginBtn', async ()=>{ try { const data = await api(CFG.endpoints.login, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:el('username').value.trim(), password:el('password').value}) }); state.token = data.access_token; state.userId = data.user_id; localStorage.setItem('mixtape_api_base', el('baseUrl').value.trim()); localStorage.setItem('mixtape_username', el('username').value.trim()); localStorage.setItem('mixtape_token', state.token || ''); localStorage.setItem('mixtape_user_id', String(state.userId ?? '')); setMsg('loginMsg', `登录成功 user_id=${data.user_id}`, 'ok'); updateActionAvailability(); } catch(e){ setMsg('loginMsg', `登录失败：${e.message}`, 'bad'); } });
+wireButton('spotifyAuthBtn', ()=>{ localStorage.setItem('mixtape_api_base', el('baseUrl').value.trim()); localStorage.setItem('mixtape_username', el('username').value.trim()); window.location.href = getSpotifyAuthorizeUrl(); });
+wireButton('vibeSearchBtn', vibeSearch);
+const vibeQueryEl = el('vibeQuery'); if (vibeQueryEl) vibeQueryEl.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) vibeSearch(); });
+wireButton('clearVibeBtn', clearVibeResults);
+const importModeEl = el('importMode'); if (importModeEl) importModeEl.addEventListener('change', updateImportModeView);
+const transitionModeEl = el('transitionMode'); if (transitionModeEl) transitionModeEl.addEventListener('change', updateTransitionPreview);
+wireButton('semanticSearchBtn', semanticSearch);
+wireButton('clearSemanticBtn', clearSemanticResults);
+
+el('parseBtn').addEventListener('click', async ()=>{ try { setMsg('parseMsg', '解析中...', 'warn'); const data = await api(CFG.endpoints.playlistParse, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url: el('playlistUrl').value.trim(), spotify_access_token: state.spotifyAccessToken || null }) }); state.parsed = data; state.imported = []; state.playlistId = null; renderTracks(); el('importBtn').disabled = false; setMsg('parseMsg', `已解析：${data.platform} | ${data.name} | ${data.tracks.length} 首`, 'ok'); } catch(e){ setMsg('parseMsg', `解析失败：${e.message}`, 'bad'); } });
+el('importBtn').addEventListener('click', async ()=>{ if(!state.parsed?.tracks?.length) return; try { setMsg('parseMsg', '导入中（逐首下载，可能较慢）...', 'warn'); const created = await api(CFG.endpoints.createPlaylist, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:`Mixtape_${Date.now()}`}) }); state.playlistId = created.id; const importedIds=[]; const importedItems=[]; for(let i=0;i<state.parsed.tracks.length;i++){ const t=state.parsed.tracks[i]; const segSel=document.querySelector(`select[data-seg="${i}"]`); const seg=segSel ? segSel.value : 'all'; try { const q = await api(CFG.endpoints.fangpiSearch, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:`${t.title} ${t.artist}`}) }); const cand=(q.songs||[])[0]; if(!cand){ document.getElementById(`imp_${i}`).textContent='未找到候选'; continue; } const dl = await api(CFG.endpoints.fangpiDownload, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ music_id: cand.id, title: t.title, artist: t.artist, tags:[`segment:${seg}`], source: cand.source || 'fangpi' }) }); importedItems.push({ id: dl.id, song_id: dl.song_id, segment: seg, title: dl.title, artist: dl.artist }); importedIds.push(dl.id); document.getElementById(`imp_${i}`).textContent = `已导入 (${seg})`; } catch(err){ document.getElementById(`imp_${i}`).textContent = `失败: ${err.message}`; } } if(importedIds.length){ await api(CFG.endpoints.addSongs(state.playlistId), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ library_song_ids: importedIds }) }); } state.importedSongIds=importedIds; state.imported=importedItems; el('renderBtn').disabled = importedIds.length < 2; setMsg('parseMsg', `导入完成：${importedIds.length} 首已入库并加入歌单`, importedIds.length>=2?'ok':'warn'); } catch(e){ setMsg('parseMsg', `导入失败：${e.message}`, 'bad'); } });
+el('renderBtn').addEventListener('click', async ()=>{ if(!state.playlistId) return; try { setMsg('mixMsg', '离线渲染中...', 'warn'); const transitionMode = el('transitionMode').value; const data = await api(CFG.endpoints.renderMix, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ style:'hiphop', duration_minutes:30, playlist_id: state.playlistId, output_format:'both', output_name:`mixtape_${transitionMode}_${Date.now()}`, transition_mode: transitionMode, drum_boost: !!el('drumBoost').checked, track_segments: state.imported.filter(x => x.song_id).map(x => ({ song_id: x.song_id, segment: x.segment || 'all' })), stem_aware:true, auto_separate_stems:false }) }); const tech = data?.mix_plan?.transition_plan?.[0]?.transition_technique || '-'; setMsg('mixMsg', `完成：mode=${transitionMode} internal=${tech} 时长≈${data.duration_sec||'-'}s`, 'ok'); const box = el('mixDownloads'); const wav = data?.stream_files?.wav ? `<a style="color:#86b7ff" target="blank" href="${mixDownloadUrl(data.stream_files.wav)}">下载WAV</a>` : ''; const mp3 = data?.stream_files?.mp3 ? `<a style="color:#86b7ff" target="blank" href="${mixDownloadUrl(data.stream_files.mp3)}">下载MP3</a>` : ''; box.innerHTML = [wav, mp3].filter(Boolean).join(' | ') || '<span class="muted">无可下载文件</span>'; } catch(e){ setMsg('mixMsg', `混音失败：${e.message}`, 'bad'); } });
+
+handleSpotifyAuthCallback(); loadSpotifyToken(); renderStyleTags(); renderVibeResults(); renderSemanticResults(); updateImportModeView(); updateTransitionPreview(); updateActionAvailability();
+</script>
+</body>
+</html>
