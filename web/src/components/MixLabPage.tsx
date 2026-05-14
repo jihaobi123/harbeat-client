@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { devMixApi, type DevSongItem } from '../api/devMix';
 import { BattleDanceSfxPlayer } from '../engine/BattleDanceSfxPlayer';
 import { MixSessionController, type EnergyPreference, type MixSessionSnapshot, type MixStrategy, type PlanMode } from '../engine/MixSessionController';
-import type { DjMixPlanResult } from '../types/api';
+import VoiceButton from './VoiceButton';
+import type { DjMixPlanResult, VoiceCommandResponse } from '../types/api';
 
 function formatTime(sec?: number | null): string {
   if (!sec || sec <= 0) return '0:00';
@@ -38,6 +39,7 @@ export default function MixLabPage() {
   const [selectedSongIds, setSelectedSongIds] = useState<number[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>('random');
   const [energyPreference, setEnergyPreference] = useState<EnergyPreference>('none');
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   const sfx_player = useMemo(() => new BattleDanceSfxPlayer(), []);
   useEffect(() => {
@@ -109,6 +111,45 @@ export default function MixLabPage() {
 
   const transition = plan?.transition_plan[Math.max(0, snapshot.currentIndex)] ?? null;
 
+  const handleVoiceCommand = async (cmd: VoiceCommandResponse) => {
+    const payload = (cmd.command_payload?.payload ?? null) as Record<string, unknown> | null;
+    switch (cmd.intent) {
+      case 'play':
+      case 'release':
+        await controller.play();
+        break;
+      case 'pause':
+      case 'hold':
+        controller.pause();
+        break;
+      case 'next':
+        await controller.next(true, manualStrategy);
+        break;
+      case 'emergency_stop':
+        controller.stop();
+        break;
+      case 'lift_energy':
+        setEnergyPreference('higher');
+        controller.setEnergyPreference('higher');
+        break;
+      case 'drop_energy':
+        setEnergyPreference('lower');
+        controller.setEnergyPreference('lower');
+        break;
+      case 'switch_style': {
+        const rawStyle = typeof payload?.style === 'string' ? payload.style : null;
+        if (rawStyle) {
+          const normalizedStyle = rawStyle.toLowerCase().replace(/[-\s]/g, '');
+          setStyle(normalizedStyle);
+        }
+        break;
+      }
+      case 'noop':
+      default:
+        break;
+    }
+  };
+
   const loop_play_hint =
     snapshot.isLoopMode && snapshot.loopStartSec != null && snapshot.loopEndSec != null && snapshot.loopEndSec > snapshot.loopStartSec + 0.1
       ? snapshot.isLoopCyclePlayback
@@ -134,8 +175,15 @@ export default function MixLabPage() {
             <h1 className="text-3xl md:text-5xl font-black">Online Mix Lab</h1>
             <p className="mt-2 text-slate-400">免登录验证页：双 Deck 在线混音、手动切入下一首、时间轴 EQ / Filter 自动化。</p>
           </div>
-          <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
-            State: <span className="font-bold text-white">{snapshot.state}</span>
+          <div className="flex items-center gap-3 rounded-2xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
+            <button
+              onClick={() => setVoiceEnabled((v) => !v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${voiceEnabled ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
+            >
+              {voiceEnabled ? '语音总开关：ON' : '语音总开关：OFF'}
+            </button>
+            <VoiceButton enabled={voiceEnabled} onCommand={handleVoiceCommand} />
+            <span>State: <span className="font-bold text-white">{snapshot.state}</span></span>
           </div>
         </header>
 

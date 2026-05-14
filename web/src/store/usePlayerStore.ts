@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { MixAudioEngine } from '../engine/MixAudioEngine';
 import { mixApi, getProcessedStreamUrl, getLibraryStreamUrl } from '../api/mix';
+import { useMixStore } from './useMixStore';
 import type {
   PlaylistSongData,
   DjMixPlanRequest,
@@ -9,6 +10,7 @@ import type {
   DjOfflineMixResult,
   DjTransitionPlanItem,
   MixLoopRegion,
+  VoiceIntent,
 } from '../types/api';
 
 interface PlayerState {
@@ -49,11 +51,13 @@ interface PlayerState {
   // Playback actions
   play: () => void;
   pause: () => void;
+  stop: () => void;
   next: () => void;
   prev: () => void;
   seek: (time: number) => void;
   setVolume: (v: number) => void;
   onTimeUpdate: (time: number, dur: number) => void;
+  setVoiceIntent: (intent: VoiceIntent, payload?: Record<string, unknown> | null) => void;
 
   // Mix plan actions
   generateMixPlan: (userId: number, params: DjMixPlanRequest) => Promise<void>;
@@ -236,10 +240,58 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       engine.seek(engine.getActiveDeck(), time);
     },
 
+    stop: () => {
+      engine.pause('A');
+      engine.pause('B');
+      set({ isPlaying: false });
+    },
+
     setVolume: (v) => engine.setMasterVolume(v),
 
     onTimeUpdate: (time, dur) => {
       set({ currentTime: time, duration: dur });
+    },
+
+    setVoiceIntent: (intent, payload) => {
+      const state = get();
+      const style = typeof payload?.style === 'string' ? payload.style : undefined;
+      const normalizeStyle = (value: string) => value.toLowerCase().replace(/[-\s]/g, '');
+
+      switch (intent) {
+        case 'play':
+          state.play();
+          break;
+        case 'pause':
+          state.pause();
+          break;
+        case 'hold':
+          engine.pause(engine.getActiveDeck());
+          set({ isPlaying: false });
+          break;
+        case 'release':
+          state.play();
+          break;
+        case 'next':
+          state.next();
+          break;
+        case 'lift_energy':
+          useMixStore.getState().setEnergy('higher');
+          break;
+        case 'drop_energy':
+          useMixStore.getState().setEnergy('lower');
+          break;
+        case 'switch_style':
+          if (style) {
+            useMixStore.getState().setStyle(normalizeStyle(style));
+          }
+          break;
+        case 'emergency_stop':
+          state.stop();
+          break;
+        case 'noop':
+        default:
+          break;
+      }
     },
 
     // ── Mix Plan ──
