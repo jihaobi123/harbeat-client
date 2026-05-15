@@ -21,6 +21,9 @@ class OfflineRenderTrackInput:
     audio_path: str
     entry_time_sec: float = 0.0
     stems: dict[str, str] | None = None
+    segment_label: str = "all"
+    segment_start_sec: float = 0.0
+    segment_end_sec: float | None = None
 
 
 @dataclass
@@ -92,6 +95,7 @@ def _render_overlap(
     overlap_samples: int,
     tempo_ratio: float,
     stem_aware: bool,
+    drum_boost: bool,
 ) -> tuple[np.ndarray, list[str]]:
     t, from_curve, to_curve = _equal_power_curves(overlap_samples)
     from_seg = _slice_with_padding(from_track.mix, from_start_sample, overlap_samples)
@@ -139,10 +143,18 @@ def _render_overlap(
         applied.append("drum_soft_entry")
 
     if not applied:
-        return default_mix.astype(np.float32, copy=False), []
+        if not drum_boost:
+            return default_mix.astype(np.float32, copy=False), []
 
     from_mix = np.zeros(overlap_samples, dtype=np.float32)
     to_mix = np.zeros(overlap_samples, dtype=np.float32)
+
+    if drum_boost:
+        if "drums" in from_gains:
+            from_gains["drums"] *= 1.08
+        if "drums" in to_gains:
+            to_gains["drums"] *= 1.12
+        applied.append("drum_boost")
 
     for stem_name, stem_audio in from_stems.items():
         from_mix += _slice_with_padding(stem_audio, from_start_sample, overlap_samples) * from_gains.get(stem_name, from_curve)
@@ -160,6 +172,7 @@ def render_offline_mix(
     output_wav_path: str,
     sample_rate: int = 44100,
     stem_aware: bool = True,
+    drum_boost: bool = False,
 ) -> dict[str, Any]:
     if not tracks:
         raise ValueError("tracks must not be empty")
@@ -173,10 +186,23 @@ def render_offline_mix(
         base_audio = _load_audio_mono(track.audio_path, sample_rate, cache)
         if base_audio.size == 0:
             continue
-        entry_samples = max(0, int(round(max(0.0, float(track.entry_time_sec)) * sample_rate)))
-        if entry_samples >= base_audio.size:
+
+        segment_label = (track.segment_label or "all").strip().lower()
+        segment_start_samples = max(0, int(round(max(0.0, float(track.segment_start_sec or 0.0)) * sample_rate)))
+        if track.segment_end_sec is None:
+            segment_end_samples = base_audio.size
+        else:
+            segment_end_samples = int(round(max(0.0, float(track.segment_end_sec)) * sample_rate))
+            segment_end_samples = min(segment_end_samples, base_audio.size)
+        if segment_end_samples <= segment_start_samples:
             continue
-        trimmed_audio = base_audio[entry_samples:].astype(np.float32, copy=False)
+
+        segment_audio = base_audio[segment_start_samples:segment_end_samples].astype(np.float32, copy=False)
+        effective_entry_sec = 0.0 if segment_label != "all" else max(0.0, float(track.entry_time_sec))
+        entry_samples = max(0, int(round(effective_entry_sec * sample_rate)))
+        if entry_samples >= segment_audio.size:
+            continue
+        trimmed_audio = segment_audio[entry_samples:].astype(np.float32, copy=False)
 
         prepared_stems: dict[str, np.ndarray] = {}
         if stem_aware and track.stems:
@@ -185,9 +211,13 @@ def render_offline_mix(
                 if not stem_path or not os.path.isfile(stem_path):
                     continue
                 stem_audio = _load_audio_mono(stem_path, sample_rate, cache)
-                if stem_audio.size <= entry_samples:
+                stem_end = min(segment_end_samples, stem_audio.size)
+                if stem_end <= segment_start_samples:
                     continue
-                prepared_stems[stem_name] = stem_audio[entry_samples:].astype(np.float32, copy=False)
+                stem_segment = stem_audio[segment_start_samples:stem_end].astype(np.float32, copy=False)
+                if stem_segment.size <= entry_samples:
+                    continue
+                prepared_stems[stem_name] = stem_segment[entry_samples:].astype(np.float32, copy=False)
             # Require at least 2 stems to reduce risk of extreme artifacts.
             if len(prepared_stems) < 2:
                 prepared_stems = {}
@@ -195,7 +225,7 @@ def render_offline_mix(
         prepared.append(
             _PreparedTrack(
                 song_id=track.song_id,
-                entry_time_sec=max(0.0, float(track.entry_time_sec)),
+                entry_time_sec=effective_entry_sec,
                 mix=trimmed_audio,
                 stems=prepared_stems,
             )
@@ -221,7 +251,7 @@ def render_offline_mix(
             consumed_prefix_samples = 0
             continue
 
-        overlap_samples_requested = int(round(max(0.6, float(transition.crossfade_sec)) * sample_rate))
+        overlap_samples_requested = int(round(max(0.05, float(transition.crossfade_sec)) * sample_rate))
         max_overlap = min(from_remaining.size, to_track.mix.size)
         if max_overlap <= 0:
             final_parts.append(from_remaining.astype(np.float32, copy=False))
@@ -249,6 +279,7 @@ def render_offline_mix(
             overlap_samples=overlap_samples,
             tempo_ratio=float(transition.tempo_ratio or 1.0),
             stem_aware=stem_aware,
+            drum_boost=drum_boost,
         )
         final_parts.append(overlap_mix)
 

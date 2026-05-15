@@ -39,6 +39,11 @@ class DevPlanRequest(BaseModel):
     candidate_window: int = Field(default=4, ge=1, le=8)
     max_tracks: int = Field(default=8, ge=2, le=32)
     song_ids: list[int] | None = None
+    target_energy_curve: list[float] | None = Field(
+        default=None,
+        description="Optional 1-10 energy targets per track slot. When provided, "
+        "tracks are reordered greedily to match each slot's target.",
+    )
 
 
 class DevSongItem(BaseModel):
@@ -325,6 +330,33 @@ def _mixtape_order(rows: list[LibrarySong]) -> list[LibrarySong]:
     return ordered
 
 
+def _reorder_by_energy_curve(rows: list[LibrarySong], target_curve: list[float]) -> list[LibrarySong]:
+    """Greedy reorder rows so song[i].energy matches target_curve[i] when possible.
+
+    target_curve values are 1-10. LibrarySong.energy is 0-1, so we scale to 1-10
+    for comparison. If a slot has no target (curve shorter than rows), remaining
+    songs keep their existing relative order.
+    """
+    if not rows or not target_curve:
+        return rows
+    pool = list(rows)
+    ordered: list[LibrarySong] = []
+    for target in target_curve[: len(rows)]:
+        if not pool:
+            break
+        t = float(target)
+
+        def diff(r: LibrarySong, _t: float = t) -> float:
+            raw = float(r.energy) if r.energy is not None else 0.5
+            scaled = 1.0 + max(0.0, min(1.0, raw)) * 9.0
+            return abs(scaled - _t)
+        pick = min(pool, key=diff)
+        pool.remove(pick)
+        ordered.append(pick)
+    ordered.extend(pool)
+    return ordered
+
+
 def _nearest_grid_time(times: list[float], target: float, duration: float, lower: float = 0.0) -> float:
     valid = [float(t) for t in times if lower <= float(t) <= duration - 1.0]
     if not valid:
@@ -500,7 +532,11 @@ def generate_dev_mix_plan(payload: DevPlanRequest, db: Session = Depends(get_db)
         if len(rows) < 2:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="selected song_ids must map to at least 2 analyzed GrooveEngine music songs")
 
-    plan = _build_mixtape_plan(rows[: payload.max_tracks])
+    selected = rows[: payload.max_tracks]
+    if payload.target_energy_curve:
+        selected = _reorder_by_energy_curve(selected, payload.target_energy_curve)
+
+    plan = _build_mixtape_plan(selected)
     return APIResponse(data=plan)
 
 

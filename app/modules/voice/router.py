@@ -18,6 +18,8 @@ _INTENT_ACTIONS = {
     "lift_energy": "Energy lift requested",
     "drop_energy": "Energy drop requested",
     "switch_style": "Switch dance style",
+    "loop_last_30s": "Loop the last 30 seconds",
+    "loop_off": "Exit loop and resume normal playback",
     "emergency_stop": "Emergency stop — kill all audio",
     "noop": "Command not recognized",
 }

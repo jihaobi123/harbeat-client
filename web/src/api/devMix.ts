@@ -29,6 +29,7 @@ export interface DevPlanRequest {
   candidate_window?: number;
   max_tracks?: number;
   song_ids?: number[];
+  target_energy_curve?: number[] | null;
 }
 
 export const devMixApi = {

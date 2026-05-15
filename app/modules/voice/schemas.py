@@ -14,6 +14,8 @@ VoiceIntent = Literal[
     "lift_energy",
     "drop_energy",
     "switch_style",
+    "loop_last_30s",
+    "loop_off",
     "emergency_stop",
     "noop",
 ]

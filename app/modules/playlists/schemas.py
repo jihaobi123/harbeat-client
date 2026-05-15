@@ -231,6 +231,24 @@ class DjMixPlanResult(BaseModel):
     transition_plan: list[DjTransitionPlanItem] = Field(default_factory=list)
 
 
+TrackSegmentName = Literal["all", "intro", "build", "verse", "drop", "bridge", "outro"]
+OfflineTransitionMode = Literal[
+    "fade",
+    "hard_cut",
+    "clean_blend",
+    "echo_out",
+    "riser",
+    "cut_swap",
+    "triplet_swap",
+    "melodic_reset",
+]
+
+
+class TrackSegmentSelection(BaseModel):
+    song_id: int
+    segment: TrackSegmentName = "all"
+
+
 class DjOfflineMixRequest(BaseModel):
     style: str
     duration_minutes: int = 30
@@ -246,6 +264,9 @@ class DjOfflineMixRequest(BaseModel):
     user_id: Optional[int] = None
     output_format: Literal["wav", "mp3", "both"] = "both"
     output_name: str = "final_mix"
+    transition_mode: OfflineTransitionMode = "clean_blend"
+    drum_boost: bool = False
+    track_segments: list[TrackSegmentSelection] = Field(default_factory=list)
     stem_aware: bool = True
     auto_separate_stems: bool = False
     max_auto_stem_tracks: int = Field(default=1, ge=0, le=8)

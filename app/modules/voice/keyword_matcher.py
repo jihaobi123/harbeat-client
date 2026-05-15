@@ -24,6 +24,14 @@ KEYWORD_TABLE: list[KeywordEntry] = [
     KeywordEntry(["lift energy", "liftenergy", "升能量", "能量上升", "推高"], "lift_energy", 70),
     KeywordEntry(["drop the beat", "drop beat", "drop energy", "dropenergy", "降能量", "压下去"], "drop_energy", 70),
     KeywordEntry(["popping", "poping", "hiphop", "hip hop", "hip-hop", "breaking", "break in"], "switch_style", 60),
+    KeywordEntry([
+        "loop 30", "loop thirty", "loop last 30", "loop last thirty",
+        "循环 30", "循环三十", "循环前30秒", "循环前三十秒", "前30秒循环", "回到30秒前",
+    ], "loop_last_30s", 75),
+    KeywordEntry([
+        "loop off", "exit loop", "stop loop", "no loop",
+        "退出循环", "关闭循环", "取消循环", "停止循环",
+    ], "loop_off", 78),
     KeywordEntry(["紧急停止", "emergency stop", "emergency", "急停", "kill", "cut", "关掉"], "emergency_stop", 100),
 ]
 
@@ -92,6 +100,8 @@ def build_mix_command(intent: str, payload: Optional[dict] = None) -> dict:
         "lift_energy": {"command": "none", "payload": {"energy": "higher"}},
         "drop_energy": {"command": "none", "payload": {"energy": "lower"}},
         "switch_style": {"command": "none", "payload": payload or {"style": "auto"}},
+        "loop_last_30s": {"command": "loop", "payload": {"action": "last_seconds", "seconds": 30}},
+        "loop_off": {"command": "loop", "payload": {"action": "off"}},
         "emergency_stop": {"command": "stop", "payload": {"emergency": True}},
         "noop": {"command": "none", "payload": {}},
     }

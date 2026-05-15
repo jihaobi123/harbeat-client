@@ -638,6 +638,126 @@ def _library_loudness_lufs(lib: LibrarySong | None) -> float | None:
     return _feature_float(lib.music_features, "loudness_lufs", "integrated_lufs", "lufs")
 
 
+_SEGMENT_ALIASES: dict[str, set[str]] = {
+    "intro": {"intro"},
+    "build": {"build", "buildup", "build-up", "pre_drop", "pre-drop"},
+    "verse": {"verse", "chorus"},
+    "drop": {"drop", "hook", "main"},
+    "bridge": {"bridge", "break", "breakdown"},
+    "outro": {"outro"},
+}
+
+_SEGMENT_RATIOS: dict[str, tuple[float, float]] = {
+    "intro": (0.0, 0.20),
+    "build": (0.20, 0.45),
+    "verse": (0.12, 0.48),
+    "drop": (0.42, 0.76),
+    "bridge": (0.55, 0.82),
+    "outro": (0.75, 1.0),
+}
+
+
+def _normalize_track_segment(segment: object) -> str:
+    value = str(segment or "all").strip().lower()
+    if value in {"all", "intro", "build", "verse", "drop", "bridge", "outro"}:
+        return value
+    if value == "buildup":
+        return "build"
+    if value in {"break", "breakdown"}:
+        return "bridge"
+    return "all"
+
+
+def _phrase_value(phrase: dict, *keys: str) -> float | None:
+    for key in keys:
+        value = phrase.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except ValueError:
+                continue
+    return None
+
+
+def _segment_bounds_for_library(
+    lib: LibrarySong | None,
+    segment: str,
+    fallback_duration: float | None,
+) -> tuple[float, float | None]:
+    segment = _normalize_track_segment(segment)
+    duration = float(fallback_duration or (lib.duration if lib else 0.0) or 0.0)
+    if segment == "all" or duration <= 0:
+        return 0.0, None
+
+    labels = _SEGMENT_ALIASES.get(segment, {segment})
+    phrase_candidates: list[tuple[float, float]] = []
+    for phrase in (lib.phrase_map if lib else []) or []:
+        if not isinstance(phrase, dict):
+            continue
+        label = str(
+            phrase.get("label")
+            or phrase.get("type")
+            or phrase.get("phrase_type")
+            or ""
+        ).strip().lower()
+        if label not in labels:
+            continue
+        start = _phrase_value(phrase, "start", "start_time", "start_sec")
+        end = _phrase_value(phrase, "end", "end_time", "end_sec")
+        if start is None or end is None or end <= start:
+            continue
+        phrase_candidates.append((max(0.0, start), min(duration, end)))
+
+    if phrase_candidates:
+        start, end = max(phrase_candidates, key=lambda pair: pair[1] - pair[0])
+    else:
+        lo, hi = _SEGMENT_RATIOS.get(segment, (0.0, 1.0))
+        start, end = duration * lo, duration * hi
+
+    min_len = 8.0 if duration >= 16.0 else max(2.0, duration * 0.35)
+    if end - start < min_len:
+        mid = (start + end) / 2.0
+        start = max(0.0, mid - min_len / 2.0)
+        end = min(duration, start + min_len)
+
+    if end <= start:
+        return 0.0, None
+    return round(start, 3), round(end, 3)
+
+
+def _transition_for_offline_mode(
+    transition: DjTransitionPlanItem,
+    mode: str,
+    *,
+    from_segment: str = "all",
+    to_segment: str = "all",
+) -> DjTransitionPlanItem:
+    normalized = (mode or "clean_blend").strip().lower()
+    technique = "clean_blend" if normalized == "fade" else normalized
+    crossfade = float(transition.crossfade_sec or 6.0)
+
+    if normalized == "hard_cut":
+        crossfade = 0.08
+    elif normalized in {"cut_swap", "triplet_swap"}:
+        crossfade = min(max(crossfade, 0.6), 3.0)
+    elif normalized in {"echo_out", "riser", "melodic_reset"}:
+        crossfade = max(crossfade, 6.0)
+    elif normalized in {"fade", "clean_blend"}:
+        crossfade = max(crossfade, 5.0)
+
+    updates: dict[str, object] = {
+        "transition_technique": technique,
+        "crossfade_sec": round(crossfade, 3),
+    }
+    if _normalize_track_segment(from_segment) != "all":
+        updates["exit_time_sec"] = None
+    if _normalize_track_segment(to_segment) != "all":
+        updates["entry_time_sec"] = 0.0
+    return transition.model_copy(update=updates)
+
+
 def _ranked_pick(
     ranked_candidates: list[tuple[float, int]],
     rng: random.Random,
@@ -817,6 +937,10 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
     songs = _song_map(db, [item.song_id for item in mix_plan.playlist])
     library_map = _library_context_map(db, payload.user_id, songs)
     transition_lookup = {(item.from_song_id, item.to_song_id): item for item in mix_plan.transition_plan}
+    segment_by_song_id = {
+        int(selection.song_id): _normalize_track_segment(selection.segment)
+        for selection in payload.track_segments
+    }
 
     render_track_candidates: list[dict[str, object]] = []
     warnings: list[str] = []
@@ -843,6 +967,12 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
             continue
 
         lib = library_map.get(item.song_id)
+        segment_label = segment_by_song_id.get(item.song_id, "all")
+        segment_start, segment_end = _segment_bounds_for_library(
+            lib,
+            segment_label,
+            float(item.duration or song.duration or 0.0),
+        )
         stem_paths: dict[str, str] | None = None
         if payload.stem_aware and lib and lib.stems:
             existing = {
@@ -862,6 +992,9 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
                         "song_id": item.song_id,
                         "audio_path": audio_path,
                         "stems": stem_paths,
+                        "segment_label": segment_label,
+                        "segment_start_sec": segment_start,
+                        "segment_end_sec": segment_end,
                     }
                 )
                 continue
@@ -889,6 +1022,9 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
                 "song_id": item.song_id,
                 "audio_path": audio_path,
                 "stems": stem_paths,
+                "segment_label": segment_label,
+                "segment_start_sec": segment_start,
+                "segment_end_sec": segment_end,
             }
         )
 
@@ -918,6 +1054,13 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
         warnings.append(
             f"auto stem separation limit reached ({auto_stem_limit}); skipped {len(auto_stem_skipped_by_limit_song_ids)} songs"
         )
+    selected_segment_notes = [
+        f"{int(item['song_id'])}:{item.get('segment_label')}"
+        for item in render_track_candidates
+        if str(item.get("segment_label") or "all") != "all"
+    ]
+    if selected_segment_notes:
+        warnings.append(f"selected track segments applied: {', '.join(selected_segment_notes[:12])}")
 
     render_tracks: list[OfflineRenderTrackInput] = []
     render_transitions: list[DjTransitionPlanItem] = []
@@ -925,14 +1068,24 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
         song_id = int(candidate["song_id"])  # type: ignore[arg-type]
         audio_path = str(candidate["audio_path"])
         stems = candidate.get("stems")
+        segment_label = str(candidate.get("segment_label") or "all")
         entry_time = 0.0
 
         if i > 0:
             prev_song_id = int(render_track_candidates[i - 1]["song_id"])  # type: ignore[arg-type]
             pair_transition = transition_lookup.get((prev_song_id, song_id))
+            prev_segment = str(render_track_candidates[i - 1].get("segment_label") or "all")
             if pair_transition and pair_transition.entry_time_sec is not None:
                 entry_time = max(0.0, float(pair_transition.entry_time_sec))
             if pair_transition:
+                pair_transition = _transition_for_offline_mode(
+                    pair_transition,
+                    payload.transition_mode,
+                    from_segment=prev_segment,
+                    to_segment=segment_label,
+                )
+                if _normalize_track_segment(segment_label) != "all":
+                    entry_time = 0.0
                 render_transitions.append(pair_transition)
 
         render_tracks.append(
@@ -941,6 +1094,13 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
                 audio_path=audio_path,
                 entry_time_sec=entry_time,
                 stems=stems if isinstance(stems, dict) else None,
+                segment_label=segment_label,
+                segment_start_sec=float(candidate.get("segment_start_sec") or 0.0),
+                segment_end_sec=(
+                    float(candidate["segment_end_sec"])
+                    if candidate.get("segment_end_sec") is not None
+                    else None
+                ),
             )
         )
 
@@ -961,6 +1121,7 @@ def generate_dj_offline_mix(db: Session, payload: DjOfflineMixRequest) -> DjOffl
         output_wav_path=wav_path,
         sample_rate=44100,
         stem_aware=payload.stem_aware,
+        drum_boost=payload.drum_boost,
     )
 
     output_files: dict[str, str] = {"wav": wav_path.replace("\\", "/")}

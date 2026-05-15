@@ -3,7 +3,7 @@ import { getDevLibraryStreamUrl } from '../api/devMix';
 import type { DjMixPlanResult, DjTransitionPlanItem, MixControlTimeline, PlaylistSongData } from '../types/api';
 
 export type MixSessionStateName = 'idle' | 'loading' | 'preparing' | 'playing' | 'transitioning' | 'stopped' | 'error';
-export type MixStrategy = 'clean_blend' | 'echo_out' | 'riser' | 'cut_swap' | 'triplet_swap' | 'melodic_reset';
+export type MixStrategy = 'clean_blend' | 'fade' | 'echo_out' | 'riser' | 'cut_swap' | 'hard_cut' | 'triplet_swap' | 'melodic_reset';
 export type PlanMode = 'random' | 'camelot' | 'energy';
 export type EnergyPreference = 'none' | 'higher' | 'lower';
 
@@ -253,6 +253,19 @@ export class MixSessionController {
     this.applyLoopPointsIfActive();
     this.lastEvent = `loop end set @ ${this.loopEndSec.toFixed(1)}s`;
     this.emit();
+  }
+
+  async loopLastSeconds(seconds = 30): Promise<void> {
+    if (!this.plan || this.currentIndex < 0) return;
+    const deck = this.physicalDeckForIndex(this.currentIndex);
+    const pos = Math.max(0, this.engine.getPosition(deck));
+    const span = Math.max(2, seconds);
+    if (!this.isLoopMode) this.toggleLoopMode();
+    this.loopStartSec = Math.max(0, pos - span);
+    this.loopEndSec = Math.max(this.loopStartSec + 0.5, pos);
+    this.lastEvent = `quick loop: last ${span.toFixed(0)}s @ ${this.loopStartSec.toFixed(1)}→${this.loopEndSec.toFixed(1)}`;
+    this.emit();
+    await this.play();
   }
 
   private applyLoopPointsIfActive(): void {
@@ -724,7 +737,7 @@ export class MixSessionController {
     return {
       ...base,
       transition_id: `${base.transition_id ?? 'manual'}-${strategy}`,
-      mode: strategy === 'cut_swap' || strategy === 'melodic_reset' ? 'hard_cut' : 'normal_crossfade',
+      mode: strategy === 'cut_swap' || strategy === 'hard_cut' || strategy === 'melodic_reset' ? 'hard_cut' : 'normal_crossfade',
       start_at_from_time_sec: startAtFromTimeSec,
       duration_sec: duration,
       events: this.strategyEvents(strategy, duration, transition.to_song_id, entry, rate),
@@ -733,10 +746,11 @@ export class MixSessionController {
 
   private strategyDuration(strategy: MixStrategy, baseDuration: number): number {
     const base = Math.max(2, baseDuration || 6);
-    if (strategy === 'cut_swap') return 2;
+    if (strategy === 'cut_swap' || strategy === 'hard_cut') return 2;
     if (strategy === 'triplet_swap') return Math.max(3, Math.min(5, base * 0.65));
     if (strategy === 'echo_out' || strategy === 'melodic_reset') return Math.max(4, Math.min(6, base));
     if (strategy === 'riser') return Math.max(6, Math.min(10, base));
+    if (strategy === 'fade') return Math.max(8, Math.min(12, base * 1.3));
     return Math.max(6, Math.min(10, base));
   }
 
@@ -753,7 +767,7 @@ export class MixSessionController {
       { type: 'deck_play' as const, deck: 'B' as const, time_sec: 0, position_sec: entry, playback_rate: rate, key_lock: false },
     ];
     const stop = { type: 'deck_stop' as const, deck: 'A' as const, time_sec: duration + 0.1 };
-
+ || strategy === 'hard_cut'
     if (strategy === 'cut_swap') {
       return [
         ...play,

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { devMixApi, type DevSongItem } from '../api/devMix';
 import { BattleDanceSfxPlayer } from '../engine/BattleDanceSfxPlayer';
 import { MixSessionController, type EnergyPreference, type MixSessionSnapshot, type MixStrategy, type PlanMode } from '../engine/MixSessionController';
@@ -18,12 +19,27 @@ function createInitialSnapshot(controller: MixSessionController): MixSessionSnap
 
 const MIX_STRATEGIES: { value: MixStrategy; label: string }[] = [
   { value: 'clean_blend', label: 'CLEAN_BLEND' },
+  { value: 'fade', label: 'FADE' },
   { value: 'echo_out', label: 'ECHO_OUT' },
   { value: 'riser', label: 'RISER' },
   { value: 'cut_swap', label: 'CUT_SWAP' },
+  { value: 'hard_cut', label: 'HARD_CUT' },
   { value: 'triplet_swap', label: 'TRIPLET_SWAP' },
   { value: 'melodic_reset', label: 'MELODIC_RESET' },
 ];
+
+const ENERGY_CURVE_PRESETS: { id: string; label: string; curve: number[] }[] = [
+  { id: 'rising', label: '渐强 (低→高)', curve: [3, 4, 5, 6, 7, 8] },
+  { id: 'valley', label: 'V 形 (高低高)', curve: [7, 5, 3, 5, 7, 9] },
+  { id: 'twin_peak', label: '双峰', curve: [5, 8, 5, 8, 5, 7] },
+];
+
+interface FlourishItem {
+  id: string;
+  label: string;
+  stream_url: string;
+  duration_sec: number;
+}
 
 export default function MixLabPage() {
   const controller = useMemo(() => new MixSessionController(), []);
@@ -40,6 +56,9 @@ export default function MixLabPage() {
   const [planMode, setPlanMode] = useState<PlanMode>('random');
   const [energyPreference, setEnergyPreference] = useState<EnergyPreference>('none');
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [energyCurve, setEnergyCurve] = useState<number[]>([5, 5, 5, 5, 5, 5]);
+  const [flourishItems, setFlourishItems] = useState<FlourishItem[]>([]);
+  const [flourishLoading, setFlourishLoading] = useState(false);
 
   const sfx_player = useMemo(() => new BattleDanceSfxPlayer(), []);
   useEffect(() => {
@@ -71,6 +90,7 @@ export default function MixLabPage() {
         diversity: 0.35,
         max_tracks: 8,
         song_ids: selectedSongIds.length >= 2 ? selectedSongIds.slice(0, 2) : undefined,
+        target_energy_curve: energyCurve.some((v) => v !== energyCurve[0]) ? energyCurve : undefined,
       });
       const nextPlan = res.data.data;
       setPlan(nextPlan);
@@ -109,6 +129,63 @@ export default function MixLabPage() {
     }
   };
 
+  // === v2 features: energy switch / style switch / loop-last-30s / flourish ===
+  const loadFlourishItems = async () => {
+    setFlourishLoading(true);
+    try {
+      const res = await fetch('/api/music/flourish');
+      const json = await res.json();
+      const items = (json?.data?.items ?? []) as FlourishItem[];
+      setFlourishItems(items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load flourish list');
+    } finally {
+      setFlourishLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadFlourishItems();
+  }, []);
+
+  const playFlourish = (item: FlourishItem) => {
+    try {
+      const audio = new Audio(item.stream_url);
+      audio.volume = 0.9;
+      void audio.play();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Flourish play failed');
+    }
+  };
+
+  const switchByEnergy = async (direction: 'higher' | 'lower') => {
+    setEnergyPreference(direction);
+    controller.setEnergyPreference(direction);
+    try {
+      await controller.next(true, manualStrategy);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Switch failed');
+    }
+  };
+
+  const switchByStyle = async () => {
+    try {
+      controller.setPlanMode('camelot');
+      setPlanMode('camelot');
+      await controller.next(true, manualStrategy);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Switch by style failed');
+    }
+  };
+
+  const loopLast30 = async () => {
+    try {
+      await controller.loopLastSeconds(30);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Loop last 30 failed');
+    }
+  };
+
   const transition = plan?.transition_plan[Math.max(0, snapshot.currentIndex)] ?? null;
 
   const handleVoiceCommand = async (cmd: VoiceCommandResponse) => {
@@ -131,10 +208,18 @@ export default function MixLabPage() {
       case 'lift_energy':
         setEnergyPreference('higher');
         controller.setEnergyPreference('higher');
+        await controller.next(true, manualStrategy);
         break;
       case 'drop_energy':
         setEnergyPreference('lower');
         controller.setEnergyPreference('lower');
+        await controller.next(true, manualStrategy);
+        break;
+      case 'loop_last_30s':
+        await controller.loopLastSeconds(30);
+        break;
+      case 'loop_off':
+        if (snapshot.isLoopMode) controller.toggleLoopMode();
         break;
       case 'switch_style': {
         const rawStyle = typeof payload?.style === 'string' ? payload.style : null;
@@ -176,6 +261,9 @@ export default function MixLabPage() {
             <p className="mt-2 text-slate-400">免登录验证页：双 Deck 在线混音、手动切入下一首、时间轴 EQ / Filter 自动化。</p>
           </div>
           <div className="flex items-center gap-3 rounded-2xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-100">
+            <Link to="/mixtape" className="rounded-lg border border-purple-400/40 px-3 py-1.5 text-xs font-semibold text-purple-100 hover:bg-purple-500/20">
+              Mixtape Import
+            </Link>
             <button
               onClick={() => setVoiceEnabled((v) => !v)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${voiceEnabled ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
@@ -265,6 +353,50 @@ export default function MixLabPage() {
               </button>
             </div>
 
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-slate-200">能量曲线（1-10，按曲目槽位排序）</span>
+                <div className="flex flex-wrap gap-2">
+                  {ENERGY_CURVE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setEnergyCurve(preset.curve.slice())}
+                      className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-semibold hover:bg-slate-700"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEnergyCurve([5, 5, 5, 5, 5, 5])}
+                    className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-semibold hover:bg-slate-700"
+                  >
+                    清空
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-6 gap-2">
+                {energyCurve.map((v, idx) => (
+                  <label key={idx} className="flex flex-col items-center text-[10px] text-slate-500">
+                    <span>#{idx + 1}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={v}
+                      onChange={(e) => {
+                        const nv = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                        setEnergyCurve((prev) => prev.map((x, i) => (i === idx ? nv : x)));
+                      }}
+                      className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-center text-sm text-white"
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">提示：若所有值相同则不发送曲线（保留默认推荐排序）。</p>
+            </div>
+
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button onClick={() => controller.previous()} disabled={!plan} className="h-14 w-24 rounded-full bg-sky-500 text-sm font-black text-sky-950 hover:bg-sky-400 disabled:opacity-40">Prev</button>
               <button onClick={play} disabled={!plan} className="h-16 w-32 rounded-full bg-emerald-500 text-lg font-black text-emerald-950 hover:bg-emerald-400 disabled:opacity-40">
@@ -290,6 +422,14 @@ export default function MixLabPage() {
               </button>
               <button onClick={() => controller.setLoopStartFromCurrent()} disabled={!snapshot.isLoopMode} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-600 disabled:opacity-40">Set Loop Start</button>
               <button onClick={() => controller.setLoopEndFromCurrent()} disabled={!snapshot.isLoopMode} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-600 disabled:opacity-40">Set Loop End</button>
+              <button onClick={() => void loopLast30()} disabled={!plan || snapshot.currentIndex < 0} className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-amber-50 hover:bg-amber-500 disabled:opacity-40">循环前 30s</button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              <button onClick={() => void switchByEnergy('higher')} disabled={!plan} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold hover:bg-rose-500 disabled:opacity-40">能量 ↑ 切歌</button>
+              <button onClick={() => void switchByEnergy('lower')} disabled={!plan} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold hover:bg-indigo-500 disabled:opacity-40">能量 ↓ 切歌</button>
+              <button onClick={() => void switchByStyle()} disabled={!plan} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold hover:bg-teal-500 disabled:opacity-40">按风格切歌</button>
+              <span className="text-xs text-slate-500">混音方式切歌请用上方 MANUAL（按当前 Manual Strategy）</span>
             </div>
 
             {loop_play_hint && (
@@ -385,6 +525,37 @@ export default function MixLabPage() {
             <button type="button" onClick={() => void play_sfx(() => sfx_player.speak('One more time!'))} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold hover:bg-slate-800">One more time</button>
             <button type="button" onClick={() => void play_sfx(() => sfx_player.speak('Ohhh!'))} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold hover:bg-slate-800">Ohhh!</button>
             <button type="button" onClick={() => void play_sfx(() => sfx_player.speak('Yo! Check it!'))} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold hover:bg-slate-800">Yo Check it</button>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-fuchsia-700/40 bg-fuchsia-950/30 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-fuchsia-100">人工加花（5 种 DJ 装饰音）</h2>
+            <button
+              type="button"
+              onClick={() => void loadFlourishItems()}
+              disabled={flourishLoading}
+              className="rounded-lg bg-fuchsia-700/60 px-3 py-1.5 text-xs font-semibold text-fuchsia-50 hover:bg-fuchsia-600/70 disabled:opacity-50"
+            >
+              {flourishLoading ? '加载中…' : '刷新'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-fuchsia-300/80">点击按钮即播放对应过渡素材，常用于 MC 现场加花。</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {flourishItems.length === 0 && !flourishLoading && (
+              <span className="text-xs text-slate-400">服务端无加花素材，请确认 stem library 已构建。</span>
+            )}
+            {flourishItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => playFlourish(item)}
+                className="rounded-xl bg-fuchsia-600/80 px-3 py-2 text-xs font-bold text-fuchsia-50 hover:bg-fuchsia-500"
+                title={`${item.duration_sec.toFixed(1)}s`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </section>
 

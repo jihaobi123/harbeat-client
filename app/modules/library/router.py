@@ -1,7 +1,8 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
@@ -31,6 +32,11 @@ ALLOWED_FORMATS = {"mp3", "flac", "wav", "ogg", "aac", "m4a", "opus", "wma", "nc
 MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 
 
+class ReanalyzeAllRequest(BaseModel):
+    force: bool = False
+    limit: int = Field(default=50, ge=1, le=500)
+
+
 @router.get("/songs", response_model=APIResponse[LibrarySongListData])
 def list_library_songs_endpoint(
     db: Session = Depends(get_db),
@@ -38,6 +44,47 @@ def list_library_songs_endpoint(
 ):
     songs = list_library_songs(db, current_user.id)
     return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
+
+
+@router.post("/reanalyze-all", response_model=APIResponse[dict])
+def reanalyze_all_endpoint(
+    payload: ReanalyzeAllRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Queue analysis for the current user's imported/downloaded songs."""
+    from app.modules.library.models import LibrarySong
+    from app.modules.library.background_tasks import run_analysis_and_separation
+
+    rows = (
+        db.query(LibrarySong)
+        .filter(
+            LibrarySong.user_id == current_user.id,
+            LibrarySong.source_path.isnot(None),
+            LibrarySong.source_path != "",
+        )
+        .order_by(LibrarySong.created_at.desc())
+        .limit(payload.limit)
+        .all()
+    )
+
+    updated = 0
+    skipped = 0
+    failed: list[dict] = []
+    for song in rows:
+        if not payload.force and song.analysis_status == "completed":
+            skipped += 1
+            continue
+        if not os.path.isfile(song.source_path or ""):
+            failed.append({"id": song.id, "title": song.title, "error": "audio file not found"})
+            continue
+        song.analysis_status = "pending"
+        background_tasks.add_task(run_analysis_and_separation, song.id)
+        updated += 1
+
+    db.commit()
+    return APIResponse(data={"updated": updated, "skipped": skipped, "failed": failed})
 
 
 @router.get("/songs/search", response_model=APIResponse[LibrarySongListData])
