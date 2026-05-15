@@ -767,8 +767,8 @@ export class MixSessionController {
       { type: 'deck_play' as const, deck: 'B' as const, time_sec: 0, position_sec: entry, playback_rate: rate, key_lock: false },
     ];
     const stop = { type: 'deck_stop' as const, deck: 'A' as const, time_sec: duration + 0.1 };
- || strategy === 'hard_cut'
-    if (strategy === 'cut_swap') {
+
+    if (strategy === 'cut_swap' || strategy === 'hard_cut') {
       return [
         ...play,
         { type: 'param_set' as const, deck: 'A' as const, time_sec: 0, param: 'gain' as const, value: 0 },
