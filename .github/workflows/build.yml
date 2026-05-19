@@ -26,25 +26,20 @@ jobs:
         with:
           flutter-version: '3.22.x'
           channel: 'stable'
-          cache: true
 
       - name: Get Flutter dependencies
         run: flutter pub get
 
       - name: Make Gradlew executable
         run: chmod +x android/gradlew
-
-      - name: Build Debug APK
-        run: flutter build apk --debug
         working-directory: .
 
-      - name: List build outputs
-        run: ls -la build/app/outputs/apk/debug/ || ls -la android/app/build/outputs/apk/debug/
+      - name: Build Debug APK with Gradle
+        run: ./gradlew assembleDebug
+        working-directory: android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: |
-            build/app/outputs/apk/debug/*.apk
-            android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
