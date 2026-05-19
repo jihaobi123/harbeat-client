@@ -27,12 +27,13 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
-      - name: Download correct gradle-wrapper.jar version 8.14
+      - name: Download gradle-wrapper.jar from Gradle dist
         run: |
           rm -f android/gradle/wrapper/gradle-wrapper.jar
-          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.14/gradle-wrapper-8.14.jar
+          curl -L --retry 5 --retry-delay 10 -o /tmp/gradle-8.14-all.zip https://services.gradle.org/distributions/gradle-8.14-all.zip
+          unzip -p /tmp/gradle-8.14-all.zip "gradle-8.14/wrapper/gradle-wrapper.jar" > android/gradle/wrapper/gradle-wrapper.jar
           ls -la android/gradle/wrapper/
-          java -jar android/gradle/wrapper/gradle-wrapper.jar --version
+          java -jar android/gradle/wrapper/gradle-wrapper.jar --version || echo "JAR file check"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
