@@ -27,6 +27,12 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
+      - name: Download and extract gradle-wrapper.jar
+        run: |
+          mkdir -p android/gradle/wrapper
+          curl -L -o /tmp/gradle-8.14-all.zip https://services.gradle.org/distributions/gradle-8.14-all.zip
+          unzip -p /tmp/gradle-8.14-all.zip gradle-8.14/lib/gradle-wrapper.jar > android/gradle/wrapper/gradle-wrapper.jar
+
       - name: Get Flutter dependencies
         run: flutter pub get
 
