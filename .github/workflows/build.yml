@@ -27,10 +27,15 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
-      - name: Verify gradle-wrapper.jar
+      - name: Download correct gradle-wrapper.jar from full distribution
         run: |
+          rm -f android/gradle/wrapper/gradle-wrapper.jar
+          curl -L -o /tmp/gradle-8.14-all.zip https://services.gradle.org/distributions/gradle-8.14-all.zip
+          unzip -o /tmp/gradle-8.14-all.zip "gradle-8.14/wrapper/gradle-wrapper.jar" -d /tmp
+          cp /tmp/gradle-8.14/wrapper/gradle-wrapper.jar android/gradle/wrapper/gradle-wrapper.jar
+          rm -rf /tmp/gradle-8.14 /tmp/gradle-8.14-all.zip
           ls -la android/gradle/wrapper/
-          unzip -l android/gradle/wrapper/gradle-wrapper.jar | head -20
+          java -jar android/gradle/wrapper/gradle-wrapper.jar --version
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
