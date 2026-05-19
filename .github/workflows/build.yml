@@ -27,14 +27,26 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
+      - name: Debug - Check current directory and files
+        run: |
+          pwd
+          ls -la
+          ls -la android/gradle/wrapper/
+
       - name: Download correct gradle-wrapper.jar from full distribution
         run: |
           rm -f android/gradle/wrapper/gradle-wrapper.jar
+          echo "Downloading Gradle 8.14..."
           curl -L -o /tmp/gradle-8.14-all.zip https://services.gradle.org/distributions/gradle-8.14-all.zip
+          echo "Unzipping gradle-wrapper.jar..."
           unzip -o /tmp/gradle-8.14-all.zip "gradle-8.14/wrapper/gradle-wrapper.jar" -d /tmp
           cp /tmp/gradle-8.14/wrapper/gradle-wrapper.jar android/gradle/wrapper/gradle-wrapper.jar
           rm -rf /tmp/gradle-8.14 /tmp/gradle-8.14-all.zip
+          echo "Files in wrapper directory:"
           ls -la android/gradle/wrapper/
+          echo "Verifying JAR content..."
+          unzip -l android/gradle/wrapper/gradle-wrapper.jar | grep -i "GradleWrapperMain"
+          echo "Testing gradle-wrapper.jar..."
           java -jar android/gradle/wrapper/gradle-wrapper.jar --version
 
       - name: Make gradlew executable
