@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout code
@@ -24,6 +26,7 @@ jobs:
         with:
           flutter-version: '3.22.x'
           channel: 'stable'
+          cache: true
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -33,9 +36,15 @@ jobs:
 
       - name: Build Debug APK
         run: flutter build apk --debug
+        working-directory: .
+
+      - name: List build outputs
+        run: ls -la build/app/outputs/apk/debug/ || ls -la android/app/build/outputs/apk/debug/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: build/app/outputs/apk/debug/*.apk
+          path: |
+            build/app/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/debug/*.apk
