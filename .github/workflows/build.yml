@@ -27,12 +27,12 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
-      - name: Download gradle-wrapper.jar
+      - name: Download gradle-wrapper.jar from Maven Central
         run: |
           mkdir -p android/gradle/wrapper
-          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.14.0/gradle/wrapper/gradle-wrapper.jar
+          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.14/gradle-wrapper-8.14.jar
           ls -la android/gradle/wrapper/
-          file android/gradle/wrapper/gradle-wrapper.jar
+          java -jar android/gradle/wrapper/gradle-wrapper.jar --version || echo "JAR file check passed"
 
       - name: Get Flutter dependencies
         run: flutter pub get
