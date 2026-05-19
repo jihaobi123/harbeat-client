@@ -29,9 +29,10 @@ jobs:
 
       - name: Download gradle-wrapper.jar
         run: |
-          curl -L -o /tmp/gradle-8.14-all.zip https://services.gradle.org/distributions/gradle-8.14-all.zip
-          unzip -p /tmp/gradle-8.14-all.zip "gradle-8.14/wrapper/gradle-wrapper.jar" > android/gradle/wrapper/gradle-wrapper.jar
+          mkdir -p android/gradle/wrapper
+          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.14.0/gradle/wrapper/gradle-wrapper.jar
           ls -la android/gradle/wrapper/
+          file android/gradle/wrapper/gradle-wrapper.jar
 
       - name: Get Flutter dependencies
         run: flutter pub get
