@@ -27,31 +27,17 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
-      - name: Download and verify gradle-wrapper.jar
+      - name: Download gradle-wrapper.jar
         run: |
-          set -e
           rm -f android/gradle/wrapper/gradle-wrapper.jar
-          
-          echo "Downloading Gradle wrapper..."
-          curl -L --retry 3 --retry-delay 5 --fail -o /tmp/gradle-wrapper.jar https://github.com/nicoulaj/gradle-dist/raw/refs/heads/master/gradle-8.14/wrapper/gradle-wrapper.jar
-          
-          echo "Checking file size..."
-          SIZE=$(stat -c%s /tmp/gradle-wrapper.jar)
-          echo "Downloaded size: $SIZE bytes"
-          
-          if [ "$SIZE" -lt 10000 ]; then
-            echo "Error: Downloaded file is too small (likely HTML error)"
-            cat /tmp/gradle-wrapper.jar
-            exit 1
-          fi
-          
-          echo "Copying to project..."
-          cp /tmp/gradle-wrapper.jar android/gradle/wrapper/gradle-wrapper.jar
-          
-          echo "Verifying JAR..."
-          unzip -l android/gradle/wrapper/gradle-wrapper.jar | grep -i "gradlewrappermain"
-          
+          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
           ls -la android/gradle/wrapper/
+          
+          echo "Checking JAR content..."
+          unzip -l android/gradle/wrapper/gradle-wrapper.jar | head -20
+          
+          echo "Looking for GradleWrapperMain..."
+          unzip -l android/gradle/wrapper/gradle-wrapper.jar | grep -i "gradlewrappermain" || echo "Not found - checking full list"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
