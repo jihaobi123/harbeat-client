@@ -1,0 +1,50 @@
+name: harbeat_app
+description: HarBeat - Professional Street Dance Music & DJ Mix Platform
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI Framework
+  cupertino_icons: ^1.0.6
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+
+  # Routing
+  go_router: ^14.0.0
+
+  # Networking
+  dio: ^5.4.0
+  web_socket_channel: ^2.4.0
+
+  # Local Storage (simplified)
+  shared_preferences: ^2.2.2
+
+  # Utilities
+  logger: ^2.0.2+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/ui/
+    - assets/icons/
+
+  fonts:
+    - family: HarBeat
+      fonts:
+        - asset: assets/fonts/HarBeat-Regular.ttf
+        - asset: assets/fonts/HarBeat-Bold.ttf
+          weight: 700

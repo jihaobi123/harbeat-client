@@ -1,0 +1,207 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../utils/logger.dart';
+
+class RkClient {
+  late Dio _dio;
+  WebSocketChannel? _wsChannel;
+  String? _deviceToken;
+  String? _currentUrl;
+
+  final _playbackController = StreamController<Map<String, dynamic>>.broadcast();
+  final _deviceController = StreamController<Map<String, dynamic>>.broadcast();
+  final _syncController = StreamController<double>.broadcast();
+
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 10;
+  static const Duration _reconnectDelay = Duration(seconds: 1);
+
+  Stream<Map<String, dynamic>> get playbackStream => _playbackController.stream;
+  Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
+  Stream<double> get syncProgressStream => _syncController.stream;
+
+  RkClient({String? baseUrl}) {
+    _dio = Dio(BaseOptions(
+      baseUrl: baseUrl ?? 'http://192.168.1.100:9000',
+      connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 10),
+    ));
+  }
+
+  void setDeviceToken(String token) {
+    _deviceToken = token;
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  Future<bool> testConnection(String url) async {
+    try {
+      final testDio = Dio();
+      testDio.options.connectTimeout = const Duration(seconds: 3);
+      testDio.options.receiveTimeout = const Duration(seconds: 3);
+      final response = await testDio.get('$url/api/edge/info');
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<String?> autoDetectBestUrl(List<String> urls) async {
+    final futures = urls.map((url) => testConnection(url));
+    final results = await Future.wait(futures.map((f) async {
+      try {
+        return await f;
+      } catch (e) {
+        return false;
+      }
+    }));
+
+    for (int i = 0; i < results.length; i++) {
+      if (results[i]) {
+        return urls[i];
+      }
+    }
+    return null;
+  }
+
+  Future<bool> connect(String url, {String? token}) async {
+    _currentUrl = url;
+    if (token != null) {
+      setDeviceToken(token);
+    }
+
+    try {
+      await _dio.get('$url/api/edge/info');
+      await _connectWebSocket(url, token ?? _deviceToken ?? '');
+      return true;
+    } catch (e) {
+      AppLogger.error('RK3588连接失败: $e');
+      return false;
+    }
+  }
+
+  Future<void> _connectWebSocket(String url, String token) async {
+    final wsUrl = url.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://') +
+        '/ws/control${token.isNotEmpty ? '?token=$token' : ''}';
+
+    AppLogger.info('RK WebSocket连接: $wsUrl');
+
+    try {
+      _wsChannel = WebSocketChannel.connect(Uri.parse(wsUrl));
+
+      _wsChannel!.stream.listen(
+        (message) {
+          try {
+            final data = jsonDecode(message);
+            _handleWebSocketMessage(data);
+          } catch (e) {
+            AppLogger.error('WebSocket消息解析失败: $e');
+          }
+        },
+        onError: (error) {
+          AppLogger.error('WebSocket错误: $error');
+          _scheduleReconnect();
+        },
+        onDone: () {
+          AppLogger.info('WebSocket连接关闭');
+          _scheduleReconnect();
+        },
+      );
+    } catch (e) {
+      AppLogger.error('WebSocket连接失败: $e');
+      _scheduleReconnect();
+    }
+  }
+
+  void _handleWebSocketMessage(Map<String, dynamic> data) {
+    final type = data['type'];
+    switch (type) {
+      case 'playback_state':
+        _playbackController.add(data);
+        break;
+      case 'device_info':
+        _deviceController.add(data);
+        break;
+      case 'sync_progress':
+        final progress = (data['progress'] as num?)?.toDouble() ?? 0.0;
+        _syncController.add(progress);
+        break;
+      default:
+        AppLogger.info('Unknown WS message type: $type');
+    }
+  }
+
+  void _scheduleReconnect() {
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      AppLogger.error('达到最大重连次数');
+      return;
+    }
+
+    _reconnectTimer?.cancel();
+    _reconnectAttempts++;
+
+    AppLogger.info('${_reconnectDelay.inSeconds}秒后尝试重连 (第 $_reconnectAttempts 次)');
+
+    _reconnectTimer = Timer(_reconnectDelay, () async {
+      if (_currentUrl != null) {
+        await connect(_currentUrl!);
+      }
+    });
+  }
+
+  Future<void> play(int songId, {double startAt = 0}) async {
+    await _dio.post('/play', data: {
+      'song_id': songId,
+      'start_at_sec': startAt,
+    });
+  }
+
+  Future<void> pause() async {
+    await _dio.post('/pause', data: {});
+  }
+
+  Future<void> resume() async {
+    await _dio.post('/resume', data: {});
+  }
+
+  Future<void> next() async {
+    await _dio.post('/next', data: {});
+  }
+
+  Future<void> seek(double sec) async {
+    await _dio.post('/seek', data: {'sec': sec});
+  }
+
+  Future<void> trigger(int key) async {
+    await _dio.post('/trigger', data: {'key': key});
+  }
+
+  Future<void> loadPlan(Map<String, dynamic> mixPlan, Map<String, dynamic> manifest) async {
+    await _dio.post('/load_plan', data: {
+      'mix_plan': mixPlan,
+      'manifest': manifest,
+    });
+  }
+
+  Stream<Map<String, dynamic>> watchPlayback() {
+    return playbackStream;
+  }
+
+  Stream<Map<String, dynamic>> watchDevice() {
+    return deviceStream;
+  }
+
+  Stream<double> watchSyncProgress() {
+    return syncProgressStream;
+  }
+
+  void dispose() {
+    _reconnectTimer?.cancel();
+    _wsChannel?.sink.close();
+    _playbackController.close();
+    _deviceController.close();
+    _syncController.close();
+  }
+}
