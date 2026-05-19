@@ -27,12 +27,18 @@ jobs:
           flutter-version: '3.22.x'
           channel: 'stable'
 
-      - name: Force download correct gradle-wrapper.jar
+      - name: Verify Gradle wrapper
         run: |
-          rm -f android/gradle/wrapper/gradle-wrapper.jar
-          curl -L -o android/gradle/wrapper/gradle-wrapper.jar https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.14/gradle-wrapper-8.14.jar
           ls -la android/gradle/wrapper/
-          sha256sum android/gradle/wrapper/gradle-wrapper.jar
+          if [ -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "✓ Gradle wrapper JAR exists"
+          else
+            echo "✗ Gradle wrapper JAR missing!"
+            exit 1
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
       - name: Get Flutter dependencies
         run: flutter pub get
