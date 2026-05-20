@@ -27,15 +27,23 @@ class _LivePageState extends ConsumerState<LivePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(liveProvider.notifier).setConnected(true);
-    });
   }
 
   @override
   void dispose() {
     _nextPressTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(LivePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (mounted && ref.exists(liveProvider)) {
+      final currentState = ref.read(liveProvider);
+      if (!currentState.isConnected) {
+        ref.read(liveProvider.notifier).setConnected(true);
+      }
+    }
   }
 
   @override
@@ -263,10 +271,14 @@ class _TransportControls extends StatelessWidget {
               playback?.paused == true ? Icons.play_arrow : Icons.pause,
               size: 24,
             ),
-            label: Text(playback?.paused == true ? '播放' : '暂停'),
+            label: Text(
+              playback?.paused == true ? '播放' : '暂停',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
             ),
           ),
         ),
@@ -275,10 +287,17 @@ class _TransportControls extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: isConnected ? onLoop : null,
             icon: Icon(isLooping ? Icons.repeat_one : Icons.repeat, size: 24),
-            label: Text(isLooping ? '循环中' : '循环'),
+            label: Text(
+              isLooping ? '循环中' : '循环',
+              style: TextStyle(
+                color: isLooping ? Colors.white : theme.colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: isLooping ? theme.colorScheme.secondary : theme.colorScheme.surface,
+              backgroundColor: isLooping ? Colors.blue : theme.colorScheme.surface,
+              foregroundColor: isLooping ? Colors.white : theme.colorScheme.onSurface,
             ),
           ),
         ),
@@ -291,6 +310,7 @@ class _TransportControls extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: theme.colorScheme.surface,
+              foregroundColor: theme.colorScheme.onSurface,
             ),
           ),
         ),
@@ -394,8 +414,11 @@ class _StyleButtons extends StatelessWidget {
                   backgroundColor: selected == MusicStyle.hiphop
                       ? theme.colorScheme.primary
                       : theme.colorScheme.surface,
+                  foregroundColor: selected == MusicStyle.hiphop
+                      ? Colors.white
+                      : theme.colorScheme.onSurface,
                 ),
-                child: const Text('Hiphop', style: TextStyle(fontSize: 16)),
+                child: const Text('Hiphop', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(width: 8),
@@ -407,8 +430,11 @@ class _StyleButtons extends StatelessWidget {
                   backgroundColor: selected == MusicStyle.breaking
                       ? theme.colorScheme.primary
                       : theme.colorScheme.surface,
+                  foregroundColor: selected == MusicStyle.breaking
+                      ? Colors.white
+                      : theme.colorScheme.onSurface,
                 ),
-                child: const Text('Breaking', style: TextStyle(fontSize: 16)),
+                child: const Text('Breaking', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
