@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/theme_config.dart';
 import '../../core/services/hardware_service.dart';
 import '../../core/services/session_service.dart';
 import '../../core/utils/logger.dart';
 import '../../core/utils/helpers.dart';
+import '../../state/providers.dart';
 
-class DeviceConnectionPage extends StatefulWidget {
+class DeviceConnectionPage extends ConsumerStatefulWidget {
   final VoidCallback? onConnected;
   
   const DeviceConnectionPage({super.key, this.onConnected});
 
   @override
-  State<DeviceConnectionPage> createState() => _DeviceConnectionPageState();
+  ConsumerState<DeviceConnectionPage> createState() => _DeviceConnectionPageState();
 }
 
-class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
+class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
   final _hardwareService = HardwareService();
   final _pairCodeController = TextEditingController();
   final _ipAddressController = TextEditingController();
@@ -24,6 +26,7 @@ class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
   ConnectionStatus _status = ConnectionStatus.disconnected;
   bool _isScanning = false;
   bool _showManualAdd = false;
+  bool _mockMode = false;
   String? _errorMessage;
   
   List<RK3588DeviceInfo> _devices = [];
@@ -198,11 +201,28 @@ class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
   }
 
   Future<void> _connectToDevice(String deviceToken) async {
-    if (_selectedDevice == null) return;
+    if (_selectedDevice == null && !_mockMode) return;
 
     setState(() {
       _status = ConnectionStatus.connecting;
     });
+
+    if (_mockMode) {
+      final rkClient = ref.read(rkClientProvider);
+      rkClient.setMockMode(true);
+      await rkClient.connect('http://mock-device:8787');
+      
+      setState(() {
+        _status = ConnectionStatus.connected;
+      });
+      await SessionService().startSession(
+        deviceId: 'mock-device-001',
+        deviceName: '模拟 RK3588',
+      );
+      widget.onConnected?.call();
+      _showSnackBar('✅ 模拟 RK3588 连接成功', ThemeConfig.accentPurple);
+      return;
+    }
 
     final success = await _hardwareService.connectToRK3588(_selectedDevice!, deviceToken);
 
@@ -297,6 +317,8 @@ class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
           children: [
             _buildStatusCard(),
             SizedBox(height: ThemeConfig.spacingMedium),
+            _buildMockModeSection(),
+            SizedBox(height: ThemeConfig.spacingMedium),
             
             if (_historyDevices.isNotEmpty && _devices.isNotEmpty) ...[
               _buildHistorySection(),
@@ -309,8 +331,62 @@ class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
             _buildDeviceListSection(),
             if (_status == ConnectionStatus.connecting && _selectedDevice != null)
               _buildPairingSection(),
+            if (_mockMode && _status != ConnectionStatus.connected)
+              _buildMockConnectSection(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMockModeSection() {
+    return Container(
+      padding: EdgeInsets.all(ThemeConfig.spacingMedium),
+      decoration: BoxDecoration(
+        color: ThemeConfig.accentPurple.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(ThemeConfig.radiusMedium),
+        border: Border.all(color: ThemeConfig.accentPurple.withOpacity(0.3), width: 2),
+      ),
+      child: Row(
+        children: [
+          Switch(
+            value: _mockMode,
+            onChanged: (value) {
+              setState(() {
+                _mockMode = value;
+              });
+              if (_mockMode) {
+                final rkClient = ref.read(rkClientProvider);
+                rkClient.setMockMode(true);
+                _showSnackBar('✅ 已启用模拟模式 - 无需真实设备', ThemeConfig.accentPurple);
+              }
+            },
+            activeColor: ThemeConfig.accentPurple,
+          ),
+          SizedBox(width: ThemeConfig.spacingSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '模拟 RK3588 模式',
+                  style: TextStyle(
+                    color: ThemeConfig.accentPurple,
+                    fontSize: ThemeConfig.fontSizeMedium,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '用于测试，无需真实硬件设备',
+                  style: TextStyle(
+                    color: ThemeConfig.textLight.withOpacity(0.7),
+                    fontSize: ThemeConfig.fontSizeSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -897,6 +973,60 @@ class _DeviceConnectionPageState extends State<DeviceConnectionPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMockConnectSection() {
+    return Container(
+      margin: EdgeInsets.only(top: ThemeConfig.spacingLarge),
+      padding: EdgeInsets.all(ThemeConfig.spacingLarge),
+      decoration: BoxDecoration(
+        color: ThemeConfig.accentPurple.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(ThemeConfig.radiusMedium),
+        border: Border.all(color: ThemeConfig.accentPurple.withOpacity(0.4), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '模拟设备连接',
+            style: TextStyle(
+              color: ThemeConfig.accentPurple,
+              fontSize: ThemeConfig.fontSizeLarge,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: ThemeConfig.spacingMedium),
+          Text(
+            '无需配对码，一键连接到模拟 RK3588 设备:',
+            style: TextStyle(color: ThemeConfig.textLight.withOpacity(0.7)),
+          ),
+          SizedBox(height: ThemeConfig.spacingLarge),
+          GestureDetector(
+            onTap: () async {
+              await _connectToDevice('mock-token');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: ThemeConfig.spacingMedium),
+              decoration: BoxDecoration(
+                color: ThemeConfig.accentPurple,
+                borderRadius: BorderRadius.circular(ThemeConfig.radiusMedium),
+                boxShadow: ThemeConfig.buttonShadow,
+              ),
+              child: Text(
+                '连接模拟设备',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: ThemeConfig.textLight,
+                  fontSize: ThemeConfig.fontSizeMedium,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -9,6 +9,12 @@ class RkClient {
   WebSocketChannel? _wsChannel;
   String? _deviceToken;
   String? _currentUrl;
+  bool _mockMode = false;
+  Timer? _mockTimer;
+  
+  Map<String, dynamic>? _currentPlaybackState;
+  Map<String, dynamic>? _currentDeviceInfo;
+  double _currentSyncProgress = 0.0;
 
   final _playbackController = StreamController<Map<String, dynamic>>.broadcast();
   final _deviceController = StreamController<Map<String, dynamic>>.broadcast();
@@ -31,12 +37,51 @@ class RkClient {
     ));
   }
 
+  void setMockMode(bool enabled) {
+    _mockMode = enabled;
+    if (_mockMode) {
+      _startMockUpdates();
+    } else {
+      _mockTimer?.cancel();
+    }
+  }
+
+  void _startMockUpdates() {
+    _mockTimer?.cancel();
+    _mockTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_currentDeviceInfo == null) {
+        _currentDeviceInfo = {
+          'type': 'device_info',
+          'device_id': 'mock-device-001',
+          'model': 'RK3588-MOCK',
+          'status': 'connected',
+          'battery': 100,
+        };
+        _deviceController.add(_currentDeviceInfo!);
+      }
+      
+      if (_currentPlaybackState == null) {
+        _currentPlaybackState = {
+          'type': 'playback_state',
+          'state': 'idle',
+          'current_song_id': null,
+          'current_position_sec': 0.0,
+          'current_bpm': 120.0,
+        };
+        _playbackController.add(_currentPlaybackState!);
+      }
+    });
+  }
+
   void setDeviceToken(String token) {
     _deviceToken = token;
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
 
   Future<bool> testConnection(String url) async {
+    if (_mockMode) {
+      return true;
+    }
     try {
       final testDio = Dio();
       testDio.options.connectTimeout = const Duration(seconds: 3);
@@ -67,6 +112,16 @@ class RkClient {
   }
 
   Future<bool> connect(String url, {String? token}) async {
+    if (_mockMode) {
+      _currentUrl = url;
+      if (token != null) {
+        setDeviceToken(token);
+      }
+      AppLogger.info('Mock RK3588连接成功');
+      _startMockUpdates();
+      return true;
+    }
+    
     _currentUrl = url;
     if (token != null) {
       setDeviceToken(token);
@@ -152,6 +207,18 @@ class RkClient {
   }
 
   Future<void> play(int songId, {double startAt = 0}) async {
+    if (_mockMode) {
+      _currentPlaybackState = {
+        'type': 'playback_state',
+        'state': 'playing',
+        'current_song_id': songId,
+        'current_position_sec': startAt,
+        'current_bpm': 120.0,
+      };
+      _playbackController.add(_currentPlaybackState!);
+      AppLogger.info('Mock播放: song_id=$songId, startAt=$startAt');
+      return;
+    }
     await _dio.post('/play', data: {
       'song_id': songId,
       'start_at_sec': startAt,
@@ -159,26 +226,72 @@ class RkClient {
   }
 
   Future<void> pause() async {
+    if (_mockMode) {
+      if (_currentPlaybackState != null) {
+        _currentPlaybackState!['state'] = 'paused';
+        _playbackController.add(_currentPlaybackState!);
+      }
+      AppLogger.info('Mock暂停');
+      return;
+    }
     await _dio.post('/pause', data: {});
   }
 
   Future<void> resume() async {
+    if (_mockMode) {
+      if (_currentPlaybackState != null) {
+        _currentPlaybackState!['state'] = 'playing';
+        _playbackController.add(_currentPlaybackState!);
+      }
+      AppLogger.info('Mock继续');
+      return;
+    }
     await _dio.post('/resume', data: {});
   }
 
   Future<void> next() async {
+    if (_mockMode) {
+      AppLogger.info('Mock下一首');
+      return;
+    }
     await _dio.post('/next', data: {});
   }
 
   Future<void> seek(double sec) async {
+    if (_mockMode) {
+      if (_currentPlaybackState != null) {
+        _currentPlaybackState!['current_position_sec'] = sec;
+        _playbackController.add(_currentPlaybackState!);
+      }
+      AppLogger.info('Mock跳转: $sec秒');
+      return;
+    }
     await _dio.post('/seek', data: {'sec': sec});
   }
 
   Future<void> trigger(int key) async {
+    if (_mockMode) {
+      AppLogger.info('Mock触发按键: key=$key');
+      return;
+    }
     await _dio.post('/trigger', data: {'key': key});
   }
 
   Future<void> loadPlan(Map<String, dynamic> mixPlan, Map<String, dynamic> manifest) async {
+    if (_mockMode) {
+      _currentSyncProgress = 0.0;
+      _syncController.add(0.0);
+      Timer.periodic(const Duration(milliseconds: 100), (timer) {
+        _currentSyncProgress += 0.05;
+        if (_currentSyncProgress >= 1.0) {
+          _currentSyncProgress = 1.0;
+          timer.cancel();
+        }
+        _syncController.add(_currentSyncProgress);
+      });
+      AppLogger.info('Mock加载计划');
+      return;
+    }
     await _dio.post('/load_plan', data: {
       'mix_plan': mixPlan,
       'manifest': manifest,

@@ -14,6 +14,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _offlineMode = false;
 
   @override
   void dispose() {
@@ -26,6 +27,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
+    if (_offlineMode) {
+      ref.read(authProvider.notifier).setOfflineMode(true);
+    }
 
     await ref.read(authProvider.notifier).login(
           _usernameController.text,
@@ -124,6 +129,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _offlineMode,
+                        onChanged: (value) {
+                          setState(() {
+                            _offlineMode = value ?? false;
+                          });
+                        },
+                      ),
+                      const Text('离线模式（无需后端）'),
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
@@ -143,6 +162,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             '登录',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('在离线模式下，任意用户名密码都可以登录'),
+                          backgroundColor: Colors.blue,
+                        ),
+                      );
+                    },
+                    child: const Text('还没有账号？'),
                   ),
                 ],
               ),
