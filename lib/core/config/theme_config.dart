@@ -29,6 +29,9 @@ class ThemeConfig {
   
   /// 连接成功色（绿色）- 设备已连接、播放正常
   static const Color accentSuccess = Color(0xFF34C759);
+  
+  /// 紫色强调色（模拟模式、特殊按钮）
+  static const Color accentPurple = Color(0xFF8B5CF6);
 
   // ==================== 按钮功能色 ====================
   

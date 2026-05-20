@@ -26,6 +26,22 @@ class Song {
     this.createdAt,
   });
   
+  factory Song.fromJson(Map<String, dynamic> json) {
+    return Song(
+      id: json['id'] ?? 0,
+      title: json['title'] ?? '',
+      artist: json['artist'] ?? '',
+      audioUrl: json['audio_url'],
+      duration: (json['duration'] as num?)?.toDouble(),
+      bpm: json['bpm'],
+      key: json['key'],
+      energy: json['energy'],
+      style: json['style'],
+      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList(),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+    );
+  }
+  
   /// 格式化时长显示 (mm:ss)
   String get formattedDuration {
     if (duration == null) return '--:--';
