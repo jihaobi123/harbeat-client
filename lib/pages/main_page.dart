@@ -4,6 +4,7 @@ import '../presentation/pages/device_connection_page.dart';
 import 'live_page.dart';
 import '../presentation/pages/library_page.dart';
 import '../presentation/pages/discovery_page.dart';
+import '../state/providers.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -16,11 +17,15 @@ class _MainPageState extends ConsumerState<MainPage> {
   int _selectedIndex = 1; // 默认显示 AI DJ控制台
 
   static const List<Widget> _pages = [
-    DeviceConnectionPage(),
+    DeviceConnectionPage(onConnected: _onDeviceConnected),
     LivePage(),
     LibraryPage(),
     DiscoveryPage(),
   ];
+
+  static void _onDeviceConnected(WidgetRef ref) {
+    ref.read(liveProvider.notifier).setConnected(true);
+  }
 
   static const List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(

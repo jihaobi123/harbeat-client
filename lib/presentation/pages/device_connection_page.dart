@@ -9,7 +9,7 @@ import '../../core/utils/helpers.dart';
 import '../../state/providers.dart';
 
 class DeviceConnectionPage extends ConsumerStatefulWidget {
-  final VoidCallback? onConnected;
+  final void Function(WidgetRef ref)? onConnected;
   
   const DeviceConnectionPage({super.key, this.onConnected});
 
@@ -219,7 +219,7 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
         deviceId: 'mock-device-001',
         deviceName: '模拟 RK3588',
       );
-      widget.onConnected?.call();
+      widget.onConnected?.call(ref);
       _showSnackBar('✅ 模拟 RK3588 连接成功', ThemeConfig.accentPurple);
       return;
     }
@@ -234,7 +234,7 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
         deviceId: _selectedDevice!.deviceId,
         deviceName: _selectedDevice!.name,
       );
-      widget.onConnected?.call();
+      widget.onConnected?.call(ref);
       _showSnackBar('✅ RK3588 设备连接成功', ThemeConfig.accentSuccess);
     } else {
       setState(() {

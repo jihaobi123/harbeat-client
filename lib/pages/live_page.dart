@@ -27,23 +27,20 @@ class _LivePageState extends ConsumerState<LivePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final rkClient = ref.read(rkClientProvider);
+        if (rkClient.isConnected) {
+          ref.read(liveProvider.notifier).setConnected(true);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _nextPressTimer?.cancel();
     super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(LivePage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (mounted && ref.exists(liveProvider)) {
-      final currentState = ref.read(liveProvider);
-      if (!currentState.isConnected) {
-        ref.read(liveProvider.notifier).setConnected(true);
-      }
-    }
   }
 
   @override

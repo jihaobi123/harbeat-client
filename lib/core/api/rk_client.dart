@@ -28,13 +28,20 @@ class RkClient {
   Stream<Map<String, dynamic>> get playbackStream => _playbackController.stream;
   Stream<Map<String, dynamic>> get deviceStream => _deviceController.stream;
   Stream<double> get syncProgressStream => _syncController.stream;
+  
+  bool get isConnected => _currentUrl != null && (_mockMode || _wsChannel != null);
+  String? get currentUrl => _currentUrl;
 
   RkClient({String? baseUrl}) {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl ?? 'http://192.168.1.100:9000',
-      connectTimeout: const Duration(seconds: 3),
-      receiveTimeout: const Duration(seconds: 10),
+      baseUrl: baseUrl ?? 'http://localhost:9000',
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 15),
     ));
+  }
+  
+  void setBaseUrl(String baseUrl) {
+    _dio.options.baseUrl = baseUrl;
   }
 
   void setMockMode(bool enabled) {
