@@ -215,7 +215,7 @@ class _CurrentTrackInfo extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_formatTime(playback.positionSec)),
+                      Text(_formatTime(playback!.positionSec)),
                       const Text('3:00'),
                     ],
                   ),
