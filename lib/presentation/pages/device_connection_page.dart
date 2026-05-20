@@ -210,7 +210,7 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
     if (_mockMode) {
       final rkClient = ref.read(rkClientProvider);
       rkClient.setMockMode(true);
-      await rkClient.connect('http://mock-device:8787');
+      await rkClient.connect(_ipAddressController.text.trim());
       
       setState(() {
         _status = ConnectionStatus.connected;
@@ -227,6 +227,10 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
     final success = await _hardwareService.connectToRK3588(_selectedDevice!, deviceToken);
 
     if (success) {
+      // 同步设置 rkClientProvider 的连接状态
+      final rkClient = ref.read(rkClientProvider);
+      await rkClient.connect(_hardwareService.lastUsedUrl, token: deviceToken);
+      
       setState(() {
         _status = ConnectionStatus.connected;
       });

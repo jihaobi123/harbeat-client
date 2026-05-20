@@ -167,6 +167,7 @@ class HardwareService {
   RK3588DeviceInfo? get currentDevice => _currentDevice;
   EdgeStatus? get currentStatus => _currentStatus;
   bool get isDeviceConnected => _isConnected;
+  String? get lastUsedUrl => _lastUsedUrl;
   int get currentVolume => _volume;
   EnergyMode get currentEnergyMode => _currentEnergyMode;
   MusicStyle get currentStyle => _currentStyle;

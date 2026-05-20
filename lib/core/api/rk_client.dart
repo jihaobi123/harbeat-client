@@ -55,6 +55,8 @@ class RkClient {
 
   void _startMockUpdates() {
     _mockTimer?.cancel();
+    _currentDeviceInfo = null;
+    _currentPlaybackState = null;
     _mockTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (_currentDeviceInfo == null) {
         _currentDeviceInfo = {
