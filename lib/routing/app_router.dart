@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../pages/login_page.dart';
+import '../pages/main_page.dart';
 import '../pages/prep_page.dart';
 import '../pages/live_page.dart';
 import '../pages/replay_page.dart';
@@ -20,7 +21,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
       if (isAuthenticated && isLoginPage) {
-        return '/prep';
+        return '/main';
       }
       return null;
     },
@@ -32,6 +33,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/main',
+        builder: (context, state) => const MainPage(),
       ),
       GoRoute(
         path: '/prep',
