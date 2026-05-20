@@ -5,6 +5,7 @@ import '../utils/logger.dart';
 class JetsonClient {
   late final Dio _dio;
   String? _token;
+  bool _mockMode = false;
 
   JetsonClient({String? baseUrl, Duration? timeout}) {
     _dio = Dio(BaseOptions(
@@ -31,6 +32,10 @@ class JetsonClient {
       },
     ));
   }
+  
+  void setMockMode(bool enabled) {
+    _mockMode = enabled;
+  }
 
   void setToken(String token) {
     _token = token;
@@ -40,7 +45,78 @@ class JetsonClient {
     _token = null;
   }
 
+  // 模拟歌曲数据
+  final List<Map<String, dynamic>> _mockSongs = [
+    {
+      'song_id': 'song-001',
+      'title': 'Hip Hop Anthem',
+      'artist': 'DJ Master',
+      'duration_sec': 185.5,
+      'bpm': 120.0,
+      'analysis_status': 'ready',
+      'has_stems': true,
+    },
+    {
+      'song_id': 'song-002',
+      'title': 'Urban Beats',
+      'artist': 'Beat Producer',
+      'duration_sec': 210.0,
+      'bpm': 105.0,
+      'analysis_status': 'ready',
+      'has_stems': true,
+    },
+    {
+      'song_id': 'song-003',
+      'title': 'Street Sounds',
+      'artist': 'Rhyme King',
+      'duration_sec': 195.0,
+      'bpm': 115.0,
+      'analysis_status': 'ready',
+      'has_stems': true,
+    },
+    {
+      'song_id': 'song-004',
+      'title': 'Night Groove',
+      'artist': 'Base Line',
+      'duration_sec': 225.0,
+      'bpm': 95.0,
+      'analysis_status': 'ready',
+      'has_stems': true,
+    },
+    {
+      'song_id': 'song-005',
+      'title': 'City Vibe',
+      'artist': 'Smooth Player',
+      'duration_sec': 178.0,
+      'bpm': 110.0,
+      'analysis_status': 'ready',
+      'has_stems': true,
+    },
+  ];
+
+  // 模拟歌单数据
+  final List<Map<String, dynamic>> _mockPlaylists = [
+    {
+      'playlist_id': 1,
+      'name': 'Hip Hop Mix',
+      'songs': [],
+    },
+    {
+      'playlist_id': 2,
+      'name': 'Dance Party',
+      'songs': [],
+    },
+  ];
+
   Future<Map<String, dynamic>> login(String username, String password) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return {
+        'access_token': 'mock-token-${DateTime.now().millisecondsSinceEpoch}',
+        'user_id': 1,
+        'username': username,
+      };
+    }
     final response = await _dio.post('/api/users/login', data: {
       'username': username,
       'password': password,
@@ -52,6 +128,18 @@ class JetsonClient {
     bool onlyReady = true,
     String? query,
   }) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      var filteredSongs = _mockSongs;
+      if (query != null && query.isNotEmpty) {
+        filteredSongs = _mockSongs
+            .where((song) =>
+                song['title'].toLowerCase().contains(query.toLowerCase()) ||
+                song['artist'].toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
+      return {'data': filteredSongs};
+    }
     final response = await _dio.get('/api/library/songs', queryParameters: {
       'only_ready': onlyReady,
       if (query != null && query.isNotEmpty) 'q': query,
@@ -60,11 +148,31 @@ class JetsonClient {
   }
 
   Future<Map<String, dynamic>> getSongStatus(String songId) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final song = _mockSongs.firstWhere((s) => s['song_id'] == songId);
+      return {'data': song};
+    }
     final response = await _dio.get('/api/library/songs/$songId/status');
     return _unwrapResponse(response);
   }
 
   Future<Map<String, dynamic>> uploadSong(String filePath) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final newSongId = 'song-${DateTime.now().millisecondsSinceEpoch}';
+      final newSong = {
+        'song_id': newSongId,
+        'title': 'New Song',
+        'artist': 'Unknown',
+        'duration_sec': 180.0,
+        'bpm': 120.0,
+        'analysis_status': 'analyzing',
+        'has_stems': false,
+      };
+      _mockSongs.add(newSong);
+      return {'data': newSong};
+    }
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
@@ -73,12 +181,29 @@ class JetsonClient {
   }
 
   Future<List<Map<String, dynamic>>> getPlaylists() async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      // 为模拟歌单添加一些歌曲
+      _mockPlaylists[0]['songs'] = _mockSongs.take(3).toList();
+      _mockPlaylists[1]['songs'] = _mockSongs.skip(2).toList();
+      return _mockPlaylists;
+    }
     final response = await _dio.get('/api/playlists');
     final data = _unwrapResponse(response);
     return List<Map<String, dynamic>>.from(data['playlists'] ?? []);
   }
 
   Future<Map<String, dynamic>> createPlaylist(String name) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final newPlaylist = {
+        'playlist_id': _mockPlaylists.length + 1,
+        'name': name,
+        'songs': [],
+      };
+      _mockPlaylists.add(newPlaylist);
+      return {'data': newPlaylist};
+    }
     final response = await _dio.post('/api/playlists/create-empty', data: {
       'name': name,
     });
@@ -89,6 +214,17 @@ class JetsonClient {
     int playlistId,
     List<String> librarySongIds,
   ) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final playlist = _mockPlaylists.firstWhere(
+        (p) => p['playlist_id'] == playlistId,
+      );
+      final songsToAdd = _mockSongs
+          .where((s) => librarySongIds.contains(s['song_id']))
+          .toList();
+      playlist['songs'] = (playlist['songs'] as List)..addAll(songsToAdd);
+      return {'data': playlist};
+    }
     final response = await _dio.post(
       '/api/playlists/$playlistId/add-library-songs',
       data: {'library_song_ids': librarySongIds},
@@ -97,6 +233,36 @@ class JetsonClient {
   }
 
   Stream<Map<String, dynamic>> streamMixPlan(int playlistId) async* {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      yield {'event': 'plan_started', 'playlist_id': playlistId, 'cache_hit': true};
+      
+      await Future.delayed(const Duration(milliseconds: 1000));
+      final playlistSongs = _mockPlaylists.firstWhere(
+        (p) => p['playlist_id'] == playlistId,
+        orElse: () => _mockPlaylists[0],
+      )['songs'] as List;
+      
+      yield {
+        'event': 'plan_final',
+        'playlist_id': playlistId,
+        'result': {
+          'playlist': playlistSongs,
+          'transition_plan': List.generate(
+            playlistSongs.length - 1,
+            (i) => {
+              'from_song_id': playlistSongs[i]['song_id'],
+              'to_song_id': playlistSongs[i + 1]['song_id'],
+              'from_out_sec': 30.0,
+              'to_in_sec': 0.0,
+              'crossfade_sec': 8.0,
+            },
+          ),
+        },
+      };
+      return;
+    }
+
     final response = await _dio.post(
       '/api/playlists/$playlistId/dj-mix-stream',
       options: Options(responseType: ResponseType.stream),
@@ -129,6 +295,61 @@ class JetsonClient {
   }
 
   Future<Map<String, dynamic>> getManifest(int playlistId, {String? planId}) async {
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final playlistSongs = _mockPlaylists.firstWhere(
+        (p) => p['playlist_id'] == playlistId,
+        orElse: () => _mockPlaylists[0],
+      )['songs'] as List;
+      
+      return {
+        'data': {
+          'plan_id': planId ?? 'mock-plan-$playlistId',
+          'playlist_id': playlistId,
+          'tracks': playlistSongs.map((song) {
+            return {
+              'song_id': song['song_id'],
+              'library_song_id': song['song_id'],
+              'title': song['title'],
+              'artist': song['artist'],
+              'duration_sec': song['duration_sec'],
+              'bpm': song['bpm'],
+              'files': {
+                'original': {
+                  'url': '/api/stream/${song['song_id']}',
+                  'size': 5000000,
+                  'sha256': 'mock-sha256-${song['song_id']}',
+                  'format': 'mp3',
+                },
+                'stems': {
+                  'vocals': {
+                    'url': '/api/stream/${song['song_id']}/stem/vocals',
+                    'size': 1000000,
+                    'sha256': 'mock-stem-vocals-${song['song_id']}',
+                  },
+                  'drums': {
+                    'url': '/api/stream/${song['song_id']}/stem/drums',
+                    'size': 800000,
+                    'sha256': 'mock-stem-drums-${song['song_id']}',
+                  },
+                  'bass': {
+                    'url': '/api/stream/${song['song_id']}/stem/bass',
+                    'size': 600000,
+                    'sha256': 'mock-stem-bass-${song['song_id']}',
+                  },
+                  'other': {
+                    'url': '/api/stream/${song['song_id']}/stem/other',
+                    'size': 700000,
+                    'sha256': 'mock-stem-other-${song['song_id']}',
+                  },
+                },
+              },
+            };
+          }).toList(),
+        },
+      };
+    }
+    
     final response = await _dio.get(
       '/api/playlists/$playlistId/manifest',
       queryParameters: planId != null ? {'plan_id': planId} : null,

@@ -56,7 +56,9 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading);
 
     try {
+      final jetson = ref.read(jetsonClientProvider);
       if (_offlineMode) {
+        jetson.setMockMode(true);
         await Future.delayed(const Duration(milliseconds: 800));
         final mockToken = 'mock_token_${DateTime.now().millisecondsSinceEpoch}';
         state = state.copyWith(
@@ -68,7 +70,7 @@ class AuthNotifier extends Notifier<AuthState> {
         return;
       }
 
-      final jetson = ref.read(jetsonClientProvider);
+      jetson.setMockMode(false);
       final response = await jetson.login(username, password);
 
       final token = response['access_token'];
@@ -89,6 +91,8 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (e) {
       AppLogger.warning('后端登录失败，切换到离线模式: $e');
       _offlineMode = true;
+      final jetson = ref.read(jetsonClientProvider);
+      jetson.setMockMode(true);
       await Future.delayed(const Duration(milliseconds: 800));
       final mockToken = 'mock_token_${DateTime.now().millisecondsSinceEpoch}';
       state = state.copyWith(
@@ -102,6 +106,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void setOfflineMode(bool enabled) {
     _offlineMode = enabled;
+    final jetson = ref.read(jetsonClientProvider);
+    jetson.setMockMode(enabled);
   }
 
   void logout() {
