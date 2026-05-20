@@ -28,9 +28,9 @@ class _MainPageState extends ConsumerState<MainPage> {
       label: '设备',
     ),
     BottomNavigationBarItem(
-      icon: Icon(Icons.music_controller),
-      label: 'DJ',
-    ),
+        icon: Icon(Icons.disc_full),
+        label: 'DJ',
+      ),
     BottomNavigationBarItem(
       icon: Icon(Icons.library_music),
       label: '曲库',

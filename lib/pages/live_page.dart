@@ -171,11 +171,11 @@ class _CurrentTrackInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        margin: const EdgeInsets.all(16),
       ),
       child: Column(
         children: [
@@ -190,9 +190,7 @@ class _CurrentTrackInfo extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                playback?.currentBpm != null
-                    ? '${playback!.currentBpm.toStringAsFixed(0)} BPM'
-                    : '-- BPM',
+                '-- BPM',
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(width: 16),
@@ -204,21 +202,21 @@ class _CurrentTrackInfo extends StatelessWidget {
               ),
             ],
           ),
-          if (playback?.currentPositionSec != null)
+          if (playback != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Column(
                 children: [
                   Slider(
-                    value: playback!.currentPositionSec,
-                    max: playback.durationSec ?? 180,
+                    value: playback!.positionSec,
+                    max: 180,
                     onChanged: (value) => {},
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_formatTime(playback.currentPositionSec)),
-                      Text(_formatTime(playback.durationSec ?? 180)),
+                      Text(_formatTime(playback.positionSec)),
+                      const Text('3:00'),
                     ],
                   ),
                 ],
@@ -322,58 +320,47 @@ class _EnergyButtons extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            _buildEnergyButton(
-              energy: EnergyLevel.high,
-              label: '高',
-              color: Colors.red,
-              selected: selected == EnergyLevel.high,
-              onTap: () => onSelect(EnergyLevel.high),
-              enabled: enabled,
+            Expanded(
+              child: ElevatedButton(
+                onPressed: enabled ? () => onSelect(EnergyLevel.high) : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: selected == EnergyLevel.high ? Colors.red : theme.colorScheme.surface,
+                  foregroundColor: selected == EnergyLevel.high ? Colors.white : theme.colorScheme.onSurface,
+                  side: BorderSide(color: Colors.red, width: selected == EnergyLevel.high ? 2 : 1),
+                ),
+                child: const Text('高', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ),
             const SizedBox(width: 8),
-            _buildEnergyButton(
-              energy: EnergyLevel.medium,
-              label: '中',
-              color: Colors.yellow,
-              selected: selected == EnergyLevel.medium,
-              onTap: () => onSelect(EnergyLevel.medium),
-              enabled: enabled,
+            Expanded(
+              child: ElevatedButton(
+                onPressed: enabled ? () => onSelect(EnergyLevel.medium) : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: selected == EnergyLevel.medium ? Colors.yellow : theme.colorScheme.surface,
+                  foregroundColor: selected == EnergyLevel.medium ? Colors.white : theme.colorScheme.onSurface,
+                  side: BorderSide(color: Colors.yellow, width: selected == EnergyLevel.medium ? 2 : 1),
+                ),
+                child: const Text('中', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ),
             const SizedBox(width: 8),
-            _buildEnergyButton(
-              energy: EnergyLevel.low,
-              label: '低',
-              color: Colors.green,
-              selected: selected == EnergyLevel.low,
-              onTap: () => onSelect(EnergyLevel.low),
-              enabled: enabled,
+            Expanded(
+              child: ElevatedButton(
+                onPressed: enabled ? () => onSelect(EnergyLevel.low) : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: selected == EnergyLevel.low ? Colors.green : theme.colorScheme.surface,
+                  foregroundColor: selected == EnergyLevel.low ? Colors.white : theme.colorScheme.onSurface,
+                  side: BorderSide(color: Colors.green, width: selected == EnergyLevel.low ? 2 : 1),
+                ),
+                child: const Text('低', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildEnergyButton({
-    required EnergyLevel energy,
-    required String label,
-    required Color color,
-    required bool selected,
-    required VoidCallback onTap,
-    required bool enabled,
-  }) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: enabled ? onTap : null,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: selected ? color : theme.colorScheme.surface,
-          foregroundColor: selected ? Colors.white : theme.colorScheme.onSurface,
-          side: BorderSide(color: color, width: selected ? 2 : 1),
-        ),
-        child: Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
     );
   }
 }
