@@ -200,13 +200,15 @@ class SetNotifier extends Notifier<SetState> {
   }
 
   Future<void> startPlanning() async {
-    if (state.playlistId == null) return;
+    if (state.songs.isEmpty) return;
 
     state = state.copyWith(isPlanning: true);
 
     try {
       final jetson = ref.read(jetsonClientProvider);
-      await for (final event in jetson.streamMixPlan(state.playlistId!)) {
+      int targetPlaylistId = state.playlistId ?? 9999;
+      
+      await for (final event in jetson.streamMixPlan(targetPlaylistId)) {
         if (event['result'] != null) {
           final plan = MixPlan.fromJson(event['result']);
           state = state.copyWith(
@@ -215,6 +217,13 @@ class SetNotifier extends Notifier<SetState> {
             isPlanning: false,
           );
           AppLogger.info('MixPlan生成完成: ${plan.planId}');
+          
+          final manifestResponse = await jetson.getManifest(targetPlaylistId, planId: plan.planId);
+          if (manifestResponse['data'] != null) {
+            final manifest = AssetManifest.fromJson(manifestResponse['data']);
+            state = state.copyWith(manifest: manifest);
+            AppLogger.info('Manifest获取完成: ${manifest.tracks.length}首');
+          }
           break;
         }
       }

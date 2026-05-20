@@ -240,24 +240,37 @@ class JetsonClient {
       await Future.delayed(const Duration(milliseconds: 1000));
       final playlistSongs = _mockPlaylists.firstWhere(
         (p) => p['playlist_id'] == playlistId,
-        orElse: () => _mockPlaylists[0],
+        orElse: () => {'songs': _mockSongs},
       )['songs'] as List;
+      
+      final tracks = List.generate(playlistSongs.length, (i) => {
+        'song_id': playlistSongs[i]['song_id'],
+        'order': i,
+        'start_at_sec': 0.0,
+        'play_duration_sec': playlistSongs[i]['duration_sec'] ?? 180.0,
+      });
+      
+      final transitions = List.generate(
+        playlistSongs.length - 1,
+        (i) => {
+          'from_song': playlistSongs[i]['song_id'],
+          'to_song': playlistSongs[i + 1]['song_id'],
+          'from_at_sec': (playlistSongs[i]['duration_sec'] ?? 180.0) - 30.0,
+          'to_at_sec': 0.0,
+          'fade_sec': 8.0,
+          'fade_curve': 'equal_power',
+        },
+      );
       
       yield {
         'event': 'plan_final',
         'playlist_id': playlistId,
         'result': {
-          'playlist': playlistSongs,
-          'transition_plan': List.generate(
-            playlistSongs.length - 1,
-            (i) => {
-              'from_song_id': playlistSongs[i]['song_id'],
-              'to_song_id': playlistSongs[i + 1]['song_id'],
-              'from_out_sec': 30.0,
-              'to_in_sec': 0.0,
-              'crossfade_sec': 8.0,
-            },
-          ),
+          'plan_id': 'mock-plan-${DateTime.now().millisecondsSinceEpoch}',
+          'playlist_id': playlistId,
+          'generated_at': DateTime.now().toIso8601String(),
+          'tracks': tracks,
+          'transitions': transitions,
         },
       };
       return;
@@ -306,14 +319,17 @@ class JetsonClient {
         'data': {
           'plan_id': planId ?? 'mock-plan-$playlistId',
           'playlist_id': playlistId,
-          'tracks': playlistSongs.map((song) {
+          'tracks': playlistSongs.asMap().entries.map((entry) {
+            final index = entry.key;
+            final song = entry.value;
             return {
-              'song_id': song['song_id'],
+              'song_id': index + 1,
               'library_song_id': song['song_id'],
               'title': song['title'],
               'artist': song['artist'],
               'duration_sec': song['duration_sec'],
               'bpm': song['bpm'],
+              'key': 'A',
               'files': {
                 'original': {
                   'url': '/api/stream/${song['song_id']}',
