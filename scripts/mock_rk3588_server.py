@@ -74,21 +74,64 @@ async def get_edge_info():
         "timestamp": datetime.utcnow().isoformat(),
     }
 
+@app.get("/api/edge/status")
+async def get_edge_status():
+    """返回设备状态（包括播放状态）"""
+    is_playing = playback_state.state == "playing"
+    return {
+        "type": "playback_state",
+        "ts": int(datetime.utcnow().timestamp() * 1000),
+        "playing": is_playing,
+        "paused": not is_playing,
+        "current_song_id": playback_state.current_song_id,
+        "position_sec": playback_state.current_position_sec,
+        "duration_sec": playback_state.duration_sec,
+        "bpm": playback_state.current_bpm,
+        "active_loops": [],
+    }
+
 @app.get("/api/edge/pair/start")
 async def pair_start():
     """开始配对"""
     return {
-        "code": 0,
-        "message": "ok",
-        "data": {
-            "pairing_code": "123456",
-            "expires_in": 120,
-        }
+        "device_id": "mock-device-001",
+        "name": "RK3588-MOCK",
+        "local_url": "http://localhost:9000",
+        "pair_code": "123456",
+        "expires_in_sec": 120,
+        "is_connected": False,
+        "last_connected_time": 0,
     }
 
+@app.post("/api/edge/pair/confirm")
+async def pair_confirm(body: dict):
+    """确认配对"""
+    device_id = body.get('device_id', '')
+    pair_code = body.get('pair_code', '')
+    client_name = body.get('client_name', '')
+    client_type = body.get('client_type', '')
+    
+    print(f"🔑 [配对确认] device_id: {device_id}, pair_code: {pair_code}, client: {client_name} ({client_type})")
+    
+    if pair_code == "123456":
+        return {
+            "device_token": "mock-device-token-12345",
+            "expires_in": 3600,
+            "success": True,
+        }
+    else:
+        return {"success": False, "message": "Invalid pair code"}
+
 @app.post("/play")
-async def play(song_id: Optional[int] = None, start_at_sec: float = 0.0):
+async def play(body: Optional[dict] = None):
     """播放歌曲"""
+    song_id = None
+    start_at_sec = 0.0
+    
+    if body is not None:
+        song_id = body.get('song_id')
+        start_at_sec = body.get('start_at_sec', 0.0)
+    
     playback_state.state = "playing"
     playback_state.current_song_id = song_id or random.randint(1, 100)
     playback_state.current_position_sec = start_at_sec
@@ -141,12 +184,47 @@ async def seek(sec: float):
     return {"success": True, "position_sec": playback_state.current_position_sec}
 
 @app.post("/trigger")
-async def trigger(key: int):
-    """触发按键"""
+async def trigger(body: Optional[dict] = None):
+    """触发按键（加花）"""
+    key = body.get('key', 1) if body else 1
     fx_names = {1: "ha!", 2: "scratch", 3: "horn", 4: "drum", 5: "bass", 6: "hat", 7: "mute V", 8: "solo D", 9: "LPF"}
     fx_name = fx_names.get(key, f"key_{key}")
     print(f"🎛️ [加花] 触发音效: {fx_name} (key={key})")
     return {"success": True, "key": key, "latency_ms": random.randint(10, 50)}
+
+@app.post("/energy")
+async def set_energy(body: Optional[dict] = None):
+    """设置能量等级"""
+    level = body.get('level', 'medium') if body else 'medium'
+    energy_levels = {'low': '低能量', 'medium': '中能量', 'high': '高能量'}
+    print(f"⚡ [能量切换] {energy_levels.get(level, level)}")
+    return {"success": True, "energy": level}
+
+@app.post("/style")
+async def set_style(body: Optional[dict] = None):
+    """设置风格"""
+    style = body.get('style', 'hiphop') if body else 'hiphop'
+    styles = {'hiphop': 'HipHop', 'breaking': 'Breaking'}
+    print(f"🎶 [风格切换] {styles.get(style, style)}")
+    return {"success": True, "style": style}
+
+@app.post("/mix")
+async def mix_transition(body: Optional[dict] = None):
+    """混音过渡"""
+    transition = body.get('transition', 'smooth') if body else 'smooth'
+    transitions = {'smooth': '平滑过渡', 'energy': '能量提升', 'cut': '硬切'}
+    print(f"🔄 [混音] {transitions.get(transition, transition)}")
+    return {"success": True, "transition": transition}
+
+@app.post("/loop")
+async def set_loop(body: Optional[dict] = None):
+    """设置循环"""
+    enabled = body.get('enabled', False) if body else False
+    if enabled:
+        print(f"🔁 [循环] 已启用（前30秒循环）")
+    else:
+        print(f"🔁 [循环] 已禁用")
+    return {"success": True, "loop_enabled": enabled}
 
 @app.post("/load_plan")
 async def load_plan(mix_plan: Dict[str, Any], manifest: Dict[str, Any]):
@@ -158,14 +236,17 @@ async def load_plan(mix_plan: Dict[str, Any], manifest: Dict[str, Any]):
 # WebSocket 实时推送
 async def broadcast_state_update():
     """向所有连接的客户端广播状态更新"""
+    is_playing = playback_state.state == "playing"
     message = json.dumps({
         "type": "playback_state",
-        "state": playback_state.state,
+        "ts": int(datetime.utcnow().timestamp() * 1000),
+        "playing": is_playing,
+        "paused": not is_playing,
         "current_song_id": playback_state.current_song_id,
-        "current_position_sec": playback_state.current_position_sec,
+        "position_sec": playback_state.current_position_sec,
         "current_bpm": playback_state.current_bpm,
         "duration_sec": playback_state.duration_sec,
-        "timestamp": datetime.utcnow().isoformat(),
+        "active_loops": [],
     })
     
     disconnected = []
@@ -194,13 +275,17 @@ async def websocket_endpoint(websocket: WebSocket, token: Optional[str] = None):
         "battery": device_info.battery,
     }))
     
+    is_playing = playback_state.state == "playing"
     await websocket.send_text(json.dumps({
         "type": "playback_state",
-        "state": playback_state.state,
+        "ts": int(datetime.utcnow().timestamp() * 1000),
+        "playing": is_playing,
+        "paused": not is_playing,
         "current_song_id": playback_state.current_song_id,
-        "current_position_sec": playback_state.current_position_sec,
+        "position_sec": playback_state.current_position_sec,
         "current_bpm": playback_state.current_bpm,
         "duration_sec": playback_state.duration_sec,
+        "active_loops": [],
     }))
     
     try:

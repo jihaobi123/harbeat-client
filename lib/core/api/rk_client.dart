@@ -123,6 +123,7 @@ class RkClient {
   Future<bool> connect(String url, {String? token}) async {
     if (_mockMode) {
       _currentUrl = url;
+      _dio.options.baseUrl = url;
       if (token != null) {
         setDeviceToken(token);
       }
@@ -132,6 +133,7 @@ class RkClient {
     }
     
     _currentUrl = url;
+    _dio.options.baseUrl = url;
     if (token != null) {
       setDeviceToken(token);
     }
@@ -284,6 +286,38 @@ class RkClient {
       return;
     }
     await _dio.post('/trigger', data: {'key': key});
+  }
+
+  Future<void> setEnergy(String level) async {
+    if (_mockMode) {
+      AppLogger.info('Mock设置能量等级: $level');
+      return;
+    }
+    await _dio.post('/energy', data: {'level': level});
+  }
+
+  Future<void> setStyle(String style) async {
+    if (_mockMode) {
+      AppLogger.info('Mock设置风格: $style');
+      return;
+    }
+    await _dio.post('/style', data: {'style': style});
+  }
+
+  Future<void> setMix(String transition) async {
+    if (_mockMode) {
+      AppLogger.info('Mock设置混音: $transition');
+      return;
+    }
+    await _dio.post('/mix', data: {'transition': transition});
+  }
+
+  Future<void> setLoop(bool enabled) async {
+    if (_mockMode) {
+      AppLogger.info('Mock设置循环: $enabled');
+      return;
+    }
+    await _dio.post('/loop', data: {'enabled': enabled});
   }
 
   Future<void> loadPlan(Map<String, dynamic> mixPlan, Map<String, dynamic> manifest) async {

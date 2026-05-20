@@ -123,6 +123,7 @@ class _LivePageState extends ConsumerState<LivePage> {
   void _toggleLoop() {
     setState(() => _isLooping = !_isLooping);
     HapticFeedback.mediumImpact();
+    ref.read(rkClientProvider).setLoop(_isLooping);
     if (_isLooping) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已启用循环模式（前30秒）')),
@@ -138,6 +139,8 @@ class _LivePageState extends ConsumerState<LivePage> {
   void _selectEnergy(EnergyLevel energy) {
     setState(() => _selectedEnergy = energy);
     HapticFeedback.lightImpact();
+    final levelStr = energy == EnergyLevel.high ? 'high' : energy == EnergyLevel.medium ? 'medium' : 'low';
+    ref.read(rkClientProvider).setEnergy(levelStr);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('能量: ${_getEnergyLabel(energy)}')),
     );
@@ -146,6 +149,8 @@ class _LivePageState extends ConsumerState<LivePage> {
   void _selectStyle(MusicStyle style) {
     setState(() => _selectedStyle = style);
     HapticFeedback.lightImpact();
+    final styleStr = style == MusicStyle.hiphop ? 'hiphop' : 'breaking';
+    ref.read(rkClientProvider).setStyle(styleStr);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('风格: ${_getStyleLabel(style)}')),
     );
@@ -441,13 +446,13 @@ class _StyleButtons extends StatelessWidget {
   }
 }
 
-class _MixButtons extends StatelessWidget {
+class _MixButtons extends ConsumerWidget {
   final bool enabled;
 
   const _MixButtons({required this.enabled});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -457,7 +462,7 @@ class _MixButtons extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: enabled ? () => _executeMix('smooth') : null,
+                onPressed: enabled ? () => _executeMix(ref, 'smooth') : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.purple.shade100,
@@ -469,7 +474,7 @@ class _MixButtons extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton(
-                onPressed: enabled ? () => _executeMix('energy') : null,
+                onPressed: enabled ? () => _executeMix(ref, 'energy') : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.orange.shade100,
@@ -481,7 +486,7 @@ class _MixButtons extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton(
-                onPressed: enabled ? () => _executeMix('hard') : null,
+                onPressed: enabled ? () => _executeMix(ref, 'cut') : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.blue.shade100,
@@ -496,12 +501,13 @@ class _MixButtons extends StatelessWidget {
     );
   }
 
-  void _executeMix(String type) {
+  void _executeMix(WidgetRef ref, String type) {
     HapticFeedback.mediumImpact();
+    ref.read(rkClientProvider).setMix(type);
   }
 }
 
-class _FxPanel extends StatelessWidget {
+class _FxPanel extends ConsumerWidget {
   final bool isOpen;
   final VoidCallback onToggle;
   final bool enabled;
@@ -512,17 +518,17 @@ class _FxPanel extends StatelessWidget {
     required this.enabled,
   });
 
-  static const List<Map<String, String>> fxList = [
-    {'label': 'ha!', 'icon': '😎'},
-    {'label': 'scratch', 'icon': '🎧'},
-    {'label': 'horn', 'icon': '📯'},
-    {'label': 'drum', 'icon': '🥁'},
-    {'label': 'bass', 'icon': '🔊'},
-    {'label': 'hat', 'icon': '👒'},
+  static const List<Map<String, dynamic>> fxList = [
+    {'label': 'ha!', 'icon': '😎', 'key': 1},
+    {'label': 'scratch', 'icon': '🎧', 'key': 2},
+    {'label': 'horn', 'icon': '📯', 'key': 3},
+    {'label': 'drum', 'icon': '🥁', 'key': 4},
+    {'label': 'bass', 'icon': '🔊', 'key': 5},
+    {'label': 'hat', 'icon': '👒', 'key': 6},
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Column(
       children: [
@@ -546,7 +552,7 @@ class _FxPanel extends StatelessWidget {
             children: fxList.map((fx) => _FxButton(
               label: fx['label']!,
               icon: fx['icon']!,
-              onTap: () => _triggerFx(fx['label']!),
+              onTap: () => _triggerFx(ref, fx['key'] as int),
               enabled: enabled,
             )).toList(),
           ),
@@ -554,8 +560,9 @@ class _FxPanel extends StatelessWidget {
     );
   }
 
-  void _triggerFx(String fxName) {
+  void _triggerFx(WidgetRef ref, int key) {
     HapticFeedback.lightImpact();
+    ref.read(rkClientProvider).trigger(key);
   }
 }
 
