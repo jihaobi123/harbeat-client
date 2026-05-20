@@ -1,13 +1,7 @@
 allprojects {
     repositories {
-        // 原始仓库(优先)
         google()
         mavenCentral()
-
-        // 阿里云镜像 - 作为备用
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
-        maven { url = uri("https://maven.aliyun.com/nexus/content/groups/public") }
     }
 }
 
