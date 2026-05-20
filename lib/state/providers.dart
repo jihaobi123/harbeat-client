@@ -5,11 +5,15 @@ import '../models/models.dart';
 import '../core/utils/logger.dart';
 
 final jetsonClientProvider = Provider<JetsonClient>((ref) {
-  return JetsonClient();
+  final client = JetsonClient();
+  ref.keepAlive();
+  return client;
 });
 
 final rkClientProvider = Provider<RkClient>((ref) {
-  return RkClient();
+  final client = RkClient();
+  ref.keepAlive();
+  return client;
 });
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
@@ -269,6 +273,7 @@ final setProvider = NotifierProvider<SetNotifier, SetState>(() {
 class PlaybackNotifier extends Notifier<PlaybackState?> {
   @override
   PlaybackState? build() {
+    ref.keepAlive();
     _subscribeToPlayback();
     return null;
   }
@@ -313,6 +318,7 @@ final playbackProvider = NotifierProvider<PlaybackNotifier, PlaybackState?>(() {
 class DeviceNotifier extends Notifier<DeviceInfo?> {
   @override
   DeviceInfo? build() {
+    ref.keepAlive();
     _subscribeToDevice();
     return null;
   }
@@ -365,6 +371,7 @@ class LiveUiState {
 class LiveNotifier extends Notifier<LiveUiState> {
   @override
   LiveUiState build() {
+    ref.keepAlive();
     return LiveUiState();
   }
 
