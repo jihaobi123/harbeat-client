@@ -229,7 +229,8 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
     if (success) {
       // 同步设置 rkClientProvider 的连接状态
       final rkClient = ref.read(rkClientProvider);
-      await rkClient.connect(_hardwareService.lastUsedUrl, token: deviceToken);
+      // 使用设备本地URL，因为它一定有效
+      await rkClient.connect(_selectedDevice!.localUrl, token: deviceToken);
       
       setState(() {
         _status = ConnectionStatus.connected;
