@@ -1,0 +1,23 @@
+[Unit]
+Description=Cypher Edge Agent (REST :9000 + WS :9001)
+Documentation=file:///home/cat/cypher/edge-agent/README.md
+After=network-online.target cypher-audio-engine.service
+Wants=cypher-audio-engine.service
+PartOf=cypher.target
+
+[Service]
+Type=simple
+User=cat
+Group=cat
+WorkingDirectory=/home/cat/cypher/edge-agent
+EnvironmentFile=-/home/cat/cypher/deploy/cypher.env
+Environment=PATH=/home/cat/venvs/edge/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/cat/venvs/edge/bin/python /home/cat/cypher/edge-agent/run.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cypher-edge
+
+[Install]
+WantedBy=multi-user.target cypher.target

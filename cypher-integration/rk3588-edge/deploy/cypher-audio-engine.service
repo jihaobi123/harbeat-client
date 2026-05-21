@@ -1,0 +1,28 @@
+[Unit]
+Description=Cypher Audio Engine (playback + crossfade + FX)
+Documentation=file:///home/cat/cypher/audio-engine/README.md
+After=network-online.target sound.target
+Wants=network-online.target
+PartOf=cypher.target
+
+[Service]
+Type=simple
+User=cat
+Group=cat
+SupplementaryGroups=audio
+WorkingDirectory=/home/cat/cypher/audio-engine
+EnvironmentFile=-/home/cat/cypher/deploy/cypher.env
+Environment=PATH=/home/cat/venvs/edge/bin:/usr/local/bin:/usr/bin:/bin
+# 让 systemd 里的进程能连上用户 cat 的 PulseAudio（耳机孔）
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PULSE_RUNTIME_PATH=/run/user/1000/pulse
+ExecStart=/home/cat/venvs/edge/bin/python /home/cat/cypher/audio-engine/main.py
+Restart=always
+RestartSec=3
+Nice=-10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cypher-audio
+
+[Install]
+WantedBy=multi-user.target cypher.target
