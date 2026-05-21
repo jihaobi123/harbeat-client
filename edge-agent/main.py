@@ -110,6 +110,35 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Cypher Edge Agent", version="0.1.0", lifespan=lifespan)
 
 
+@app.get("/api/edge/info", response_model=HealthResponse)
+async def edge_info() -> HealthResponse:
+    """App compatibility: alias for /health."""
+    return await health()
+
+
+@app.post("/api/edge/pair/start")
+async def edge_pair_start():
+    """Start device pairing — returns a 6-digit code."""
+    import random
+    code = f"{random.randint(100000, 999999)}"
+    return {"code": 0, "data": {
+        "device_id": settings.rk_id,
+        "name": f"Cypher Edge ({settings.rk_id})",
+        "pair_code": code,
+        "expires_in_sec": 120,
+    }}
+
+
+@app.post("/api/edge/pair/confirm")
+async def edge_pair_confirm(body: dict[str, Any]):
+    """Confirm device pairing — returns a device token."""
+    return {"code": 0, "data": {
+        "device_id": settings.rk_id,
+        "device_token": settings.edge_token or "paired-token",
+        "confirmed": True,
+    }}
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
   sync_status = None

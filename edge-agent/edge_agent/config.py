@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     )
 
     edge_token: str = ""
-    rk_id: str = "rk3588-01"
-    jetson_base_url: str = "http://127.0.0.1:8000"
+    rk_id: str = "rk-001"
+    jetson_base_url: str = "http://100.87.142.21:8000"
     jwt_token: str = ""
     harbeat_rk_token: str = ""
     sync_worker_url: str = "http://127.0.0.1:9100"
