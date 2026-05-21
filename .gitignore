@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 密钥与本地配置（勿提交）
+.env
+deploy/cypher.env
+
+# 运行时大文件
+cache/
+logs/
+*.wav
+*.mp3
+*.flac
+
+# 真机当前计划（demo 计划可提交）
+plans/current.json
+
+# IDE
+.cursor/
+.vscode/
+.DS_Store
+*~

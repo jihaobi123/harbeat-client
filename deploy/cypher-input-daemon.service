@@ -1,0 +1,23 @@
+[Unit]
+Description=Cypher Input Daemon (MYKB 9-key HID)
+After=cypher-audio-engine.service
+Wants=cypher-audio-engine.service
+PartOf=cypher.target
+
+[Service]
+Type=simple
+User=cat
+Group=cat
+SupplementaryGroups=input
+WorkingDirectory=/home/cat/cypher/input-daemon
+EnvironmentFile=-/home/cat/cypher/deploy/cypher.env
+Environment=PATH=/home/cat/venvs/edge/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/cat/venvs/edge/bin/python /home/cat/cypher/input-daemon/main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cypher-input
+
+[Install]
+WantedBy=multi-user.target cypher.target

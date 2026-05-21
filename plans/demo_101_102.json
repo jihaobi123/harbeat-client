@@ -1,0 +1,20 @@
+{
+  "mix_plan": {
+    "plan_id": "demo-local",
+    "tracks": [
+      { "song_id": 101, "order": 0, "start_at_sec": 0, "play_duration_sec": 15 },
+      { "song_id": 102, "order": 1, "start_at_sec": 0, "play_duration_sec": 270 }
+    ],
+    "transitions": [
+      {
+        "from_song": 101,
+        "to_song": 102,
+        "from_at_sec": 4,
+        "to_at_sec": 0,
+        "fade_sec": 8,
+        "fade_curve": "equal_power"
+      }
+    ]
+  },
+  "manifest": { "plan_id": "demo-local", "tracks": [] }
+}
