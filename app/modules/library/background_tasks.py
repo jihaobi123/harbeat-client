@@ -186,11 +186,14 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
                     for i, c in enumerate(raw_cues)
                 ]
+                # Phase 1 produced bpm/key/energy AND beats/downbeats → mark beats_done
+                song.analysis_stage = "beats_done"
                 db.commit()
                 logger.info("[bg-analysis] Phase 1 done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
-            except Exception:
+            except Exception as _e:
                 logger.exception("[bg-analysis] Phase 1 failed for %s", song_id)
                 song.analysis_status = "error"
+                song.analysis_error = f"phase1: {_e}"[:2000]
                 db.commit()
 
         _force_memory_release()  # free Phase 1 temporaries + return pages to OS
@@ -239,6 +242,8 @@ def _do_analysis_and_separation(song_id: str) -> None:
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
+                song.analysis_stage = "stems_done"
+                db.commit()
                 logger.info("[bg-analysis] stems separated for %s", song_id)
 
                 # Convert WAV stems to MP3 for faster streaming (WAV ~43MB → MP3 ~4MB)
@@ -261,8 +266,14 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     logger.warning("[bg-analysis] ffmpeg not found, skipping MP3 stem conversion")
             else:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
-        except Exception:
+        except Exception as _e:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
+            # Non-fatal: record error but continue to embedding phase
+            try:
+                song.analysis_error = f"stems: {_e}"[:2000]
+                db.commit()
+            except Exception:
+                pass
 
         _force_memory_release()  # free Phase 2 temporaries + return pages to OS
 
@@ -301,11 +312,21 @@ def _do_analysis_and_separation(song_id: str) -> None:
                     groove=tags.groove_tag if tags else None,
                     bpm=float(tags.bpm) if tags and tags.bpm else (song.bpm if song.bpm else None),
                 )
-        except Exception:
+                song.analysis_stage = "embed_done"
+                db.commit()
+        except Exception as _e:
             logger.exception("[bg-analysis] Phase 3 indexing failed for %s (non-fatal)", song_id)
+            try:
+                song.analysis_error = (song.analysis_error or "") + f" | embed: {_e}"
+                song.analysis_error = song.analysis_error[:2000]
+                db.commit()
+            except Exception:
+                pass
 
         # Mark completed regardless of stem separation outcome
+        from datetime import datetime as _dt
         song.analysis_status = "completed"
+        song.analyzed_at = _dt.utcnow()
         db.commit()
     except Exception:
         logger.exception("[bg-analysis] unexpected error for %s", song_id)

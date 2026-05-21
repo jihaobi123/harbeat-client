@@ -106,3 +106,30 @@ def generate_practice_list(
         )
         for s in sequence
     ]
+
+
+# --- RK3588 SessionEvent (cypher protocol P7) ---
+
+def ingest_rk_events(db, session_id: str, rk_id: str, events) -> int:
+    from app.modules.sessions.models import RKSessionEvent
+    n = 0
+    for ev in events:
+        row = RKSessionEvent(
+            session_id=session_id,
+            rk_id=rk_id,
+            ts=ev.ts,
+            type=ev.type,
+            data=ev.data,
+        )
+        db.add(row)
+        n += 1
+    db.commit()
+    return n
+
+
+def list_rk_events(db, session_id: str, type_: str | None = None, limit: int = 500):
+    from app.modules.sessions.models import RKSessionEvent
+    q = db.query(RKSessionEvent).filter(RKSessionEvent.session_id == session_id)
+    if type_:
+        q = q.filter(RKSessionEvent.type == type_)
+    return q.order_by(RKSessionEvent.ts.desc()).limit(limit).all()

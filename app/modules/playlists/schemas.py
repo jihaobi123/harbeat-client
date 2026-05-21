@@ -44,6 +44,7 @@ class PlaylistSongData(BaseModel):
     duration: Optional[float] = None
     bpm: Optional[float] = None
     key: Optional[str] = None
+    camelot_key: Optional[str] = None
     energy: Optional[float] = None
     format: Optional[str] = None
     analysis_status: Optional[str] = None

@@ -69,3 +69,57 @@ def generate_practice_list_endpoint(payload: PracticeListRequest, db: Session = 
             tracks=tracks,
         )
     )
+
+
+# --- RK3588 SessionEvent ingest (cypher protocol P7) ---
+
+import os
+from fastapi import Header, HTTPException
+from app.modules.sessions.schemas import (
+    RKEventBatchRequest,
+    RKEventIngestData,
+    RKEventListData,
+    RKEventListItem,
+)
+from app.modules.sessions.service import (
+    ingest_rk_events,
+    list_rk_events,
+)
+
+
+def _check_rk_token(token: str | None) -> None:
+    expected = os.getenv("HARBEAT_RK_TOKEN")
+    if expected and token != expected:
+        raise HTTPException(status_code=401, detail="invalid X-RK-Token")
+
+
+@router.post("/rk/{session_id}/events", response_model=APIResponse[RKEventIngestData])
+def ingest_rk_events_endpoint(
+    session_id: str,
+    payload: RKEventBatchRequest,
+    db: Session = Depends(get_db),
+    x_rk_token: str | None = Header(default=None),
+):
+    """RK3588 batch upload of session events. Recommended: flush every 5s or 50 events."""
+    _check_rk_token(x_rk_token)
+    n = ingest_rk_events(db, session_id, payload.rk_id, payload.events)
+    return APIResponse(data=RKEventIngestData(accepted=n, session_id=session_id))
+
+
+@router.get("/rk/{session_id}/events", response_model=APIResponse[RKEventListData])
+def list_rk_events_endpoint(
+    session_id: str,
+    type: str | None = None,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    x_rk_token: str | None = Header(default=None),
+):
+    _check_rk_token(x_rk_token)
+    rows = list_rk_events(db, session_id, type_=type, limit=min(max(limit, 1), 5000))
+    return APIResponse(data=RKEventListData(
+        session_id=session_id,
+        events=[
+            RKEventListItem(ts=r.ts, rk_id=r.rk_id, type=r.type, data=r.data, received_at=r.received_at)
+            for r in rows
+        ],
+    ))

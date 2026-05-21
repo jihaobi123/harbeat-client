@@ -1,6 +1,7 @@
 """Music search & download API routes (Kuwo-backed, fangpi-compatible interface)."""
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import uuid
@@ -728,11 +729,20 @@ async def import_playlist_endpoint(
 
     playlist_name = payload.playlist_name or parsed.get("name") or "Mixtape"
     playlist = _ensure_playlist(db, current_user.id, payload.playlist_id, playlist_name)
-    tracks = list(parsed.get("tracks") or [])[: payload.limit]
+    all_tracks = list(parsed.get("tracks") or [])
+    seg_indices = [c.index for c in payload.track_segments if c.index is not None]
+    if seg_indices:
+        wanted = set(seg_indices)
+        tracks_with_index = [(i, t) for i, t in enumerate(all_tracks) if i in wanted]
+    else:
+        tracks_with_index = list(enumerate(all_tracks))
+    if payload.limit and payload.limit > 0:
+        tracks_with_index = tracks_with_index[: payload.limit]
+    tracks = [t for _, t in tracks_with_index]
     imported: list[dict] = []
     failed: list[dict] = []
 
-    for index, track in enumerate(tracks):
+    for sub_idx, (index, track) in enumerate(tracks_with_index):
         title = str(track.get("title") or "").strip()
         artist = str(track.get("artist") or "Unknown Artist").strip() or "Unknown Artist"
         segment = _segment_for_track(track, index, payload.track_segments, payload.default_segment)
@@ -783,6 +793,186 @@ async def import_playlist_endpoint(
             "failed": failed,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Async import-playlist with progress tracking
+# ---------------------------------------------------------------------------
+IMPORT_JOBS: dict[str, dict] = {}
+
+
+class _BgQueue:
+    """Drop-in replacement for fastapi BackgroundTasks inside our job runner.
+
+    Schedules each task on a worker thread via ``asyncio.to_thread`` so heavy
+    sync work (analysis + source separation) does NOT block the event loop.
+    Fire-and-forget — failures are swallowed but logged.
+    """
+
+    def __init__(self) -> None:
+        self.tasks: list = []
+
+    def add_task(self, fn, *args, **kwargs):
+        async def _runner():
+            try:
+                await asyncio.to_thread(fn, *args, **kwargs)
+            except Exception as exc:
+                try:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "background task %s failed: %s", getattr(fn, "__name__", fn), exc
+                    )
+                except Exception:
+                    pass
+        try:
+            self.tasks.append(asyncio.create_task(_runner()))
+        except RuntimeError:
+            # No running loop (shouldn't happen inside our async job) — fall back.
+            pass
+
+
+async def _run_import_playlist_job(job_id: str, payload: ImportPlaylistRequest, user_id: int):
+    from app.shared.database import SessionLocal
+    from app.modules.playlists.service import add_library_songs_to_playlist
+
+    job = IMPORT_JOBS[job_id]
+    db = SessionLocal()
+    try:
+        current_user = db.query(User).filter(User.id == user_id).first()
+        if not current_user:
+            job.update(status="failed", error="user not found")
+            return
+
+        try:
+            parsed = await parse_playlist_url(payload.url)
+        except Exception as exc:
+            job.update(status="failed", error=f"parse failed: {exc}")
+            return
+
+        playlist_name = payload.playlist_name or parsed.get("name") or "Mixtape"
+        playlist = _ensure_playlist(db, current_user.id, payload.playlist_id, playlist_name)
+        job["playlist_id"] = playlist.id
+
+        all_tracks = list(parsed.get("tracks") or [])
+        # Filter: when track_segments specifies indices, import ONLY those tracks.
+        seg_indices = [c.index for c in payload.track_segments if c.index is not None]
+        if seg_indices:
+            wanted = set(seg_indices)
+            tracks_with_index = [(i, t) for i, t in enumerate(all_tracks) if i in wanted]
+        else:
+            tracks_with_index = list(enumerate(all_tracks))
+        if payload.limit and payload.limit > 0:
+            tracks_with_index = tracks_with_index[: payload.limit]
+
+        job["total"] = len(tracks_with_index)
+        job["status"] = "running"
+
+        bg = _BgQueue()
+        for index, track in tracks_with_index:
+            title = str(track.get("title") or "").strip()
+            artist = str(track.get("artist") or "Unknown Artist").strip() or "Unknown Artist"
+            segment = _segment_for_track(track, index, payload.track_segments, payload.default_segment)
+            job["current"] = f"{title} — {artist}"
+            if not title:
+                job["failed"].append({"index": index, "title": title, "artist": artist, "error": "empty title"})
+                job["done"] += 1
+                continue
+            try:
+                try:
+                    candidates = await asyncio.wait_for(
+                        smart_search_fangpi(title, artist), timeout=25
+                    )
+                except asyncio.TimeoutError:
+                    raise TimeoutError("search timeout after 25s")
+                if not candidates:
+                    raise ValueError("no candidate found")
+                candidate = candidates[0]
+                try:
+                    lib = await asyncio.wait_for(
+                        _download_or_link_song(
+                            DownloadRequest(
+                                music_id=str(candidate["id"]),
+                                title=title,
+                                artist=artist,
+                                tags=_segment_tags([], segment),
+                                source=str(candidate.get("source") or "fangpi"),
+                            ),
+                            bg,  # type: ignore[arg-type]
+                            db,
+                            current_user,
+                        ),
+                        timeout=120,
+                    )
+                except asyncio.TimeoutError:
+                    raise TimeoutError("download timeout after 120s")
+                add_library_songs_to_playlist(db, playlist.id, current_user.id, [lib.id])
+                db.refresh(lib)
+                job["imported"].append({
+                    "index": index,
+                    "library_song_id": lib.id,
+                    "song_id": lib.song_id,
+                    "title": lib.title,
+                    "artist": lib.artist,
+                    "segment": segment,
+                })
+            except Exception as exc:
+                # Always skip-on-failure: per-track errors must NEVER block the job.
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                job["failed"].append({
+                    "index": index,
+                    "title": title,
+                    "artist": artist,
+                    "error": f"{type(exc).__name__}: {exc}",
+                })
+            job["done"] += 1
+
+        job["status"] = "completed"
+        job["current"] = ""
+    except Exception as exc:
+        job.update(status="failed", error=f"unexpected: {exc}")
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
+@router.post("/import-playlist-start")
+async def import_playlist_start_endpoint(
+    payload: ImportPlaylistRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Kick off playlist import in background; returns a job_id immediately."""
+    import asyncio
+
+    job_id = uuid.uuid4().hex[:12]
+    IMPORT_JOBS[job_id] = {
+        "job_id": job_id,
+        "status": "queued",
+        "total": 0,
+        "done": 0,
+        "current": "",
+        "imported": [],
+        "failed": [],
+        "playlist_id": None,
+        "error": None,
+    }
+    asyncio.create_task(_run_import_playlist_job(job_id, payload, current_user.id))
+    return APIResponse(data={"job_id": job_id, "status": "queued"})
+
+
+@router.get("/import-playlist-progress/{job_id}")
+async def import_playlist_progress_endpoint(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    job = IMPORT_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job not found")
+    return APIResponse(data=job)
 
 
 class BatchSearchItem(BaseModel):

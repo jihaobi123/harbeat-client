@@ -39,10 +39,13 @@ class ReanalyzeAllRequest(BaseModel):
 
 @router.get("/songs", response_model=APIResponse[LibrarySongListData])
 def list_library_songs_endpoint(
+    only_ready: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     songs = list_library_songs(db, current_user.id)
+    if only_ready:
+        songs = [s for s in songs if s.analysis_status == "completed"]
     return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
 
 
@@ -90,10 +93,13 @@ def reanalyze_all_endpoint(
 @router.get("/songs/search", response_model=APIResponse[LibrarySongListData])
 def search_library_songs_endpoint(
     q: str,
+    only_ready: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     songs = search_library_songs(db, current_user.id, q)
+    if only_ready:
+        songs = [s for s in songs if s.analysis_status == "completed"]
     return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
 
 
@@ -126,6 +132,47 @@ def get_library_song_endpoint(
     if song.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
     return APIResponse(data=LibrarySongData.model_validate(song))
+
+
+@router.get("/songs/{song_id}/status", response_model=APIResponse[dict])
+def get_library_song_status_endpoint(
+    song_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cypher pipeline-friendly status endpoint (协议 P1 SongStatus).
+
+    Maps internal analysis_status → cypher vocabulary:
+      none/pending → pending, analyzing → analyzing,
+      completed → ready, error → failed.
+    """
+    from app.modules.library.models import LibrarySong
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+
+    status_map = {
+        "none": "pending",
+        "pending": "pending",
+        "analyzing": "analyzing",
+        "completed": "ready",
+        "error": "failed",
+    }
+    return APIResponse(data={
+        "song_id": song.id,
+        "title": song.title,
+        "artist": song.artist,
+        "duration_sec": song.duration,
+        "bpm": song.bpm,
+        "key": song.key,
+        "analysis_status": status_map.get(song.analysis_status, song.analysis_status),
+        "analysis_stage": song.analysis_stage,
+        "analysis_error": song.analysis_error,
+        "analyzed_at": song.analyzed_at.isoformat() if song.analyzed_at else None,
+        "has_stems": bool(song.stems),
+    })
 
 
 @router.post("/songs", response_model=APIResponse[LibrarySongData])

@@ -40,6 +40,13 @@ class LibrarySong(Base):
     classifier_params: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     classifier_version: Mapped[str | None] = mapped_column(String(100))
     analysis_status: Mapped[str] = mapped_column(String(50), default="none", nullable=False)
+    # Sub-stage for cypher pipeline: none | bpm_done | beats_done | stems_done | embed_done
+    analysis_stage: Mapped[str] = mapped_column(String(50), default="none", nullable=False)
+    analysis_error: Mapped[str | None] = mapped_column(String(2000))
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # SHA-256 caches for AssetManifest (filled on first read)
+    original_sha256: Mapped[str | None] = mapped_column(String(64))
+    stems_sha256: Mapped[dict | None] = mapped_column(JSON)
     beat_points: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
     cue_points: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     downbeats: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)

@@ -19,6 +19,7 @@ from app.modules.playlists.schemas import (
 )
 from app.modules.playlists.service import (
     add_library_songs_to_playlist,
+    build_asset_manifest,
     create_empty_playlist,
     delete_playlist,
     generate_dj_mix_plan,
@@ -149,3 +150,85 @@ def generate_dj_offline_mix_endpoint(
     payload.user_id = current_user.id
     result = generate_dj_offline_mix(db, payload)
     return APIResponse(data=result)
+
+
+# ─── Cypher: AssetManifest + cached MixPlan + SSE planner ────────────────
+
+@router.get("/{playlist_id:int}/manifest", response_model=APIResponse[dict])
+def get_playlist_manifest_endpoint(
+    playlist_id: int,
+    plan_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cypher 协议 P3 AssetManifest。返回 playlist 中每首歌的下载清单 + sha256。
+
+    若任何一首歌 analysis_status != 'completed'，返回 409 + 未 ready 列表。
+    """
+    manifest = build_asset_manifest(db, playlist_id, current_user.id, plan_id=plan_id)
+    return APIResponse(data=manifest)
+
+
+@router.get("/{playlist_id:int}/mix-plan/latest", response_model=APIResponse[dict])
+def get_latest_mix_plan_endpoint(
+    playlist_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """Cypher 协议 P2 MixPlan：返回 Redis 中缓存的最近一次 dj-mix 结果。"""
+    from app.shared.redis import get_redis
+    import json
+    key = f"harbeat:mix_plan:latest:{current_user.id}:{playlist_id}"
+    raw = get_redis().get(key)
+    if not raw:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="no cached mix plan; call /dj-mix-stream first")
+    return APIResponse(data=json.loads(raw))
+
+
+@router.post("/{playlist_id:int}/dj-mix-stream")
+def dj_mix_plan_stream_endpoint(
+    playlist_id: int,
+    payload: DjMixPlanRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """SSE 流式 dj-mix-plan。首次未命中缓存时同步计算，命中即时返回。
+
+    事件流：
+      event: plan_started   data: {playlist_id, cache_hit:bool}
+      event: plan_final     data: {<MixPlan>, score:float, elapsed_sec:float}
+      event: error          data: {message:str}
+    """
+    import json
+    import time
+    from fastapi.responses import StreamingResponse
+    from app.shared.redis import get_redis
+
+    payload.user_id = current_user.id
+    payload.playlist_id = playlist_id
+
+    redis_client = get_redis()
+    cache_key = f"harbeat:mix_plan:latest:{current_user.id}:{playlist_id}"
+
+    def _generator():
+        t0 = time.time()
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                yield f"event: plan_started\ndata: {json.dumps({'playlist_id': playlist_id, 'cache_hit': True})}\n\n"
+                yield f"event: plan_final\ndata: {cached}\n\n"
+                return
+
+            yield f"event: plan_started\ndata: {json.dumps({'playlist_id': playlist_id, 'cache_hit': False})}\n\n"
+            result = generate_dj_mix_plan(db, payload)
+            payload_out = {
+                "playlist_id": playlist_id,
+                "result": json.loads(result.model_dump_json()),
+                "elapsed_sec": round(time.time() - t0, 2),
+            }
+            redis_client.setex(cache_key, 7 * 86400, json.dumps(payload_out))
+            yield f"event: plan_final\ndata: {json.dumps(payload_out)}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(_generator(), media_type="text/event-stream")

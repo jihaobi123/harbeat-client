@@ -17,7 +17,9 @@ _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 
 def detect_platform(text: str) -> tuple[str, str]:
     """Return (platform, playlist_id).  platform is 'netease', 'qqmusic', or 'unknown'."""
-    m = re.search(r"music\.163\.com.*[?&#]id=(\d+)", text)
+    # NetEase long URLs (PC and mobile share variants): music.163.com/playlist?id=, /#/playlist?id=,
+    # y.music.163.com/m/playlist?id=, etc.
+    m = re.search(r"music\.163\.com[^\s]*[?&#]id=(\d+)", text)
     if m:
         return "netease", m.group(1)
 
@@ -36,8 +38,45 @@ def detect_platform(text: str) -> tuple[str, str]:
     return "unknown", ""
 
 
+# Short-URL hosts that redirect to a real playlist page.
+_SHORT_URL_RE = re.compile(
+    r"https?://(?:163cn\.tv|c\.y\.qq\.com|url\.cn|t\.cn|dwz\.cn|gshare\.cn)/[A-Za-z0-9\-_/]+"
+)
+
+
+async def _expand_short_url(text: str) -> str:
+    """If ``text`` contains a known short-link host, resolve it once via HTTP redirect
+    and return ``text`` with the short URL substituted by the final Location.
+
+    Falls back to original text on any failure so detection can still try regex.
+    """
+    m = _SHORT_URL_RE.search(text)
+    if not m:
+        return text
+    short = m.group(0)
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+            resp = await client.get(short, headers={"User-Agent": _UA})
+            final_url = str(resp.url)
+            if final_url and final_url != short:
+                return text.replace(short, final_url)
+            # Some short links return HTML containing the real URL.
+            body = resp.text or ""
+            m2 = re.search(r"https?://[a-z0-9.\-]*music\.163\.com[^\s\"'<>]+", body)
+            if m2:
+                return text + " " + m2.group(0)
+            m2 = re.search(r"https?://[a-z0-9.\-]*y\.qq\.com[^\s\"'<>]+", body)
+            if m2:
+                return text + " " + m2.group(0)
+    except Exception:
+        pass
+    return text
+
+
 async def parse_playlist_url(text: str) -> dict:
     """Parse a playlist URL and return {name, platform, tracks: [{title, artist, album, duration}]}."""
+    # Expand short URLs (163cn.tv, c.y.qq.com, ...) so detect_platform can match.
+    text = await _expand_short_url(text)
     platform, pid = detect_platform(text)
     if platform == "netease":
         return await _fetch_netease(pid)

@@ -66,3 +66,34 @@ class PracticeListData(BaseModel):
     user_id: int
     target_duration: int
     tracks: list[PracticeTrackItem]
+
+
+# --- RK3588 edge-side event upload (cypher protocol P7) ---
+
+class RKEventItem(BaseModel):
+    ts: datetime
+    type: str  # play_started|crossfade_start|crossfade_end|key_press|bpm_lock|...
+    data: Optional[dict] = None
+
+
+class RKEventBatchRequest(BaseModel):
+    rk_id: str
+    events: list[RKEventItem]
+
+
+class RKEventIngestData(BaseModel):
+    accepted: int
+    session_id: str
+
+
+class RKEventListItem(BaseModel):
+    ts: datetime
+    rk_id: str
+    type: str
+    data: Optional[dict] = None
+    received_at: datetime
+
+
+class RKEventListData(BaseModel):
+    session_id: str
+    events: list[RKEventListItem]

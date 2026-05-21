@@ -163,6 +163,7 @@ def get_playlist_detail(db: Session, playlist_id: int) -> PlaylistDetailData:
                 replay_gain_db=_library_replay_gain_db(lib_map.get(item.song_id)),
                 loudness_lufs=_library_loudness_lufs(lib_map.get(item.song_id)),
                 key=lib_map[item.song_id].key if item.song_id in lib_map else None,
+                camelot_key=lib_map[item.song_id].camelot_key if item.song_id in lib_map else None,
                 energy=lib_map[item.song_id].energy if item.song_id in lib_map else None,
                 format=lib_map[item.song_id].format if item.song_id in lib_map else None,
                 analysis_status=lib_map[item.song_id].analysis_status if item.song_id in lib_map else None,
@@ -1340,3 +1341,115 @@ def _build_processed_fallback(audio_path: str, song_id: int, style: str, quality
     if not audio_path or not os.path.isfile(audio_path):
         return None
     return audio_path.replace("\\", "/")
+
+# === Cypher AssetManifest (P3) ===
+
+
+def build_asset_manifest(db, playlist_id: int, user_id: int, plan_id: str | None = None) -> dict:
+    """Build AssetManifest (cypher protocol P3) for a playlist.
+
+    Returns {plan_id, playlist_id, tracks:[{song_id, library_song_id, files:{original, stems:{...}}}]}.
+    For each file: {url, size, sha256}. SHA-256 is cached in library_songs.original_sha256
+    and stems_sha256, computed lazily on first call.
+
+    Refuses playlists where any song lacks analysis_status='completed' (returns 409).
+    """
+    import hashlib
+    import os as _os
+    from fastapi import HTTPException
+    from app.modules.library.models import LibrarySong
+    from app.modules.playlists.models import Playlist, PlaylistSong, Song
+
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if not playlist:
+        raise HTTPException(status_code=404, detail="playlist not found")
+
+    rows = (
+        db.query(PlaylistSong)
+        .filter(PlaylistSong.playlist_id == playlist_id)
+        .order_by(PlaylistSong.order_index.asc())
+        .all()
+    )
+    song_ids = [r.song_id for r in rows]
+    songs = _song_map(db, song_ids)
+    lib_map = _library_context_map(db, user_id, songs)
+
+    not_ready = []
+    for sid in song_ids:
+        lib = lib_map.get(sid)
+        if not lib or lib.analysis_status != "completed":
+            not_ready.append({"song_id": sid, "title": songs.get(sid).title if sid in songs else "?",
+                              "status": lib.analysis_status if lib else "missing"})
+    if not_ready:
+        raise HTTPException(status_code=409, detail={"error": "songs not ready", "tracks": not_ready})
+
+    def _sha256_of(path: str) -> str:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def _stem_real_path(stem_path: str) -> str | None:
+        if not stem_path:
+            return None
+        # Prefer MP3 (Demucs WAV -> MP3 conversion done in background_tasks)
+        mp3 = _os.path.splitext(stem_path)[0] + ".mp3"
+        if _os.path.isfile(mp3):
+            return mp3
+        return stem_path if _os.path.isfile(stem_path) else None
+
+    tracks = []
+    dirty = False
+    for sid in song_ids:
+        lib = lib_map[sid]
+        song = songs[sid]
+        track_obj = {"song_id": sid, "library_song_id": lib.id, "title": song.title,
+                     "artist": song.artist, "duration_sec": lib.duration, "bpm": lib.bpm,
+                     "key": lib.camelot_key or lib.key, "files": {}}
+
+        # original
+        if lib.source_path and _os.path.isfile(lib.source_path):
+            sz = _os.path.getsize(lib.source_path)
+            sh = lib.original_sha256
+            if not sh:
+                sh = _sha256_of(lib.source_path)
+                lib.original_sha256 = sh
+                dirty = True
+            track_obj["files"]["original"] = {
+                "url": f"/api/stream/{lib.id}", "size": sz, "sha256": sh,
+                "format": lib.format,
+            }
+
+        # stems
+        stems_cache = dict(lib.stems_sha256 or {})
+        stems_out = {}
+        if lib.stems:
+            for name in ("vocals", "drums", "bass", "other"):
+                stem_path = _stem_real_path(lib.stems.get(name))
+                if not stem_path:
+                    continue
+                sz = _os.path.getsize(stem_path)
+                sh = stems_cache.get(name)
+                # Invalidate cache if file mtime newer than the cached entry (best-effort)
+                if not sh:
+                    sh = _sha256_of(stem_path)
+                    stems_cache[name] = sh
+                    dirty = True
+                stems_out[name] = {
+                    "url": f"/api/stream/{lib.id}/stem/{name}", "size": sz, "sha256": sh,
+                }
+        if stems_out:
+            track_obj["files"]["stems"] = stems_out
+            lib.stems_sha256 = stems_cache
+
+        tracks.append(track_obj)
+
+    if dirty:
+        db.commit()
+
+    return {
+        "plan_id": plan_id,
+        "playlist_id": playlist_id,
+        "tracks": tracks,
+    }

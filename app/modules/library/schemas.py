@@ -37,6 +37,9 @@ class LibrarySongBase(BaseModel):
     classifier_params: dict = Field(default_factory=dict)
     classifier_version: str | None = None
     analysis_status: str = "none"
+    analysis_stage: str = "none"
+    analysis_error: str | None = None
+    analyzed_at: datetime | None = None
     beat_points: list[float] = Field(default_factory=list)
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
     beat_confidence: float | None = None

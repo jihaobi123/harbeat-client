@@ -39,6 +39,11 @@ class DevPlanRequest(BaseModel):
     candidate_window: int = Field(default=4, ge=1, le=8)
     max_tracks: int = Field(default=8, ge=2, le=32)
     song_ids: list[int] | None = None
+    library_song_ids: list[str] | None = Field(
+        default=None,
+        description="Optional list of LibrarySong.id to mix. When provided, the "
+        "endpoint mixes these specific songs regardless of dev path filters.",
+    )
     target_energy_curve: list[float] | None = Field(
         default=None,
         description="Optional 1-10 energy targets per track slot. When provided, "
@@ -419,6 +424,7 @@ def _playlist_item(row: LibrarySong, index: int) -> PlaylistSongData:
         duration=float(row.duration or 0),
         bpm=row.bpm,
         key=row.key,
+        camelot_key=row.camelot_key,
         energy=row.energy,
         format=row.format,
         analysis_status=row.analysis_status,
@@ -521,6 +527,50 @@ def list_dev_songs(limit: int = Query(24, ge=2, le=100), db: Session = Depends(g
 
 @router.post("/mix-plan", response_model=APIResponse[DjMixPlanResult])
 def generate_dev_mix_plan(payload: DevPlanRequest, db: Session = Depends(get_db)):
+    # Path A: caller provides explicit library_song_ids (typical user flow via
+    # MixtapeBuilder import). Mix exactly those songs, regardless of dev path
+    # filters / dev user, and fill in safe defaults for missing analysis data.
+    if payload.library_song_ids:
+        wanted = [sid for sid in payload.library_song_ids if sid]
+        rows: list[LibrarySong] = []
+        seen: set[str] = set()
+        for sid in wanted:
+            if sid in seen:
+                continue
+            seen.add(sid)
+            row = db.get(LibrarySong, sid)
+            if not row:
+                continue
+            # Ensure each row has a catalog song_id so downstream plan items
+            # (which serialise song_id) have a stable reference.
+            _ensure_catalog_song(db, row)
+            # In-memory defaults so _build_mixtape_plan can run even when the
+            # analysis pipeline has not populated bpm/key/energy/duration yet.
+            if not row.duration or float(row.duration) <= 2.0:
+                row.duration = 180.0
+            if not row.bpm or float(row.bpm) <= 0:
+                # Spread BPM slightly across tracks to avoid pathological zero-delta
+                row.bpm = 118.0 + (len(rows) % 6)
+            if not row.camelot_key:
+                row.camelot_key = "8A"
+            if row.energy is None:
+                row.energy = 0.5
+            rows.append(row)
+        db.commit()
+        if len(rows) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="need at least 2 library songs to build a mix plan",
+            )
+        selected = rows[: payload.max_tracks]
+        if payload.target_energy_curve:
+            selected = _reorder_by_energy_curve(selected, payload.target_energy_curve)
+        else:
+            selected = _mixtape_order(selected)
+        plan = _build_mixtape_plan(selected)
+        return APIResponse(data=plan)
+
+    # Path B (legacy): dev fixture pool scanned from GrooveEngine/music.
     user = _ensure_dev_user(db)
     rows = _real_music_rows(db, user.id, max(payload.max_tracks, 2))
     if len(rows) < 2:
