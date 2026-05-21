@@ -31,8 +31,6 @@ export type QualityMode = 'balanced' | 'hq' | 'fast';
 export type OutputFormat = 'wav' | 'mp3' | 'both';
 export type RenderEngine = 'simple' | 'groove';
 export type OnlineMixMode = 'full_mix' | 'short_fade' | 'hard_cut' | 'normal_crossfade';
-export type TrackSegmentName = 'all' | 'intro' | 'build' | 'verse' | 'drop' | 'bridge' | 'outro';
-export type OfflineTransitionMode = 'fade' | 'hard_cut' | 'clean_blend' | 'echo_out' | 'riser' | 'cut_swap' | 'triplet_swap' | 'melodic_reset';
 export type MixDeck = 'A' | 'B';
 export type MixCurve = 'linear' | 'ease_in_out' | 'equal_power_in' | 'equal_power_out';
 export type MixParam = 'gain' | 'low_eq' | 'mid_eq' | 'high_eq' | 'highpass_hz' | 'lowpass_hz' | 'playback_rate';
@@ -60,6 +58,7 @@ export interface PlaylistSongData {
   replay_gain_db?: number;
   loudness_lufs?: number;
   key?: string;
+  camelot_key?: string;
   energy?: number;
   format?: string;
   analysis_status?: string;
@@ -154,7 +153,12 @@ export interface ParamSetEvent {
   value: number;
 }
 
-export type MixControlEvent = DeckLoadEvent | DeckPlayEvent | DeckStopEvent | ParamRampEvent | ParamSetEvent;
+export type MixControlEvent =
+  | DeckLoadEvent
+  | DeckPlayEvent
+  | DeckStopEvent
+  | ParamRampEvent
+  | ParamSetEvent;
 
 export interface MixControlTimeline {
   transition_id?: string;
@@ -199,11 +203,6 @@ export interface MixLoopRegion {
   song_id: number;
 }
 
-export interface TrackSegmentSelection {
-  song_id: number;
-  segment: TrackSegmentName;
-}
-
 export interface DjOfflineMixRequest {
   style: string;
   duration_minutes?: number;
@@ -219,9 +218,6 @@ export interface DjOfflineMixRequest {
   user_id?: number;
   output_format?: OutputFormat;
   output_name?: string;
-  transition_mode?: OfflineTransitionMode;
-  drum_boost?: boolean;
-  track_segments?: TrackSegmentSelection[];
   stem_aware?: boolean;
   auto_separate_stems?: boolean;
   max_auto_stem_tracks?: number;
@@ -244,7 +240,6 @@ export interface DjOfflineMixResult {
 export type VoiceIntent =
   | 'play' | 'pause' | 'hold' | 'release' | 'next'
   | 'lift_energy' | 'drop_energy' | 'switch_style'
-  | 'loop_last_30s' | 'loop_off'
   | 'emergency_stop' | 'noop';
 
 export interface VoiceCommandRequest {
@@ -310,82 +305,4 @@ export interface LibrarySong {
   energy?: string;
   analysis_status?: string;
   replay_gain_db?: number;
-}
-
-// Mixtape import/search
-export interface FangpiSearchSong {
-  id: string;
-  title: string;
-  artist: string;
-  source?: string;
-  duration?: number;
-  url?: string;
-}
-
-export interface MixtapeSearchItem {
-  id?: string;
-  library_song_id?: string;
-  song_id?: number;
-  music_id?: string;
-  title: string;
-  artist: string;
-  duration?: number;
-  bpm?: number;
-  key?: string;
-  genre?: string;
-  tags?: string[];
-  score?: number;
-  tag_scores?: Record<string, number>;
-  reason?: string;
-  source?: string;
-  in_library?: boolean;
-}
-
-export interface MixtapeVibeSearchData {
-  mode: string;
-  vibe: string;
-  tags: string[];
-  local_results: MixtapeSearchItem[];
-  external_results: FangpiSearchSong[];
-}
-
-export interface MixtapeImportSong {
-  title: string;
-  artist?: string;
-  music_id?: string;
-  source?: string;
-  library_song_id?: string;
-  song_id?: number;
-  segment?: TrackSegmentName;
-  tags?: string[];
-}
-
-export interface MixtapeImportedItem {
-  index: number;
-  library_song_id: string;
-  song_id?: number;
-  title: string;
-  artist: string;
-  segment: TrackSegmentName;
-}
-
-export interface MixtapeImportResult {
-  playlist_id: number;
-  playlist_name: string;
-  imported: MixtapeImportedItem[];
-  failed: Array<{ index: number; title: string; artist: string; segment: string; error: string }>;
-}
-
-export interface ParsedPlaylistTrack {
-  title: string;
-  artist: string;
-  album?: string;
-  duration?: number;
-  segment?: TrackSegmentName;
-}
-
-export interface ParsedPlaylistData {
-  name: string;
-  platform: string;
-  tracks: ParsedPlaylistTrack[];
 }

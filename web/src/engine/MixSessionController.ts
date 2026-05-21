@@ -54,6 +54,27 @@ function emptyDeck(deck: 'A' | 'B'): DeckRuntimeView {
   return { deck, songId: null, title: 'Empty', state: 'empty', playbackRate: 1 };
 }
 
+interface CamelotPos { n: number; l: 'A' | 'B' | 'Z'; }
+
+function parseCamelotKey(track: PlaylistSongData): CamelotPos {
+  // Prefer canonical camelot_key (e.g. "8A", "12B"); fall back to free-form key string.
+  const raw = (track.camelot_key ?? track.key ?? '').toUpperCase();
+  const m = raw.match(/(\d{1,2})\s*([AB])/);
+  if (m) {
+    const n = Math.max(1, Math.min(12, Number(m[1])));
+    return { n, l: m[2] as 'A' | 'B' };
+  }
+  return { n: 99, l: 'Z' };
+}
+
+function camelotDistance(a: CamelotPos, b: CamelotPos): number {
+  if (a.l === 'Z' || b.l === 'Z') return 99;
+  // Distance on the Camelot wheel: 1 step = +/-1 number (mod 12) OR letter flip.
+  const numDist = Math.min(Math.abs(a.n - b.n), 12 - Math.abs(a.n - b.n));
+  const letterPenalty = a.l === b.l ? 0 : 1;
+  return numDist + letterPenalty;
+}
+
 export class MixSessionController {
   private engine = MixAudioEngine.getInstance();
   private plan: DjMixPlanResult | null = null;
@@ -372,6 +393,22 @@ export class MixSessionController {
   }
 
   async next(manual = true, strategy?: MixStrategy): Promise<void> {
+    return this.nextInternal(manual, strategy, null);
+  }
+
+  /** Manual style skip: pick the harmonically-closest unplayed track and transition to it,
+   *  WITHOUT mutating planMode or resetting the deck/state. */
+  async skipToStyleMatch(strategy?: MixStrategy): Promise<void> {
+    const target = this.resolveStyleNextIndex();
+    if (target == null) {
+      this.lastEvent = 'style skip: no harmonic match available';
+      this.emit();
+      return;
+    }
+    return this.nextInternal(true, strategy, target);
+  }
+
+  private async nextInternal(manual = true, strategy?: MixStrategy, overrideIndex: number | null = null): Promise<void> {
     if (!this.plan) {
       this.setError('No mix plan loaded.');
       return;
@@ -402,7 +439,7 @@ export class MixSessionController {
       this.pendingManualStrategy = strategy ?? this.pendingManualStrategy;
     }
 
-    const nextIndex = this.resolveNextIndex();
+    const nextIndex = overrideIndex != null ? overrideIndex : this.resolveNextIndex();
     if (nextIndex === null || nextIndex === this.currentIndex) {
       this.lastEvent = 'no valid next track under current mode/preference';
       this.emit();
@@ -624,22 +661,27 @@ export class MixSessionController {
 
   private resolveNextIndex(): number | null {
     if (!this.plan || this.currentIndex < 0) return null;
-    if (this.planMode !== 'random') {
-      const i = this.currentIndex + 1;
-      return i < this.plan.playlist.length ? i : null;
-    }
 
     const current = this.plan.playlist[this.currentIndex];
     if (!current) return null;
     const curBpm = current.bpm ?? 120;
     const curEnergy = Number(current.energy ?? 0.5);
+    const ENERGY_DELTA = 0.05; // require meaningful difference so user can feel the change
+
+    // Energy preference is honored in ALL plan modes (random / camelot / energy).
+    // When 'none' and planMode != 'random', fall back to the next sequential index
+    // so reorder by camelot/energy is respected.
+    if (this.energyPreference === 'none' && this.planMode !== 'random') {
+      const i = this.currentIndex + 1;
+      return i < this.plan.playlist.length ? i : null;
+    }
 
     let candidates = this.plan.playlist
       .map((track, idx) => ({ track, idx }))
       .filter(({ idx }) => idx !== this.currentIndex)
       .filter(({ track }) => {
-        if (this.energyPreference === 'higher') return Number(track.energy ?? 0.5) > curEnergy;
-        if (this.energyPreference === 'lower') return Number(track.energy ?? 0.5) < curEnergy;
+        if (this.energyPreference === 'higher') return Number(track.energy ?? 0.5) >= curEnergy + ENERGY_DELTA;
+        if (this.energyPreference === 'lower') return Number(track.energy ?? 0.5) <= curEnergy - ENERGY_DELTA;
         return true;
       })
       .filter(({ track }) => !this.playedSongIds.has(track.song_id));
@@ -652,17 +694,69 @@ export class MixSessionController {
         .map((track, idx) => ({ track, idx }))
         .filter(({ idx }) => idx !== this.currentIndex)
         .filter(({ track }) => {
-          if (this.energyPreference === 'higher') return Number(track.energy ?? 0.5) > curEnergy;
-          if (this.energyPreference === 'lower') return Number(track.energy ?? 0.5) < curEnergy;
+          if (this.energyPreference === 'higher') return Number(track.energy ?? 0.5) >= curEnergy + ENERGY_DELTA;
+          if (this.energyPreference === 'lower') return Number(track.energy ?? 0.5) <= curEnergy - ENERGY_DELTA;
           return true;
         })
         .filter(({ track }) => !this.playedSongIds.has(track.song_id));
     }
 
+    // If energy preference cannot be satisfied (no track strictly higher/lower),
+    // fall back to the most extreme candidate in that direction so the click is
+    // not a silent no-op.
+    if (!candidates.length && this.energyPreference !== 'none') {
+      const all = this.plan.playlist
+        .map((track, idx) => ({ track, idx }))
+        .filter(({ idx }) => idx !== this.currentIndex);
+      all.sort((a, b) => {
+        const ea = Number(a.track.energy ?? 0.5);
+        const eb = Number(b.track.energy ?? 0.5);
+        return this.energyPreference === 'higher' ? eb - ea : ea - eb;
+      });
+      return all[0]?.idx ?? null;
+    }
+
     if (!candidates.length) return null;
 
-    candidates.sort((a, b) => Math.abs((a.track.bpm ?? 120) - curBpm) - Math.abs((b.track.bpm ?? 120) - curBpm));
+    if (this.energyPreference !== 'none') {
+      // Prefer the largest energy jump so the change is audible/feelable.
+      candidates.sort((a, b) => {
+        const ea = Number(a.track.energy ?? 0.5);
+        const eb = Number(b.track.energy ?? 0.5);
+        return this.energyPreference === 'higher' ? eb - ea : ea - eb;
+      });
+    } else {
+      candidates.sort((a, b) => Math.abs((a.track.bpm ?? 120) - curBpm) - Math.abs((b.track.bpm ?? 120) - curBpm));
+    }
     return candidates[0]?.idx ?? null;
+  }
+
+  /** Pick the next track that is harmonically closest in Camelot key (style skip),
+   *  WITHOUT mutating plan order or resetting the deck state. */
+  resolveStyleNextIndex(): number | null {
+    if (!this.plan || this.currentIndex < 0) return null;
+    const current = this.plan.playlist[this.currentIndex];
+    if (!current) return null;
+    const cur = parseCamelotKey(current);
+    const candidates = this.plan.playlist
+      .map((track, idx) => ({ track, idx }))
+      .filter(({ idx }) => idx !== this.currentIndex)
+      .filter(({ track }) => !this.playedSongIds.has(track.song_id));
+    if (!candidates.length) return null;
+    // Sort by harmonic distance on Camelot wheel, then by BPM proximity.
+    const curBpm = current.bpm ?? 120;
+    candidates.sort((a, b) => {
+      const da = camelotDistance(cur, parseCamelotKey(a.track));
+      const db = camelotDistance(cur, parseCamelotKey(b.track));
+      if (da !== db) return da - db;
+      return Math.abs((a.track.bpm ?? 120) - curBpm) - Math.abs((b.track.bpm ?? 120) - curBpm);
+    });
+    // If the top candidate is identical key (distance 0), prefer the next-best so
+    // there is an audible variation. Otherwise keep the closest harmonic match.
+    if (candidates.length >= 2 && camelotDistance(cur, parseCamelotKey(candidates[0].track)) === 0) {
+      return candidates[1].idx;
+    }
+    return candidates[0].idx;
   }
 
   private reorderPlanByMode(): void {
@@ -671,14 +765,9 @@ export class MixSessionController {
 
     const playlist = [...this.plan.playlist];
     if (this.planMode === 'camelot') {
-      const parseCamelot = (track: PlaylistSongData) => {
-        const key = (track.key ?? '').toUpperCase();
-        const m = key.match(/(\d+)([AB])/);
-        return m ? { n: Number(m[1]), l: m[2] } : { n: 99, l: 'Z' };
-      };
       playlist.sort((a, b) => {
-        const ka = parseCamelot(a);
-        const kb = parseCamelot(b);
+        const ka = parseCamelotKey(a);
+        const kb = parseCamelotKey(b);
         if (ka.n !== kb.n) return ka.n - kb.n;
         return ka.l.localeCompare(kb.l);
       });

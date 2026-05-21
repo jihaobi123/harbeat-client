@@ -1,0 +1,170 @@
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { useMusicStore } from '../store/useMusicStore'
+import { useAuthStore } from '../store/useAuthStore'
+import { getStreamUrl, logInteraction } from '../api/client'
+
+function formatTime(sec: number): string {
+  if (!sec || sec < 0) return '0:00'
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+export default function AudioPlayer() {
+  const { playingSong, isPlaying, volume, togglePlay, setVolume } = useMusicStore()
+  const { user } = useAuthStore()
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [seeking, setSeeking] = useState(false)
+  const playStartRef = useRef<{ songId: string; startTime: number } | null>(null)
+
+  const flushInteraction = useCallback((action: string) => {
+    const info = playStartRef.current
+    if (!info || !user) return
+    const dur = (Date.now() - info.startTime) / 1000
+    const audioDur = audioRef.current?.duration || 0
+    logInteraction({
+      user_id: user.id,
+      track_id: info.songId,
+      action_type: action,
+      play_duration_sec: dur,
+      completion_rate: audioDur > 0 ? Math.min(1, dur / audioDur) : 0,
+    }).catch(() => {})
+    playStartRef.current = null
+  }, [user])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (isPlaying) {
+      audio.play().catch(() => {})
+    } else {
+      audio.pause()
+    }
+  }, [isPlaying])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !playingSong) return
+    if (playStartRef.current && playStartRef.current.songId !== playingSong.id) {
+      flushInteraction('skip')
+    }
+    audio.src = getStreamUrl(playingSong.id)
+    audio.load()
+    playStartRef.current = { songId: playingSong.id, startTime: Date.now() }
+    if (isPlaying) {
+      audio.play().catch(() => {})
+    }
+  }, [playingSong])
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume
+  }, [volume])
+
+  const handleTimeUpdate = useCallback(() => {
+    if (!seeking && audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime)
+    }
+  }, [seeking])
+
+  const handleLoaded = useCallback(() => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration || 0)
+    }
+  }, [])
+
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value)
+    setCurrentTime(val)
+  }, [])
+
+  const handleSeekCommit = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = currentTime
+    }
+    setSeeking(false)
+  }, [currentTime])
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  if (!playingSong) {
+    return (
+      <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center justify-center shrink-0 street-sticker">
+        <span className="street-subtitle text-sm">Pick a track to start.</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center px-2 sm:px-4 py-1.5 sm:py-2 gap-2 sm:gap-4 shrink-0 street-sticker">
+      <audio
+        ref={audioRef}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoaded}
+        onEnded={() => { flushInteraction('complete'); useMusicStore.getState().togglePlay() }}
+      />
+
+      {/* Song info - compact on mobile */}
+      <div className="w-28 sm:w-52 shrink-0 min-w-0">
+        <div className="text-xs sm:text-sm truncate font-semibold">{playingSong.title}</div>
+        <div className="text-[10px] sm:text-xs truncate">{playingSong.artist}</div>
+      </div>
+
+      {/* Play controls */}
+      <div className="flex-1 flex flex-col items-center gap-0.5 sm:gap-1 max-w-2xl mx-auto">
+        <button
+          onClick={togglePlay}
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center"
+        >
+          {isPlaying ? (
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+
+        <div className="w-full flex items-center gap-1 sm:gap-2">
+          <span className="text-[10px] sm:text-xs w-8 sm:w-10 text-right">{formatTime(currentTime)}</span>
+          <div className="flex-1 relative h-1.5 sm:h-2 border-2 border-black bg-white">
+            <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress}%` }} />
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={currentTime}
+              onChange={handleSeek}
+              onMouseDown={() => setSeeking(true)}
+              onMouseUp={handleSeekCommit}
+              onTouchStart={() => setSeeking(true)}
+              onTouchEnd={handleSeekCommit}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+            />
+          </div>
+          <span className="text-[10px] sm:text-xs w-8 sm:w-10">{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Volume - hidden on mobile */}
+      <div className="hidden sm:flex w-36 shrink-0 items-center gap-2">
+        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+        </svg>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(e) => setVolume(parseFloat(e.target.value))}
+          className="w-full"
+        />
+      </div>
+    </div>
+  )
+}
