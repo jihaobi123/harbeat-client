@@ -9,7 +9,7 @@ class JetsonClient {
 
   JetsonClient({String? baseUrl, Duration? timeout}) {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl ?? 'http://100.87.142.21:8000',
+      baseUrl: baseUrl ?? 'http://8.136.120.255',
       connectTimeout: timeout ?? const Duration(seconds: 3),
       receiveTimeout: const Duration(seconds: 30),
       headers: {
@@ -153,7 +153,7 @@ class JetsonClient {
       final song = _mockSongs.firstWhere((s) => s['song_id'] == songId);
       return {'data': song};
     }
-    final response = await _dio.get('/api/library/songs/$songId/status');
+    final response = await _dio.get('/api/library/songs/$songId');
     return _unwrapResponse(response);
   }
 
@@ -176,7 +176,7 @@ class JetsonClient {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
-    final response = await _dio.post('/api/library/songs/upload', data: formData);
+    final response = await _dio.post('/api/library/upload', data: formData);
     return _unwrapResponse(response);
   }
 
@@ -382,8 +382,7 @@ class JetsonClient {
     String sessionId,
     List<Map<String, dynamic>> events,
   ) async {
-    await _dio.post('/api/sessions/event', data: {
-      'session_id': sessionId,
+    await _dio.post('/api/sessions/rk/$sessionId/events', data: {
       'events': events,
     });
   }

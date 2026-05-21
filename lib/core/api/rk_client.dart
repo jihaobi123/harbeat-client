@@ -149,8 +149,16 @@ class RkClient {
   }
 
   Future<void> _connectWebSocket(String url, String token) async {
-    final wsUrl = url.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://') +
-        '/ws/control${token.isNotEmpty ? '?token=$token' : ''}';
+    // WS runs on a separate port (9001) from REST (9000) on RK3588
+    String wsUrl = url.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
+    final wsPortMatch = RegExp(r':(\d+)').firstMatch(wsUrl);
+    if (wsPortMatch != null) {
+      final restPort = int.parse(wsPortMatch.group(1)!);
+      if (restPort == 9000) {
+        wsUrl = wsUrl.replaceFirst(':$restPort', ':9001');
+      }
+    }
+    wsUrl += '/ws/control${token.isNotEmpty ? '?token=$token' : ''}';
 
     AppLogger.info('RK WebSocket连接: $wsUrl');
 

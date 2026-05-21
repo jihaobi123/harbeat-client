@@ -201,7 +201,7 @@ class HardwareService {
       
       for (int i = 1; i < 255; i++) {
         final ip = '$baseIp.$i';
-        final url = 'http://$ip:8787';
+        final url = 'http://$ip:9000';
         
         if (testedUrls.contains(url)) continue;
         testedUrls.add(url);
@@ -373,7 +373,16 @@ class HardwareService {
 
   Future<void> _connectWebSocket(String baseUrl, String deviceToken) async {
     try {
-      final wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://') + '/ws/control?token=$deviceToken';
+      String wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
+      // WS runs on separate port 9001 from REST port 9000
+      final wsPortMatch = RegExp(r':(\d+)').firstMatch(wsUrl);
+      if (wsPortMatch != null) {
+        final restPort = int.parse(wsPortMatch.group(1)!);
+        if (restPort == 9000) {
+          wsUrl = wsUrl.replaceFirst(':$restPort', ':9001');
+        }
+      }
+      wsUrl += '/ws/control?token=$deviceToken';
       AppLogger.info('WebSocket 连接: $wsUrl');
       
       _webSocketChannel = IOWebSocketChannel.connect(wsUrl);
@@ -506,13 +515,22 @@ class HardwareService {
 
   Future<bool> _sendCommandHttp(String command, Map<String, dynamic> payload) async {
     try {
-      final response = await _dio.post(
-        '/api/edge/command',
-        data: {
-          'command': command,
-          'payload': payload,
-        },
-      );
+      // Map high-level commands to edge-agent REST endpoints
+      final endpointMap = {
+        'play': '/play',
+        'pause': '/pause',
+        'stop': '/pause',
+        'next': '/next',
+        'seek': '/seek',
+        'trigger_sfx': '/trigger',
+        'set_energy': '/energy',
+        'switch_style': '/style',
+        'start_loop': '/loop',
+        'stop_loop': '/loop',
+        'emergency_stop': '/pause',
+      };
+      final endpoint = endpointMap[command] ?? '/trigger';
+      final response = await _dio.post(endpoint, data: payload);
       return response.statusCode == 200;
     } catch (e) {
       AppLogger.error('发送 HTTP 命令失败: $e');
@@ -617,8 +635,9 @@ class HardwareService {
 
   Future<EdgeStatus?> getStatus() async {
     try {
-      final response = await _dio.get('/api/edge/status');
-      _currentStatus = EdgeStatus.fromJson(response.data);
+      final response = await _dio.get('/state');
+      final data = response.data;
+      _currentStatus = EdgeStatus.fromJson(data);
       return _currentStatus;
     } catch (e) {
       AppLogger.error('获取状态失败: $e');
@@ -631,7 +650,7 @@ class HardwareService {
       ipAddress = 'http://$ipAddress';
     }
     if (!ipAddress.contains(':')) {
-      ipAddress = '$ipAddress:8787';
+      ipAddress = '$ipAddress:9000';
     }
     
     return RK3588DeviceInfo(

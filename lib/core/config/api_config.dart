@@ -1,19 +1,19 @@
 /// API 配置管理
 class ApiConfig {
-  // 生产环境：阿里云 ECS
-  static const String productionUrl = 'https://8.136.120.255';
-  
-  // 开发环境：本地 RK3588 (大疆功放模式)
-  static const String developmentUrl = 'http://192.168.1.100:8000';
-  
-  // RK3588 默认地址（局域网）
-  static const String rk3588DefaultUrl = 'http://192.168.1.101:8787';
+  // 生产环境：阿里云 ECS 网关（转发到 Jetson）
+  static const String productionUrl = 'http://8.136.120.255';
+
+  // Jetson Tailscale 直连（仅限 Tailscale 网络内）
+  static const String jetsonDirectUrl = 'http://100.87.142.21:8000';
+
+  // RK3588 默认地址（局域网直连，快链路）
+  static const String rk3588DefaultUrl = 'http://192.168.1.101:9000';
   
   // 本地测试环境（Windows 本机）
   static const String localTestUrl = 'http://localhost:8000';
   
   // 当前使用的 baseUrl（运行时动态切换）
-  static String baseUrl = 'http://localhost:8787';
+  static String baseUrl = 'http://8.136.120.255';
   
   // Dio 超时配置（秒）
   static const int connectTimeout = 30;  // 连接超时 30 秒
@@ -72,7 +72,7 @@ class ApiConfig {
   }
   
   static void switchToDevelopment() {
-    baseUrl = developmentUrl;
+    baseUrl = jetsonDirectUrl;
   }
   
   static void switchToLocalTest() {
