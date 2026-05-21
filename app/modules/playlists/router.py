@@ -46,6 +46,29 @@ class AddSongsRequest(BaseModel):
     library_song_ids: list[str]
 
 
+# ── App compatibility aliases ──
+
+@router.post("/create-empty", response_model=APIResponse[dict])
+def create_empty_playlist_alias(
+    payload: CreatePlaylistRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    playlist = create_empty_playlist(db, current_user.id, payload.name)
+    return APIResponse(data={"id": playlist.id, "playlist_name": playlist.playlist_name})
+
+
+@router.post("/{playlist_id:int}/add-library-songs", response_model=APIResponse[dict])
+def add_library_songs_alias(
+    playlist_id: int,
+    payload: AddSongsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    count = add_library_songs_to_playlist(db, playlist_id, current_user.id, payload.library_song_ids)
+    return APIResponse(data={"added": count})
+
+
 @router.post("/import", response_model=APIResponse[PlaylistImportData])
 def import_playlist_endpoint(payload: PlaylistImportRequest, db: Session = Depends(get_db)):
     playlist, pending_analysis_count = import_playlist(db, payload)

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenData, UserMeData
+from app.modules.auth.service import authenticate_user, create_token_pair, register_user
 from app.modules.users.models import User
 from app.shared.audit import log_action
 from app.shared.database import get_db
@@ -21,6 +23,35 @@ from app.modules.users.service import (
 )
 
 router = APIRouter()
+
+
+# ── Auth aliases (App compatibility: /api/users/login → /api/auth/login) ──
+
+@router.post("/login", response_model=APIResponse[TokenData])
+def login_alias(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(db, payload.username, payload.password)
+    access, refresh = create_token_pair(user)
+    return APIResponse(
+        data=TokenData(access_token=access, refresh_token=refresh, user_id=user.id, username=user.username),
+    )
+
+
+@router.post("/register", response_model=APIResponse[TokenData])
+def register_alias(payload: RegisterRequest, db: Session = Depends(get_db)):
+    user = register_user(
+        db, username=payload.username, password=payload.password,
+        dance_style=payload.dance_style, level=payload.level,
+        favorite_style=payload.favorite_style,
+    )
+    access, refresh = create_token_pair(user)
+    return APIResponse(
+        data=TokenData(access_token=access, refresh_token=refresh, user_id=user.id, username=user.username),
+    )
+
+
+@router.get("/me", response_model=APIResponse[UserMeData])
+def me_alias(current_user: User = Depends(get_current_user)):
+    return APIResponse(data=UserMeData.model_validate(current_user))
 
 
 @router.post("", response_model=APIResponse[UserCreateData])
