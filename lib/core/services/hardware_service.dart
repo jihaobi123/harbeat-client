@@ -374,14 +374,7 @@ class HardwareService {
   Future<void> _connectWebSocket(String baseUrl, String deviceToken) async {
     try {
       String wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
-      // WS runs on separate port 9001 from REST port 9000
-      final wsPortMatch = RegExp(r':(\d+)').firstMatch(wsUrl);
-      if (wsPortMatch != null) {
-        final restPort = int.parse(wsPortMatch.group(1)!);
-        if (restPort == 9000) {
-          wsUrl = wsUrl.replaceFirst(':$restPort', ':9001');
-        }
-      }
+      // WS runs on same FastAPI port as REST (embedded WebSocket)
       wsUrl += '/ws/control?token=$deviceToken';
       AppLogger.info('WebSocket 连接: $wsUrl');
       

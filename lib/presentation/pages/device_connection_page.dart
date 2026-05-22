@@ -120,6 +120,73 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
     });
   }
 
+  Future<void> _directConnect() async {
+    final ip = _ipAddressController.text.trim();
+    if (ip.isEmpty) {
+      setState(() { _errorMessage = '请输入IP地址'; });
+      return;
+    }
+
+    String url = ip.contains(':') ? 'http://$ip' : 'http://$ip:9000';
+
+    setState(() {
+      _status = ConnectionStatus.connecting;
+      _isScanning = true;
+      _errorMessage = null;
+    });
+
+    final testOk = await _hardwareService.testConnection(url);
+    if (!testOk) {
+      if (!mounted) return;
+      setState(() {
+        _status = ConnectionStatus.error;
+        _isScanning = false;
+        _errorMessage = '连接测试失败，请检查网络和IP地址';
+      });
+      _showSnackBar('❌ 连接测试失败', ThemeConfig.accentRed);
+      return;
+    }
+
+    final device = await _hardwareService.addManualDevice(ip, 'RK3588 Device');
+    _selectedDevice = device;
+
+    final confirmResult = await _hardwareService.confirmPairing(
+      device.deviceId, '000000', url,
+    );
+
+    String token = confirmResult?['device_token'] ?? 'direct-token-${DateTime.now().millisecondsSinceEpoch}';
+
+    final success = await _hardwareService.connectToRK3588(device, token);
+
+    if (!mounted) return;
+
+    if (success) {
+      final rkClient = ref.read(rkClientProvider);
+      await rkClient.connect(url, token: token);
+
+      setState(() {
+        _status = ConnectionStatus.connected;
+        _isScanning = false;
+        _devices.insert(0, device);
+        _showManualAdd = false;
+      });
+
+      await SessionService().startSession(
+        deviceId: device.deviceId,
+        deviceName: device.name,
+      );
+      widget.onConnected?.call(ref);
+      _showSnackBar('✅ RK3588 连接成功！', ThemeConfig.accentSuccess);
+    } else {
+      setState(() {
+        _status = ConnectionStatus.error;
+        _isScanning = false;
+        _errorMessage = '连接失败，请检查设备状态';
+      });
+      _showSnackBar('❌ 连接失败', ThemeConfig.accentRed);
+    }
+  }
+
   Future<void> _testSelectedDevice() async {
     if (_selectedDevice == null) return;
     
@@ -661,12 +728,27 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
                               ),
                       ),
                     ),
+                    SizedBox(width: ThemeConfig.spacingSmall),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isScanning ? null : _directConnect,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ThemeConfig.accentGreen,
+                          foregroundColor: ThemeConfig.textLight,
+                          padding: EdgeInsets.symmetric(vertical: ThemeConfig.spacingMedium),
+                        ),
+                        child: Text(
+                          '直接连接',
+                          style: TextStyle(fontSize: ThemeConfig.fontSizeMedium, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                
+
                 SizedBox(height: ThemeConfig.spacingSmall),
                 Text(
-                  '提示: 默认端口为8787，如果不同请带上端口号',
+                  '提示: 默认端口为9000，如果不同请带上端口号',
                   style: TextStyle(
                     color: ThemeConfig.textLight.withOpacity(0.5),
                     fontSize: ThemeConfig.fontSizeSmall,
