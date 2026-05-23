@@ -37,9 +37,10 @@ class XfadeRequest(BaseModel):
     to_song_id: int | str
     fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)
     to_at_sec: float = Field(default=0.0, ge=0.0)
-    # 7 种 DJ 切歌风格，对应 Jetson /api/dev/mix-plan 返回的 transition_type
+    # DJ + Spotify Mix 风格 preset，对应 Jetson transition_type / App 手动切歌。
     style: Literal[
-        "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam"
+        "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam",
+        "fade", "rise", "blend", "wave", "melt",
     ] = "smooth"
 
 

@@ -753,29 +753,36 @@ class AudioEngineMVP:
     def _style_envelopes(style: str, progress: float) -> tuple[dict, dict]:
         """返回两个 deck 的 stem 增益表，键名 ∈ vocals/drums/bass/other 或 'full'。
 
-        实现 7 种 DJ 风格的纯 gain 近似（不用实时 biquad/reverb）：
+        实现 DJ / Spotify Mix 风格的纯 gain 包络：
         - smooth/power: 整轨等功率 cos/sin
-        - bass_swap: bass 在 50% 点互换，其他 stem 等功率
-        - echo_out: A 各 stem 快深幢府（vocals 略留以价 echo 残响），B 正常
-        - filter: 以 stem 粗粒度近似低频扫频（A 先去 bass、后去 drums，B 反向）
+        - bass_swap/filter/echo_out: 包络 + _apply_style_effects 里的 biquad/echo
         - cut: 0.05 比例点硬切
-        - slam: 前 70% 卸 vocals 留 drums〃0.7-0.8 静默。后段 B 全开
+        - slam: 前段保留 A，短暂静默后 B 硬进（不依赖 stems）
+        - fade/blend/rise/wave/melt: Spotify Mix 风格 preset 映射
         """
         x = min(1.0, max(0.0, progress))
         cos_x = math.cos(x * math.pi / 2)
         sin_x = math.sin(x * math.pi / 2)
+        if style == "fade":
+            return {"full": 1.0 - x}, {"full": x}
+        if style == "blend":
+            return {"full": cos_x}, {"full": sin_x}
+        if style == "rise":
+            return {"full": cos_x ** 1.15}, {"full": sin_x ** 0.75}
+        if style == "wave":
+            pulse = 0.92 + 0.08 * math.sin(2.0 * math.pi * x * 4.0)
+            return {"full": cos_x * pulse}, {"full": sin_x * (2.0 - pulse)}
+        if style == "melt":
+            return {"full": cos_x ** 1.6}, {"full": sin_x ** 0.9}
         if style == "power":
             return {"full": cos_x ** 1.2}, {"full": sin_x ** 0.7}
         if style == "cut":
             return ({"full": 1.0 if x < 0.05 else 0.0},
                     {"full": 0.0 if x < 0.05 else 1.0})
         if style == "slam":
-            if x < 0.7:
-                t = x / 0.7
-                return ({"vocals": 1.0 - t, "other": 1.0 - t * 0.5,
-                         "drums": 1.0, "bass": 1.0 - t * 0.3},
-                        {"full": 0.0})
-            if x < 0.8:
+            if x < 0.68:
+                return {"full": 1.0 - 0.25 * (x / 0.68)}, {"full": 0.0}
+            if x < 0.78:
                 return {"full": 0.0}, {"full": 0.0}
             return {"full": 0.0}, {"full": 1.0}
         if style == "bass_swap":
@@ -970,10 +977,6 @@ class AudioEngineMVP:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
                 style = tr.style or "smooth"
-                if style in ("slam",) and (
-                    not self.active_deck.stems or not self.inactive_deck.stems
-                ):
-                    style = "smooth"  # 缺 stem 时退化
                 if style == "smooth":
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
@@ -1013,6 +1016,8 @@ class AudioEngineMVP:
                      B 渐进 LPF (低频→宽带，前半段只放低频)
         - filter:    A LPF 18kHz → 200Hz；B LPF 200Hz → 18kHz（对称扫频）
         - echo_out:  A 信号送入 0.25s 反馈 echo（0.45 反馈, 0.7 wet）
+        - rise:      A/B 做高通交接，形成上扬进入感
+        - melt:      A echo + 下沉 LPF，B 从暗到亮打开
         其他风格保持原样（纯 stem gain 已经够）。
         """
         x = min(1.0, max(0.0, progress))
@@ -1036,6 +1041,26 @@ class AudioEngineMVP:
             a = self._fx_filter_a.process(a)
             # B: LPF 200Hz -> 18kHz
             fc_b = 200.0 * ((18000.0 / 200.0) ** x)
+            self._fx_filter_b.set_lpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "rise":
+            # A 越来越薄，B 从电话感逐渐打开成全频。
+            fc_a = 30.0 + 1100.0 * x
+            self._fx_filter_a.set_hpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            fc_b = 1200.0 * ((30.0 / 1200.0) ** x)
+            self._fx_filter_b.set_hpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "melt":
+            a = self._echo_process(a, frames)
+            fc_a = 18000.0 * ((450.0 / 18000.0) ** x)
+            self._fx_filter_a.set_lpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            fc_b = 650.0 * ((18000.0 / 650.0) ** x)
             self._fx_filter_b.set_lpf(sr, fc_b, q=0.707)
             b = self._fx_filter_b.process(b)
             return a, b

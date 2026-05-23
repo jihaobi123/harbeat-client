@@ -13,7 +13,7 @@ class Transition:
     to_at_sec: float
     fade_sec: float
     fade_curve: str = "equal_power"
-    # 7 种风格：smooth/power/bass_swap/echo_out/filter/cut/slam。默认 smooth = 原等功率 cos/sin。
+    # DJ/Spotify Mix 风格 preset。默认 smooth = 原等功率 cos/sin。
     style: str = "smooth"
     # Sprint 4 beatmatch metadata. Intervals are seconds/beat. tempo_ratio is
     # kept as supplied by Jetson for diagnostics; RK derives the stretch from
