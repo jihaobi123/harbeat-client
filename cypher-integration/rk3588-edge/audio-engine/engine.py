@@ -43,6 +43,7 @@ SAMPLE_GAIN = {1: 1.2, 2: 1.8, 3: 1.4, 4: 1.6, 5: 1.4}
 PRELOAD_BEFORE_SEC = 10.0
 BEATMATCH_MAX_SHIFT = 0.06
 BEATMATCH_MIN_SHIFT = 0.005
+BEATMATCH_CACHE_MAX_FILES = 20
 
 
 class SongCacheError(Exception):
@@ -246,7 +247,7 @@ class AudioEngineMVP:
         # 持久 stem solo（None = 关闭，取值 'vocals'/'drums'/'bass'/'other'）
         # 与 stem_fx 不同：stem_fx 是 2 秒短效，stem_solo 一直生效直到关闭。
         self._stem_solo: str | None = None
-        self._lpf_state = np.zeros(2, dtype=np.float32)
+        self._lpf_biquad: Biquad = Biquad()
         self._xrun_count = 0
         # ---- Sprint 1: 简易 look-ahead 峰值限制器 ----
         # 一块回调内：用块内峰值预测目标增益，配合 prev_gain 做立即-attack / 慢-release，
@@ -268,6 +269,7 @@ class AudioEngineMVP:
         self._echo_feedback: float = 0.45
         self._echo_wet: float = 0.7
         self._load_samples()
+        self._cleanup_beatmatch_cache()
 
     @property
     def active_deck(self) -> Deck:
@@ -299,6 +301,28 @@ class AudioEngineMVP:
             path = SAMPLES_DIR / fname
             if path.is_file():
                 self.samples[key] = _load_wav_stereo(path)
+
+    @staticmethod
+    def _cleanup_beatmatch_cache() -> None:
+        """清理旧的 beatmatch 预渲染文件，只保留最近 N 个。"""
+        pattern = "original.rb.*.wav"
+        files: list[Path] = []
+        for song_dir in CACHE_DIR.iterdir():
+            if not song_dir.is_dir():
+                continue
+            for f in song_dir.glob(pattern):
+                if f.is_file():
+                    files.append(f)
+        if len(files) <= BEATMATCH_CACHE_MAX_FILES:
+            return
+        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in files[BEATMATCH_CACHE_MAX_FILES:]:
+            try:
+                old.unlink()
+                logger.info("beatmatch cache evict: %s", old)
+            except OSError:
+                pass
+        logger.info("beatmatch cache cleaned: %d kept, %d removed", min(len(files), BEATMATCH_CACHE_MAX_FILES), max(0, len(files) - BEATMATCH_CACHE_MAX_FILES))
 
     @staticmethod
     def _resolve_device() -> int | str | None:
@@ -658,6 +682,7 @@ class AudioEngineMVP:
                 ratio,
                 (time.time() - t0) * 1000,
             )
+            AudioEngineMVP._cleanup_beatmatch_cache()
             return out
         except Exception as exc:
             try:
@@ -885,7 +910,8 @@ class AudioEngineMVP:
                 kinds = {7: "mute_vocals", 8: "solo_drums", 9: "lpf"}
                 self.stem_fx = (kinds[key], time.time() + 2.0)
                 if key == 9:
-                    self._lpf_state[:] = 0
+                    self._lpf_biquad.reset()
+                    self._lpf_biquad.set_lpf(float(SAMPLE_RATE), 1000.0, q=0.707)
                 return {"key": key, "action": kinds[key]}
         return {"key": key, "error": "invalid_key"}
 
@@ -943,11 +969,7 @@ class AudioEngineMVP:
             if len(d) == frames:
                 return d
         if kind == "lpf":
-            out = np.empty_like(main)
-            for i in range(frames):
-                self._lpf_state = self._lpf_state + 0.15 * (main[i] - self._lpf_state)
-                out[i] = self._lpf_state
-            return out
+            return self._lpf_biquad.process(main)
         return main
 
     def _read_with_solo(self, deck: Deck, frames: int) -> np.ndarray:

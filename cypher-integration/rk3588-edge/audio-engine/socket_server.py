@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 
 def _send_response(conn: socket.socket, payload: dict[str, Any]) -> None:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    conn.sendall(struct.pack(">I", len(body)) + body)
+    try:
+        conn.sendall(struct.pack(">I", len(body)) + body)
+    except (BrokenPipeError, ConnectionResetError, OSError):
+        pass
 
 
 def _recv_frame(conn: socket.socket) -> dict[str, Any] | None:
