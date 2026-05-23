@@ -15,6 +15,13 @@ class Transition:
     fade_curve: str = "equal_power"
     # 7 种风格：smooth/power/bass_swap/echo_out/filter/cut/slam。默认 smooth = 原等功率 cos/sin。
     style: str = "smooth"
+    # Sprint 4 beatmatch metadata. Intervals are seconds/beat. tempo_ratio is
+    # kept as supplied by Jetson for diagnostics; RK derives the stretch from
+    # intervals when available.
+    tempo_ratio: float | None = None
+    from_beat_interval_sec: float | None = None
+    to_beat_interval_sec: float | None = None
+    phase_anchor_sec: float | None = None
 
 
 @dataclass
@@ -50,6 +57,17 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
 
     def _absorb_meta(item: dict, sid: int | str) -> None:
         meta: dict = {}
+        tempo = _f(item.get("tempo"), _f(item.get("bpm")))
+        if tempo is None:
+            mf = item.get("music_features") or {}
+            tempo = _f(mf.get("tempo"), _f(mf.get("bpm")))
+        if tempo is not None and tempo > 0:
+            meta["tempo"] = tempo
+        beats = item.get("beats")
+        if beats is None:
+            beats = item.get("beat_points")
+        if isinstance(beats, list):
+            meta["beats"] = [float(t) for t in beats if isinstance(t, (int, float))]
         rg = _f(item.get("replay_gain_db"))
         if rg is None:
             mf = item.get("music_features") or {}
@@ -92,6 +110,10 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 fade_sec=float(tr.get("fade_sec", 8)),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
                 style=str(tr.get("style", tr.get("transition_type", "smooth"))),
+                tempo_ratio=_f(tr.get("tempo_ratio")),
+                from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
+                to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
+                phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
             )
         )
 
@@ -105,6 +127,10 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 fade_sec=float(tr.get("crossfade_sec", tr.get("fade_sec", 8))),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
                 style=str(tr.get("transition_type", tr.get("style", "smooth"))),
+                tempo_ratio=_f(tr.get("tempo_ratio")),
+                from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
+                to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
+                phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
             )
         )
 

@@ -1419,6 +1419,7 @@ def build_asset_manifest(db, playlist_id: int, user_id: int, plan_id: str | None
         song = songs[sid]
         track_obj = {"song_id": sid, "library_song_id": lib.id, "title": song.title,
                      "artist": song.artist, "duration_sec": lib.duration, "bpm": lib.bpm,
+                     "tempo": lib.bpm, "beats": list(lib.beat_points or []),
                      "key": lib.camelot_key or lib.key, "files": {}}
 
         # original

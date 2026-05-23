@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import math
+import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -38,7 +40,9 @@ SAMPLE_FILES = {
 }
 # 叠到主轨上的增益
 SAMPLE_GAIN = {1: 1.2, 2: 1.8, 3: 1.4, 4: 1.6, 5: 1.4}
-PRELOAD_BEFORE_SEC = 3.0
+PRELOAD_BEFORE_SEC = 10.0
+BEATMATCH_MAX_SHIFT = 0.06
+BEATMATCH_MIN_SHIFT = 0.005
 
 
 class SongCacheError(Exception):
@@ -163,6 +167,12 @@ class Deck:
         chunk = self._eq_hi.process(chunk)
         return chunk
 
+    def eq_values(self) -> tuple[float, float, float]:
+        return self.eq_low_db, self.eq_mid_db, self.eq_hi_db
+
+    def copy_eq_from(self, other: "Deck") -> None:
+        self.set_eq(other.eq_low_db, other.eq_mid_db, other.eq_hi_db)
+
     def set_gain_db(self, db: float | None) -> None:
         if db is None:
             self.gain = 1.0
@@ -171,24 +181,32 @@ class Deck:
         db = max(-8.0, min(8.0, float(db)))
         self.gain = float(10.0 ** (db / 20.0))
 
-    def load(self, song_id: int | str, start_at_sec: float = 0.0) -> float:
+    def load(
+        self,
+        song_id: int | str,
+        start_at_sec: float = 0.0,
+        load_stems: bool = True,
+        audio_path: Path | None = None,
+    ) -> float:
         key = str(song_id)
         cached: dict | None = None
-        with _PREFETCH_LOCK:
-            if key in _PREFETCH_CACHE:
-                cached = _PREFETCH_CACHE.pop(key)
-        if cached is not None:
+        if audio_path is None:
+            with _PREFETCH_LOCK:
+                if key in _PREFETCH_CACHE:
+                    cached = _PREFETCH_CACHE.pop(key)
+        if cached is not None and audio_path is None:
             self.audio = cached["audio"]
             self.stems = cached["stems"]
             logger.info("deck.load hit prefetch cache: %s (remain=%d)", song_id, len(_PREFETCH_CACHE))
         else:
-            path = check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY)
+            path = audio_path or check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY and load_stems)
             self.audio = _load_wav_stereo(path)
             self.stems = {}
-            for name in REQUIRED_STEMS:
-                stem_path = _song_dir(song_id) / f"{name}.wav"
-                if stem_path.is_file():
-                    self.stems[name] = _load_wav_stereo(stem_path)
+            if load_stems and audio_path is None:
+                for name in REQUIRED_STEMS:
+                    stem_path = _song_dir(song_id) / f"{name}.wav"
+                    if stem_path.is_file():
+                        self.stems[name] = _load_wav_stereo(stem_path)
         start_frame = int(max(0.0, start_at_sec) * SAMPLE_RATE)
         self.pos = min(start_frame, max(0, len(self.audio) - 1))
         self.song_id = song_id
@@ -217,6 +235,7 @@ class AudioEngineMVP:
         self._fade_total_frames = 0
         self._active_tr: Transition | None = None
         self._next_preloaded = False
+        self._preload_requested: str | None = None
         self._playing = False
         self._paused = False
         self._stream: sd.OutputStream | None = None
@@ -265,6 +284,7 @@ class AudioEngineMVP:
         self._fade_frames_done = 0
         self._active_tr = None
         self._next_preloaded = False
+        self._preload_requested = None
         self._transition_index += 1
         # 过渡结束：重置 FX 状态，避免下次进入时听到残响 / 启动 click
         self._fx_filter_a.reset()
@@ -343,6 +363,7 @@ class AudioEngineMVP:
             self._transition_index = 0
             self._in_transition = False
             self._next_preloaded = False
+            self._preload_requested = None
         logger.info(
             "mix_plan loaded: tracks=%s transitions=%d",
             self._plan.tracks if self._plan else [],
@@ -350,17 +371,22 @@ class AudioEngineMVP:
         )
 
     def play(self, song_id: int | str, start_at_sec: float = 0.0) -> dict:
+        deck = Deck()
+        with self._lock:
+            deck.copy_eq_from(self.deck_a)
+        dur = deck.load(song_id, start_at_sec)
+        self._apply_loudness_gain(deck, song_id)
         with self._lock:
             self._ensure_stream()
-            self.deck_b.clear()
             self._active = "a"
-            dur = self.deck_a.load(song_id, start_at_sec)
-            self._apply_loudness_gain(self.deck_a, song_id)
+            self.deck_a = deck
+            self.deck_b.clear()
             self._playing = True
             self._paused = False
             self._in_transition = False
             self._transition_index = 0
             self._next_preloaded = False
+            self._preload_requested = None
             self._one_shot_keys.clear()
             self.stem_fx = None
             # /play 是“硬切”，重置持久 stem_solo 避免上一首的供菜多到下一首。
@@ -403,24 +429,32 @@ class AudioEngineMVP:
         with self._lock:
             tr = self._scheduled_transition()
             if tr and self.active_deck.song_id == tr.from_song_id:
-                self._begin_transition(tr)
-                return {"action": "crossfade", "to_song_id": tr.to_song_id}
-            if self._plan and self._plan.tracks:
+                pass
+            elif self._plan and self._plan.tracks:
                 idx = self._plan.tracks.index(self.active_deck.song_id) if self.active_deck.song_id in self._plan.tracks else -1
                 if idx >= 0 and idx + 1 < len(self._plan.tracks):
                     nxt = self._plan.tracks[idx + 1]
-                    self._begin_transition(
-                        Transition(
-                            from_song_id=self.active_deck.song_id or 0,
-                            to_song_id=nxt,
-                            from_at_sec=self.active_deck.pos_sec,
-                            to_at_sec=0.0,
-                            fade_sec=8.0,
-                        )
+                    tr = Transition(
+                        from_song_id=self.active_deck.song_id or 0,
+                        to_song_id=nxt,
+                        from_at_sec=self.active_deck.pos_sec,
+                        to_at_sec=0.0,
+                        fade_sec=8.0,
                     )
-                    return {"action": "crossfade", "to_song_id": nxt}
-            self.stop()
-        return {"action": "stop", "note": "no_next_in_plan"}
+                else:
+                    tr = None
+            else:
+                tr = None
+            if tr is None:
+                self.stop()
+                return {"action": "stop", "note": "no_next_in_plan"}
+        self.manual_transition(
+            tr.to_song_id,
+            fade_sec=tr.fade_sec,
+            to_at_sec=tr.to_at_sec,
+            style=tr.style,
+        )
+        return {"action": "crossfade", "to_song_id": tr.to_song_id}
 
     def manual_transition(
         self,
@@ -447,9 +481,29 @@ class AudioEngineMVP:
                 fade_sec=float(max(0.05, fade_sec)),
                 style=str(style or "smooth"),
             )
+            inactive_eq = self.inactive_deck.eq_values()
+
+        deck = Deck()
+        deck.set_eq(*inactive_eq)
+        audio_path = self._beatmatched_audio_path(tr, render=False)
+        deck.load(to_song_id, to_at_sec, load_stems=False, audio_path=audio_path)
+        self._apply_loudness_gain(deck, to_song_id)
+
+        with self._lock:
+            if self.active_deck.audio is None:
+                raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+            tr = Transition(
+                from_song_id=self.active_deck.song_id or 0,
+                to_song_id=to_song_id,
+                from_at_sec=self.active_deck.pos_sec,
+                to_at_sec=float(max(0.0, to_at_sec)),
+                fade_sec=float(max(0.05, fade_sec)),
+                style=str(style or "smooth"),
+            )
             # 跳出 plan 调度，避免 crossfade 结束后又被 plan transition 覆盖
             self._plan_enabled = False
-            self._begin_transition(tr)
+            self._install_inactive_deck(deck)
+            self._start_transition_locked(tr)
         return {
             "action": "crossfade",
             "to_song_id": to_song_id,
@@ -457,6 +511,32 @@ class AudioEngineMVP:
             "to_at_sec": tr.to_at_sec,
             "style": tr.style,
         }
+
+    def _install_inactive_deck(self, deck: Deck) -> None:
+        if self._active == "a":
+            self.deck_b = deck
+        else:
+            self.deck_a = deck
+
+    def _start_transition_locked(self, tr: Transition) -> None:
+        self._active_tr = tr
+        self._fade_total_frames = int(tr.fade_sec * SAMPLE_RATE)
+        self._fade_frames_done = 0
+        self._in_transition = True
+        self._next_preloaded = True
+        self._preload_requested = None
+        self._fx_filter_a.reset()
+        self._fx_filter_a.set_bypass(True)
+        self._fx_filter_b.reset()
+        self._fx_filter_b.set_bypass(True)
+        self._echo_buf.fill(0.0)
+        self._echo_pos = 0
+        logger.info(
+            "crossfade start %s -> %s (%.1fs)",
+            tr.from_song_id,
+            tr.to_song_id,
+            tr.fade_sec,
+        )
 
     def set_stem_solo(self, stem: str | None) -> dict:
         """持久 stem solo：只让某个 stem 出声，None = 恢复全轨。不影响 crossfade。"""
@@ -526,24 +606,126 @@ class AudioEngineMVP:
             return
         deck.set_gain_db(meta.get("replay_gain_db"))
 
-    def _begin_transition(self, tr: Transition) -> None:
+    @staticmethod
+    def _beatmatch_time_ratio(tr: Transition) -> float | None:
+        """Rubberband time ratio for B so its tempo matches A."""
+        ratio: float | None = None
+        if tr.from_beat_interval_sec and tr.to_beat_interval_sec:
+            if tr.from_beat_interval_sec > 0 and tr.to_beat_interval_sec > 0:
+                # tempo_B / tempo_A == interval_A / interval_B.
+                ratio = tr.from_beat_interval_sec / tr.to_beat_interval_sec
+        elif tr.tempo_ratio and tr.tempo_ratio > 0:
+            # Fallback for P2 plans that already provide tempo_B / tempo_A.
+            ratio = tr.tempo_ratio
+        if ratio is None:
+            return None
+        if abs(ratio - 1.0) < BEATMATCH_MIN_SHIFT:
+            return None
+        if abs(ratio - 1.0) > BEATMATCH_MAX_SHIFT:
+            logger.info("beatmatch skip: ratio %.4f outside ±%.0f%%", ratio, BEATMATCH_MAX_SHIFT * 100)
+            return None
+        return float(ratio)
+
+    def _beatmatched_audio_path(self, tr: Transition, *, render: bool) -> Path | None:
+        ratio = self._beatmatch_time_ratio(tr)
+        if ratio is None:
+            return None
+        song_dir = _song_dir(tr.to_song_id)
+        src = song_dir / "original.wav"
+        if not src.is_file():
+            return None
+        tag = f"{ratio:.5f}".replace(".", "p")
+        out = song_dir / f"original.rb.{tag}.wav"
+        if out.is_file() and out.stat().st_mtime >= src.stat().st_mtime:
+            return out
+        if not render:
+            return None
+
+        rubberband = shutil.which("rubberband")
+        if not rubberband:
+            logger.warning("beatmatch skip: rubberband CLI not found")
+            return None
+
+        tmp = out.with_suffix(out.suffix + ".tmp")
+        cmd = [rubberband, "-t", f"{ratio:.6f}", str(src), str(tmp)]
+        t0 = time.time()
         try:
-            self.inactive_deck.load(tr.to_song_id, tr.to_at_sec)
-        except SongCacheError as exc:
-            logger.error("transition load failed: %s", exc)
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
+            tmp.replace(out)
+            logger.info(
+                "beatmatch render ok: song_id=%s ratio=%.4f in %.0fms",
+                tr.to_song_id,
+                ratio,
+                (time.time() - t0) * 1000,
+            )
+            return out
+        except Exception as exc:
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
+            logger.warning("beatmatch render failed for %s: %s", tr.to_song_id, exc)
+            return None
+
+    def _begin_transition(self, tr: Transition) -> None:
+        if self.inactive_deck.song_id != tr.to_song_id:
+            try:
+                audio_path = self._beatmatched_audio_path(tr, render=False)
+                self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=False, audio_path=audio_path)
+            except SongCacheError as exc:
+                logger.error("transition load failed: %s", exc)
+                return
+            self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
+        self._start_transition_locked(tr)
+
+    def _request_transition_preload(self, tr: Transition) -> None:
+        key = str(tr.to_song_id)
+        if self._preload_requested == key:
             return
-        self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-        self._active_tr = tr
-        self._fade_total_frames = int(tr.fade_sec * SAMPLE_RATE)
-        self._fade_frames_done = 0
-        self._in_transition = True
-        self._next_preloaded = True
-        logger.info(
-            "crossfade start %s -> %s (%.1fs)",
-            tr.from_song_id,
-            tr.to_song_id,
-            tr.fade_sec,
-        )
+        self._preload_requested = key
+        inactive_eq = self.inactive_deck.eq_values()
+        threading.Thread(
+            target=self._do_transition_preload,
+            args=(tr, inactive_eq),
+            daemon=True,
+            name=f"transition-preload-{key}",
+        ).start()
+
+    def _do_transition_preload(
+        self,
+        tr: Transition,
+        inactive_eq: tuple[float, float, float],
+    ) -> None:
+        key = str(tr.to_song_id)
+        try:
+            t0 = time.time()
+            deck = Deck()
+            deck.set_eq(*inactive_eq)
+            audio_path = self._beatmatched_audio_path(tr, render=True)
+            deck.load(tr.to_song_id, tr.to_at_sec, load_stems=False, audio_path=audio_path)
+            self._apply_loudness_gain(deck, tr.to_song_id)
+            with self._lock:
+                current = self._scheduled_transition()
+                if (
+                    not self._plan_enabled
+                    or self._in_transition
+                    or current is None
+                    or current.to_song_id != tr.to_song_id
+                    or self.active_deck.song_id != tr.from_song_id
+                ):
+                    if self._preload_requested == key:
+                        self._preload_requested = None
+                    return
+                self._install_inactive_deck(deck)
+                self._next_preloaded = True
+                self._preload_requested = None
+            dt = (time.time() - t0) * 1000
+            logger.info("preloaded song_id=%s for transition in %.0fms", tr.to_song_id, dt)
+        except SongCacheError as exc:
+            logger.warning("preload failed: %s", exc)
+            with self._lock:
+                if self._preload_requested == key:
+                    self._preload_requested = None
 
     def _maybe_preload_and_transition(self) -> None:
         if not self._plan_enabled or not self._plan or self._in_transition:
@@ -553,22 +735,12 @@ class AudioEngineMVP:
             return
         pos_sec = self.active_deck.pos_sec
         if not self._next_preloaded and pos_sec >= tr.from_at_sec - PRELOAD_BEFORE_SEC:
-            try:
-                self.inactive_deck.load(tr.to_song_id, tr.to_at_sec)
-                self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-                self._next_preloaded = True
-                logger.info("preloaded song_id=%s for transition", tr.to_song_id)
-            except SongCacheError as exc:
-                logger.warning("preload failed: %s", exc)
+            self._request_transition_preload(tr)
         if pos_sec >= tr.from_at_sec:
             if not self._next_preloaded:
-                self._begin_transition(tr)
+                self._request_transition_preload(tr)
             else:
-                self._active_tr = tr
-                self._fade_total_frames = int(tr.fade_sec * SAMPLE_RATE)
-                self._fade_frames_done = 0
-                self._in_transition = True
-                logger.info("crossfade start %s -> %s", tr.from_song_id, tr.to_song_id)
+                self._start_transition_locked(tr)
 
     @staticmethod
     def _fade_gains(progress: float, curve: str) -> tuple[float, float]:
@@ -607,30 +779,11 @@ class AudioEngineMVP:
                 return {"full": 0.0}, {"full": 0.0}
             return {"full": 0.0}, {"full": 1.0}
         if style == "bass_swap":
-            if x < 0.5:
-                return ({"vocals": cos_x, "drums": cos_x,
-                         "bass": 1.0 - x * 2, "other": cos_x},
-                        {"vocals": sin_x, "drums": sin_x,
-                         "bass": 0.0, "other": sin_x})
-            return ({"vocals": cos_x, "drums": cos_x,
-                     "bass": 0.0, "other": cos_x},
-                    {"vocals": sin_x, "drums": sin_x,
-                     "bass": (x - 0.5) * 2, "other": sin_x})
+            return {"full": cos_x}, {"full": sin_x}
         if style == "echo_out":
-            return ({"vocals": cos_x ** 1.5,
-                     "drums": cos_x ** 3,
-                     "bass": cos_x ** 3,
-                     "other": cos_x ** 2},
-                    {"full": sin_x})
+            return {"full": cos_x ** 1.5}, {"full": sin_x}
         if style == "filter":
-            return ({"vocals": cos_x ** 0.7,
-                     "drums": cos_x ** 2,
-                     "bass": cos_x ** 3,
-                     "other": cos_x ** 1.2},
-                    {"vocals": sin_x ** 1.5,
-                     "drums": sin_x ** 0.8,
-                     "bass": sin_x ** 0.6,
-                     "other": sin_x})
+            return {"full": cos_x}, {"full": sin_x}
         # default smooth
         return {"full": cos_x}, {"full": sin_x}
 
@@ -817,7 +970,7 @@ class AudioEngineMVP:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
                 style = tr.style or "smooth"
-                if style not in ("smooth", "power") and (
+                if style in ("slam",) and (
                     not self.active_deck.stems or not self.inactive_deck.stems
                 ):
                     style = "smooth"  # 缺 stem 时退化
