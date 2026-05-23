@@ -1159,13 +1159,14 @@ class AudioEngineMVP:
     def shutdown(self) -> None:
         with self._lock:
             self.stop()
-            if self._stream is not None:
-                try:
-                    self._stream.stop()
-                    self._stream.close()
-                except Exception:
-                    pass
-                self._stream = None
+            stream = self._stream
+            self._stream = None
+        if stream is not None:
+            try:
+                stream.abort()
+                stream.close()
+            except Exception:
+                pass
 
 
 engine = AudioEngineMVP()
