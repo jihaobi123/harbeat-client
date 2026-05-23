@@ -40,7 +40,7 @@ SAMPLE_FILES = {
 }
 # 叠到主轨上的增益
 SAMPLE_GAIN = {1: 1.2, 2: 1.8, 3: 1.4, 4: 1.6, 5: 1.4}
-PRELOAD_BEFORE_SEC = 10.0
+PRELOAD_BEFORE_SEC = 30.0
 BEATMATCH_MAX_SHIFT = 0.06
 BEATMATCH_MIN_SHIFT = 0.005
 BEATMATCH_CACHE_MAX_FILES = 20
@@ -393,6 +393,16 @@ class AudioEngineMVP:
             self._plan.tracks if self._plan else [],
             len(self._plan.transitions) if self._plan else 0,
         )
+        # 后台预热 beatmatch 渲染，避免在实时 preload 时等 rubberband
+        if self._plan and self._plan.transitions:
+            for tr in self._plan.transitions:
+                threading.Thread(
+                    target=self._beatmatched_audio_path,
+                    args=(tr,),
+                    kwargs={"render": True},
+                    daemon=True,
+                    name=f"beatmatch-warm-{tr.to_song_id}",
+                ).start()
 
     def play(self, song_id: int | str, start_at_sec: float = 0.0) -> dict:
         deck = Deck()
@@ -650,6 +660,53 @@ class AudioEngineMVP:
             return None
         return float(ratio)
 
+    def _align_beat_phase(self, tr: Transition) -> float | None:
+        """返回节拍对齐后的 to_at_sec，或 None 表示无法对齐。
+
+        找到 A 下一拍，遍历 B beats 中落在预测位附近的拍，选第一个能
+        给出非负且偏移 ≤0.25s 的结果。
+        """
+        if not self._plan:
+            return None
+        a_meta = self._plan.track_meta.get(str(tr.from_song_id))
+        b_meta = self._plan.track_meta.get(str(tr.to_song_id))
+        if not a_meta or not b_meta:
+            return None
+        a_beats = a_meta.get("beats")
+        b_beats = b_meta.get("beats")
+        if not a_beats or not b_beats:
+            return None
+        ratio = self._beatmatch_time_ratio(tr) or 1.0
+
+        a_pos = self.active_deck.pos_sec
+        a_next = None
+        for b in a_beats:
+            if b > a_pos + 0.01:
+                a_next = b
+                break
+        if a_next is None:
+            return None
+
+        dt_a = a_next - a_pos
+        b_predicted = tr.to_at_sec + dt_a * ratio
+
+        # 找 B beats 中离预测位 ≤0.35s 的候选拍，按距离排序
+        candidates = []
+        for b in b_beats:
+            d = abs(b - b_predicted)
+            if d <= 0.35:
+                candidates.append((d, b))
+        candidates.sort()
+
+        for _, b_target in candidates:
+            to_start = b_target - dt_a * ratio
+            if to_start < 0:
+                continue
+            shift = abs(to_start - tr.to_at_sec)
+            if shift <= 0.25:
+                return max(0.0, to_start)
+        return None
+
     def _beatmatched_audio_path(self, tr: Transition, *, render: bool) -> Path | None:
         ratio = self._beatmatch_time_ratio(tr)
         if ratio is None:
@@ -670,12 +727,37 @@ class AudioEngineMVP:
             logger.warning("beatmatch skip: rubberband CLI not found")
             return None
 
+        # 只渲染前 60 秒，大幅减少 rubberband 耗时（长曲从 80s → ~20s）
+        trim_src = src
+        trim_tmp = None
+        try:
+            info = sf.info(str(src))
+            if info.duration > 65:
+                trim_tmp = src.with_name(src.name.replace(".wav", ".trim60.wav"))
+                if not trim_tmp.is_file() or trim_tmp.stat().st_mtime < src.stat().st_mtime:
+                    ffmpeg = shutil.which("ffmpeg")
+                    if ffmpeg:
+                        subprocess.run(
+                            [ffmpeg, "-y", "-t", "60", "-i", str(src),
+                             "-c:a", "pcm_f32le", "-ar", str(info.samplerate), str(trim_tmp)],
+                            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30,
+                        )
+                if trim_tmp.is_file():
+                    trim_src = trim_tmp
+        except Exception:
+            pass
+
         tmp = out.with_suffix(out.suffix + ".tmp")
-        cmd = [rubberband, "-t", f"{ratio:.6f}", str(src), str(tmp)]
+        cmd = [rubberband, "--ignore-clipping", "-t", f"{ratio:.6f}", str(trim_src), str(tmp)]
         t0 = time.time()
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
             tmp.replace(out)
+            if trim_tmp is not None:
+                try:
+                    trim_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
             logger.info(
                 "beatmatch render ok: song_id=%s ratio=%.4f in %.0fms",
                 tr.to_song_id,
@@ -689,6 +771,11 @@ class AudioEngineMVP:
                 tmp.unlink(missing_ok=True)
             except Exception:
                 pass
+            if trim_tmp is not None:
+                try:
+                    trim_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
             logger.warning("beatmatch render failed for %s: %s", tr.to_song_id, exc)
             return None
 
@@ -701,7 +788,28 @@ class AudioEngineMVP:
                 logger.error("transition load failed: %s", exc)
                 return
             self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
+        self._apply_beat_align(tr)
         self._start_transition_locked(tr)
+
+    def _apply_beat_align(self, tr: Transition) -> None:
+        """节拍对齐微调：找到 A 下一拍和 B 最近拍，微调 inactive deck 位置。"""
+        aligned = self._align_beat_phase(tr)
+        if aligned is None:
+            return
+        offset_frames = int((aligned - tr.to_at_sec) * SAMPLE_RATE)
+        if offset_frames == 0:
+            return
+        deck = self.inactive_deck
+        if deck.audio is None:
+            return
+        new_pos = deck.pos + offset_frames
+        max_pos = max(0, len(deck.audio) - 1)
+        if 0 <= new_pos <= max_pos:
+            deck.pos = new_pos
+            logger.info(
+                "beatmatch phase align: song_id=%s offset=%.1fms",
+                tr.to_song_id, offset_frames * 1000 / SAMPLE_RATE,
+            )
 
     def _request_transition_preload(self, tr: Transition) -> None:
         key = str(tr.to_song_id)
@@ -726,7 +834,7 @@ class AudioEngineMVP:
             t0 = time.time()
             deck = Deck()
             deck.set_eq(*inactive_eq)
-            audio_path = self._beatmatched_audio_path(tr, render=True)
+            audio_path = self._beatmatched_audio_path(tr, render=False)
             deck.load(tr.to_song_id, tr.to_at_sec, load_stems=False, audio_path=audio_path)
             self._apply_loudness_gain(deck, tr.to_song_id)
             with self._lock:
@@ -746,8 +854,8 @@ class AudioEngineMVP:
                 self._preload_requested = None
             dt = (time.time() - t0) * 1000
             logger.info("preloaded song_id=%s for transition in %.0fms", tr.to_song_id, dt)
-        except SongCacheError as exc:
-            logger.warning("preload failed: %s", exc)
+        except Exception as exc:
+            logger.warning("preload failed for %s: %s", tr.to_song_id, exc)
             with self._lock:
                 if self._preload_requested == key:
                     self._preload_requested = None
@@ -765,7 +873,7 @@ class AudioEngineMVP:
             if not self._next_preloaded:
                 self._request_transition_preload(tr)
             else:
-                self._start_transition_locked(tr)
+                self._begin_transition(tr)
 
     @staticmethod
     def _fade_gains(progress: float, curve: str) -> tuple[float, float]:
@@ -999,7 +1107,7 @@ class AudioEngineMVP:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
                 style = tr.style or "smooth"
-                if style == "smooth":
+                if style in ("smooth", "blend"):
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
                     b = self._read_with_solo(self.inactive_deck, frames)

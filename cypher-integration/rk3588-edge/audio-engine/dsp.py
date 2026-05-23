@@ -20,7 +20,7 @@ class Biquad:
     """
 
     __slots__ = ("_b0", "_b1", "_b2", "_a1", "_a2",
-                 "_z1L", "_z2L", "_z1R", "_z2R", "_bypass")
+                 "_z1L", "_z2L", "_z1R", "_z2R", "_bypass", "_out")
 
     def __init__(self) -> None:
         # 默认为 bypass：y = x
@@ -34,6 +34,7 @@ class Biquad:
         self._z1R = 0.0
         self._z2R = 0.0
         self._bypass = True
+        self._out: np.ndarray | None = None
 
     def reset(self) -> None:
         self._z1L = 0.0
@@ -144,7 +145,9 @@ class Biquad:
         xL = x[:, 0]
         xR = x[:, 1]
         N = xL.shape[0]
-        out = np.empty_like(x)
+        if self._out is None or self._out.shape[0] != N:
+            self._out = np.empty((N, 2), dtype=np.float32)
+        out = self._out
         outL = out[:, 0]
         outR = out[:, 1]
         for i in range(N):
