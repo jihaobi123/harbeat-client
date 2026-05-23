@@ -13,6 +13,7 @@ import sounddevice as sd
 import soundfile as sf
 
 from config import BLOCK_SIZE, CACHE_DIR, CYPHER_HOME, REQUIRE_STEMS_FOR_PLAY, SAMPLE_RATE, resolve_audio_device
+from dsp import Biquad
 from mix_plan import NormalizedPlan, Transition, normalize_mix_plan
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,17 @@ class AudioEngineMVP:
         self._lim_gain: float = 1.0
         # 200ms 释放时间 -> 每 2048 样本块衰减系数 exp(-blocksize / (release_sec * sr))
         self._lim_release_coef: float = float(np.exp(-2048.0 / (0.2 * SAMPLE_RATE)))
+        # ---- Sprint 2: 过渡风格 FX 状态 ----
+        # 每个 deck 一段 biquad（LPF / HPF，按风格切换），系数每个 callback 重设。
+        self._fx_filter_a: Biquad = Biquad()
+        self._fx_filter_b: Biquad = Biquad()
+        # echo: 250ms 单 tap 延迟 + 反馈，缓冲 0.6 sec 留余量
+        self._echo_delay_samples: int = int(0.25 * SAMPLE_RATE)
+        self._echo_buf_len: int = int(0.6 * SAMPLE_RATE)
+        self._echo_buf: np.ndarray = np.zeros((self._echo_buf_len, 2), dtype=np.float32)
+        self._echo_pos: int = 0  # write pointer
+        self._echo_feedback: float = 0.45
+        self._echo_wet: float = 0.7
         self._load_samples()
 
     @property
@@ -202,6 +214,13 @@ class AudioEngineMVP:
         self._active_tr = None
         self._next_preloaded = False
         self._transition_index += 1
+        # 过渡结束：重置 FX 状态，避免下次进入时听到残响 / 启动 click
+        self._fx_filter_a.reset()
+        self._fx_filter_a.set_bypass(True)
+        self._fx_filter_b.reset()
+        self._fx_filter_b.set_bypass(True)
+        self._echo_buf.fill(0.0)
+        self._echo_pos = 0
 
     def _load_samples(self) -> None:
         for key, fname in SAMPLE_FILES.items():
@@ -734,6 +753,7 @@ class AudioEngineMVP:
                     sa, sb = self._style_envelopes(style, progress)
                     a = self._read_deck_styled(self.active_deck, frames, sa)
                     b = self._read_deck_styled(self.inactive_deck, frames, sb)
+                    a, b = self._apply_style_effects(style, progress, a, b, frames)
                     main = a + b
                 self._fade_frames_done += frames
                 if self._fade_frames_done >= self._fade_total_frames:
@@ -748,6 +768,79 @@ class AudioEngineMVP:
             main = self._apply_stem_fx(main, deck_for_fx, frames)
             main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
             outdata[:] = self._apply_limiter(main, frames)
+
+    def _apply_style_effects(self, style: str, progress: float,
+                             a: np.ndarray, b: np.ndarray,
+                             frames: int) -> tuple[np.ndarray, np.ndarray]:
+        """在 stem-gain 之后、求和之前，按风格对 A / B 信号施加真滤波 / 延迟效果。
+
+        - bass_swap: A 渐进 HPF (20→200Hz，在 50% 之后才接管低频屏蔽)
+                     B 渐进 LPF (低频→宽带，前半段只放低频)
+        - filter:    A LPF 18kHz → 200Hz；B LPF 200Hz → 18kHz（对称扫频）
+        - echo_out:  A 信号送入 0.25s 反馈 echo（0.45 反馈, 0.7 wet）
+        其他风格保持原样（纯 stem gain 已经够）。
+        """
+        x = min(1.0, max(0.0, progress))
+        sr = float(SAMPLE_RATE)
+
+        if style == "bass_swap":
+            # A: HPF cutoff sweeps 20 -> 220 Hz，截掉 A 的低频，让 B 的低频接管
+            fc_a = 20.0 + 200.0 * x
+            self._fx_filter_a.set_hpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            # B: LPF cutoff sweeps 160 -> 16000 Hz，B 一开始只是低频，后慢慢全频
+            fc_b = 160.0 + (16000.0 - 160.0) * x
+            self._fx_filter_b.set_lpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "filter":
+            # A: LPF 18kHz -> 200Hz (log sweep 听感更线性)
+            fc_a = 18000.0 * ((200.0 / 18000.0) ** x)
+            self._fx_filter_a.set_lpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            # B: LPF 200Hz -> 18kHz
+            fc_b = 200.0 * ((18000.0 / 200.0) ** x)
+            self._fx_filter_b.set_lpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "echo_out":
+            # A 信号 -> 反馈延迟（写入 buffer），随后从 buffer 读出叠加回主路
+            # 由于 delay (11025) > frames (2048)，写入与读取区不重叠，可直接矢量化
+            a = self._echo_process(a, frames)
+            return a, b
+
+        return a, b
+
+    def _echo_process(self, a: np.ndarray, frames: int) -> np.ndarray:
+        """对 A 信号做 0.25s 反馈延迟，wet 叠加回原信号。"""
+        L = self._echo_buf_len
+        delay = self._echo_delay_samples
+        wp = self._echo_pos
+        rp = (wp - delay) % L
+
+        # 读取 delayed 信号（可能跨边界）
+        if rp + frames <= L:
+            delayed = self._echo_buf[rp : rp + frames].copy()
+        else:
+            first = L - rp
+            delayed = np.concatenate(
+                [self._echo_buf[rp:], self._echo_buf[: frames - first]],
+                axis=0,
+            )
+
+        # 写入：当前 A + 反馈 * 历史延迟信号
+        write_chunk = a + self._echo_feedback * delayed
+        if wp + frames <= L:
+            self._echo_buf[wp : wp + frames] = write_chunk
+        else:
+            first = L - wp
+            self._echo_buf[wp:] = write_chunk[:first]
+            self._echo_buf[: frames - first] = write_chunk[first:]
+
+        self._echo_pos = (wp + frames) % L
+        return a + self._echo_wet * delayed
 
     def _apply_limiter(self, main: np.ndarray, frames: int) -> np.ndarray:
         """块级 look-ahead 峰值限制器。
