@@ -23,6 +23,16 @@ class StemSoloRequest(BaseModel):
     stem: Literal["vocals", "drums", "bass", "other"] | None = None
 
 
+class DeckEqRequest(BaseModel):
+    """DJ 风 3-band EQ：80Hz low-shelf / 1kHz peak / 8kHz high-shelf。
+    每个 band 限幅 ±12 dB；0.0 = 平直（bypass，零开销）。"""
+
+    deck: Literal["a", "b", "active", "inactive"] = "active"
+    low_db: float = Field(default=0.0, ge=-12.0, le=12.0)
+    mid_db: float = Field(default=0.0, ge=-12.0, le=12.0)
+    hi_db: float = Field(default=0.0, ge=-12.0, le=12.0)
+
+
 class XfadeRequest(BaseModel):
     to_song_id: int | str
     fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)

@@ -13,6 +13,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from edge_agent.audio_client import AudioEngineClient, AudioEngineError, audio_client
 from edge_agent.config import settings
 from edge_agent.models import (
+  DeckEqRequest,
   HealthResponse,
   LoadPlanRequest,
   PlayRequest,
@@ -254,6 +255,19 @@ async def stem_solo(req: StemSoloRequest) -> dict[str, Any]:
   """持久 stem solo：传 stem=None 取消。RK 仅播出该 stem。"""
   result = await _forward("stem_solo", stem=req.stem)
   await edge_state.append_event({"type": "stem_solo", "stem": req.stem})
+  return {"ok": True, "result": result}
+
+
+@app.post("/eq", dependencies=[Depends(_optional_auth)])
+async def deck_eq(req: DeckEqRequest) -> dict[str, Any]:
+  """DJ 风 3-band EQ（0 = bypass）。deck 可设 ‘a’/‘b’/‘active’/‘inactive’。"""
+  result = await _forward(
+    "set_deck_eq",
+    deck=req.deck,
+    low_db=req.low_db,
+    mid_db=req.mid_db,
+    hi_db=req.hi_db,
+  )
   return {"ok": True, "result": result}
 
 

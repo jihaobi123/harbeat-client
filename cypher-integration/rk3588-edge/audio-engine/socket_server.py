@@ -83,6 +83,14 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **result}
     if cmd == "trigger":
         return {"ok": True, **engine.trigger(int(msg["key"]))}
+    if cmd == "set_deck_eq":
+        result = engine.set_deck_eq(
+            str(msg.get("deck", "active")),
+            float(msg.get("low_db", 0.0)),
+            float(msg.get("mid_db", 0.0)),
+            float(msg.get("hi_db", 0.0)),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "load_plan":
         engine.load_plan(msg.get("mix_plan") or {})
         return {"ok": True, "plan_id": (msg.get("mix_plan") or {}).get("plan_id")}

@@ -90,7 +90,12 @@ def _read_segment(buf: np.ndarray, pos: int, frames: int) -> tuple[np.ndarray, i
 
 
 class Deck:
-    __slots__ = ("audio", "pos", "song_id", "stems", "gain")
+    __slots__ = (
+        "audio", "pos", "song_id", "stems", "gain",
+        # 3-band EQ：80Hz low-shelf / 1kHz peak / 8kHz high-shelf
+        "eq_low_db", "eq_mid_db", "eq_hi_db",
+        "_eq_lo", "_eq_mid", "_eq_hi",
+    )
 
     def __init__(self) -> None:
         self.audio: np.ndarray | None = None
@@ -99,6 +104,13 @@ class Deck:
         self.stems: dict[str, np.ndarray] = {}
         # 响度归一线性增益（10^(dB/20)）。默认 1.0 = 不改。
         self.gain: float = 1.0
+        # DJ 风 3-band EQ：各 band 纯 gain 参数（dB）+ 各一段 Biquad。默认 0 dB = bypass。
+        self.eq_low_db: float = 0.0
+        self.eq_mid_db: float = 0.0
+        self.eq_hi_db: float = 0.0
+        self._eq_lo: Biquad = Biquad()
+        self._eq_mid: Biquad = Biquad()
+        self._eq_hi: Biquad = Biquad()
 
     @property
     def pos_sec(self) -> float:
@@ -110,6 +122,46 @@ class Deck:
         self.song_id = None
         self.stems = {}
         self.gain = 1.0
+        # EQ 参数 + 状态都重置，给下一首一个干净起点
+        self.eq_low_db = 0.0
+        self.eq_mid_db = 0.0
+        self.eq_hi_db = 0.0
+        for bq in (self._eq_lo, self._eq_mid, self._eq_hi):
+            bq.reset()
+            bq.set_bypass(True)
+
+    def set_eq(self, low_db: float, mid_db: float, hi_db: float,
+               sr: float = float(SAMPLE_RATE)) -> tuple[float, float, float]:
+        """设置 3-band EQ（限幅 ±12 dB）。返回实际被采纳的 (low, mid, hi)。
+
+        任一 band = 0 dB 时该段跳过 process（bypass），省下 CPU。
+        """
+        low_db = max(-12.0, min(12.0, float(low_db)))
+        mid_db = max(-12.0, min(12.0, float(mid_db)))
+        hi_db = max(-12.0, min(12.0, float(hi_db)))
+        self.eq_low_db = low_db
+        self.eq_mid_db = mid_db
+        self.eq_hi_db = hi_db
+        if abs(low_db) < 0.05:
+            self._eq_lo.set_bypass(True)
+        else:
+            self._eq_lo.set_lowshelf(sr, 80.0, low_db, q=0.707)
+        if abs(mid_db) < 0.05:
+            self._eq_mid.set_bypass(True)
+        else:
+            self._eq_mid.set_peak(sr, 1000.0, mid_db, q=0.9)
+        if abs(hi_db) < 0.05:
+            self._eq_hi.set_bypass(True)
+        else:
+            self._eq_hi.set_highshelf(sr, 8000.0, hi_db, q=0.707)
+        return low_db, mid_db, hi_db
+
+    def apply_eq(self, chunk: np.ndarray) -> np.ndarray:
+        """依次过 low-shelf -> peak -> high-shelf。bypass 路径 0 成本。"""
+        chunk = self._eq_lo.process(chunk)
+        chunk = self._eq_mid.process(chunk)
+        chunk = self._eq_hi.process(chunk)
+        return chunk
 
     def set_gain_db(self, db: float | None) -> None:
         if db is None:
@@ -616,6 +668,31 @@ class AudioEngineMVP:
             out *= deck.gain
         return out
 
+    def set_deck_eq(self, deck_id: str, low_db: float = 0.0,
+                    mid_db: float = 0.0, hi_db: float = 0.0) -> dict:
+        """DJ 风 3-band EQ。deck_id ∈ {'a', 'b', 'active', 'inactive'}。
+        每个 band 限幅 ±12 dB；返回实际被采纳的值。"""
+        with self._lock:
+            did = (deck_id or "").lower()
+            if did == "a":
+                deck = self.deck_a
+            elif did == "b":
+                deck = self.deck_b
+            elif did == "active":
+                deck = self.active_deck
+            elif did == "inactive":
+                deck = self.inactive_deck
+            else:
+                return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            lo, mi, hi = deck.set_eq(low_db, mid_db, hi_db)
+            return {
+                "ok": True,
+                "deck": "a" if deck is self.deck_a else "b",
+                "low_db": lo,
+                "mid_db": mi,
+                "hi_db": hi,
+            }
+
     def trigger(self, key: int) -> dict:
         with self._lock:
             if key == 0:
@@ -746,13 +823,17 @@ class AudioEngineMVP:
                     style = "smooth"  # 缺 stem 时退化
                 if style == "smooth":
                     a = self._read_with_solo(self.active_deck, frames)
+                    a = self.active_deck.apply_eq(a)
                     b = self._read_with_solo(self.inactive_deck, frames)
+                    b = self.inactive_deck.apply_eq(b)
                     ga, gb = self._fade_gains(progress, tr.fade_curve)
                     main = a * ga + b * gb
                 else:
                     sa, sb = self._style_envelopes(style, progress)
                     a = self._read_deck_styled(self.active_deck, frames, sa)
+                    a = self.active_deck.apply_eq(a)
                     b = self._read_deck_styled(self.inactive_deck, frames, sb)
+                    b = self.inactive_deck.apply_eq(b)
                     a, b = self._apply_style_effects(style, progress, a, b, frames)
                     main = a + b
                 self._fade_frames_done += frames
@@ -761,6 +842,7 @@ class AudioEngineMVP:
             else:
                 self._maybe_preload_and_transition()
                 main = self._read_with_solo(self.active_deck, frames)
+                main = self.active_deck.apply_eq(main)
                 if self.active_deck.audio is not None and self.active_deck.pos >= len(self.active_deck.audio):
                     self._playing = False
 
