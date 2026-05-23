@@ -22,6 +22,12 @@ class NormalizedPlan:
     plan_id: str | None
     tracks: list[int | str]
     transitions: list[Transition]
+    # 每首歌的元数据（响度归一用）：{str(song_id): {"replay_gain_db": float, "loudness_lufs": float}}
+    track_meta: dict[str, dict] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.track_meta is None:
+            self.track_meta = {}
 
 
 def _song_id(item: dict) -> int | str | None:
@@ -31,8 +37,34 @@ def _song_id(item: dict) -> int | str | None:
     return None
 
 
+def _f(value, default: float | None = None) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def normalize_mix_plan(raw: dict) -> NormalizedPlan:
     tracks: list[int | str] = []
+    track_meta: dict[str, dict] = {}
+
+    def _absorb_meta(item: dict, sid: int | str) -> None:
+        meta: dict = {}
+        rg = _f(item.get("replay_gain_db"))
+        if rg is None:
+            mf = item.get("music_features") or {}
+            rg = _f(mf.get("replay_gain_db"))
+        if rg is not None:
+            # 限幅 ±8dB 防止极端 gain 爆音
+            meta["replay_gain_db"] = max(-8.0, min(8.0, rg))
+        lufs = _f(item.get("loudness_lufs"))
+        if lufs is None:
+            mf = item.get("music_features") or {}
+            lufs = _f(mf.get("loudness_lufs"))
+        if lufs is not None:
+            meta["loudness_lufs"] = lufs
+        if meta:
+            track_meta[str(sid)] = meta
 
     if "tracks" in raw:
         ordered = sorted(raw["tracks"], key=lambda t: t.get("order", 0))
@@ -40,11 +72,13 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
             sid = _song_id(t)
             if sid is not None:
                 tracks.append(sid)
+                _absorb_meta(t, sid)
     elif "playlist" in raw:
         for item in raw["playlist"]:
             sid = _song_id(item)
             if sid is not None:
                 tracks.append(sid)
+                _absorb_meta(item, sid)
 
     transitions: list[Transition] = []
 
@@ -78,4 +112,5 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
         plan_id=raw.get("plan_id"),
         tracks=tracks,
         transitions=transitions,
+        track_meta=track_meta,
     )

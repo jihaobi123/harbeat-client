@@ -89,13 +89,15 @@ def _read_segment(buf: np.ndarray, pos: int, frames: int) -> tuple[np.ndarray, i
 
 
 class Deck:
-    __slots__ = ("audio", "pos", "song_id", "stems")
+    __slots__ = ("audio", "pos", "song_id", "stems", "gain")
 
     def __init__(self) -> None:
         self.audio: np.ndarray | None = None
         self.pos = 0
         self.song_id: int | str | None = None
         self.stems: dict[str, np.ndarray] = {}
+        # 响度归一线性增益（10^(dB/20)）。默认 1.0 = 不改。
+        self.gain: float = 1.0
 
     @property
     def pos_sec(self) -> float:
@@ -106,6 +108,15 @@ class Deck:
         self.pos = 0
         self.song_id = None
         self.stems = {}
+        self.gain = 1.0
+
+    def set_gain_db(self, db: float | None) -> None:
+        if db is None:
+            self.gain = 1.0
+            return
+        # 限幅 ±8dB
+        db = max(-8.0, min(8.0, float(db)))
+        self.gain = float(10.0 ** (db / 20.0))
 
     def load(self, song_id: int | str, start_at_sec: float = 0.0) -> float:
         key = str(song_id)
@@ -134,6 +145,8 @@ class Deck:
         if self.audio is None:
             return np.zeros((frames, 2), dtype=np.float32)
         chunk, self.pos = _read_segment(self.audio, self.pos, frames)
+        if self.gain != 1.0:
+            chunk = chunk * self.gain
         return chunk
 
 
@@ -163,6 +176,14 @@ class AudioEngineMVP:
         self._stem_solo: str | None = None
         self._lpf_state = np.zeros(2, dtype=np.float32)
         self._xrun_count = 0
+        # ---- Sprint 1: 简易 look-ahead 峰值限制器 ----
+        # 一块回调内：用块内峰值预测目标增益，配合 prev_gain 做立即-attack / 慢-release，
+        # 并在块首做线性 ramp 避免 click。LUFS 已经把整体响度对齐 -14 LUFS，
+        # 限制器只负责堵住串场瞬态过冲。
+        self._lim_threshold: float = 0.95
+        self._lim_gain: float = 1.0
+        # 200ms 释放时间 -> 每 2048 样本块衰减系数 exp(-blocksize / (release_sec * sr))
+        self._lim_release_coef: float = float(np.exp(-2048.0 / (0.2 * SAMPLE_RATE)))
         self._load_samples()
 
     @property
@@ -263,6 +284,7 @@ class AudioEngineMVP:
             self.deck_b.clear()
             self._active = "a"
             dur = self.deck_a.load(song_id, start_at_sec)
+            self._apply_loudness_gain(self.deck_a, song_id)
             self._playing = True
             self._paused = False
             self._in_transition = False
@@ -422,12 +444,24 @@ class AudioEngineMVP:
         except Exception as e:
             logger.warning("prefetch failed for %s: %s", song_id, e)
 
+    def _apply_loudness_gain(self, deck: Deck, song_id: int | str) -> None:
+        """从 plan.track_meta 取 replay_gain_db 并套到 deck 上。"""
+        if not self._plan:
+            deck.set_gain_db(None)
+            return
+        meta = self._plan.track_meta.get(str(song_id))
+        if not meta:
+            deck.set_gain_db(None)
+            return
+        deck.set_gain_db(meta.get("replay_gain_db"))
+
     def _begin_transition(self, tr: Transition) -> None:
         try:
             self.inactive_deck.load(tr.to_song_id, tr.to_at_sec)
         except SongCacheError as exc:
             logger.error("transition load failed: %s", exc)
             return
+        self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
         self._active_tr = tr
         self._fade_total_frames = int(tr.fade_sec * SAMPLE_RATE)
         self._fade_frames_done = 0
@@ -450,6 +484,7 @@ class AudioEngineMVP:
         if not self._next_preloaded and pos_sec >= tr.from_at_sec - PRELOAD_BEFORE_SEC:
             try:
                 self.inactive_deck.load(tr.to_song_id, tr.to_at_sec)
+                self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
                 self._next_preloaded = True
                 logger.info("preloaded song_id=%s for transition", tr.to_song_id)
             except SongCacheError as exc:
@@ -538,7 +573,7 @@ class AudioEngineMVP:
         if "full" in gains or not deck.stems:
             chunk, deck.pos = _read_segment(deck.audio, pos, frames)
             g = float(gains.get("full", max(gains.values()) if gains else 1.0))
-            return chunk * g
+            return chunk * (g * deck.gain)
         # 分 stem 路径
         out = np.zeros((frames, 2), dtype=np.float32)
         new_pos = pos
@@ -558,6 +593,8 @@ class AudioEngineMVP:
             chunk, new_pos = _read_segment(deck.audio, pos, frames)
             out = chunk * float(max(gains.values()) if gains else 0.0)
         deck.pos = new_pos
+        if deck.gain != 1.0:
+            out *= deck.gain
         return out
 
     def trigger(self, key: int) -> dict:
@@ -667,6 +704,8 @@ class AudioEngineMVP:
         else:
             buf = deck.audio
         chunk, deck.pos = _read_segment(buf, deck.pos, frames)
+        if deck.gain != 1.0:
+            chunk = chunk * deck.gain
         return chunk
 
     def _callback(self, outdata, frames, time_info, status) -> None:
@@ -708,7 +747,39 @@ class AudioEngineMVP:
             deck_for_fx = self.active_deck
             main = self._apply_stem_fx(main, deck_for_fx, frames)
             main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
-            outdata[:] = np.clip(main, -1.0, 1.0)
+            outdata[:] = self._apply_limiter(main, frames)
+
+    def _apply_limiter(self, main: np.ndarray, frames: int) -> np.ndarray:
+        """块级 look-ahead 峰值限制器。
+        - 测当前块峰值 → 目标增益 = threshold / peak（clip 到 ≤1）
+        - target < prev_gain：立即 attack（gain 直接落到 target）
+        - target >= prev_gain：按 release_coef 慢慢回到 1.0
+        - 块首前 64 个样本对 prev_gain → 新 gain 做线性 ramp，避免阶跃 click
+        """
+        peak = float(np.max(np.abs(main))) if main.size else 0.0
+        if peak > self._lim_threshold:
+            target = self._lim_threshold / peak
+        else:
+            target = 1.0
+        prev = self._lim_gain
+        if target < prev:
+            new_gain = target  # 立即压下
+        else:
+            # 释放：朝 target（通常是 1.0）平滑靠拢
+            new_gain = target + (prev - target) * self._lim_release_coef
+        # 块内 ramp
+        ramp_len = min(64, frames)
+        if ramp_len > 0 and abs(new_gain - prev) > 1e-6:
+            ramp = np.linspace(prev, new_gain, ramp_len, dtype=np.float32)
+            main[:ramp_len] *= ramp[:, None]
+            if frames > ramp_len:
+                main[ramp_len:] *= new_gain
+        else:
+            main *= new_gain
+        self._lim_gain = new_gain
+        # 兜底硬限幅
+        np.clip(main, -1.0, 1.0, out=main)
+        return main
 
     def shutdown(self) -> None:
         with self._lock:

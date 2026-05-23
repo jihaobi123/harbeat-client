@@ -509,6 +509,26 @@ def analyze_audio_file(
     if online_info and online_info.get("energy") is not None:
         energy = online_info["energy"]
 
+    # ── Step 3.5: Loudness (BS.1770 integrated LUFS + true peak) ──────
+    # RK 端按 target -14 LUFS 自动套 gain，避免歌曲间忽大忽小。
+    loudness_lufs: float | None = None
+    true_peak_db: float | None = None
+    replay_gain_db: float | None = None
+    try:
+        import pyloudnorm as pyln  # type: ignore
+
+        meter = pyln.Meter(sr)
+        lufs_val = float(meter.integrated_loudness(y))
+        if np.isfinite(lufs_val):
+            loudness_lufs = round(lufs_val, 2)
+            # true peak: 简化为样本峰值（dBFS），未做 oversampling
+            peak = float(np.max(np.abs(y))) if y.size else 0.0
+            true_peak_db = round(20.0 * np.log10(peak + 1e-12), 2)
+            # 目标 -14 LUFS，限幅 ±8dB，避免极端 gain
+            replay_gain_db = round(max(-8.0, min(8.0, -14.0 - loudness_lufs)), 2)
+    except Exception:
+        logger.warning("loudness measurement failed", exc_info=True)
+
     # ── Step 4: Key detection ─────────────────────────────────────────
     # Prefer online key if available; otherwise local Krumhansl-Schmuckler
     if online_info and online_info.get("key") and online_info.get("camelot_key"):
@@ -579,6 +599,15 @@ def analyze_audio_file(
         dance_style_scores = {"error": str(exc)}
         music_features = {}
         classifier_version = "feature_scoring_v2"
+
+    # Merge loudness fields into music_features so playlists.service can read them
+    # via lib.music_features (already wired in _library_replay_gain_db / _library_loudness_lufs).
+    if loudness_lufs is not None:
+        music_features["loudness_lufs"] = loudness_lufs
+        if true_peak_db is not None:
+            music_features["true_peak_db"] = true_peak_db
+        if replay_gain_db is not None:
+            music_features["replay_gain_db"] = replay_gain_db
 
     return {
         "bpm": round(bpm, 1),
