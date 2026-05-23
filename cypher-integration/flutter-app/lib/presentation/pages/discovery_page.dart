@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import '../../core/config/theme_config.dart';
 import '../../core/services/hardware_service.dart';
 import '../../core/utils/helpers.dart';
-import '../../data/models/models.dart';
+import '../../data/models/models.dart' hide Song;
+import '../../data/models/song.dart';
+import '../../data/services/song_service.dart';
 
 class DiscoveryPage extends StatefulWidget {
   final Function(Playlist)? onPlaylistSelected;
@@ -16,10 +18,12 @@ class DiscoveryPage extends StatefulWidget {
 
 class _DiscoveryPageState extends State<DiscoveryPage> with SingleTickerProviderStateMixin {
   final _hardwareService = HardwareService();
+  final _songService = SongService();
   final _searchController = TextEditingController();
   late TabController _tabController;
   bool _isLoading = false;
   String _searchQuery = '';
+  List<Song> _searchResults = [];
 
   final List<Map<String, dynamic>> _recommendedPlaylists = [
     {'id': 1, 'name': '🔥 炸场高能', 'desc': 'Battle时刻专用', 'icon': Icons.whatshot, 'color': ThemeConfig.accentOrange, 'songs': 25},
@@ -61,26 +65,136 @@ class _DiscoveryPageState extends State<DiscoveryPage> with SingleTickerProvider
 
   Future<void> _onSearch(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     setState(() {
       _isLoading = true;
       _searchQuery = query;
+      _searchResults = [];
     });
-    
+
     AppHaptics.medium();
-    await Future.delayed(Duration(milliseconds: 500));
-    
-    setState(() {
-      _isLoading = false;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🔍 搜索: $query'),
-        backgroundColor: ThemeConfig.accentGreen,
-        duration: Duration(seconds: 1),
+    try {
+      final results = await _songService.searchSongs(query);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _isLoading = false;
+      });
+      _showSearchResults();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('搜索失败: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showSearchResults() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ThemeConfig.backgroundPrimary,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollCtrl) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: ThemeConfig.accentOrange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '“$_searchQuery” 的结果 (${_searchResults.length})',
+                      style: const TextStyle(
+                        color: ThemeConfig.textLight,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: ThemeConfig.textLight),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: ThemeConfig.backgroundSecondary),
+            Expanded(
+              child: _searchResults.isEmpty
+                  ? const Center(
+                      child: Text(
+                        '没有找到匹配的歌曲',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollCtrl,
+                      itemCount: _searchResults.length,
+                      itemBuilder: (_, i) {
+                        final s = _searchResults[i];
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: ThemeConfig.accentGreen,
+                            child: Icon(Icons.music_note, color: Colors.white),
+                          ),
+                          title: Text(
+                            s.title,
+                            style: const TextStyle(color: ThemeConfig.textLight),
+                          ),
+                          subtitle: Text(
+                            '${s.artist}  ·  ${s.bpmDisplay}',
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          trailing: const Icon(Icons.play_arrow, color: ThemeConfig.accentOrange),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            _playSearchResult(s);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _playSearchResult(Song song) async {
+    AppHaptics.medium();
+    try {
+      final ok = await _hardwareService.play(songId: song.id, startAtSec: 0.0);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? '▶️ 播放：${song.title}' : '❌ 后端未返回 OK'),
+          backgroundColor: ok ? ThemeConfig.accentGreen : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('播放失败：$e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _selectPlaylist(Map<String, dynamic> playlistConfig) {

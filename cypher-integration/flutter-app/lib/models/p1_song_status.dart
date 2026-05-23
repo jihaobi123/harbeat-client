@@ -32,16 +32,18 @@ class SongStatus {
 
   factory SongStatus.fromJson(Map<String, dynamic> json) {
     return SongStatus(
-      songId: json['song_id'] ?? '',
+      songId: (json['song_id'] ?? json['id'] ?? '').toString(),
       title: json['title'] ?? '',
       artist: json['artist'] ?? '',
-      durationSec: (json['duration_sec'] as num?)?.toDouble() ?? 0.0,
+      durationSec: (json['duration_sec'] ?? json['duration'] as num?) != null
+          ? (json['duration_sec'] ?? json['duration'] as num).toDouble()
+          : 0.0,
       bpm: (json['bpm'] as num?)?.toDouble() ?? 0.0,
       key: json['key'] ?? '',
-      analysisStatus: _parseAnalysisStatus(json['analysis_status']),
+      analysisStatus: _parseAnalysisStatus(json['analysis_status'] ?? json['status']),
       analysisError: json['analysis_error'],
       analyzedAt: json['analyzed_at'] != null
-          ? DateTime.parse(json['analyzed_at'])
+          ? DateTime.tryParse(json['analyzed_at'].toString())
           : null,
       hasStems: json['has_stems'] ?? false,
     );

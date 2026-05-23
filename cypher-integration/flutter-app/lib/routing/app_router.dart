@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../pages/login_page.dart';
 import '../pages/main_page.dart';
-import '../pages/prep_page.dart';
 import '../pages/live_page.dart';
-import '../pages/replay_page.dart';
 import '../state/providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -39,23 +37,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MainPage(),
       ),
       GoRoute(
-        path: '/prep',
-        builder: (context, state) => const PrepPage(),
-      ),
-      GoRoute(
         path: '/live',
         builder: (context, state) => const LivePage(),
-      ),
-      GoRoute(
-        path: '/replay/:sessionId',
-        builder: (context, state) {
-          final sessionId = state.pathParameters['sessionId'];
-          return ReplayPage(key: ValueKey(sessionId));
-        },
-      ),
-      GoRoute(
-        path: '/replay',
-        builder: (context, state) => const ReplayPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

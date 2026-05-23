@@ -63,6 +63,24 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **engine.seek(float(msg["sec"]))}
     if cmd == "next":
         return {"ok": True, **engine.next_track()}
+    if cmd == "xfade":
+        result = engine.manual_transition(
+            msg["to_song_id"],
+            fade_sec=float(msg.get("fade_sec", 4.0)),
+            to_at_sec=float(msg.get("to_at_sec", 0.0)),
+            style=str(msg.get("style", "smooth") or "smooth"),
+        )
+        return {"ok": True, **result}
+    if cmd == "stem_solo":
+        stem = msg.get("stem")
+        if stem in ("", "null", "none"):
+            stem = None
+        result = engine.set_stem_solo(stem)
+        return {"ok": True, **result}
+    if cmd == "prefetch":
+        raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
+        result = engine.prefetch(list(raw))
+        return {"ok": True, **result}
     if cmd == "trigger":
         return {"ok": True, **engine.trigger(int(msg["key"]))}
     if cmd == "load_plan":

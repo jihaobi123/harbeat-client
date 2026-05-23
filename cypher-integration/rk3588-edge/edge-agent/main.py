@@ -16,9 +16,12 @@ from edge_agent.models import (
   HealthResponse,
   LoadPlanRequest,
   PlayRequest,
+  PrefetchRequest,
   RKPlaybackState,
   SeekRequest,
+  StemSoloRequest,
   TriggerRequest,
+  XfadeRequest,
 )
 from edge_agent.state import edge_state
 
@@ -208,6 +211,49 @@ async def resume() -> dict[str, Any]:
 async def next_track() -> dict[str, Any]:
   result = await _forward("next")
   await edge_state.append_event({"type": "next"})
+  return {"ok": True, "result": result}
+
+
+@app.post("/xfade", dependencies=[Depends(_optional_auth)])
+async def xfade(req: XfadeRequest) -> dict[str, Any]:
+  """对任意已缓存歌做主动 crossfade（复刻网页能量/风格切歌的无缝衰接）。"""
+  result = await _forward(
+    "xfade",
+    to_song_id=req.to_song_id,
+    fade_sec=req.fade_sec,
+    to_at_sec=req.to_at_sec,
+    style=req.style,
+  )
+  await edge_state.update_playback(
+    playing=True,
+    paused=False,
+    current_song_id=req.to_song_id,
+    position_sec=req.to_at_sec,
+  )
+  await edge_state.append_event(
+    {
+      "type": "xfade",
+      "to_song_id": req.to_song_id,
+      "fade_sec": req.fade_sec,
+      "to_at_sec": req.to_at_sec,
+      "style": req.style,
+    }
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/prefetch", dependencies=[Depends(_optional_auth)])
+async def prefetch(req: PrefetchRequest) -> dict[str, Any]:
+  """预解码候选歌曲到 RK 内存，跳过后续 /xfade 的磁盘 IO。未同步到 RK 的 song_id 会静默忽略。"""
+  result = await _forward("prefetch", song_ids=req.song_ids)
+  return {"ok": True, "result": result}
+
+
+@app.post("/stem_solo", dependencies=[Depends(_optional_auth)])
+async def stem_solo(req: StemSoloRequest) -> dict[str, Any]:
+  """持久 stem solo：传 stem=None 取消。RK 仅播出该 stem。"""
+  result = await _forward("stem_solo", stem=req.stem)
+  await edge_state.append_event({"type": "stem_solo", "stem": req.stem})
   return {"ok": True, "result": result}
 
 

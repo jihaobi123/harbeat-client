@@ -167,10 +167,21 @@ class _MCControlPageState extends State<MCControlPage> with TickerProviderStateM
         description: '暂停播放',
       );
     } else {
-      await _hardwareService.play();
+      // 首次播放：需传 song_id；以后的「继续」不传 -> /resume
+      int? songId = _currentSong?.id;
+      if (songId == null && widget.currentPlaylist?.songs != null && widget.currentPlaylist!.songs!.isNotEmpty) {
+        final first = widget.currentPlaylist!.songs!.first;
+        songId = first.id;
+        _currentSong = first;
+      }
+      final ok = await _hardwareService.play(songId: songId);
+      if (!ok && mounted) {
+        _showSnackBar('⚠ 播放失败：请先选择歌单或确认设备已连接');
+      }
       await SessionService().recordEvent(
         type: 'play',
-        description: '开始播放',
+        description: songId == null ? '继续播放' : '播放歌曲 $songId',
+        data: songId == null ? null : {'song_id': songId},
       );
     }
     widget.onTogglePlay?.call();

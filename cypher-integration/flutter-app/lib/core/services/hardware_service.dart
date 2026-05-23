@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -195,22 +196,19 @@ class HardwareService {
     
     AppLogger.info('开始局域网扫描...');
     
-    final baseIp = await _getLocalIpBase();
-    if (baseIp != null) {
-      final futures = <Future<void>>[];
-      
+    final baseIps = await _getLocalIpBases();
+    AppLogger.info('扫描网段: $baseIps');
+    final futures = <Future<void>>[];
+    for (final baseIp in baseIps) {
       for (int i = 1; i < 255; i++) {
         final ip = '$baseIp.$i';
         final url = 'http://$ip:9000';
-        
         if (testedUrls.contains(url)) continue;
         testedUrls.add(url);
-        
         futures.add(_testDeviceUrl(url, foundDevices));
       }
-      
-      await Future.wait(futures);
     }
+    await Future.wait(futures);
     
     foundDevices.addAll(_connectionHistory);
     
@@ -223,23 +221,37 @@ class HardwareService {
     return uniqueDevices.values.toList();
   }
   
-  Future<String?> _getLocalIpBase() async {
+  /// 枚举本机所有 IPv4 网卡地址，提取 /24 网段（如 192.168.43）。
+  Future<List<String>> _getLocalIpBases() async {
+    final bases = <String>{};
     try {
-      final response = await _dio.get('https://api.ipify.org', 
-        options: Options(
-          connectTimeout: Duration(seconds: 2),
-          receiveTimeout: Duration(seconds: 2),
-        ),
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
       );
-      final publicIp = response.data.toString();
-      final parts = publicIp.split('.');
-      if (parts.length == 4) {
-        return '${parts[0]}.${parts[1]}.${parts[2]}';
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          final parts = ip.split('.');
+          if (parts.length != 4) continue;
+          // 仅扫描常见私有网段
+          if (ip.startsWith('192.168.') ||
+              ip.startsWith('10.') ||
+              (parts[0] == '172' &&
+                  int.tryParse(parts[1]) != null &&
+                  int.parse(parts[1]) >= 16 &&
+                  int.parse(parts[1]) <= 31)) {
+            bases.add('${parts[0]}.${parts[1]}.${parts[2]}');
+          }
+        }
       }
     } catch (e) {
-      AppLogger.info('无法获取公网IP，尝试192.168.x.x扫描');
+      AppLogger.info('枚举网卡失败: $e');
     }
-    return '192.168.1';
+    if (bases.isEmpty) {
+      bases.addAll(['192.168.1', '192.168.0', '192.168.43']);
+    }
+    return bases.toList();
   }
   
   Future<void> _testDeviceUrl(String url, List<RK3588DeviceInfo> devices) async {
@@ -373,15 +385,8 @@ class HardwareService {
 
   Future<void> _connectWebSocket(String baseUrl, String deviceToken) async {
     try {
+      // WS is served on the same port as REST (:9000/ws/control)
       String wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
-      // WS runs on separate port 9001 from REST port 9000
-      final wsPortMatch = RegExp(r':(\d+)').firstMatch(wsUrl);
-      if (wsPortMatch != null) {
-        final restPort = int.parse(wsPortMatch.group(1)!);
-        if (restPort == 9000) {
-          wsUrl = wsUrl.replaceFirst(':$restPort', ':9001');
-        }
-      }
       wsUrl += '/ws/control?token=$deviceToken';
       AppLogger.info('WebSocket 连接: $wsUrl');
       
@@ -519,8 +524,10 @@ class HardwareService {
       final endpointMap = {
         'play': '/play',
         'pause': '/pause',
+        'resume': '/resume',
         'stop': '/pause',
         'next': '/next',
+        'previous': '/next', // edge-agent 暂无 prev，退化为 next
         'seek': '/seek',
         'trigger_sfx': '/trigger',
         'set_energy': '/energy',
@@ -542,9 +549,19 @@ class HardwareService {
     return DateTime.now().millisecondsSinceEpoch.toString().substring(5);
   }
 
-  Future<bool> play() async {
+  /// 播放指定歌曲。
+  /// - 若提供 [songId]，则发 `/play {song_id, start_at_sec}` 启动新曲；
+  /// - 若未提供，则视为「继续播放」，发 `/resume`（之前已加载的曲目）。
+  Future<bool> play({int? songId, double startAtSec = 0.0}) async {
     _isPlaying = true;
-    return await sendCommand('play', {});
+    if (songId != null) {
+      return await sendCommand('play', {
+        'song_id': songId,
+        'start_at_sec': startAtSec,
+      });
+    }
+    // 无 songId：触发 resume（暂停后再播放）
+    return await _sendCommandHttp('resume', {});
   }
 
   Future<bool> pause() async {
@@ -621,11 +638,30 @@ class HardwareService {
     });
   }
 
+  /// 加花 / 音效：把音效名映射到 RK3588 audio-engine 的 trigger key (1-9)。
+  /// audio-engine 当前实现：
+  ///   key=0 暂停/继续；1-3 单次加花 (ha/scratch/horn)；
+  ///   4-6 循环加花 (drum/bass/hat loop)；7-9 stem 特效。
+  static const Map<String, int> _sfxIdToKey = {
+    'applause': 1, 'ha': 1,
+    'scratch': 2,
+    'airhorn': 3, 'horn': 3, 'boom': 3,
+    'drumroll': 4, 'drum': 4, 'drum_loop': 4,
+    'bass': 5, 'bass_loop': 5,
+    'hat': 6, 'hat_loop': 6,
+    'mute_vocals': 7, 'vocals': 7,
+    'solo_drums': 8,
+    'lpf': 9, 'filter': 9,
+  };
+
   Future<bool> triggerSoundEffect(String sfxId, {double gain = 0.5}) async {
-    return await sendCommand('trigger_sfx', {
-      'sfx_id': sfxId,
-      'gain': gain,
-    });
+    final key = _sfxIdToKey[sfxId.toLowerCase()] ?? 1;
+    return await triggerKey(key);
+  }
+
+  /// 直接触发 audio-engine trigger key (0-9)。
+  Future<bool> triggerKey(int key) async {
+    return await sendCommand('trigger_sfx', {'key': key});
   }
 
   Future<bool> emergencyStop() async {
@@ -649,7 +685,11 @@ class HardwareService {
     if (!ipAddress.startsWith('http://') && !ipAddress.startsWith('https://')) {
       ipAddress = 'http://$ipAddress';
     }
-    if (!ipAddress.contains(':')) {
+    // 仅检查 host[:port] 段是否已带端口（避免被 scheme 的 ':' 误判）
+    final schemeSepIdx = ipAddress.indexOf('://');
+    final hostPart = schemeSepIdx >= 0 ? ipAddress.substring(schemeSepIdx + 3) : ipAddress;
+    final hostNoPath = hostPart.split('/').first;
+    if (!hostNoPath.contains(':')) {
       ipAddress = '$ipAddress:9000';
     }
     

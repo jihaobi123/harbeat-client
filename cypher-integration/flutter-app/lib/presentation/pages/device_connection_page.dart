@@ -64,6 +64,7 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
       final localDevices = await _hardwareService.scanLocalDevices();
       _loadHistory();
       
+      if (!mounted) return;
       setState(() {
         _devices = localDevices;
         _isScanning = false;
@@ -71,6 +72,11 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
           _selectedDevice = localDevices.first;
         }
       });
+
+      // 同网段发现 RK3588 后，自动发起配对+连接（设备无显示屏）
+      if (localDevices.isNotEmpty && _status != ConnectionStatus.connected) {
+        await _startPairing(localDevices.first);
+      }
     } catch (e) {
       setState(() {
         _isScanning = false;
@@ -150,17 +156,47 @@ class _DeviceConnectionPageState extends ConsumerState<DeviceConnectionPage> {
     AppHaptics.medium();
     
     final pairInfo = await _hardwareService.fetchDevicePairInfo(device.localUrl);
-    if (pairInfo != null) {
-      setState(() {
-        _selectedDevice = pairInfo;
-        _pairCodeController.clear();
-        _status = ConnectionStatus.connecting;
-      });
-    } else {
+    if (!mounted) return;
+    if (pairInfo == null) {
       setState(() {
         _status = ConnectionStatus.error;
         _errorMessage = '获取配对信息失败，请确保设备在线';
       });
+      return;
+    }
+
+    setState(() {
+      _selectedDevice = pairInfo;
+      _pairCodeController.text = pairInfo.pairCode ?? '';
+      _status = ConnectionStatus.connecting;
+    });
+
+    // RK3588 无显示屏：直接用本机返回的 pair_code 自动确认配对
+    final code = pairInfo.pairCode;
+    if (code == null || code.isEmpty) {
+      setState(() {
+        _status = ConnectionStatus.error;
+        _errorMessage = '设备未返回配对码';
+      });
+      return;
+    }
+
+    final result = await _hardwareService.confirmPairing(
+      pairInfo.deviceId,
+      code,
+      pairInfo.localUrl,
+    );
+    if (!mounted) return;
+
+    if (result != null && result['device_token'] != null) {
+      _deviceToken = result['device_token'];
+      await _connectToDevice(result['device_token']);
+    } else {
+      setState(() {
+        _status = ConnectionStatus.error;
+        _errorMessage = '自动配对失败，请重试';
+      });
+      _showSnackBar('❌ 自动配对失败', ThemeConfig.accentRed);
     }
   }
 

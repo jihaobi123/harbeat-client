@@ -7,7 +7,10 @@ class ApiConfig {
   static const String jetsonDirectUrl = 'http://100.87.142.21:8000';
 
   // RK3588 默认地址（局域网直连，快链路）
-  static const String rk3588DefaultUrl = 'http://192.168.1.101:9000';
+  // - :9000 是老的 edge-control（WebSocket 控制面）
+  // - :9100 是新的 sync-worker（FastAPI，缓存/同步面）
+  static const String rk3588DefaultUrl = 'http://192.168.43.7:9000';
+  static const String rk3588SyncWorkerUrl = 'http://192.168.43.7:9100';
   
   // 本地测试环境（Windows 本机）
   static const String localTestUrl = 'http://localhost:8000';

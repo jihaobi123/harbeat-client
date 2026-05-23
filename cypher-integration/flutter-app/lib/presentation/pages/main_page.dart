@@ -106,8 +106,28 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
+  /// 每次 build 时重建 pages，保证子页拿到最新的 _currentPlaylist / _isPlaying 等。
+  List<Widget> _buildPages() {
+    return [
+      DeviceConnectionPage(onConnected: _onDeviceConnected),
+      DiscoveryPage(onPlaylistSelected: _onPlaylistSelected),
+      PlaylistSelectionPage(onPlaylistSelected: _onPlaylistSelected),
+      MCControlPage(
+        currentPlaylist: _currentPlaylist,
+        isPlaying: _isPlaying,
+        progress: _progress,
+        currentTime: _currentTime,
+        totalDuration: _totalDuration,
+        onTogglePlay: _togglePlay,
+        onNextTrack: _nextTrack,
+        onPlaylistSelected: _onPlaylistSelected,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pages = _buildPages();
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -118,7 +138,7 @@ class _MainPageState extends State<MainPage> {
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
-                children: _pages,
+                children: pages,
               ),
             ),
           ],

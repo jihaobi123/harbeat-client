@@ -28,32 +28,37 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     setState(() => _isLoading = true);
 
+    // 缓存 notifier，避免 await 后 widget 已 dispose 还访问 ref
+    final authNotifier = ref.read(authProvider.notifier);
+
     if (_offlineMode) {
-      ref.read(authProvider.notifier).setOfflineMode(true);
+      authNotifier.setOfflineMode(true);
     }
 
-    await ref.read(authProvider.notifier).login(
-          _usernameController.text,
-          _passwordController.text,
-        );
+    try {
+      await authNotifier.login(
+        _usernameController.text,
+        _passwordController.text,
+      );
+    } catch (_) {
+      // login 内部已处理异常并回退离线模式，这里兜底防崩
+    }
 
-    final authState = ref.read(authProvider);
+    // widget 已被 GoRouter redirect 卸载后直接退出
+    if (!mounted) return;
 
     setState(() => _isLoading = false);
 
-    if (authState.isAuthenticated) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/prep');
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authState.errorMessage ?? '登录失败'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    final authState = ref.read(authProvider);
+
+    // 路由跳转完全交给 GoRouter 的 redirect 监听 authProvider 自动处理。
+    if (!authState.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.errorMessage ?? '登录失败'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

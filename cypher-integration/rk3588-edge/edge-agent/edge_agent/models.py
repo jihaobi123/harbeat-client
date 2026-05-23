@@ -18,6 +18,27 @@ class TriggerRequest(BaseModel):
     key: int = Field(ge=0, le=9)
 
 
+class StemSoloRequest(BaseModel):
+    # 传 None / 传起不有 stem 字段 都表示取消 solo
+    stem: Literal["vocals", "drums", "bass", "other"] | None = None
+
+
+class XfadeRequest(BaseModel):
+    to_song_id: int | str
+    fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)
+    to_at_sec: float = Field(default=0.0, ge=0.0)
+    # 7 种 DJ 切歌风格，对应 Jetson /api/dev/mix-plan 返回的 transition_type
+    style: Literal[
+        "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam"
+    ] = "smooth"
+
+
+class PrefetchRequest(BaseModel):
+    """提前把候选歌曲的 PCM+stems 解码到 RK 内存，按键切歌即取即用。"""
+
+    song_ids: list[int | str] = Field(default_factory=list, max_length=8)
+
+
 class LoadPlanRequest(BaseModel):
     mix_plan: dict[str, Any]
     manifest: dict[str, Any]

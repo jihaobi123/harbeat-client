@@ -3,15 +3,19 @@ import 'package:dio/dio.dart';
 import '../utils/logger.dart';
 
 class JetsonClient {
+  // 单例：让 AuthService / AuthNotifier / providers 共享同一 token 实例。
+  static final JetsonClient _instance = JetsonClient._internal();
+  factory JetsonClient({String? baseUrl, Duration? timeout}) => _instance;
+
   late final Dio _dio;
   String? _token;
   bool _mockMode = false;
 
-  JetsonClient({String? baseUrl, Duration? timeout}) {
+  JetsonClient._internal({String? baseUrl, Duration? timeout}) {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl ?? 'http://8.136.120.255',
-      connectTimeout: timeout ?? const Duration(seconds: 3),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: timeout ?? const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 60),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -44,6 +48,9 @@ class JetsonClient {
   void clearToken() {
     _token = null;
   }
+
+  String get baseUrl => _dio.options.baseUrl;
+  String? get token => _token;
 
   // 模拟歌曲数据
   final List<Map<String, dynamic>> _mockSongs = [
@@ -117,7 +124,7 @@ class JetsonClient {
         'username': username,
       };
     }
-    final response = await _dio.post('/api/users/login', data: {
+    final response = await _dio.post('/api/auth/login', data: {
       'username': username,
       'password': password,
     });
@@ -397,6 +404,96 @@ class JetsonClient {
 
   Future<Map<String, dynamic>> getCurrentUser() async {
     final response = await _dio.get('/api/users/me');
+    return _unwrapResponse(response);
+  }
+
+  // ─────────── Fangpi 在线音乐 / VIBE 搜索 / 歌单导入 ───────────
+
+  /// 关键词搜索（fangpi.net 后端）
+  Future<Map<String, dynamic>> fangpiSearch(String query) async {
+    final response = await _dio.post('/api/fangpi/search', data: {'query': query});
+    return _unwrapResponse(response);
+  }
+
+  /// VIBE / 风格语义搜索
+  /// mode = "style" 时按 tags 列出本地+外部候选；mode = "vibe" 时按自由文本语义
+  Future<Map<String, dynamic>> fangpiVibeSearch({
+    String vibe = '',
+    List<String> tags = const [],
+    String mode = 'vibe',
+    int limit = 20,
+  }) async {
+    final response = await _dio.post('/api/fangpi/vibe-search', data: {
+      'vibe': vibe,
+      'tags': tags,
+      'mode': mode,
+      'limit': limit,
+    });
+    return _unwrapResponse(response);
+  }
+
+  /// 解析歌单 URL（网易云 / QQ 等）
+  Future<Map<String, dynamic>> fangpiParsePlaylist(String url) async {
+    final response = await _dio.post('/api/fangpi/parse-playlist', data: {'url': url});
+    return _unwrapResponse(response);
+  }
+
+  /// 导入选中的歌曲到指定歌单（同步：服务器会逐首下载并落库，可能耗时数分钟）。
+  Future<Map<String, dynamic>> fangpiImportSongs({
+    required List<Map<String, dynamic>> songs,
+    int? playlistId,
+    String playlistName = 'Mixtape',
+  }) async {
+    final response = await _dio.post(
+      '/api/fangpi/import-songs',
+      data: {
+        if (playlistId != null) 'playlist_id': playlistId,
+        'playlist_name': playlistName,
+        'songs': songs,
+      },
+      options: Options(
+        // 单首 ~30-90s（搜索+下载），10 首预估 5-15 分钟，留 30 分钟富余。
+        sendTimeout: const Duration(minutes: 5),
+        receiveTimeout: const Duration(minutes: 30),
+      ),
+    );
+    return _unwrapResponse(response);
+  }
+
+  /// 生成 Mix Plan（dev_mix；无需鉴权）
+  /// 返回 {data: DjMixPlanResult{ plan_id, tracks[], transitions[] }}
+  Future<Map<String, dynamic>> devMixPlan({
+    String style = 'hiphop',
+    int durationMinutes = 10,
+    List<int>? songIds,
+    List<String>? librarySongIds,
+    List<double>? targetEnergyCurve,
+    int maxTracks = 8,
+  }) async {
+    final response = await _dio.post('/api/dev/mix-plan', data: {
+      'style': style,
+      'duration_minutes': durationMinutes,
+      'max_tracks': maxTracks,
+      if (songIds != null && songIds.isNotEmpty) 'song_ids': songIds,
+      if (librarySongIds != null && librarySongIds.isNotEmpty)
+        'library_song_ids': librarySongIds,
+      if (targetEnergyCurve != null && targetEnergyCurve.isNotEmpty)
+        'target_energy_curve': targetEnergyCurve,
+    });
+    return _unwrapResponse(response);
+  }
+
+  /// MC 语音指令意图识别。
+  /// POST /api/voice/command  body: { text, language_hint }
+  /// 返回 {data: {intent, confidence, matched_keywords, command_payload, action_taken}}
+  Future<Map<String, dynamic>> voiceCommand({
+    required String text,
+    String languageHint = 'auto',
+  }) async {
+    final response = await _dio.post('/api/voice/command', data: {
+      'text': text,
+      'language_hint': languageHint,
+    });
     return _unwrapResponse(response);
   }
 

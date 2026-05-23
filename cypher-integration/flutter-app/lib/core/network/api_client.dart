@@ -6,12 +6,14 @@ import '../utils/logger.dart';
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
-  ApiClient._internal();
+  ApiClient._internal() {
+    _initDio();
+  }
   
-  late Dio dio;
+  late final Dio dio;
   String? _token;
   
-  void init() {
+  void _initDio() {
     dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: Duration(seconds: ApiConfig.connectTimeout),
@@ -23,16 +25,12 @@ class ApiClient {
       },
     ));
     
-    // 添加拦截器
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         AppLogger.info('📤 Request: ${options.method} ${options.uri}');
-        
-        // 自动添加 Token
         if (_token != null) {
           options.headers['Authorization'] = 'Bearer $_token';
         }
-        
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -45,6 +43,9 @@ class ApiClient {
       },
     ));
   }
+  
+  /// 外部手动重新初始化（可选）
+  void init() {}
   
   String? getToken() {
     return _token;

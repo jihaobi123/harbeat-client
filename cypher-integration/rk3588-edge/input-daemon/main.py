@@ -26,6 +26,13 @@ logging.basicConfig(
 logger = logging.getLogger("input-daemon")
 
 # 数字行 KEY_1..KEY_0 (codes 2-11) + 小键盘 KEY_KP1..KEY_KP0（九键盒常用）
+# 语义（2026-05）：
+#   1~5 → audio-engine trigger（DJ 加花音效）
+#   6~9 → 仅作为 key_event 上报 edge-agent（手机 APP 在客户端映射为下一首/能量切歌/风格切歌），
+#         不再发 trigger，避免“按 6 也是音效”。
+#   0    → 预留。
+SFX_KEYS = {1, 2, 3, 4, 5}
+
 KEY_MAP = {
     ecodes.KEY_1: 1,
     ecodes.KEY_2: 2,
@@ -132,14 +139,19 @@ def run_loop(dev: InputDevice) -> None:
             continue
         ts_ms = int(time.time() * 1000)
         t0 = time.perf_counter()
-        try:
-            send_trigger(key, time.time())
-        except OSError as exc:
-            logger.warning("audio socket failed: %s", exc)
-            continue
-        elapsed_ms = (time.perf_counter() - t0) * 1000
-        notify_edge_agent(key, ts_ms)
-        logger.info("key %s -> trigger (%.1fms)", key, elapsed_ms)
+        if key in SFX_KEYS:
+            try:
+                send_trigger(key, time.time())
+            except OSError as exc:
+                logger.warning("audio socket failed: %s", exc)
+                continue
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            notify_edge_agent(key, ts_ms)
+            logger.info("key %s -> SFX trigger (%.1fms)", key, elapsed_ms)
+        else:
+            # 6~9/0：不走 trigger，只上报 edge-agent，交手机处理切歌逻辑
+            notify_edge_agent(key, ts_ms)
+            logger.info("key %s -> nav (no SFX, forwarded to edge-agent)", key)
 
 
 def main() -> None:

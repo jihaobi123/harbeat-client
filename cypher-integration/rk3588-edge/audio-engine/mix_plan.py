@@ -13,6 +13,8 @@ class Transition:
     to_at_sec: float
     fade_sec: float
     fade_curve: str = "equal_power"
+    # 7 种风格：smooth/power/bass_swap/echo_out/filter/cut/slam。默认 smooth = 原等功率 cos/sin。
+    style: str = "smooth"
 
 
 @dataclass
@@ -55,6 +57,7 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 to_at_sec=float(tr.get("to_at_sec", 0)),
                 fade_sec=float(tr.get("fade_sec", 8)),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
+                style=str(tr.get("style", tr.get("transition_type", "smooth"))),
             )
         )
 
@@ -67,6 +70,7 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 to_at_sec=float(tr.get("to_in_sec", tr.get("to_at_sec", 0))),
                 fade_sec=float(tr.get("crossfade_sec", tr.get("fade_sec", 8))),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
+                style=str(tr.get("transition_type", tr.get("style", "smooth"))),
             )
         )
 

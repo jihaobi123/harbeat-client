@@ -187,6 +187,20 @@ class _LoginPageState extends State<LoginPage> {
                             _isLogin ? '没有账号？立即注册' : '已有账号？立即登录',
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        OutlinedButton.icon(
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  _usernameController.text = 'appdev';
+                                  _passwordController.text = 'appdev123';
+                                  setState(() => _isLogin = true);
+                                  _handleSubmit();
+                                },
+                          icon: const Icon(Icons.flash_on, size: 16),
+                          label: const Text('使用测试账号 (appdev / appdev123)',
+                              style: TextStyle(fontSize: 12)),
+                        ),
                       ],
                     ),
                   ),

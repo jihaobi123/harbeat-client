@@ -19,16 +19,24 @@ logger = logging.getLogger(__name__)
 
 SAMPLES_DIR = CYPHER_HOME / "samples"
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")
+
+# Prefetch 缓存：App/edge-agent 可提前调 engine.prefetch(song_id) 把 wav+stems 预解码进
+# 这里；Deck.load() 用到该 song_id 时直接 pop 出 numpy 数组，避免按键时才走磁
+# 盘 IO（50-200ms 锁顿）。这是复刻 Spotify Mix 「按键即响」响应的关键：predecoded PCM。
+_PREFETCH_CACHE: dict[str, dict] = {}
+_PREFETCH_LOCK = threading.Lock()
+_PREFETCH_MAX = 4  # 最多同时备 4 首
+# 5 个常见 DJ 加花音效（2026-05 更新）。文件需预先放在 ~/cypher/samples/ 下。
+# 名字使用加花上下文词，后续替换素材只需覆盖同名 wav。
 SAMPLE_FILES = {
-    1: "01_ha.wav",
-    2: "02_scratch.wav",
-    3: "03_horn.wav",
-    4: "04_drum_loop.wav",
-    5: "05_bass_loop.wav",
-    6: "06_hat_loop.wav",
+    1: "scratch.wav",   # 揓碟
+    2: "air_horn.wav",  # 气笛 / 喜剧喜剧喜
+    3: "spinback.wav", # 倒带
+    4: "siren.wav",    # 警报
+    5: "whoosh.wav",   # 嘏 / riser
 }
-# 叠到主轨上的增益（2/4/5 偏小声时加大）
-SAMPLE_GAIN = {1: 1.0, 2: 1.5, 3: 1.0, 4: 2.0, 5: 2.0, 6: 1.2}
+# 叠到主轨上的增益
+SAMPLE_GAIN = {1: 1.2, 2: 1.8, 3: 1.4, 4: 1.6, 5: 1.4}
 PRELOAD_BEFORE_SEC = 3.0
 
 
@@ -100,16 +108,26 @@ class Deck:
         self.stems = {}
 
     def load(self, song_id: int | str, start_at_sec: float = 0.0) -> float:
-        path = check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY)
-        self.audio = _load_wav_stereo(path)
+        key = str(song_id)
+        cached: dict | None = None
+        with _PREFETCH_LOCK:
+            if key in _PREFETCH_CACHE:
+                cached = _PREFETCH_CACHE.pop(key)
+        if cached is not None:
+            self.audio = cached["audio"]
+            self.stems = cached["stems"]
+            logger.info("deck.load hit prefetch cache: %s (remain=%d)", song_id, len(_PREFETCH_CACHE))
+        else:
+            path = check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY)
+            self.audio = _load_wav_stereo(path)
+            self.stems = {}
+            for name in REQUIRED_STEMS:
+                stem_path = _song_dir(song_id) / f"{name}.wav"
+                if stem_path.is_file():
+                    self.stems[name] = _load_wav_stereo(stem_path)
         start_frame = int(max(0.0, start_at_sec) * SAMPLE_RATE)
         self.pos = min(start_frame, max(0, len(self.audio) - 1))
         self.song_id = song_id
-        self.stems = {}
-        for name in REQUIRED_STEMS:
-            stem_path = _song_dir(song_id) / f"{name}.wav"
-            if stem_path.is_file():
-                self.stems[name] = _load_wav_stereo(stem_path)
         return len(self.audio) / SAMPLE_RATE
 
     def read(self, frames: int) -> np.ndarray:
@@ -140,6 +158,9 @@ class AudioEngineMVP:
         self._one_shot_keys: list[tuple[int, list]] = []  # (key, [buf, pos])
         self.loops: dict[int, list] = {}
         self.stem_fx: tuple | None = None
+        # 持久 stem solo（None = 关闭，取值 'vocals'/'drums'/'bass'/'other'）
+        # 与 stem_fx 不同：stem_fx 是 2 秒短效，stem_solo 一直生效直到关闭。
+        self._stem_solo: str | None = None
         self._lpf_state = np.zeros(2, dtype=np.float32)
         self._xrun_count = 0
         self._load_samples()
@@ -219,6 +240,7 @@ class AudioEngineMVP:
                 "in_transition": self._in_transition,
                 "active_loops": sorted(self.loops.keys()),
                 "active_stem_fx": self.stem_fx[0] if self.stem_fx else None,
+                "active_stem_solo": self._stem_solo,
                 "audio_xrun_count": self._xrun_count,
             }
 
@@ -248,6 +270,8 @@ class AudioEngineMVP:
             self._next_preloaded = False
             self._one_shot_keys.clear()
             self.stem_fx = None
+            # /play 是“硬切”，重置持久 stem_solo 避免上一首的供菜多到下一首。
+            self._stem_solo = None
             if self._plan and self._plan.tracks and song_id in self._plan.tracks:
                 self._plan_enabled = True
                 self._transition_index = self._plan.tracks.index(song_id)
@@ -305,6 +329,99 @@ class AudioEngineMVP:
             self.stop()
         return {"action": "stop", "note": "no_next_in_plan"}
 
+    def manual_transition(
+        self,
+        to_song_id: int | str,
+        fade_sec: float = 4.0,
+        to_at_sec: float = 0.0,
+        style: str = "smooth",
+    ) -> dict:
+        """越过 plan 调度直接对任意歌曲做 crossfade。
+
+        用于 App 端“能量切歌 / 风格切歌 / 手动下一首”，复刻网页版
+        SeamlessPlayer 的无缝衰接效果。调用前需确保目标歌的 wav 已在
+        ~/cypher/cache/{song_id}/original.wav，否则会抛 SongCacheError。
+        style: 7 种 DJ 切歌风格，默认 smooth。
+        """
+        with self._lock:
+            if self.active_deck.audio is None:
+                raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+            tr = Transition(
+                from_song_id=self.active_deck.song_id or 0,
+                to_song_id=to_song_id,
+                from_at_sec=self.active_deck.pos_sec,
+                to_at_sec=float(max(0.0, to_at_sec)),
+                fade_sec=float(max(0.05, fade_sec)),
+                style=str(style or "smooth"),
+            )
+            # 跳出 plan 调度，避免 crossfade 结束后又被 plan transition 覆盖
+            self._plan_enabled = False
+            self._begin_transition(tr)
+        return {
+            "action": "crossfade",
+            "to_song_id": to_song_id,
+            "fade_sec": tr.fade_sec,
+            "to_at_sec": tr.to_at_sec,
+            "style": tr.style,
+        }
+
+    def set_stem_solo(self, stem: str | None) -> dict:
+        """持久 stem solo：只让某个 stem 出声，None = 恢复全轨。不影响 crossfade。"""
+        with self._lock:
+            if stem is not None and stem not in REQUIRED_STEMS:
+                raise SongCacheError(f"invalid stem: {stem}", code=400)
+            if stem is not None and stem not in self.active_deck.stems:
+                raise SongCacheError(f"stem '{stem}' 未加载（该歌可能缺少分离音轨）", code=409)
+            self._stem_solo = stem
+        logger.info("stem_solo set to %s", stem)
+        return {"stem": stem}
+
+    def prefetch(self, song_ids: list[int | str]) -> dict:
+        """提前把候选歌曲的 wav+stems 解码到内存，让按键切歌不再走磁盘 IO。
+
+        非阻塞：每首歌起一个 daemon 线程读 5 个 wav，结果放到 _PREFETCH_CACHE。
+        缓存命中后 Deck.load() 直接 pop 出 numpy 数组（~微秒）而不是 sf.read（~百毫秒）。
+        """
+        scheduled: list[str] = []
+        already: list[str] = []
+        for sid in song_ids:
+            key = str(sid)
+            with _PREFETCH_LOCK:
+                if key in _PREFETCH_CACHE:
+                    already.append(key)
+                    continue
+            threading.Thread(
+                target=self._do_prefetch,
+                args=(sid,),
+                daemon=True,
+                name=f"prefetch-{key}",
+            ).start()
+            scheduled.append(key)
+        return {"scheduled": scheduled, "already": already, "cache_size": len(_PREFETCH_CACHE)}
+
+    def _do_prefetch(self, song_id: int | str) -> None:
+        key = str(song_id)
+        try:
+            t0 = time.time()
+            path = check_song_cache(song_id, require_stems=False)
+            audio = _load_wav_stereo(path)
+            stems: dict[str, np.ndarray] = {}
+            for name in REQUIRED_STEMS:
+                stem_path = _song_dir(song_id) / f"{name}.wav"
+                if stem_path.is_file():
+                    stems[name] = _load_wav_stereo(stem_path)
+            with _PREFETCH_LOCK:
+                # LRU：超出上限丢最早项
+                while len(_PREFETCH_CACHE) >= _PREFETCH_MAX:
+                    drop = next(iter(_PREFETCH_CACHE))
+                    _PREFETCH_CACHE.pop(drop)
+                    logger.info("prefetch LRU drop: %s", drop)
+                _PREFETCH_CACHE[key] = {"audio": audio, "stems": stems}
+            dt = (time.time() - t0) * 1000
+            logger.info("prefetch ok: %s in %.0fms (cache=%d)", song_id, dt, len(_PREFETCH_CACHE))
+        except Exception as e:
+            logger.warning("prefetch failed for %s: %s", song_id, e)
+
     def _begin_transition(self, tr: Transition) -> None:
         try:
             self.inactive_deck.load(tr.to_song_id, tr.to_at_sec)
@@ -354,6 +471,95 @@ class AudioEngineMVP:
             return 1.0 - x, x
         return math.cos(x * math.pi / 2), math.sin(x * math.pi / 2)
 
+    @staticmethod
+    def _style_envelopes(style: str, progress: float) -> tuple[dict, dict]:
+        """返回两个 deck 的 stem 增益表，键名 ∈ vocals/drums/bass/other 或 'full'。
+
+        实现 7 种 DJ 风格的纯 gain 近似（不用实时 biquad/reverb）：
+        - smooth/power: 整轨等功率 cos/sin
+        - bass_swap: bass 在 50% 点互换，其他 stem 等功率
+        - echo_out: A 各 stem 快深幢府（vocals 略留以价 echo 残响），B 正常
+        - filter: 以 stem 粗粒度近似低频扫频（A 先去 bass、后去 drums，B 反向）
+        - cut: 0.05 比例点硬切
+        - slam: 前 70% 卸 vocals 留 drums〃0.7-0.8 静默。后段 B 全开
+        """
+        x = min(1.0, max(0.0, progress))
+        cos_x = math.cos(x * math.pi / 2)
+        sin_x = math.sin(x * math.pi / 2)
+        if style == "power":
+            return {"full": cos_x ** 1.2}, {"full": sin_x ** 0.7}
+        if style == "cut":
+            return ({"full": 1.0 if x < 0.05 else 0.0},
+                    {"full": 0.0 if x < 0.05 else 1.0})
+        if style == "slam":
+            if x < 0.7:
+                t = x / 0.7
+                return ({"vocals": 1.0 - t, "other": 1.0 - t * 0.5,
+                         "drums": 1.0, "bass": 1.0 - t * 0.3},
+                        {"full": 0.0})
+            if x < 0.8:
+                return {"full": 0.0}, {"full": 0.0}
+            return {"full": 0.0}, {"full": 1.0}
+        if style == "bass_swap":
+            if x < 0.5:
+                return ({"vocals": cos_x, "drums": cos_x,
+                         "bass": 1.0 - x * 2, "other": cos_x},
+                        {"vocals": sin_x, "drums": sin_x,
+                         "bass": 0.0, "other": sin_x})
+            return ({"vocals": cos_x, "drums": cos_x,
+                     "bass": 0.0, "other": cos_x},
+                    {"vocals": sin_x, "drums": sin_x,
+                     "bass": (x - 0.5) * 2, "other": sin_x})
+        if style == "echo_out":
+            return ({"vocals": cos_x ** 1.5,
+                     "drums": cos_x ** 3,
+                     "bass": cos_x ** 3,
+                     "other": cos_x ** 2},
+                    {"full": sin_x})
+        if style == "filter":
+            return ({"vocals": cos_x ** 0.7,
+                     "drums": cos_x ** 2,
+                     "bass": cos_x ** 3,
+                     "other": cos_x ** 1.2},
+                    {"vocals": sin_x ** 1.5,
+                     "drums": sin_x ** 0.8,
+                     "bass": sin_x ** 0.6,
+                     "other": sin_x})
+        # default smooth
+        return {"full": cos_x}, {"full": sin_x}
+
+    def _read_deck_styled(self, deck: Deck, frames: int, gains: dict) -> np.ndarray:
+        """按 stem gain 表从 deck 读一块。gains 同时出现 stem 键和 'full' 时，
+        如果 deck 有完整 4 个 stem 则走分豁路径；否则退化到整轨增益。"""
+        if deck.audio is None:
+            return np.zeros((frames, 2), dtype=np.float32)
+        pos = deck.pos
+        # 全轨路径：只有 'full' 或 deck 没加载 stem
+        if "full" in gains or not deck.stems:
+            chunk, deck.pos = _read_segment(deck.audio, pos, frames)
+            g = float(gains.get("full", max(gains.values()) if gains else 1.0))
+            return chunk * g
+        # 分 stem 路径
+        out = np.zeros((frames, 2), dtype=np.float32)
+        new_pos = pos
+        any_read = False
+        for name in REQUIRED_STEMS:
+            g = float(gains.get(name, 0.0))
+            if g == 0.0:
+                continue
+            buf = deck.stems.get(name)
+            if buf is None:
+                continue
+            chunk, new_pos = _read_segment(buf, pos, frames)
+            out += chunk * g
+            any_read = True
+        if not any_read:
+            # 所需 stem 都不在，退化到全轨
+            chunk, new_pos = _read_segment(deck.audio, pos, frames)
+            out = chunk * float(max(gains.values()) if gains else 0.0)
+        deck.pos = new_pos
+        return out
+
     def trigger(self, key: int) -> dict:
         with self._lock:
             if key == 0:
@@ -401,6 +607,7 @@ class AudioEngineMVP:
             self._one_shot_keys.clear()
             self.loops.clear()
             self.stem_fx = None
+            self._stem_solo = None
 
     def _mix_loops(self, frames: int) -> np.ndarray:
         mix = np.zeros((frames, 2), dtype=np.float32)
@@ -450,6 +657,18 @@ class AudioEngineMVP:
             return out
         return main
 
+    def _read_with_solo(self, deck: Deck, frames: int) -> np.ndarray:
+        """按当前 stem_solo 设置读取一个 deck 的音频。没有 solo 或 stem 缺失时走 deck.audio。"""
+        if deck.audio is None:
+            return np.zeros((frames, 2), dtype=np.float32)
+        solo = self._stem_solo
+        if solo and solo in deck.stems:
+            buf = deck.stems[solo]
+        else:
+            buf = deck.audio
+        chunk, deck.pos = _read_segment(buf, deck.pos, frames)
+        return chunk
+
     def _callback(self, outdata, frames, time_info, status) -> None:
         if status:
             self._xrun_count += 1
@@ -461,17 +680,28 @@ class AudioEngineMVP:
 
             if self._in_transition and self._active_tr:
                 tr = self._active_tr
-                a = self.active_deck.read(frames)
-                b = self.inactive_deck.read(frames)
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
-                ga, gb = self._fade_gains(progress, tr.fade_curve)
-                main = a * ga + b * gb
+                style = tr.style or "smooth"
+                if style not in ("smooth", "power") and (
+                    not self.active_deck.stems or not self.inactive_deck.stems
+                ):
+                    style = "smooth"  # 缺 stem 时退化
+                if style == "smooth":
+                    a = self._read_with_solo(self.active_deck, frames)
+                    b = self._read_with_solo(self.inactive_deck, frames)
+                    ga, gb = self._fade_gains(progress, tr.fade_curve)
+                    main = a * ga + b * gb
+                else:
+                    sa, sb = self._style_envelopes(style, progress)
+                    a = self._read_deck_styled(self.active_deck, frames, sa)
+                    b = self._read_deck_styled(self.inactive_deck, frames, sb)
+                    main = a + b
                 self._fade_frames_done += frames
                 if self._fade_frames_done >= self._fade_total_frames:
                     self._swap_decks()
             else:
                 self._maybe_preload_and_transition()
-                main = self.active_deck.read(frames)
+                main = self._read_with_solo(self.active_deck, frames)
                 if self.active_deck.audio is not None and self.active_deck.pos >= len(self.active_deck.audio):
                     self._playing = False
 

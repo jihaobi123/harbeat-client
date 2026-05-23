@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/jetson_client.dart';
 import '../core/api/rk_client.dart';
+import '../core/network/api_client.dart';
+import '../data/services/audio_player_service.dart';
+import '../data/services/rk_sync_service.dart';
 import '../models/models.dart';
 import '../core/utils/logger.dart';
 
@@ -11,9 +14,15 @@ final jetsonClientProvider = Provider<JetsonClient>((ref) {
 });
 
 final rkClientProvider = Provider<RkClient>((ref) {
-  final client = RkClient();
+  // 默认指向局域网 RK3588（手机与 RK 在同一 Wi-Fi 下）
+  final client = RkClient(baseUrl: 'http://192.168.43.7:9000');
   ref.keepAlive();
   return client;
+});
+
+final rkSyncServiceProvider = Provider<RkSyncService>((ref) {
+  final jetson = ref.read(jetsonClientProvider);
+  return RkSyncService(jetson: jetson);
 });
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
@@ -77,9 +86,22 @@ class AuthNotifier extends Notifier<AuthState> {
       jetson.setMockMode(false);
       final response = await jetson.login(username, password);
 
-      final token = response['access_token'];
+      // 后端响应形如 {"code":0,"data":{"access_token":...}}，兼容已解包的情况
+      final payload = (response['data'] is Map<String, dynamic>)
+          ? response['data'] as Map<String, dynamic>
+          : response;
+      final token = payload['access_token'];
       if (token != null) {
         jetson.setToken(token);
+        // 同步给 ApiClient（library_page / discovery_page 走这套）
+        ApiClient().setToken(token);
+        // 同步给全局播放器：绑定 RK3588 客户端 + sync 服务，准备远端播放
+        final audio = ref.read(audioPlayerProvider.notifier);
+        audio.setAuth(token: token);
+        audio.attach(
+          rk: ref.read(rkClientProvider),
+          sync: ref.read(rkSyncServiceProvider),
+        );
         state = state.copyWith(
           status: AuthStatus.authenticated,
           token: token,
@@ -93,18 +115,11 @@ class AuthNotifier extends Notifier<AuthState> {
         );
       }
     } catch (e) {
-      AppLogger.warning('后端登录失败，切换到离线模式: $e');
-      _offlineMode = true;
-      final jetson = ref.read(jetsonClientProvider);
-      jetson.setMockMode(true);
-      await Future.delayed(const Duration(milliseconds: 800));
-      final mockToken = 'mock_token_${DateTime.now().millisecondsSinceEpoch}';
+      AppLogger.error('后端登录失败: $e');
       state = state.copyWith(
-        status: AuthStatus.authenticated,
-        token: mockToken,
-        username: username,
+        status: AuthStatus.error,
+        errorMessage: '登录失败：$e',
       );
-      AppLogger.info('离线登录成功: $username');
     }
   }
 
@@ -131,8 +146,22 @@ final libraryProvider = FutureProvider.family<List<SongStatus>, String?>((ref, q
     onlyReady: true,
     query: query,
   );
-  final data = response['data'] as List? ?? [];
-  return data.map((json) => SongStatus.fromJson(json)).toList();
+  // 后端响应形状：
+  //   {"code":0,"data":{"songs":[...]}}  (现在的 Jetson)
+  //   {"code":0,"data":[...]}             (早期格式)
+  final raw = response['data'];
+  List data;
+  if (raw is List) {
+    data = raw;
+  } else if (raw is Map && raw['songs'] is List) {
+    data = raw['songs'] as List;
+  } else {
+    data = const [];
+  }
+  return data
+      .whereType<Map>()
+      .map((json) => SongStatus.fromJson(Map<String, dynamic>.from(json)))
+      .toList();
 });
 
 class SetState {
@@ -372,7 +401,8 @@ class LiveNotifier extends Notifier<LiveUiState> {
   @override
   LiveUiState build() {
     ref.keepAlive();
-    return LiveUiState();
+    // 当前架构下，App 与 RK3588 通过 HTTP 直连，无需配对，默认视为已连接。
+    return LiveUiState(isConnected: true);
   }
 
   Future<void> trigger(int key) async {

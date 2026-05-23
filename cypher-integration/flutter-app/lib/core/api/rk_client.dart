@@ -149,15 +149,8 @@ class RkClient {
   }
 
   Future<void> _connectWebSocket(String url, String token) async {
-    // WS runs on a separate port (9001) from REST (9000) on RK3588
+    // WS is served on the same port as REST (:9000/ws/control)
     String wsUrl = url.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
-    final wsPortMatch = RegExp(r':(\d+)').firstMatch(wsUrl);
-    if (wsPortMatch != null) {
-      final restPort = int.parse(wsPortMatch.group(1)!);
-      if (restPort == 9000) {
-        wsUrl = wsUrl.replaceFirst(':$restPort', ':9001');
-      }
-    }
     wsUrl += '/ws/control${token.isNotEmpty ? '?token=$token' : ''}';
 
     AppLogger.info('RK WebSocket连接: $wsUrl');
@@ -288,12 +281,17 @@ class RkClient {
     await _dio.post('/seek', data: {'sec': sec});
   }
 
-  Future<void> trigger(int key) async {
+  /// 返回 RK /trigger 的响应体（含 action / key / ok），失败抛错。
+  Future<Map<String, dynamic>> trigger(int key) async {
     if (_mockMode) {
       AppLogger.info('Mock触发按键: key=$key');
-      return;
+      return {'ok': true, 'key': key, 'action': 'mock'};
     }
-    await _dio.post('/trigger', data: {'key': key});
+    final resp = await _dio.post('/trigger', data: {'key': key});
+    if (resp.data is Map<String, dynamic>) {
+      return resp.data as Map<String, dynamic>;
+    }
+    return {'ok': true, 'key': key};
   }
 
   Future<void> setEnergy(String level) async {

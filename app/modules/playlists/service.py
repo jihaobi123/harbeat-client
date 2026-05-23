@@ -1374,14 +1374,27 @@ def build_asset_manifest(db, playlist_id: int, user_id: int, plan_id: str | None
     songs = _song_map(db, song_ids)
     lib_map = _library_context_map(db, user_id, songs)
 
-    not_ready = []
+    # Per-track readiness check. Original audio is REQUIRED (RK needs original.wav);
+    # stems are OPTIONAL — RK plays original even without stems. Tracks that don't have
+    # an on-disk original are dropped from the manifest and listed in `skipped[]`.
+    # This avoids rejecting the whole playlist when only some songs lack Demucs stems.
+    skipped = []
+    ready_sids = []
     for sid in song_ids:
         lib = lib_map.get(sid)
-        if not lib or lib.analysis_status != "completed":
-            not_ready.append({"song_id": sid, "title": songs.get(sid).title if sid in songs else "?",
-                              "status": lib.analysis_status if lib else "missing"})
-    if not_ready:
-        raise HTTPException(status_code=409, detail={"error": "songs not ready", "tracks": not_ready})
+        title = songs.get(sid).title if sid in songs else "?"
+        if not lib:
+            skipped.append({"song_id": sid, "title": title, "reason": "no library entry"})
+            continue
+        if not lib.source_path or not _os.path.isfile(lib.source_path):
+            skipped.append({"song_id": sid, "title": title, "reason": "source file missing",
+                            "status": lib.analysis_status})
+            continue
+        ready_sids.append(sid)
+    if not ready_sids:
+        raise HTTPException(status_code=409, detail={
+            "error": "no playable tracks", "skipped": skipped,
+        })
 
     def _sha256_of(path: str) -> str:
         h = hashlib.sha256()
@@ -1401,7 +1414,7 @@ def build_asset_manifest(db, playlist_id: int, user_id: int, plan_id: str | None
 
     tracks = []
     dirty = False
-    for sid in song_ids:
+    for sid in ready_sids:
         lib = lib_map[sid]
         song = songs[sid]
         track_obj = {"song_id": sid, "library_song_id": lib.id, "title": song.title,
@@ -1452,4 +1465,5 @@ def build_asset_manifest(db, playlist_id: int, user_id: int, plan_id: str | None
         "plan_id": plan_id,
         "playlist_id": playlist_id,
         "tracks": tracks,
+        "skipped": skipped,
     }

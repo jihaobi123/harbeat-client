@@ -23,11 +23,22 @@ dependencies:
   dio: ^5.4.0
   web_socket_channel: ^2.4.0
 
+  # Audio playback
+  audioplayers: ^5.2.1
+
+  # Speech-to-text (MC 语音控制)
+  speech_to_text: ^7.0.0
+  permission_handler: ^11.3.1
+
   # Local Storage (simplified)
   shared_preferences: ^2.2.2
 
   # Utilities
   logger: ^2.0.2+1
+
+dependency_overrides:
+  # 锁定 NDK 26 兼容版本，避免要求 NDK 27
+  shared_preferences_android: 2.3.4
 
 dev_dependencies:
   flutter_test:
