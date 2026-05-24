@@ -33,14 +33,26 @@ def test_stem_aware_envelopes_have_no_silent_holes_or_double_bass_overload():
             assert bass_sum <= 1.65
 
 
-def test_vocal_handoff_cut_point_uses_transition_ratio_not_fixed_midpoint():
+def test_vocal_handoff_uses_transition_ratio_without_a_hard_vocal_cut():
     before_a, before_b = AudioEngineMVP._style_envelopes("vocal_handoff", 0.519, vocal_handoff_ratio=0.52)
     after_a, after_b = AudioEngineMVP._style_envelopes("vocal_handoff", 0.521, vocal_handoff_ratio=0.52)
 
-    assert math.isclose(before_a["vocals"], 1.0)
-    assert math.isclose(before_b["vocals"], 0.0)
-    assert math.isclose(after_a["vocals"], 0.0)
-    assert math.isclose(after_b["vocals"], 1.0)
+    assert before_a["vocals"] > before_b["vocals"]
+    assert after_b["vocals"] > after_a["vocals"]
+    assert abs(after_a["vocals"] - before_a["vocals"]) < 0.12
+    assert abs(after_b["vocals"] - before_b["vocals"]) < 0.12
+
+
+def test_vocal_handoff_keeps_instrumental_bed_throughout_transition():
+    previous = None
+    for step in range(101):
+        a, b = AudioEngineMVP._style_envelopes("vocal_handoff", step / 100.0, vocal_handoff_ratio=0.52)
+        bed = a["drums"] + a["bass"] + a["other"] + b["drums"] + b["bass"] + b["other"]
+        assert bed >= 0.95
+        if previous is not None:
+            assert max(abs(a[k] - previous[0][k]) for k in ("vocals", "drums", "bass", "other")) < 0.16
+            assert max(abs(b[k] - previous[1][k]) for k in ("vocals", "drums", "bass", "other")) < 0.16
+        previous = (a, b)
 
 
 def test_playback_tier_reports_stem_aware_during_manual_stem_transition():

@@ -15,7 +15,18 @@ transitions when BPM/key/energy are not friendly.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+from audio_analysis import (
+    assess_grid_quality,
+    detect_bpm,
+    find_nearest_beat,
+    find_nearest_downbeat,
+    transition_alignment_score,
+)
+
+logger = logging.getLogger(__name__)
 
 STEMS = ("vocals", "drums", "bass", "other")
 
@@ -283,9 +294,9 @@ def _key_bonus(quality: str) -> float:
     }.get(quality, 0.04)
 
 
-def _bpm_metrics(a_bpm: float, b_bpm: float) -> dict:
+def _bpm_metrics(a_bpm: float, b_bpm: float, a_conf: float = 0.5, b_conf: float = 0.5) -> dict:
     if a_bpm <= 0 or b_bpm <= 0:
-        return {"delta": 0.0, "ratio": 0.0, "quality": "unknown", "score": 0.06}
+        return {"delta": 0.0, "ratio": 0.0, "quality": "unknown", "score": 0.06, "confidence": 0.0}
     delta = abs(a_bpm - b_bpm)
     ratio = delta / min(a_bpm, b_bpm)
     if ratio <= 0.02:
@@ -296,7 +307,11 @@ def _bpm_metrics(a_bpm: float, b_bpm: float) -> dict:
         quality, score = "wide", 0.06
     else:
         quality, score = "risky", 0.01
-    return {"delta": round(delta, 3), "ratio": round(ratio, 4), "quality": quality, "score": score}
+    # Confidence discount: low BPM confidence → reduce score
+    avg_conf = (a_conf + b_conf) / 2.0
+    score *= 0.6 + 0.4 * avg_conf
+    return {"delta": round(delta, 3), "ratio": round(ratio, 4), "quality": quality,
+            "score": round(score, 4), "confidence": round(avg_conf, 3)}
 
 
 def _score_energy_gap(gap: float) -> float:
@@ -323,6 +338,11 @@ def score_presets(
     bpm_a: float,
     bpm_b: float,
     stems_available: bool,
+    *,
+    a_analysis: dict | None = None,
+    b_analysis: dict | None = None,
+    exit_time: float | None = None,
+    entry_time: float | None = None,
 ) -> list[tuple[str, float, list[str]]]:
     scores: list[tuple[str, float, list[str]]] = []
 
@@ -334,9 +354,38 @@ def score_presets(
     key_score = _key_bonus(key_q)
     energy_gap = abs(energy_a - energy_b)
     energy_score = _score_energy_gap(energy_gap)
-    bpm = _bpm_metrics(bpm_a, bpm_b)
+
+    # ── Audio-analysis-aware BPM scoring ──
+    a_bpm_conf = a_analysis.get("bpm_confidence", 0.5) if a_analysis else 0.5
+    b_bpm_conf = b_analysis.get("bpm_confidence", 0.5) if b_analysis else 0.5
+    # Use detected BPM if available and confident; fall back to metadata BPM
+    if a_analysis and a_analysis.get("bpm_confidence", 0) > 0.4:
+        bpm_a = a_analysis.get("bpm", bpm_a)
+    if b_analysis and b_analysis.get("bpm_confidence", 0) > 0.4:
+        bpm_b = b_analysis.get("bpm", bpm_b)
+    bpm = _bpm_metrics(bpm_a, bpm_b, a_bpm_conf, b_bpm_conf)
     tempo_score = bpm["score"]
     stem_gate = 1.0 if stems_available else 0.0
+
+    # ── Beatgrid quality ──
+    a_grid = a_analysis.get("grid_quality", {}).get("score", 0.5) if a_analysis else 0.5
+    b_grid = b_analysis.get("grid_quality", {}).get("score", 0.5) if b_analysis else 0.5
+    grid_score = (a_grid + b_grid) / 2.0  # [0, 1]
+
+    # ── Phrase/beat alignment ──
+    align: dict = {}
+    if (a_analysis and b_analysis and exit_time is not None
+          and entry_time is not None):
+        align = transition_alignment_score(
+            exit_time, entry_time,
+            a_analysis.get("beats", []),
+            b_analysis.get("beats", []),
+            a_analysis.get("downbeat_indices", []),
+            b_analysis.get("downbeat_indices", []),
+            a_analysis.get("phrases", []),
+            b_analysis.get("phrases", []),
+        )
+    align_score = align.get("score", 0.0)
 
     double_vocal_risk = a_v * b_v
     bass_conflict = a_b * b_b
@@ -347,8 +396,6 @@ def score_presets(
         if not stems_available:
             reasons.append("no complete stems - use non-stem fallback")
             return 0.0
-        # vocal_handoff / bass_swap / drum_swap 利用分轨控制
-        # 即使 key/BPM 不理想也能做出干净过渡——惩罚应更轻。
         _is_structural = preset in ("vocal_handoff", "bass_swap", "drum_swap")
         if bpm["quality"] == "risky":
             reasons.append(f"BPM stretch risky ({bpm_a:.1f}->{bpm_b:.1f})")
@@ -356,8 +403,16 @@ def score_presets(
         if key_q == "tense":
             reasons.append(f"tense key ({camelot_a}A->{camelot_b}A)")
             raw *= 0.90 if _is_structural else 0.75
+        # Beatgrid bonus: good grid → stem presets work better
+        if grid_score > 0.8 and _is_structural:
+            raw += 0.04
+            reasons.append(f"tight beatgrid ({grid_score:.2f}) boosts stem control")
+        elif grid_score < 0.35:
+            raw *= 0.85
+            reasons.append(f"loose beatgrid ({grid_score:.2f}) reduces stem precision")
         return raw * stem_gate
 
+    # ── Stem-aware presets ──
     reasons = [
         f"double vocal risk {double_vocal_risk:.2f}",
         f"key {key_q}",
@@ -393,12 +448,19 @@ def score_presets(
     raw = 0.12 + 0.28 * a_v + 0.24 * instrumental_b + key_score + tempo_score * 0.7
     _append(scores, "vocal_solo_intro", stem_score(raw, reasons, "vocal_solo_intro"), reasons)
 
-    # Non-stem presets.
-    _append(scores, "blend", 0.30 + key_score * 0.5 + energy_score + tempo_score, ["universal equal-power blend"])
-    _append(scores, "smooth", 0.26 + energy_score + tempo_score, ["simple beatmatched crossfade"])
+    # ── Non-stem presets ──
+    # Phrase/beat alignment bonus: smooth transitions benefit from good alignment
+    align_bonus = align_score * 0.12
+
+    _append(scores, "blend", 0.30 + key_score * 0.5 + energy_score + tempo_score + align_bonus, ["universal equal-power blend"])
+    _append(scores, "smooth", 0.26 + energy_score + tempo_score + align_bonus, ["simple beatmatched crossfade"])
 
     reasons = ["filter masks key/bass conflicts"]
     filter_score = 0.18 + (0.16 if key_q == "tense" else 0.06) + 0.08 * bass_conflict + tempo_score * 0.6
+    # Filter transitions benefit from tight beatgrid
+    if grid_score > 0.75:
+        filter_score += 0.04
+        reasons.append("tight grid enhances filter sweep timing")
     _append(scores, "filter", filter_score, reasons)
 
     reasons = [f"A vocal/tail activity {max(a_v, a_o):.2f}", "echo hides phrase exit"]
@@ -417,8 +479,11 @@ def score_presets(
     _append(scores, "power", 0.10 + 0.16 * drum_bridge + (0.06 if energy_gap < 0.12 else 0.0), ["aggressive high-energy crossfade"])
     _append(scores, "melt", 0.08 + 0.14 * a_v + (0.06 if energy_gap < 0.12 else 0.0), ["dreamy vocal dissolve"])
     _append(scores, "wave", 0.07 + 0.14 * drum_bridge + tempo_score * 0.4, ["rhythmic pulsed blend"])
-    _append(scores, "cut", 0.08 + (0.12 if bpm["quality"] == "locked" and drum_bridge > 0.75 else 0.02), ["downbeat hard cut"])
-    _append(scores, "slam", 0.07 + (0.12 if energy_b > energy_a + 0.12 else 0.02), ["brief silence then impact entry"])
+    # cut/slam benefit from precise beat alignment
+    cut_bonus = 0.04 if align.get("exit_on_downbeat") else 0.0
+    _append(scores, "cut", 0.08 + (0.12 if bpm["quality"] == "locked" and drum_bridge > 0.75 else 0.02) + cut_bonus, ["downbeat hard cut"])
+    slam_bonus = 0.04 if align.get("exit_on_downbeat") else 0.0
+    _append(scores, "slam", 0.07 + (0.12 if energy_b > energy_a + 0.12 else 0.02) + slam_bonus, ["brief silence then impact entry"])
 
     scores.sort(key=lambda x: x[1], reverse=True)
     return scores
@@ -431,8 +496,16 @@ def select_preset(
     a_out_end: float,
     b_in_cue: float,
     stems_available: bool = True,
+    *,
+    a_analysis: dict | None = None,
+    b_analysis: dict | None = None,
 ) -> dict:
-    """Return the best preset and a ranked explanation list."""
+    """Return the best preset and a ranked explanation list.
+
+    When a_analysis / b_analysis are provided (from audio_analysis.analyze_track),
+    beatgrid quality, BPM confidence, and phrase alignment are incorporated
+    into the scoring as DJ-critical first-priority factors.
+    """
     window_len = max(0.1, a_out_end - a_out_start)
     a_win = _classify_window(song_a, a_out_start, a_out_end)
     b_win = _classify_window(song_b, b_in_cue, b_in_cue + window_len)
@@ -454,6 +527,10 @@ def select_preset(
         bpm_a,
         bpm_b,
         stems_available,
+        a_analysis=a_analysis,
+        b_analysis=b_analysis,
+        exit_time=a_out_start,
+        entry_time=b_in_cue,
     )
     best = ranked[0]
     bpm = _bpm_metrics(bpm_a, bpm_b)
@@ -464,7 +541,7 @@ def select_preset(
         "bpm_quality": bpm["quality"],
         "key_quality": key_q,
     }
-    return {
+    result = {
         "selected": best[0],
         "score": round(best[1], 3),
         "reasons": best[2],
@@ -495,3 +572,15 @@ def select_preset(
         "risks": risks,
         "fallback": "blend" if best[0] in STEM_AWARE_PRESETS else best[0],
     }
+    # Attach audio-analysis diagnostics when available
+    if a_analysis and b_analysis:
+        result["beat_analysis"] = {
+            "a_grid_quality": a_analysis.get("grid_quality", {}).get("score", 0.0),
+            "b_grid_quality": b_analysis.get("grid_quality", {}).get("score", 0.0),
+            "a_bpm_confidence": a_analysis.get("bpm_confidence", 0.0),
+            "b_bpm_confidence": b_analysis.get("bpm_confidence", 0.0),
+        }
+        if a_analysis.get("beats") and b_analysis.get("beats"):
+            result["beat_analysis"]["a_beats"] = len(a_analysis["beats"])
+            result["beat_analysis"]["b_beats"] = len(b_analysis["beats"])
+    return result

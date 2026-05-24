@@ -1057,25 +1057,33 @@ class AudioEngineMVP:
                 {"vocals": sin_x ** 0.5, "drums": sin_x, "bass": sin_x, "other": sin_x},
             )
         if style == "vocal_handoff":
-            # Beat-aligned vocal replacement: A vocals ride over B instrumental,
-            # then HARD CUT to B vocals at the phrase boundary. Keep this dry:
-            # echo tails smear into B's vocal entry on the Nice->Popular demo.
-            # A non-vocals fade 0→25%, exposing B instrumental bed underneath.
-            # B drums    enter 20→45% (rhythm foundation)
-            # B bass     enter 35→50% (low end)
-            # B other    enter 40→55% (texture)
-            # B vocals   hard cut at the transition's beat-aligned handoff ratio
+            # Tight DJ vocal handoff: A instruments fade gradually (0→40%),
+            # B instruments layer in underneath. Vocals do a micro-crossfade
+            # (3% window, ~600ms at 20s) — just enough to avoid a click, not
+            # enough to hear both singers at once.
             xn = min(1.0, max(0.0, x))
-            handoff = min(0.68, max(0.32, float(vocal_handoff_ratio)))
+            handoff = min(0.58, max(0.38, float(vocal_handoff_ratio)))
+            cross = 0.03  # micro-crossfade window
             # ── A side ──
-            a_nv = math.cos(xn / 0.25 * math.pi / 2) if xn < 0.25 else 0.0
+            a_nv = math.cos(xn / 0.40 * math.pi / 2) if xn < 0.40 else 0.0
+            av0 = handoff - cross / 2
+            av1 = handoff + cross / 2
+            if xn < av0:
+                a_v = 1.0
+            elif xn < av1:
+                a_v = math.cos((xn - av0) / (av1 - av0) * math.pi / 2)
+            else:
+                a_v = 0.0
             # ── B side ──
-            # Instruments: staggered entry
-            b_d = AudioEngineMVP._sin_ramp(xn, 0.20, 0.25)
-            b_b = AudioEngineMVP._sin_ramp(xn, 0.35, 0.15)
-            b_o = AudioEngineMVP._sin_ramp(xn, 0.40, 0.15)
-            a_v = 1.0 if xn < handoff else 0.0
-            b_v = 0.0 if xn < handoff else 1.0
+            b_d = AudioEngineMVP._sin_ramp(xn, 0.18, 0.25)
+            b_b = AudioEngineMVP._sin_ramp(xn, 0.28, 0.22)
+            b_o = AudioEngineMVP._sin_ramp(xn, 0.33, 0.22)
+            if xn < av0:
+                b_v = 0.0
+            elif xn < av1:
+                b_v = math.sin((xn - av0) / (av1 - av0) * math.pi / 2)
+            else:
+                b_v = 1.0
             return (
                 {"vocals": a_v,  "drums": a_nv, "bass": a_nv, "other": a_nv},
                 {"vocals": b_v,  "drums": b_d,  "bass": b_b,  "other": b_o},
@@ -1403,9 +1411,8 @@ class AudioEngineMVP:
             return a, b
 
         if style == "vocal_handoff":
-            # Keep vocal handoff dry. The outgoing A vocal echo overlaps B's
-            # first phrase and is perceived as reverb on the incoming song.
-            # B opens up with gentle HPF sweep: 800Hz → 30Hz
+            # Dry vocal handoff. A vocal gets no echo (echo smears sound like
+            # stutter when delay is short). B opens with gentle HPF: 800→30Hz.
             fc_b = 800.0 * ((30.0 / 800.0) ** x)
             self._fx_filter_b.set_hpf(sr, fc_b, q=0.707)
             b = self._fx_filter_b.process(b)

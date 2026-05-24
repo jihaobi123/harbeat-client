@@ -12,8 +12,14 @@ CLI:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
+from audio_analysis import (
+    analyze_track,
+    find_nearest_beat,
+    find_nearest_downbeat,
+)
 from strategy_selector import select_preset, STEM_AWARE_PRESETS
 
 logger = logging.getLogger(__name__)
@@ -249,10 +255,44 @@ def _best_pair(
     stems_available: bool,
     prefer_exit: float | None = None,
     prefer_entry: float | None = None,
+    a_analysis: dict | None = None,
+    b_analysis: dict | None = None,
 ) -> dict:
     """Evaluate candidate windows for one ordered pair and return the best."""
     pairs = _generate_window_pairs(a, b, prefer_exit, prefer_entry)
     pair_has_stems = _pair_stems_available(a, b, stems_available)
+
+    # Snap transition windows to beat/downbeat grid when analysis is available
+    if a_analysis and a_analysis.get("beats"):
+        a_beats = a_analysis["beats"]
+        a_dbs = a_analysis.get("downbeat_indices", [])
+        for pair in pairs:
+            ex = pair["exit"]
+            raw_start = float(ex["start"])
+            # Prefer downbeat for exit
+            if a_dbs:
+                snapped = find_nearest_downbeat(raw_start, a_beats, a_dbs)
+            else:
+                snapped = find_nearest_beat(raw_start, a_beats)
+            # Only accept snap if within 2 seconds
+            if abs(snapped - raw_start) < 2.0:
+                ex["start"] = round(snapped, 3)
+                ex["source"] = f"{ex.get('source', 'auto')}_beat_snapped"
+
+    if b_analysis and b_analysis.get("beats"):
+        b_beats = b_analysis["beats"]
+        b_dbs = b_analysis.get("downbeat_indices", [])
+        for pair in pairs:
+            en = pair["entry"]
+            raw_start = float(en["start"])
+            if b_dbs:
+                snapped = find_nearest_downbeat(raw_start, b_beats, b_dbs)
+            else:
+                snapped = find_nearest_beat(raw_start, b_beats)
+            if abs(snapped - raw_start) < 2.0:
+                en["start"] = round(snapped, 3)
+                en["source"] = f"{en.get('source', 'auto')}_beat_snapped"
+
     best_pair_result = None
     best_score = -1.0
     all_candidates = []
@@ -265,7 +305,8 @@ def _best_pair(
         b_in_cue = float(en["start"])
 
         result = _prefer_close_stem_aware(
-            select_preset(a, b, a_out_start, a_out_end, b_in_cue, pair_has_stems),
+            select_preset(a, b, a_out_start, a_out_end, b_in_cue, pair_has_stems,
+                          a_analysis=a_analysis, b_analysis=b_analysis),
             pair_has_stems,
         )
 
@@ -283,7 +324,11 @@ def _best_pair(
             best_pair_result = {"exit": ex, "entry": en, "result": result, "source": pair["source"]}
 
     if best_pair_result is None:
-        result = _prefer_close_stem_aware(select_preset(a, b, 0, 16, 0, pair_has_stems), pair_has_stems)
+        result = _prefer_close_stem_aware(
+            select_preset(a, b, 0, 16, 0, pair_has_stems,
+                          a_analysis=a_analysis, b_analysis=b_analysis),
+            pair_has_stems,
+        )
         best_pair_result = {
             "exit": {"start": 0, "end": 16, "label": "Fallback", "source": "fallback"},
             "entry": {"start": 0, "label": "Fallback", "source": "fallback"},
@@ -329,10 +374,12 @@ def build_pair_matrix(
     stems_available: bool = True,
     prefer_exits: dict[str, float] | None = None,
     prefer_entries: dict[str, float] | None = None,
+    analyses: dict[str, dict] | None = None,
 ) -> list[dict]:
     """Return scored transition metadata for every ordered song pair."""
     prefer_exits = prefer_exits or {}
     prefer_entries = prefer_entries or {}
+    analyses = analyses or {}
     matrix = []
     for i, a in enumerate(songs):
         sid_a = _song_id(a, i)
@@ -346,6 +393,8 @@ def build_pair_matrix(
                 stems_available=stems_available,
                 prefer_exit=prefer_exits.get(sid_a),
                 prefer_entry=prefer_entries.get(sid_b),
+                a_analysis=analyses.get(str(sid_a)),
+                b_analysis=analyses.get(str(sid_b)),
             )
             matrix.append(_matrix_item(a, b, i, j, best))
     matrix.sort(key=lambda item: item["confidence"], reverse=True)
@@ -434,11 +483,15 @@ def plan_mix(
     prefer_exits: dict[str, float] | None = None,
     prefer_entries: dict[str, float] | None = None,
     optimize_order: bool = False,
+    audio_paths: dict[str, str | Path] | None = None,
 ) -> dict:
     """输入 N 首歌的分析数据，返回完整 Mix Plan。
 
     每首歌需包含: song_id, bpm, camelot, energy, duration。
     可选: cues, sections, stem_activity_windows。
+
+    当提供 audio_paths ({song_id: /path/to/file.wav}) 时，会运行 BPM/beatgrid/
+    phrase 分析并将过渡点对齐到拍点和乐句边界。
 
     Returns: {plan_id, tracks, transitions, analyses, summary}
     """
@@ -447,11 +500,34 @@ def plan_mix(
 
     prefer_exits = prefer_exits or {}
     prefer_entries = prefer_entries or {}
+    audio_paths = audio_paths or {}
+
+    # ── Run audio analysis when paths are available ──
+    analyses_cache: dict[str, dict] = {}
+    if audio_paths:
+        logger.info("Running audio analysis on %d tracks...", len(audio_paths))
+        for sid, path in audio_paths.items():
+            sid_str = str(sid)
+            if sid_str not in analyses_cache:
+                try:
+                    analyses_cache[sid_str] = analyze_track(path)
+                    an = analyses_cache[sid_str]
+                    logger.info(
+                        "  %s: BPM=%.1f (conf=%.2f), %d beats, %d downbeats, "
+                        "%d phrases, grid=%.2f",
+                        sid_str[:12], an["bpm"], an["bpm_confidence"],
+                        len(an["beats"]), len(an["downbeats"]),
+                        len(an["phrases"]), an["grid_quality"]["score"],
+                    )
+                except Exception as exc:
+                    logger.warning("  Audio analysis failed for %s: %s", sid_str[:12], exc)
+
     pair_matrix = build_pair_matrix(
         songs,
         stems_available=stems_available,
         prefer_exits=prefer_exits,
         prefer_entries=prefer_entries,
+        analyses=analyses_cache,
     )
     if optimize_order:
         songs = _optimize_playlist_order(songs, pair_matrix)
@@ -462,16 +538,23 @@ def plan_mix(
 
     for i, song in enumerate(songs):
         sid = _song_id(song, i)
-        bpm = float(song.get("bpm", 0) or 0)
-        beats = song.get("beats") or song.get("beat_points") or []
+        sid_str = str(sid)
+        # Use analysed BPM when available
+        an = analyses_cache.get(sid_str, {})
+        bpm = an.get("bpm", float(song.get("bpm", 0) or 0))
+        if bpm <= 0:
+            bpm = float(song.get("bpm", 0) or 0)
+        beats = an.get("beats") or song.get("beats") or song.get("beat_points") or []
         tracks.append({
             "song_id": sid,
             "order": i,
             "title": song.get("title", ""),
             "artist": song.get("artist", ""),
-            "bpm": bpm,
+            "bpm": round(bpm, 2),
             "beats": beats[:20] if beats else [],
             "duration": float(song.get("duration", 0) or 0),
+            "bpm_confidence": an.get("bpm_confidence"),
+            "grid_quality": an.get("grid_quality", {}).get("score"),
         })
 
     for i in range(len(songs) - 1):
@@ -485,6 +568,8 @@ def plan_mix(
             stems_available=stems_available,
             prefer_exit=prefer_exits.get(sid_a),
             prefer_entry=prefer_entries.get(sid_b),
+            a_analysis=analyses_cache.get(str(sid_a)),
+            b_analysis=analyses_cache.get(str(sid_b)),
         )
 
         result = best_pair_result["result"]
@@ -499,6 +584,20 @@ def plan_mix(
             risks.get("double_vocal_risk", 0),
         )
 
+        # Beat interval from analysis (preferred) or metadata BPM
+        a_beat_interval = None
+        b_beat_interval = None
+        a_an = analyses_cache.get(str(sid_a), {})
+        b_an = analyses_cache.get(str(sid_b), {})
+        if a_an.get("grid_quality", {}).get("score", 0) > 0.5:
+            a_beat_interval = round(a_an["grid_quality"]["mean_ioi"], 6)
+        elif a.get("bpm"):
+            a_beat_interval = round(60.0 / float(a["bpm"]), 6)
+        if b_an.get("grid_quality", {}).get("score", 0) > 0.5:
+            b_beat_interval = round(b_an["grid_quality"]["mean_ioi"], 6)
+        elif b.get("bpm"):
+            b_beat_interval = round(60.0 / float(b["bpm"]), 6)
+
         transition = {
             "from_song": sid_a,
             "to_song": sid_b,
@@ -510,8 +609,8 @@ def plan_mix(
             "playback_tier": playback_tier,
             "confidence": _confidence(result, pair_has_stems),
             "tags": _risk_tags(result, pair_has_stems, best_pair_result["exit"], best_pair_result["entry"]),
-            "from_beat_interval_sec": round(60.0 / a.get("bpm", 120), 6) if a.get("bpm") else None,
-            "to_beat_interval_sec": round(60.0 / b.get("bpm", 120), 6) if b.get("bpm") else None,
+            "from_beat_interval_sec": a_beat_interval,
+            "to_beat_interval_sec": b_beat_interval,
         }
         if result["selected"] == "vocal_handoff":
             transition["vocal_handoff_ratio"] = _suggest_vocal_handoff_ratio(
@@ -520,6 +619,14 @@ def plan_mix(
                 fade_sec,
                 risks.get("double_vocal_risk", 0),
             )
+        # Attach beat analysis when available
+        if a_an.get("beats") or b_an.get("beats"):
+            transition["beat_analysis"] = {
+                "a_beats_detected": len(a_an.get("beats", [])),
+                "b_beats_detected": len(b_an.get("beats", [])),
+                "a_downbeats_detected": len(a_an.get("downbeats", [])),
+                "b_downbeats_detected": len(b_an.get("downbeats", [])),
+            }
         transitions.append(transition)
 
         analyses.append({
@@ -534,16 +641,20 @@ def plan_mix(
         })
 
     # 摘要
-    lines = [f"🎧 Mix Plan: {len(songs)} tracks, {len(transitions)} transitions"]
+    lines = [f"Mix Plan: {len(songs)} tracks, {len(transitions)} transitions"]
     for i, tr in enumerate(transitions):
         an = analyses[i]["selector_result"]
         ex = analyses[i]["selected_window"]
         en = analyses[i]["selected_entry"]
+        beat_info = ""
+        if tr.get("beat_analysis"):
+            ba = tr["beat_analysis"]
+            beat_info = f" [{ba['a_beats_detected']}/{ba['b_beats_detected']} beats]"
         lines.append(
             f"  {i+1}. {tracks[i].get('title',tracks[i]['song_id'])[:24]} "
             f"→ {tracks[i+1].get('title',tracks[i+1]['song_id'])[:24]}"
         )
-        lines.append(f"      {tr['style']} (score={an['score']:.2f}, {tr['fade_sec']:.1f}s)")
+        lines.append(f"      {tr['style']} (score={an['score']:.2f}, {tr['fade_sec']:.1f}s){beat_info}")
         lines.append(f"      exit: {ex['label']}@{ex['start']:.1f}s  →  entry: {en['label']}@{en['start']:.1f}s")
 
     return {
