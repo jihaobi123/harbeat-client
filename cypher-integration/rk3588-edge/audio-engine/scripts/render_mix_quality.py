@@ -8,9 +8,11 @@ quality comparison, while staying dependency-light for Mac/RK debugging.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -34,6 +36,34 @@ STEM_PRESETS = (
 NON_STEM_PRESETS = ("blend", "filter", "echo_freeze", "rise", "melt", "cut", "slam")
 
 
+def _entry_path(entry: object, cache_dir: Path | None = None) -> Path | None:
+    if isinstance(entry, str):
+        value = entry
+        fmt = ""
+    elif isinstance(entry, dict):
+        value = next((str(entry.get(key)) for key in ("local_path", "path", "file", "url") if entry.get(key)), "")
+        fmt = str(entry.get("format") or "")
+    else:
+        return None
+
+    if value.startswith(("http://", "https://")):
+        if cache_dir is None:
+            return None
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        suffix = f".{fmt.lstrip('.')}" if fmt else Path(value.split("?", 1)[0]).suffix or ".audio"
+        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:18]
+        cached = cache_dir / f"{digest}{suffix}"
+        if not cached.exists():
+            try:
+                urllib.request.urlretrieve(value, cached)
+            except Exception:
+                return None
+        return cached
+
+    path = Path(value)
+    return path if path.exists() else None
+
+
 def _read_wav(path: Path) -> np.ndarray:
     data, sr = sf.read(path, always_2d=True, dtype="float32")
     if sr != SR:
@@ -51,6 +81,49 @@ def _segment(data: np.ndarray, start_sec: float, dur_sec: float) -> np.ndarray:
     if start < len(data):
         out[: end - start] = data[start:end]
     return out
+
+
+def _silent_segment(dur_sec: float) -> np.ndarray:
+    return np.zeros((max(1, int(round(dur_sec * SR))), 2), dtype=np.float32)
+
+
+def _track_files(report: dict) -> dict[str, dict]:
+    tracks = report.get("tracks") or report.get("mix_plan", {}).get("tracks") or []
+    out = {}
+    for idx, track in enumerate(tracks):
+        if not isinstance(track, dict):
+            continue
+        sid = str(track.get("song_id", track.get("id", f"track_{idx}")))
+        out[sid] = track.get("files") or {}
+    return out
+
+
+def _load_track_audio(
+    files: dict,
+    start_sec: float,
+    dur_sec: float,
+    *,
+    require_stems: bool,
+    cache_dir: Path | None = None,
+) -> dict[str, np.ndarray] | None:
+    if require_stems:
+        stems = files.get("stems") if isinstance(files, dict) else None
+        stem_paths = {stem: _entry_path(stems.get(stem), cache_dir) for stem in STEMS} if isinstance(stems, dict) else {}
+        if stem_paths and all(stem_paths.get(stem) for stem in STEMS):
+            return {stem: _segment(_read_wav(stem_paths[stem]), start_sec, dur_sec) for stem in STEMS}  # type: ignore[arg-type]
+        return None
+
+    original = _entry_path(files.get("original"), cache_dir) if isinstance(files, dict) else None
+    if not original:
+        return None
+    full = _segment(_read_wav(original), start_sec, dur_sec)
+    silent = _silent_segment(dur_sec)
+    return {
+        "vocals": full,
+        "drums": silent.copy(),
+        "bass": silent.copy(),
+        "other": silent.copy(),
+    }
 
 
 def _rms(audio: np.ndarray) -> float:
@@ -176,6 +249,81 @@ def _metrics(style: str, audio: np.ndarray, extra: dict) -> dict:
     }
 
 
+def render_batch_report(
+    batch_report: Path,
+    out_dir: Path,
+    *,
+    limit: int | None = None,
+    cache_dir: Path | None = None,
+) -> list[dict]:
+    """Render selected transitions from a batch report.
+
+    The report shape is intentionally simple:
+      tracks[].files.original.path/local_path and tracks[].files.stems.<stem>.path
+      mix_plan.transitions[] with from_song/to_song/style/fallback_style/timing.
+    """
+    report = json.loads(Path(batch_report).read_text(encoding="utf-8"))
+    files_by_song = _track_files(report)
+    transitions = report.get("mix_plan", {}).get("transitions") or report.get("transitions") or []
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rendered: list[dict] = []
+
+    for idx, tr in enumerate(transitions[:limit] if limit else transitions):
+        from_song = str(tr.get("from_song", tr.get("from_song_id")))
+        to_song = str(tr.get("to_song", tr.get("to_song_id")))
+        fade_sec = float(tr.get("fade_sec", tr.get("crossfade_sec", 8.0)) or 8.0)
+        a_start = float(tr.get("from_at_sec", tr.get("from_out_sec", 0.0)) or 0.0)
+        b_start = float(tr.get("to_at_sec", tr.get("to_in_sec", 0.0)) or 0.0)
+        styles = []
+        for style in (tr.get("style"), tr.get("fallback_style")):
+            if style and style not in styles:
+                styles.append(str(style))
+
+        for style in styles:
+            require_stems = style in STEM_AWARE_STYLES
+            a_audio = _load_track_audio(
+                files_by_song.get(from_song, {}),
+                a_start,
+                fade_sec,
+                require_stems=require_stems,
+                cache_dir=cache_dir,
+            )
+            b_audio = _load_track_audio(
+                files_by_song.get(to_song, {}),
+                b_start,
+                fade_sec,
+                require_stems=require_stems,
+                cache_dir=cache_dir,
+            )
+            if not a_audio or not b_audio:
+                rendered.append({
+                    "transition_index": idx,
+                    "from_song": from_song,
+                    "to_song": to_song,
+                    "style": style,
+                    "verdict": "skipped_missing_audio",
+                })
+                continue
+            audio, extra = _render_style(style, a_audio, b_audio)
+            path = out_dir / f"{idx:02d}_{from_song}_to_{to_song}_{style}.wav"
+            sf.write(path, audio, SR)
+            metrics = _metrics(style, audio, extra)
+            rendered.append({
+                "transition_index": idx,
+                "from_song": from_song,
+                "to_song": to_song,
+                "style": style,
+                "tier": "stem_aware" if style in STEM_AWARE_STYLES else "non_stem",
+                "path": str(path),
+                "metrics": metrics,
+                "verdict": "ok" if metrics["peak"] <= 0.98 and metrics["silence_ratio"] < 0.2 else "review",
+            })
+
+    render_report = out_dir / "batch_render_report.json"
+    render_report.write_text(json.dumps({"source_report": str(batch_report), "renders": rendered}, indent=2) + "\n", encoding="utf-8")
+    return rendered
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--a-dir", type=Path, default=Path("/tmp/stems/A"))
@@ -184,9 +332,17 @@ def main() -> None:
     parser.add_argument("--b-start", type=float, default=32.16)
     parser.add_argument("--duration", type=float, default=20.645)
     parser.add_argument("--out-dir", type=Path, default=Path("/tmp/harbeat_mix_quality_renders"))
+    parser.add_argument("--batch-report", type=Path)
+    parser.add_argument("--cache-dir", type=Path, default=Path("/tmp/harbeat_mix_quality_cache"))
+    parser.add_argument("--limit", type=int)
     args = parser.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    if args.batch_report:
+        rendered = render_batch_report(args.batch_report, args.out_dir, limit=args.limit, cache_dir=args.cache_dir)
+        print(json.dumps({"renders": len(rendered), "report": str(args.out_dir / "batch_render_report.json")}, indent=2))
+        return
+
     a_raw = {stem: _segment(_read_wav(args.a_dir / f"{stem}.wav"), args.a_start, args.duration) for stem in STEMS}
     b_raw = {stem: _segment(_read_wav(args.b_dir / f"{stem}.wav"), args.b_start, args.duration) for stem in STEMS}
 

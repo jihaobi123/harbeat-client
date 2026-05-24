@@ -44,6 +44,7 @@ class TransitionPlanRequest(BaseModel):
     stems_available: bool = True
     prefer_exits: dict[str, float] | None = None
     prefer_entries: dict[str, float] | None = None
+    optimize_order: bool = False
 
 
 def _parse_camelot(key_str: str | None) -> int:
@@ -80,6 +81,7 @@ async def transition_plan(req: TransitionPlanRequest) -> dict[str, Any]:
             stems_available=req.stems_available,
             prefer_exits=req.prefer_exits,
             prefer_entries=req.prefer_entries,
+            optimize_order=req.optimize_order,
         )
         return {"ok": True, "plan": plan}
     except Exception as exc:
