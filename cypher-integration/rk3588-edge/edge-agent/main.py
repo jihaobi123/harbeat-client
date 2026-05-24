@@ -29,6 +29,9 @@ from edge_agent.transition_api import router as transition_router
 
 logger = logging.getLogger(__name__)
 
+DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "prefetch"}
+DECODE_HEAVY_AUDIO_TIMEOUT_SEC = 60.0
+
 
 def _jetson_headers() -> dict[str, str]:
   headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -75,7 +78,8 @@ def _optional_auth(x_edge_token: str | None = Header(default=None)) -> None:
 async def _forward(cmd: str, **payload: Any) -> dict[str, Any]:
   body = {"cmd": cmd, **payload}
   try:
-    result = audio_client.send_command(body)
+    timeout = DECODE_HEAVY_AUDIO_TIMEOUT_SEC if cmd in DECODE_HEAVY_AUDIO_COMMANDS else None
+    result = audio_client.send_command(body, timeout=timeout) if timeout else audio_client.send_command(body)
     if result.get("ok") is False:
       code = int(result.get("code", 503))
       raise HTTPException(status_code=code, detail=result.get("error", "audio-engine error"))
@@ -332,7 +336,10 @@ async def load_plan(req: LoadPlanRequest) -> dict[str, Any]:
 
   # 通知 audio-engine 加载 plan（若已运行）
   try:
-    audio_client.send_command({"cmd": "load_plan", "mix_plan": req.mix_plan})
+    audio_client.send_command(
+      {"cmd": "load_plan", "mix_plan": req.mix_plan},
+      timeout=DECODE_HEAVY_AUDIO_TIMEOUT_SEC,
+    )
   except AudioEngineError:
     pass
 
