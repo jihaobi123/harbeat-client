@@ -90,6 +90,7 @@ class EdgeState:
       "next_transition_in_sec",
       "active_loops",
       "active_stem_fx",
+      "playback_tier",
     ):
       if key in state:
         data[key] = state[key]

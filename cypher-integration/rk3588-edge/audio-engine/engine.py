@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 
 SAMPLES_DIR = CYPHER_HOME / "samples"
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")
+STEM_AWARE_STYLES = {
+    "bass_swap",
+    "drum_swap",
+    "vocal_ducking",
+    "vocal_handoff",
+    "instrumental_only",
+    "vocal_solo_intro",
+}
 
 # Prefetch 缓存：App/edge-agent 可提前调 engine.prefetch(song_id) 把 wav+stems 预解码进
 # 这里；Deck.load() 用到该 song_id 时直接 pop 出 numpy 数组，避免按键时才走磁
@@ -305,6 +313,8 @@ class AudioEngineMVP:
     @staticmethod
     def _cleanup_beatmatch_cache() -> None:
         """清理旧的 beatmatch 预渲染文件，只保留最近 N 个。"""
+        if not CACHE_DIR.exists():
+            return
         pattern = "original.rb.*.wav"
         files: list[Path] = []
         for song_dir in CACHE_DIR.iterdir():
@@ -378,7 +388,52 @@ class AudioEngineMVP:
                 "active_stem_fx": self.stem_fx[0] if self.stem_fx else None,
                 "active_stem_solo": self._stem_solo,
                 "audio_xrun_count": self._xrun_count,
+                "playback_tier": self._playback_tier(),
             }
+
+    def _stems_available(self, deck: Deck | None = None) -> bool:
+        """Check if a deck (or both) has all 4 stems loaded."""
+        if deck is not None:
+            return all(name in deck.stems for name in REQUIRED_STEMS)
+        a_ok = all(name in self.deck_a.stems for name in REQUIRED_STEMS)
+        b_ok = all(name in self.deck_b.stems for name in REQUIRED_STEMS)
+        return a_ok and b_ok
+
+    def _playback_tier(self) -> str:
+        """Return current playback capability tier.
+
+        Tier 1 (basic):      Single deck play, no Automix capability.
+        Tier 2 (non-stem):   Automix with beatmatch crossfade, EQ, filter, echo, cut, slam.
+        Tier 3 (stem-aware): Automix with bass swap, vocal ducking, drum swap.
+        """
+        if self._stems_available():
+            return "stem_aware"
+        if self._stems_available(self.active_deck):
+            return "stem_aware"
+        if self._in_transition and self._stems_available(self.inactive_deck):
+            return "stem_aware"
+        if not self._plan_enabled or not self._plan:
+            return "basic"
+        return "non_stem"
+
+    def _resolve_style(self, requested_style: str) -> str:
+        """Auto-downgrade stem-aware styles when stems are unavailable."""
+        if requested_style in STEM_AWARE_STYLES and not self._stems_available():
+            fallback_map = {
+                "bass_swap": "filter",
+                "vocal_ducking": "blend",
+                "drum_swap": "power",
+                "vocal_handoff": "blend",
+                "instrumental_only": "filter",
+                "vocal_solo_intro": "echo_out",
+            }
+            fallback = fallback_map.get(requested_style, "smooth")
+            logger.info(
+                "style downgrade: %s -> %s (stems unavailable)",
+                requested_style, fallback,
+            )
+            return fallback
+        return requested_style
 
     def load_plan(self, mix_plan: dict) -> None:
         with self._lock:
@@ -519,8 +574,12 @@ class AudioEngineMVP:
 
         deck = Deck()
         deck.set_eq(*inactive_eq)
-        audio_path = self._beatmatched_audio_path(tr, render=False)
-        deck.load(to_song_id, to_at_sec, load_stems=False, audio_path=audio_path)
+        want_stems = style in STEM_AWARE_STYLES
+        # Beatmatched original renders cannot carry stems. Until we render
+        # beatmatched stems as a bundle, stem-aware styles must load source
+        # stems and leave tempo handling to cue selection.
+        audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+        deck.load(to_song_id, to_at_sec, load_stems=want_stems, audio_path=audio_path)
         self._apply_loudness_gain(deck, to_song_id)
 
         with self._lock:
@@ -782,8 +841,9 @@ class AudioEngineMVP:
     def _begin_transition(self, tr: Transition) -> None:
         if self.inactive_deck.song_id != tr.to_song_id:
             try:
-                audio_path = self._beatmatched_audio_path(tr, render=False)
-                self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=False, audio_path=audio_path)
+                want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
+                audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+                self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             except SongCacheError as exc:
                 logger.error("transition load failed: %s", exc)
                 return
@@ -834,8 +894,10 @@ class AudioEngineMVP:
             t0 = time.time()
             deck = Deck()
             deck.set_eq(*inactive_eq)
-            audio_path = self._beatmatched_audio_path(tr, render=False)
-            deck.load(tr.to_song_id, tr.to_at_sec, load_stems=False, audio_path=audio_path)
+            # Load stems if this is a stem-aware transition style
+            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
+            audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+            deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             self._apply_loudness_gain(deck, tr.to_song_id)
             with self._lock:
                 current = self._scheduled_transition()
@@ -883,6 +945,11 @@ class AudioEngineMVP:
         return math.cos(x * math.pi / 2), math.sin(x * math.pi / 2)
 
     @staticmethod
+    def _sin_ramp(progress: float, start: float, duration: float) -> float:
+        t = min(1.0, max(0.0, (progress - start) / max(0.001, duration)))
+        return math.sin(t * math.pi / 2)
+
+    @staticmethod
     def _style_envelopes(style: str, progress: float) -> tuple[dict, dict]:
         """返回两个 deck 的 stem 增益表，键名 ∈ vocals/drums/bass/other 或 'full'。
 
@@ -918,8 +985,80 @@ class AudioEngineMVP:
             if x < 0.78:
                 return {"full": 0.0}, {"full": 0.0}
             return {"full": 0.0}, {"full": 1.0}
+        if style == "echo_freeze":
+            if x < 0.36:
+                a_g = 1.0
+            elif x < 0.58:
+                a_g = math.cos((x - 0.36) / 0.22 * math.pi / 2)
+            else:
+                a_g = 0.0
+            if x < 0.46:
+                b_g = 0.0
+            else:
+                b_g = math.sin((x - 0.46) / 0.54 * math.pi / 2)
+            return {"full": a_g}, {"full": b_g}
         if style == "bass_swap":
-            return {"full": cos_x}, {"full": sin_x}
+            # True stem-aware: swap bass stems between decks
+            return (
+                {"vocals": cos_x, "drums": cos_x, "bass": cos_x ** 4.0, "other": cos_x},
+                {"vocals": sin_x, "drums": sin_x, "bass": sin_x ** 0.25, "other": sin_x},
+            )
+        if style == "drum_swap":
+            # B drums enter softly, A drums fade normally
+            return (
+                {"vocals": cos_x, "drums": cos_x, "bass": cos_x, "other": cos_x},
+                {"vocals": sin_x, "drums": sin_x ** 0.33, "bass": sin_x, "other": sin_x},
+            )
+        if style == "vocal_ducking":
+            # Duck A vocals during transition, B vocals fade in gently
+            return (
+                {"vocals": cos_x ** 2.5, "drums": cos_x, "bass": cos_x, "other": cos_x},
+                {"vocals": sin_x ** 0.5, "drums": sin_x, "bass": sin_x, "other": sin_x},
+            )
+        if style == "vocal_handoff":
+            # Beat-aligned vocal replacement: A vocals ride over B instrumental,
+            # then HARD CUT to B vocals at the phrase boundary. Keep this dry:
+            # echo tails smear into B's vocal entry on the Nice->Popular demo.
+            # A non-vocals fade 0→25%, exposing B instrumental bed underneath.
+            # B drums    enter 20→45% (rhythm foundation)
+            # B bass     enter 35→50% (low end)
+            # B other    enter 40→55% (texture)
+            # B vocals   HARD CUT at 0.45
+            xn = min(1.0, max(0.0, x))
+            # ── A side ──
+            a_nv = math.cos(xn / 0.25 * math.pi / 2) if xn < 0.25 else 0.0
+            # ── B side ──
+            # Instruments: staggered entry
+            b_d = AudioEngineMVP._sin_ramp(xn, 0.20, 0.25)
+            b_b = AudioEngineMVP._sin_ramp(xn, 0.35, 0.15)
+            b_o = AudioEngineMVP._sin_ramp(xn, 0.40, 0.15)
+            a_v = 1.0 if xn < 0.45 else 0.0
+            b_v = 0.0 if xn < 0.45 else 1.0
+            return (
+                {"vocals": a_v,  "drums": a_nv, "bass": a_nv, "other": a_nv},
+                {"vocals": b_v,  "drums": b_d,  "bass": b_b,  "other": b_o},
+            )
+        if style == "instrumental_only":
+            # Keep the transition instrumental: both vocal stems muted during the
+            # overlap, drums/bass/other do a clean equal-power handoff.
+            return (
+                {"vocals": 0.0, "drums": cos_x, "bass": cos_x ** 1.7, "other": cos_x},
+                {"vocals": 0.0, "drums": sin_x, "bass": sin_x ** 0.7, "other": sin_x},
+            )
+        if style == "vocal_solo_intro":
+            # A vocal rides over B instrumental bed; B vocal stays muted until
+            # the transition finishes and normal deck playback takes over.
+            if x < 0.72:
+                a_v = 1.0
+            else:
+                a_v = math.cos((x - 0.72) / 0.28 * math.pi / 2)
+            a_nv = math.cos(min(1.0, x / 0.35) * math.pi / 2)
+            b_inst = math.sin(min(1.0, max(0.0, (x - 0.18) / 0.52)) * math.pi / 2)
+            b_bass = math.sin(min(1.0, max(0.0, (x - 0.42) / 0.35)) * math.pi / 2)
+            return (
+                {"vocals": a_v, "drums": a_nv, "bass": a_nv, "other": a_nv},
+                {"vocals": 0.0, "drums": b_inst, "bass": b_bass, "other": b_inst},
+            )
         if style == "echo_out":
             return {"full": cos_x ** 1.5}, {"full": sin_x}
         if style == "filter":
@@ -1106,7 +1245,7 @@ class AudioEngineMVP:
             if self._in_transition and self._active_tr:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
-                style = tr.style or "smooth"
+                style = self._resolve_style(tr.style or "smooth")
                 if style in ("smooth", "blend"):
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
@@ -1201,14 +1340,69 @@ class AudioEngineMVP:
             a = self._echo_process(a, frames)
             return a, b
 
+        if style == "echo_freeze":
+            # Short safety transition: freeze/echo A while B enters late. This
+            # is useful for tense key, wide BPM, or unavoidable vocal overlap.
+            a = self._echo_process(a, frames)
+            fc_b = 900.0 * ((40.0 / 900.0) ** x)
+            self._fx_filter_b.set_hpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "vocal_ducking":
+            # A vocals already ducked by gain envelope; add light reverb tail via echo
+            a = self._echo_process(a, frames)
+            return a, b
+
+        if style == "vocal_handoff":
+            # Keep vocal handoff dry. The outgoing A vocal echo overlaps B's
+            # first phrase and is perceived as reverb on the incoming song.
+            # B opens up with gentle HPF sweep: 800Hz → 30Hz
+            fc_b = 800.0 * ((30.0 / 800.0) ** x)
+            self._fx_filter_b.set_hpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "instrumental_only":
+            # Clear a little low-end space on A while B takes the groove.
+            fc_a = 30.0 + 180.0 * x
+            self._fx_filter_a.set_hpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            return a, b
+
+        if style == "vocal_solo_intro":
+            # A vocal gets a small echo tail; B instrumental opens from thin to full.
+            a = self._echo_process(a, frames)
+            fc_b = 1000.0 * ((35.0 / 1000.0) ** x)
+            self._fx_filter_b.set_hpf(sr, fc_b, q=0.707)
+            b = self._fx_filter_b.process(b)
+            return a, b
+
+        if style == "drum_swap":
+            # B drum soft entry already handled by gain envelope
+            # Add slight HPF on A to clear rhythmic space
+            fc_a = 60.0 + 180.0 * x
+            self._fx_filter_a.set_hpf(sr, fc_a, q=0.707)
+            a = self._fx_filter_a.process(a)
+            return a, b
+
         return a, b
 
-    def _echo_process(self, a: np.ndarray, frames: int) -> np.ndarray:
+    def _echo_process(
+        self,
+        a: np.ndarray,
+        frames: int,
+        *,
+        feedback: float | None = None,
+        wet: float | None = None,
+    ) -> np.ndarray:
         """对 A 信号做 0.25s 反馈延迟，wet 叠加回原信号。"""
         L = self._echo_buf_len
         delay = self._echo_delay_samples
         wp = self._echo_pos
         rp = (wp - delay) % L
+        fb = self._echo_feedback if feedback is None else float(feedback)
+        wet_gain = self._echo_wet if wet is None else float(wet)
 
         # 读取 delayed 信号（可能跨边界）
         if rp + frames <= L:
@@ -1221,7 +1415,7 @@ class AudioEngineMVP:
             )
 
         # 写入：当前 A + 反馈 * 历史延迟信号
-        write_chunk = a + self._echo_feedback * delayed
+        write_chunk = a + fb * delayed
         if wp + frames <= L:
             self._echo_buf[wp : wp + frames] = write_chunk
         else:
@@ -1230,7 +1424,7 @@ class AudioEngineMVP:
             self._echo_buf[: frames - first] = write_chunk[first:]
 
         self._echo_pos = (wp + frames) % L
-        return a + self._echo_wet * delayed
+        return a + wet_gain * delayed
 
     def _apply_limiter(self, main: np.ndarray, frames: int) -> np.ndarray:
         """块级 look-ahead 峰值限制器。

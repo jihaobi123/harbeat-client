@@ -40,7 +40,8 @@ class XfadeRequest(BaseModel):
     # DJ + Spotify Mix 风格 preset，对应 Jetson transition_type / App 手动切歌。
     style: Literal[
         "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam",
-        "fade", "rise", "blend", "wave", "melt",
+        "fade", "rise", "blend", "wave", "melt", "vocal_handoff", "vocal_ducking",
+        "drum_swap", "instrumental_only", "vocal_solo_intro", "echo_freeze",
     ] = "smooth"
 
 
@@ -76,6 +77,7 @@ class RKPlaybackState(BaseModel):
     next_transition_in_sec: float | None = None
     active_loops: list[int] = Field(default_factory=list)
     active_stem_fx: str | None = None
+    playback_tier: Literal["basic", "non_stem", "stem_aware"] = "basic"
 
 
 class DeviceInfo(BaseModel):

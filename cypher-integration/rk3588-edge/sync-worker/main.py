@@ -118,6 +118,34 @@ def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
+def _manifest_asset_report(manifest: dict[str, Any]) -> dict[str, Any]:
+    items = _file_items(manifest)
+    missing: dict[str, list[str]] = {}
+    complete_tracks = 0
+    track_count = 0
+    for track in manifest.get("tracks") or []:
+        song_id = track.get("song_id") or track.get("library_song_id") or track.get("id")
+        if song_id is None:
+            continue
+        track_count += 1
+        files = track.get("files") or {}
+        stems = files.get("stems") or {}
+        absent = []
+        if not files.get("original"):
+            absent.append("original")
+        absent.extend(stem for stem in ("vocals", "drums", "bass", "other") if not stems.get(stem))
+        if absent:
+            missing[str(song_id)] = absent
+        else:
+            complete_tracks += 1
+    return {
+        "track_count": track_count,
+        "asset_count": len(items),
+        "complete_tracks": complete_tracks,
+        "missing": missing,
+    }
+
+
 def _headers() -> dict[str, str]:
     headers: dict[str, str] = {}
     if JWT_TOKEN:
@@ -248,7 +276,8 @@ async def sync(body: dict[str, Any]) -> dict[str, Any]:
     if _sync_task and not _sync_task.done():
         return {"ok": False, "error": "sync already running", "status": await state.snapshot()}
     _sync_task = asyncio.create_task(_run_sync(manifest))
-    return {"ok": True, "sync_started": True, "total": len(_file_items(manifest))}
+    report = _manifest_asset_report(manifest)
+    return {"ok": True, "sync_started": True, "total": len(_file_items(manifest)), "manifest": report}
 
 
 @app.get("/status")
