@@ -435,6 +435,31 @@ class AudioEngineMVP:
             return fallback
         return requested_style
 
+    def _transition_handoff_ratio(self, tr: Transition) -> float:
+        """Return the beat-aligned vocal handoff point for vocal_handoff."""
+        if tr.vocal_handoff_ratio is not None:
+            return min(0.68, max(0.32, float(tr.vocal_handoff_ratio)))
+        if tr.phase_anchor_sec is not None and tr.fade_sec > 0:
+            return min(0.68, max(0.32, (float(tr.phase_anchor_sec) - tr.to_at_sec) / tr.fade_sec))
+        meta = self._plan.track_meta.get(str(tr.to_song_id), {}) if self._plan else {}
+        beats = meta.get("beats") or []
+        lo, hi, target = 0.32, 0.62, 0.45
+        candidates = []
+        for beat in beats:
+            try:
+                ratio = (float(beat) - tr.to_at_sec) / max(0.001, tr.fade_sec)
+            except (TypeError, ValueError):
+                continue
+            if lo <= ratio <= hi:
+                candidates.append(ratio)
+        if candidates:
+            return min(candidates, key=lambda r: abs(r - target))
+        if tr.to_beat_interval_sec and tr.to_beat_interval_sec > 0:
+            target_sec = target * tr.fade_sec
+            snapped = round(target_sec / tr.to_beat_interval_sec) * tr.to_beat_interval_sec
+            return min(hi, max(lo, snapped / max(0.001, tr.fade_sec)))
+        return target
+
     def load_plan(self, mix_plan: dict) -> None:
         with self._lock:
             self._plan = normalize_mix_plan(mix_plan)
@@ -480,15 +505,10 @@ class AudioEngineMVP:
             self.stem_fx = None
             # /play 是“硬切”，重置持久 stem_solo 避免上一首的供菜多到下一首。
             self._stem_solo = None
-            if self._plan and self._plan.tracks and song_id in self._plan.tracks:
-                self._plan_enabled = True
-                self._transition_index = self._plan.tracks.index(song_id)
-                if self._transition_index < len(self._plan.transitions):
-                    pass
-                else:
-                    self._transition_index = len(self._plan.transitions)
-            else:
-                self._plan_enabled = False
+            # /play 不会恢复残留的 mix plan。只有 edge-agent 通过
+            # load_plan 明确启动的 session 才启用 plan 自动调度。
+            # edge-agent 用显式 /xfade 切歌，不依赖 plan 的自动过渡。
+            self._plan_enabled = False
         logger.info("playing song_id=%s from %.2fs", song_id, start_at_sec)
         return {"song_id": song_id, "position_sec": start_at_sec, "duration_sec": dur}
 
@@ -562,6 +582,14 @@ class AudioEngineMVP:
         with self._lock:
             if self.active_deck.audio is None:
                 raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+            # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
+            # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
+            if self._in_transition:
+                self._in_transition = False
+                self._fade_frames_done = 0
+                self._active_tr = None
+                self._next_preloaded = False
+                self._preload_requested = None
             tr = Transition(
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
@@ -585,6 +613,14 @@ class AudioEngineMVP:
         with self._lock:
             if self.active_deck.audio is None:
                 raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+            # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
+            # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
+            if self._in_transition:
+                self._in_transition = False
+                self._fade_frames_done = 0
+                self._active_tr = None
+                self._next_preloaded = False
+                self._preload_requested = None
             tr = Transition(
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
@@ -950,7 +986,12 @@ class AudioEngineMVP:
         return math.sin(t * math.pi / 2)
 
     @staticmethod
-    def _style_envelopes(style: str, progress: float) -> tuple[dict, dict]:
+    def _style_envelopes(
+        style: str,
+        progress: float,
+        *,
+        vocal_handoff_ratio: float = 0.45,
+    ) -> tuple[dict, dict]:
         """返回两个 deck 的 stem 增益表，键名 ∈ vocals/drums/bass/other 或 'full'。
 
         实现 DJ / Spotify Mix 风格的纯 gain 包络：
@@ -1023,8 +1064,9 @@ class AudioEngineMVP:
             # B drums    enter 20→45% (rhythm foundation)
             # B bass     enter 35→50% (low end)
             # B other    enter 40→55% (texture)
-            # B vocals   HARD CUT at 0.45
+            # B vocals   hard cut at the transition's beat-aligned handoff ratio
             xn = min(1.0, max(0.0, x))
+            handoff = min(0.68, max(0.32, float(vocal_handoff_ratio)))
             # ── A side ──
             a_nv = math.cos(xn / 0.25 * math.pi / 2) if xn < 0.25 else 0.0
             # ── B side ──
@@ -1032,8 +1074,8 @@ class AudioEngineMVP:
             b_d = AudioEngineMVP._sin_ramp(xn, 0.20, 0.25)
             b_b = AudioEngineMVP._sin_ramp(xn, 0.35, 0.15)
             b_o = AudioEngineMVP._sin_ramp(xn, 0.40, 0.15)
-            a_v = 1.0 if xn < 0.45 else 0.0
-            b_v = 0.0 if xn < 0.45 else 1.0
+            a_v = 1.0 if xn < handoff else 0.0
+            b_v = 0.0 if xn < handoff else 1.0
             return (
                 {"vocals": a_v,  "drums": a_nv, "bass": a_nv, "other": a_nv},
                 {"vocals": b_v,  "drums": b_d,  "bass": b_b,  "other": b_o},
@@ -1254,7 +1296,12 @@ class AudioEngineMVP:
                     ga, gb = self._fade_gains(progress, tr.fade_curve)
                     main = a * ga + b * gb
                 else:
-                    sa, sb = self._style_envelopes(style, progress)
+                    handoff_ratio = self._transition_handoff_ratio(tr) if style == "vocal_handoff" else 0.45
+                    sa, sb = self._style_envelopes(
+                        style,
+                        progress,
+                        vocal_handoff_ratio=handoff_ratio,
+                    )
                     a = self._read_deck_styled(self.active_deck, frames, sa)
                     a = self.active_deck.apply_eq(a)
                     b = self._read_deck_styled(self.inactive_deck, frames, sb)
@@ -1270,6 +1317,7 @@ class AudioEngineMVP:
                 main = self.active_deck.apply_eq(main)
                 if self.active_deck.audio is not None and self.active_deck.pos >= len(self.active_deck.audio):
                     self._playing = False
+                    self._plan_enabled = False
 
             deck_for_fx = self.active_deck
             main = self._apply_stem_fx(main, deck_for_fx, frames)

@@ -22,6 +22,7 @@ class Transition:
     from_beat_interval_sec: float | None = None
     to_beat_interval_sec: float | None = None
     phase_anchor_sec: float | None = None
+    vocal_handoff_ratio: float | None = None
 
 
 @dataclass
@@ -114,6 +115,7 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
                 to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
                 phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
+                vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
             )
         )
 
@@ -131,6 +133,7 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
                 to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
                 phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
+                vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
             )
         )
 

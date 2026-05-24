@@ -343,16 +343,19 @@ def score_presets(
     drum_bridge = (a_d + b_d) / 2.0
     instrumental_b = (b_d + b_b + b_o) / 3.0 * (1.0 - b_v)
 
-    def stem_score(raw: float, reasons: list[str]) -> float:
+    def stem_score(raw: float, reasons: list[str], preset: str = "") -> float:
         if not stems_available:
             reasons.append("no complete stems - use non-stem fallback")
             return 0.0
+        # vocal_handoff / bass_swap / drum_swap 利用分轨控制
+        # 即使 key/BPM 不理想也能做出干净过渡——惩罚应更轻。
+        _is_structural = preset in ("vocal_handoff", "bass_swap", "drum_swap")
         if bpm["quality"] == "risky":
             reasons.append(f"BPM stretch risky ({bpm_a:.1f}->{bpm_b:.1f})")
-            raw *= 0.75
+            raw *= 0.88 if _is_structural else 0.75
         if key_q == "tense":
             reasons.append(f"tense key ({camelot_a}A->{camelot_b}A)")
-            raw *= 0.75
+            raw *= 0.90 if _is_structural else 0.75
         return raw * stem_gate
 
     reasons = [
@@ -361,22 +364,22 @@ def score_presets(
         f"BPM {bpm['quality']} ({bpm_a:.1f}->{bpm_b:.1f})",
     ]
     raw = 0.16 + 0.28 * double_vocal_risk + key_score + energy_score + tempo_score
-    _append(scores, "vocal_handoff", stem_score(raw, reasons), reasons)
+    _append(scores, "vocal_handoff", stem_score(raw, reasons, "vocal_handoff"), reasons)
 
     reasons = [
         f"bass conflict {bass_conflict:.2f}",
         f"drum bridge {drum_bridge:.2f}",
     ]
     raw = 0.12 + 0.34 * bass_conflict + 0.14 * drum_bridge + tempo_score + 0.05
-    _append(scores, "bass_swap", stem_score(raw, reasons), reasons)
+    _append(scores, "bass_swap", stem_score(raw, reasons, "bass_swap"), reasons)
 
     reasons = [f"both drum activity {drum_bridge:.2f}", f"BPM {bpm['quality']}"]
     raw = 0.10 + 0.36 * drum_bridge + 0.08 * (1.0 - abs(a_d - b_d)) + tempo_score
-    _append(scores, "drum_swap", stem_score(raw, reasons), reasons)
+    _append(scores, "drum_swap", stem_score(raw, reasons, "drum_swap"), reasons)
 
     reasons = [f"A vocal {a_v:.2f}", f"B vocal {b_v:.2f}", "duck A vocal under B entry"]
     raw = 0.10 + 0.24 * a_v + 0.16 * b_v + key_score * 0.7 + tempo_score
-    _append(scores, "vocal_ducking", stem_score(raw, reasons), reasons)
+    _append(scores, "vocal_ducking", stem_score(raw, reasons, "vocal_ducking"), reasons)
 
     vocal_floor = max(a_v, b_v)
     reasons = [f"vocal activity A={a_v:.2f}, B={b_v:.2f}", "instrumental stems can overlap cleanly when vocals are sparse"]
@@ -384,11 +387,11 @@ def score_presets(
     if vocal_floor > 0.60:
         raw *= 0.65
         reasons.append("high vocal activity - instrumental-only is less suitable")
-    _append(scores, "instrumental_only", stem_score(raw, reasons), reasons)
+    _append(scores, "instrumental_only", stem_score(raw, reasons, "instrumental_only"), reasons)
 
     reasons = [f"A vocal {a_v:.2f}", f"B instrumental bed {instrumental_b:.2f}"]
     raw = 0.12 + 0.28 * a_v + 0.24 * instrumental_b + key_score + tempo_score * 0.7
-    _append(scores, "vocal_solo_intro", stem_score(raw, reasons), reasons)
+    _append(scores, "vocal_solo_intro", stem_score(raw, reasons, "vocal_solo_intro"), reasons)
 
     # Non-stem presets.
     _append(scores, "blend", 0.30 + key_score * 0.5 + energy_score + tempo_score, ["universal equal-power blend"])

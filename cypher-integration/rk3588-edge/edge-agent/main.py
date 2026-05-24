@@ -25,6 +25,7 @@ from edge_agent.models import (
   XfadeRequest,
 )
 from edge_agent.state import edge_state
+from edge_agent.transition_api import router as transition_router
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Cypher Edge Agent", version="0.1.0", lifespan=lifespan)
+app.include_router(transition_router)
 
 
 @app.get("/api/edge/info", response_model=HealthResponse)
