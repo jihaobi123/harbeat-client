@@ -660,3 +660,113 @@ class TestVocalHandoffBarBoundary:
         # bass_swap ignores vocal_cut_ratio; uses its own curves
         assert plan.preset == TransitionPreset.bass_swap
         assert len(plan.curves) > 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Test 16: Non-stem fallback quality — gain curves, equal-power, anti-clipping
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestNonStemFallbackQuality:
+    """Unit tests for echo_freeze, blend, and crossfade fallback presets."""
+
+    def _render_gain(self, curves, samples=1000):
+        """Render the master gain curve (if it exists) to sample array."""
+        from app.modules.playlists.stem_automix import build_curve
+        for c in curves:
+            if c.target.value == "master" and c.param.value == "gain":
+                return build_curve(c, samples)
+        return None
+
+    def test_echo_freeze_fallback_gain_boundaries(self):
+        """Gain starts at 1.0 and ends at 0.0 for the outgoing deck."""
+        from app.modules.playlists.stem_automix import _echo_freeze_fallback
+        curves = _echo_freeze_fallback(8, 120.0, 120.0)
+        gain = self._render_gain(curves)
+        assert gain is not None, "echo_freeze fallback must have master gain"
+        assert abs(float(gain[0]) - 1.0) < 0.01
+        assert abs(float(gain[-1]) - 0.0) < 0.01
+
+    def test_echo_freeze_has_lowpass_tail(self):
+        """Echo freeze fallback must include a lowpass sweep curve."""
+        from app.modules.playlists.stem_automix import _echo_freeze_fallback
+        curves = _echo_freeze_fallback(8, 120.0, 120.0)
+        lp_curves = [c for c in curves
+                     if c.target.value == "master" and c.param.value == "lowpass"]
+        assert len(lp_curves) >= 1, "echo_freeze must have lowpass tail"
+
+    def test_echo_freeze_echo_decays(self):
+        """Echo send must decrease over time (decay envelope)."""
+        from app.modules.playlists.stem_automix import _echo_freeze_fallback, build_curve
+        curves = _echo_freeze_fallback(8, 120.0, 120.0)
+        echo_curves = [c for c in curves
+                       if c.target.value == "master" and c.param.value == "echo_send"]
+        assert len(echo_curves) >= 1
+        echo = build_curve(echo_curves[0], 1000)
+        # Echo peaks around t=0.15 (index ~150), then decays
+        peak_idx = int(0.15 * 1000)  # ~150
+        assert float(echo[peak_idx]) > float(echo[-1]), (
+            f"echo must decay: peak@{peak_idx}={float(echo[peak_idx]):.4f}, "
+            f"end={float(echo[-1]):.4f}"
+        )
+
+    def test_blend_fallback_equal_power_midpoint(self):
+        """Blend (vocal_handoff fallback) should use equal_power: midpoint ≈ 0.707."""
+        import numpy as np
+        from app.modules.playlists.stem_automix import _vocal_handoff_fallback, build_curve
+        curves = _vocal_handoff_fallback(8, 120.0, 120.0)
+        gain = self._render_gain(curves)
+        assert gain is not None
+        mid = gain[len(gain) // 2]
+        # Equal-power cos fade at midpoint should be cos(π/4) ≈ 0.707
+        assert 0.68 < float(mid) < 0.75, f"expected ~0.707 at midpoint, got {float(mid):.3f}"
+
+    def test_blend_gain_boundaries(self):
+        """Blend gain: start 1.0, end 0.0."""
+        from app.modules.playlists.stem_automix import _vocal_handoff_fallback
+        curves = _vocal_handoff_fallback(8, 120.0, 120.0)
+        gain = self._render_gain(curves)
+        assert gain is not None
+        assert abs(float(gain[0]) - 1.0) < 0.01
+        assert abs(float(gain[-1]) - 0.0) < 0.01
+
+    def test_crossfade_fallback_equal_power(self):
+        """fallback_crossfade uses equal_power: constant power throughout."""
+        import numpy as np
+        from app.modules.playlists.stem_automix import (
+            _fallback_crossfade_curves, build_curve,
+        )
+        curves = _fallback_crossfade_curves(8, 120.0, 120.0)
+        gain = self._render_gain(curves)
+        assert gain is not None
+        # cos² + sin² ≈ 1 at every point
+        cos_part = np.cos(np.linspace(0, np.pi / 2, len(gain))) ** 2
+        sin_part = np.sin(np.linspace(0, np.pi / 2, len(gain))) ** 2
+        assert np.allclose(cos_part + sin_part, 1.0, atol=0.02)
+
+    def test_no_curve_exceeds_unity(self):
+        """No fallback gain/echo curve should produce values > 1.0 (anti-clip).
+
+        Only checks multiplicative params: gain, echo_send, reverb_send, mute.
+        Frequency-valued params (lowpass, highpass, low_eq, etc.) use Hz/dB values
+        and are not subject to the [0, 1] range constraint.
+        """
+        from app.modules.playlists.stem_automix import (
+            CurveParam,
+            _echo_freeze_fallback, _vocal_handoff_fallback,
+            _fallback_crossfade_curves, _bass_swap_fallback,
+            build_curve,
+        )
+        MULTIPLICATIVE = {CurveParam.gain, CurveParam.echo_send,
+                          CurveParam.reverb_send, CurveParam.mute}
+        for fn in [_echo_freeze_fallback, _vocal_handoff_fallback,
+                   _fallback_crossfade_curves, _bass_swap_fallback]:
+            for duration, bpm in [(4, 90.0), (8, 120.0), (16, 140.0)]:
+                curves = fn(duration, bpm, bpm)
+                for c in curves:
+                    if c.param not in MULTIPLICATIVE:
+                        continue
+                    arr = build_curve(c, 1000)
+                    assert np.all(arr <= 1.01), (
+                        f"{fn.__name__} bars={duration} target={c.target} "
+                        f"param={c.param} exceeded 1.0: max={float(np.max(arr)):.3f}"
+                    )

@@ -285,19 +285,30 @@ def _interp_equal_power(t: np.ndarray, pts: list[tuple[float, float]]) -> np.nda
 
 
 def _interp_exponential(t: np.ndarray, pts: list[tuple[float, float]]) -> np.ndarray:
-    """Exponential interpolation — log-scaled between points."""
+    """Exponential interpolation — log-scaled between points.
+
+    Zero-valued points are handled only at exact boundaries:
+    - First point with value 0: zero out t <= pt[0] (before curve start)
+    - Last point with value 0: zero out t >= pt[0] (after curve end)
+    - Interior zero points use the clamped minimum 1e-6 for log safety.
+    """
     if len(pts) < 2:
         return np.full_like(t, pts[0][1] if pts else 0.0, dtype=np.float32)
     tx = np.array([p[0] for p in pts], dtype=np.float32)
-    ty = np.array([max(p[1], 1e-6) for p in pts], dtype=np.float32)  # avoid log(0)
+    # Clamp to 1e-6 for log safety; zero-out handled below at boundaries
+    ty = np.array([max(p[1], 1e-6) for p in pts], dtype=np.float32)
     log_ty = np.log(ty)
     log_raw = np.interp(t, tx, log_ty).astype(np.float32)
     raw = np.exp(log_raw)
-    # Re-apply zero at boundaries if explicitly set
-    for pt in pts:
-        if pt[1] <= 0.0:
-            raw[t <= pt[0] + 1e-6] = 0.0
-            raw[t >= pt[0] - 1e-6] = 0.0
+
+    # Handle true zeros only at curve boundaries
+    first_val = pts[0][1]
+    last_val = pts[-1][1]
+    if first_val <= 0.0:
+        raw[t <= pts[0][0]] = 0.0
+    if last_val <= 0.0:
+        raw[t >= pts[-1][0]] = 0.0
+
     return raw.astype(np.float32)
 
 
@@ -439,12 +450,17 @@ def _vocal_handoff_curves(duration_bars: int, bpm_from: float, bpm_to: float,
 
 
 def _vocal_handoff_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
-    """Non-stem vocal_handoff: fast crossfade with echo on outgoing deck."""
+    """Non-stem vocal_handoff (blend fallback): equal-power crossfade with echo on outgoing deck.
+
+    Uses equal_power instead of s_curve to avoid -3dB dip at midpoint.
+    Echo send provides a gentle tail without overwhelming the incoming vocal.
+    """
     return [
         AutomationCurve(CurveTarget.master, CurveParam.gain,
-                        [(0.0, 1.0), (0.5, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+                        [(0.0, 1.0), (0.5, 0.0), (1.0, 0.0)], CurveShape.equal_power),
         AutomationCurve(CurveTarget.master, CurveParam.echo_send,
-                        [(0.0, 0.0), (0.4, 0.35), (0.55, 0.15), (1.0, 0.0)], CurveShape.exponential),
+                        [(0.0, 0.0), (0.35, 0.40), (0.55, 0.12), (0.7, 0.03), (1.0, 0.0)],
+                        CurveShape.exponential),
     ]
 
 
@@ -683,12 +699,21 @@ def _echo_freeze_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> l
 
 
 def _echo_freeze_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
-    """Non-stem echo_freeze: short crossfade with heavy echo."""
+    """Non-stem echo_freeze: equal-power crossfade + decaying echo + lowpass tail.
+
+    - Master gain uses equal_power for constant perceived loudness through the crossfade.
+    - Echo send decays over time (feedback envelope) to avoid echo tail dominating.
+    - Lowpass sweep on master at the tail (16kHz → 800Hz) to soften the echo fade-out.
+    """
     return [
         AutomationCurve(CurveTarget.master, CurveParam.gain,
-                        [(0.0, 1.0), (0.25, 0.0), (1.0, 0.0)], CurveShape.linear),
+                        [(0.0, 1.0), (0.3, 0.0), (1.0, 0.0)], CurveShape.equal_power),
         AutomationCurve(CurveTarget.master, CurveParam.echo_send,
-                        [(0.0, 0.0), (0.2, 0.8), (0.5, 0.5), (1.0, 0.0)], CurveShape.exponential),
+                        [(0.0, 0.0), (0.15, 0.75), (0.35, 0.45), (0.55, 0.18), (0.75, 0.05), (1.0, 0.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.master, CurveParam.lowpass,
+                        [(0.0, 18000.0), (0.5, 16000.0), (0.7, 4000.0), (0.9, 800.0), (1.0, 800.0)],
+                        CurveShape.exponential),
     ]
 
 
