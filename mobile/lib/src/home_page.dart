@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'api_client.dart';
+import 'edge_agent_client.dart';
 import 'extra_tabs.dart';
+import 'live_deck_page.dart';
 import 'models.dart';
 
 class HomePage extends StatefulWidget {
@@ -14,6 +16,8 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.apiClient,
     required this.session,
+    required this.rkBaseUrl,
+    required this.onRkBaseUrlChanged,
     required this.data,
     required this.loading,
     required this.error,
@@ -23,6 +27,8 @@ class HomePage extends StatefulWidget {
 
   final HarBeatApiClient apiClient;
   final SessionBundle session;
+  final String rkBaseUrl;
+  final Future<void> Function(String url) onRkBaseUrlChanged;
   final DashboardData? data;
   final bool loading;
   final String? error;
@@ -34,6 +40,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late EdgeAgentClient _edgeClient;
   final AudioPlayer _player = AudioPlayer();
   final TextEditingController _librarySearchController = TextEditingController();
   final TextEditingController _onlineSearchController = TextEditingController();
@@ -59,6 +66,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _edgeClient = EdgeAgentClient(
+      baseUrl: 'http://${widget.rkBaseUrl}',
+    );
     _syncFromWidget();
     _positionSub = _player.positionStream.listen((value) {
       if (mounted) setState(() => _position = value);
@@ -73,6 +83,11 @@ class _HomePageState extends State<HomePage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data || oldWidget.error != widget.error) {
       _syncFromWidget();
+    }
+    if (oldWidget.rkBaseUrl != widget.rkBaseUrl) {
+      _edgeClient = EdgeAgentClient(
+        baseUrl: 'http://${widget.rkBaseUrl}',
+      );
     }
   }
 
@@ -96,6 +111,40 @@ class _HomePageState extends State<HomePage> {
     await widget.onRefresh();
     _syncFromWidget();
     if (mounted) setState(() {});
+  }
+
+  void _showRkSettingsDialog() {
+    final controller = TextEditingController(text: widget.rkBaseUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('RK 地址'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'RK Edge-Agent 地址',
+            hintText: '192.168.5.17:9000',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.isNotEmpty) {
+                widget.onRkBaseUrlChanged(url);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _searchLibrary(String value) async {
@@ -380,6 +429,12 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(_titleForTab(_selectedIndex)),
         actions: [
+          if (_selectedIndex == 0)
+            IconButton(
+              tooltip: '设置 RK 地址',
+              onPressed: () => _showRkSettingsDialog(),
+              icon: const Icon(Icons.settings),
+            ),
           if (_selectedIndex == 1)
             IconButton(
               tooltip: '上传歌曲',
@@ -421,6 +476,7 @@ class _HomePageState extends State<HomePage> {
               child: IndexedStack(
                 index: _selectedIndex,
                 children: [
+                  LiveDeckPage(edgeClient: _edgeClient),
                   OverviewTab(
                     profile: widget.session.profile,
                     songs: songs,
@@ -488,6 +544,7 @@ class _HomePageState extends State<HomePage> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (value) => setState(() => _selectedIndex = value),
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.live_tv_outlined), label: 'Live'),
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.library_music_outlined), label: 'Library'),
           NavigationDestination(icon: Icon(Icons.travel_explore_outlined), label: 'Search'),
@@ -502,6 +559,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _titleForTab(int index) {
+    if (index == 0) return 'Live Deck';
     switch (index) {
       case 1:
         return 'Library';

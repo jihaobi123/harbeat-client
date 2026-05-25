@@ -11,6 +11,8 @@ const String defaultBaseUrl = String.fromEnvironment(
 );
 
 const String tokenStorageKey = 'harbeat_token';
+const String rkBaseUrlStorageKey = 'harbeat_rk_base_url';
+const String defaultRkBaseUrl = '192.168.5.17:9000';
 
 class HarBeatApp extends StatelessWidget {
   const HarBeatApp({super.key});
@@ -47,6 +49,7 @@ class _RootPageState extends State<RootPage> {
   bool _booting = true;
   bool _loadingDashboard = false;
   String? _error;
+  String _rkBaseUrl = defaultRkBaseUrl;
 
   @override
   void initState() {
@@ -62,6 +65,10 @@ class _RootPageState extends State<RootPage> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(tokenStorageKey);
+    final rkUrl = prefs.getString(rkBaseUrlStorageKey);
+    if (rkUrl != null && rkUrl.isNotEmpty) {
+      _rkBaseUrl = rkUrl;
+    }
     if (token == null || token.isEmpty) {
       setState(() {
         _session = null;
@@ -153,6 +160,12 @@ class _RootPageState extends State<RootPage> {
     return HomePage(
       apiClient: _apiClient,
       session: _session!,
+      rkBaseUrl: _rkBaseUrl,
+      onRkBaseUrlChanged: (url) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(rkBaseUrlStorageKey, url);
+        setState(() => _rkBaseUrl = url);
+      },
       data: _dashboard,
       loading: _loadingDashboard,
       error: _error,
