@@ -196,6 +196,33 @@ class _DjControlPageState extends State<DjControlPage> {
         s.contains('SongCacheError');
   }
 
+  /// edge-agent `XfadeRequest.style` is a strict Literal—any other value
+  /// returns HTTP 422. Map backend/UI labels to one of these or fall back
+  /// to a safe default.
+  static const Set<String> _rkXfadeStyles = {
+    'smooth', 'power', 'bass_swap', 'echo_out', 'filter', 'cut', 'slam',
+    'fade', 'rise', 'blend', 'wave', 'melt', 'vocal_handoff', 'vocal_ducking',
+    'drum_swap', 'instrumental_only', 'vocal_solo_intro', 'echo_freeze',
+  };
+
+  String _rkStyle(String raw, {String fallback = 'smooth'}) {
+    final k = raw.trim();
+    if (_rkXfadeStyles.contains(k)) return k;
+    // Common aliases coming from backend / UI.
+    const alias = <String, String>{
+      'hard_cut': 'cut',
+      'hardcut': 'cut',
+      'instant': 'cut',
+      'swap': 'cut',
+      'crossfade': 'blend',
+      'normal': 'blend',
+      'soft': 'smooth',
+    };
+    final mapped = alias[k.toLowerCase()];
+    if (mapped != null && _rkXfadeStyles.contains(mapped)) return mapped;
+    return fallback;
+  }
+
   /// Push the song's WAV from Jetson into RK cache via the sync-worker.
   /// Idempotent (sync-worker skips when file exists; we also gate via [_prefetched]).
   Future<void> _ensureRkCache(LibrarySong song, {String? statusPrefix}) async {
@@ -345,7 +372,10 @@ class _DjControlPageState extends State<DjControlPage> {
         nextSongId: next.id,
         cursorSec: _position.inMilliseconds / 1000.0,
       );
-      final ruleKey = plan['rule_key']?.toString() ?? 'blend';
+      final ruleKey = _rkStyle(
+        plan['rule_key']?.toString() ?? 'blend',
+        fallback: 'blend',
+      );
       final ruleLabel = plan['rule_label_zh']?.toString() ?? ruleKey;
       final fadeSec = (plan['fade_sec'] as num?)?.toDouble() ?? 6.0;
       Future<void> doXfade() => widget.edgeClient.xfade(
@@ -396,7 +426,7 @@ class _DjControlPageState extends State<DjControlPage> {
             toSongId: nextRk,
             fadeSec: 0.4,
             toAtSec: 0.0,
-            style: 'hard_cut',
+            style: 'cut',
           );
       try {
         await doCut();
@@ -469,7 +499,7 @@ class _DjControlPageState extends State<DjControlPage> {
             toSongId: targetRk,
             fadeSec: 1.0,
             toAtSec: 0.0,
-            style: 'hard_cut',
+            style: 'cut',
           );
       try {
         await doCut();
