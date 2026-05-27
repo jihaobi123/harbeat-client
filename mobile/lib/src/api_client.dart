@@ -660,6 +660,46 @@ class HarBeatApiClient {
     return (data['presets'] as List<dynamic>? ?? const []).cast<String>();
   }
 
+  /// Returns [{key, label_zh, desc_zh, scene}, ...] when backend supplies meta.
+  Future<List<Map<String, dynamic>>> djSequencePresetsMeta({required String token}) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/sequence/presets', token: token,
+    );
+    final meta = data['meta'];
+    if (meta is List) return meta.cast<Map<String, dynamic>>();
+    return (data['presets'] as List<dynamic>? ?? const [])
+        .cast<String>()
+        .map((k) => <String, dynamic>{'key': k, 'label_zh': k, 'desc_zh': '', 'scene': 'generic'})
+        .toList();
+  }
+
+  /// Live cut planning. Returns plan map: {chosen_song_id, switch_at_sec, ...}.
+  Future<Map<String, dynamic>> djPlanCut({
+    required String token,
+    required String strategy,
+    required String currentSongId,
+    required double cursorSec,
+    required List<String> queueSongIds,
+    required int currentIndex,
+    required List<String> poolSongIds,
+    double maxWaitSec = 5.0,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/cut/plan',
+      token: token,
+      body: {
+        'strategy': strategy,
+        'current_song_id': currentSongId,
+        'cursor_sec': cursorSec,
+        'queue_song_ids': queueSongIds,
+        'current_index': currentIndex,
+        'pool_song_ids': poolSongIds,
+        'max_wait_sec': maxWaitSec,
+      },
+    );
+  }
+
   Future<List<Map<String, dynamic>>> djSequence({
     required String token,
     required List<String> songIds,
