@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
+from app.modules.dj_control.router import router as dj_control_router
 from app.modules.fangpi.router import router as fangpi_router
 from app.modules.health.router import router as health_router
 from app.modules.library.router import router as library_router
@@ -28,4 +29,5 @@ api_router.include_router(
 )
 api_router.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
 api_router.include_router(fangpi_router, prefix="/api/fangpi", tags=["fangpi"])
+api_router.include_router(dj_control_router, prefix="/api/dj", tags=["dj-control"])
 
