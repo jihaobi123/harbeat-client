@@ -75,8 +75,11 @@ class EdgeAgentClient {
     return _request(method: 'POST', path: '/resume');
   }
 
+  /// [toSongId] accepts an int (catalog Song.id) or a String (LibrarySong UUID).
+  /// RK accepts both via `int | str`; UUID is preferred because the sync
+  /// worker caches wavs under `~/cypher/cache/{UUID}/original.wav`.
   Future<Map<String, dynamic>> xfade({
-    required int toSongId,
+    required Object toSongId,
     double fadeSec = 8.0,
     double toAtSec = 0.0,
     String style = 'blend',

@@ -79,6 +79,10 @@ class FxItem(BaseModel):
     label_zh: str
     default_duration: float
     category: str | None = None
+    # When set, mobile should trigger this FX on the RK speaker via
+    # POST /trigger {key: rk_key} rather than playing the rendered wav
+    # through the phone's local audio.
+    rk_key: int | None = None
 
 
 class FxListResponse(BaseModel):

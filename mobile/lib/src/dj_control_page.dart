@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'api_client.dart';
 import 'edge_agent_client.dart';
 import 'models.dart';
+import 'sync_worker_client.dart';
 
 // =========================================================================== //
 // DJ Control 4-step wizard (mobile) — RK3588 live playback
@@ -68,9 +69,18 @@ class _DjControlPageState extends State<DjControlPage> {
   bool _xfadeInFlight = false;
   Timer? _rkPoll;
 
+  // Sync-worker: pulls Jetson wav into ~/cypher/cache/<song_id>/ on RK.
+  // Without this, edge-agent /play and /xfade return HTTP 409 ('缺少 original.wav').
+  late final SyncWorkerClient _sync;
+  final Set<String> _prefetched = <String>{};
+  final Set<String> _prefetchInFlight = <String>{};
+
   @override
   void initState() {
     super.initState();
+    _sync = SyncWorkerClient(
+      baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(widget.edgeClient.baseUrl),
+    );
     _loadCatalogs();
   }
 
@@ -164,17 +174,92 @@ class _DjControlPageState extends State<DjControlPage> {
         .toList();
   }
 
-  /// Convert a LibrarySong.id (String) to the RK numeric song_id.
-  int? _rkId(LibrarySong s) => s.songId ?? int.tryParse(s.id);
+  /// Resolve the song_id to send to RK. RK's edge-agent accepts both `int`
+  /// (catalog Song.id) and `str` (LibrarySong UUID). The sync worker caches
+  /// to `~/cypher/cache/{UUID}/` so the UUID is the safer choice; we fall
+  /// back to the numeric catalog id when the LibrarySong came straight from
+  /// the catalog (older paths).
+  Object _rkIdForXfade(LibrarySong s) => s.id.isNotEmpty ? s.id : (s.songId ?? 0);
+
+  /// Legacy helper kept for the play() entry-point which uses a String body.
+  String? _rkPlayId(LibrarySong s) {
+    if (s.id.isNotEmpty) return s.id;
+    final n = s.songId;
+    return n == null ? null : n.toString();
+  }
+
+  bool _isMissingCacheError(Object e) {
+    final s = e.toString();
+    return s.contains(' 409') ||
+        s.contains('409:') ||
+        s.contains('original.wav') ||
+        s.contains('SongCacheError');
+  }
+
+  /// Push the song's WAV from Jetson into RK cache via the sync-worker.
+  /// Idempotent (sync-worker skips when file exists; we also gate via [_prefetched]).
+  Future<void> _ensureRkCache(LibrarySong song, {String? statusPrefix}) async {
+    final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
+    if (id == null || id.isEmpty) {
+      throw Exception('song ${song.title} 缺少 song_id，无法同步到 RK');
+    }
+    if (_prefetched.contains(id)) return;
+    if (_prefetchInFlight.contains(id)) {
+      // Wait briefly for in-flight prefetch.
+      while (_prefetchInFlight.contains(id)) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      if (_prefetched.contains(id)) return;
+    }
+    _prefetchInFlight.add(id);
+    try {
+      final url = widget.apiClient.streamUrl(token: widget.token, songId: song.id);
+      await _sync.syncAndWait(
+        tracks: [
+          {
+            'song_id': id,
+            'files': {
+              'original': {'url': url, 'format': 'mp3'},
+            },
+          },
+        ],
+        planId: 'dj-${DateTime.now().millisecondsSinceEpoch}-$id',
+        timeout: const Duration(minutes: 2),
+        onProgress: (st) {
+          if (!mounted) return;
+          setState(() {
+            _cutInfo = '${statusPrefix ?? '同步到 RK'} ${st.percent.toStringAsFixed(0)}%';
+          });
+        },
+      );
+      _prefetched.add(id);
+    } finally {
+      _prefetchInFlight.remove(id);
+    }
+  }
+
+  /// Background prefetch (fire-and-forget) for the next song so xfade is instant.
+  void _kickPrefetchNext() {
+    final ordered = _orderedSongs();
+    final i = _liveIdx + 1;
+    if (i < 0 || i >= ordered.length) return;
+    final s = ordered[i];
+    final id = s.id.isNotEmpty ? s.id : s.songId?.toString();
+    if (id == null || _prefetched.contains(id) || _prefetchInFlight.contains(id)) {
+      return;
+    }
+    // ignore: discarded_futures
+    _ensureRkCache(s, statusPrefix: '预取下一首').catchError((_) {});
+  }
 
   Future<void> _startLiveMix() async {
     final ordered = _orderedSongs();
     if (ordered.isEmpty) return;
     final first = ordered.first;
-    final rkId = _rkId(first);
+    final rkId = _rkPlayId(first);
     if (rkId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('首曲 song_id 非数字，RK 无法识别: ${first.id}')),
+        SnackBar(content: Text('首曲缺少 song_id，RK 无法识别')),
       );
       return;
     }
@@ -183,13 +268,38 @@ class _DjControlPageState extends State<DjControlPage> {
       _liveIdx = 0;
       _lastXfadeFromIdx = -1;
       _step = 3; // jump to 实时操作
+      _cutInfo = '正在同步首曲到 RK…';
     });
     try {
-      await widget.edgeClient.play(songId: rkId.toString(), startAtSec: 0);
+      // 1) Make sure RK has the wav cached. Skips quickly if already cached.
+      await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
+      // 2) Tell edge-agent to start playback.
+      await widget.edgeClient.play(songId: rkId, startAtSec: 0);
+      if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
+      // 3) Warm up the next song in the background so auto-xfade is instant.
+      _kickPrefetchNext();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('RK 启动失败: $e')),
-      );
+      // Last-ditch retry: if play failed with 409 we may have missed the sync.
+      if (_isMissingCacheError(e)) {
+        try {
+          await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
+          await widget.edgeClient.play(songId: rkId, startAtSec: 0);
+          if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
+          _kickPrefetchNext();
+        } catch (e2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('RK 启动失败: $e2')),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('RK 启动失败: $e')),
+          );
+        }
+      }
     }
     _startRkPolling();
   }
@@ -223,11 +333,12 @@ class _DjControlPageState extends State<DjControlPage> {
 
     final prev = ordered[_liveIdx];
     final next = ordered[_liveIdx + 1];
-    final nextRkId = _rkId(next);
-    if (nextRkId == null) return;
+    final nextRkId = _rkIdForXfade(next);
 
     _xfadeInFlight = true;
     try {
+      // Make sure RK has the next song cached before we ask it to crossfade.
+      await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
       final plan = await widget.apiClient.djPlanTransition(
         token: widget.token,
         prevSongId: prev.id,
@@ -237,12 +348,22 @@ class _DjControlPageState extends State<DjControlPage> {
       final ruleKey = plan['rule_key']?.toString() ?? 'blend';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? ruleKey;
       final fadeSec = (plan['fade_sec'] as num?)?.toDouble() ?? 6.0;
-      await widget.edgeClient.xfade(
-        toSongId: nextRkId,
-        fadeSec: fadeSec,
-        toAtSec: 0.0,
-        style: ruleKey,
-      );
+      Future<void> doXfade() => widget.edgeClient.xfade(
+            toSongId: nextRkId,
+            fadeSec: fadeSec,
+            toAtSec: 0.0,
+            style: ruleKey,
+          );
+      try {
+        await doXfade();
+      } catch (e) {
+        if (_isMissingCacheError(e)) {
+          await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
+          await doXfade();
+        } else {
+          rethrow;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _lastXfadeFromIdx = _liveIdx;
@@ -250,6 +371,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel';
       });
+      _kickPrefetchNext();
     } catch (e) {
       if (mounted) setState(() => _cutInfo = '自动衔接失败: $e');
     } finally {
@@ -266,21 +388,32 @@ class _DjControlPageState extends State<DjControlPage> {
       return;
     }
     final nextSong = ordered[next];
-    final nextRk = _rkId(nextSong);
-    if (nextRk == null) return;
+    final nextRk = _rkIdForXfade(nextSong);
     try {
+      await _ensureRkCache(nextSong, statusPrefix: '同步下一首到 RK');
       // Hard cut via xfade w/ tiny fade.
-      await widget.edgeClient.xfade(
-        toSongId: nextRk,
-        fadeSec: 0.4,
-        toAtSec: 0.0,
-        style: 'hard_cut',
-      );
+      Future<void> doCut() => widget.edgeClient.xfade(
+            toSongId: nextRk,
+            fadeSec: 0.4,
+            toAtSec: 0.0,
+            style: 'hard_cut',
+          );
+      try {
+        await doCut();
+      } catch (e) {
+        if (_isMissingCacheError(e)) {
+          await _ensureRkCache(nextSong, statusPrefix: '同步下一首到 RK');
+          await doCut();
+        } else {
+          rethrow;
+        }
+      }
       setState(() {
         _liveIdx = next;
         _lastXfadeFromIdx = next - 1;
         _cutInfo = '手动跳到 #${next + 1}';
       });
+      _kickPrefetchNext();
     } catch (e) {
       setState(() => _cutInfo = '跳曲失败: $e');
     }
@@ -328,19 +461,26 @@ class _DjControlPageState extends State<DjControlPage> {
       final target = byId[nextId] ??
           ordered.firstWhere((s) => s.id == nextId,
               orElse: () => current);
-      final targetRk = _rkId(target);
-      if (targetRk == null) {
-        setState(() => _cutInfo = '⏭ $strategy → $nextId 非数字 ID');
-        return;
-      }
+      final targetRk = _rkIdForXfade(target);
       // Insert target into queue immediately after current if it's not already next.
       final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
-      await widget.edgeClient.xfade(
-        toSongId: targetRk,
-        fadeSec: 1.0,
-        toAtSec: 0.0,
-        style: 'hard_cut',
-      );
+      await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
+      Future<void> doCut() => widget.edgeClient.xfade(
+            toSongId: targetRk,
+            fadeSec: 1.0,
+            toAtSec: 0.0,
+            style: 'hard_cut',
+          );
+      try {
+        await doCut();
+      } catch (e) {
+        if (_isMissingCacheError(e)) {
+          await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
+          await doCut();
+        } else {
+          rethrow;
+        }
+      }
       setState(() {
         if (inOrderIdx > _liveIdx) {
           _liveIdx = inOrderIdx;
@@ -358,6 +498,29 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _playFx(String key) async {
+    // Prefer triggering on the RK speaker (mixed onto the live audio bus) via
+    // /trigger {key:int}. The backend FX catalog now exposes `rk_key`; if it's
+    // present we hit RK directly. Fall back to playing the rendered wav on the
+    // phone speaker only when RK has no matching sample slot.
+    int? rkKey;
+    for (final fx in _fxItems) {
+      if (fx['key'] == key) {
+        final raw = fx['rk_key'];
+        if (raw is int) rkKey = raw;
+        if (raw is num) rkKey = raw.toInt();
+        break;
+      }
+    }
+    if (rkKey != null) {
+      try {
+        await widget.edgeClient.trigger(rkKey);
+        return;
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('RK FX 失败，回退本机: $e')),
+        );
+      }
+    }
     try {
       await _fxPlayer.stop();
       await _fxPlayer.setUrl(widget.apiClient.djFxAudioUrl(key));

@@ -1,22 +1,25 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
-from app.modules.recommendations import vibe as vibe_search
 from app.modules.recommendations.schemas import (
     AddToLibraryData,
     AddToLibraryRequest,
     DiscoverData,
     DiscoverRequest,
+    ImportFromVibeRequest,
     RecommendationData,
     RecommendationRequest,
+    VibeSearchData,
+    VibeSearchRequest,
 )
 from app.modules.recommendations.service import (
     add_song_to_library,
     discover_songs,
+    import_from_vibe,
     recommend_songs,
+    vibe_search,
 )
 
 router = APIRouter()
@@ -56,29 +59,20 @@ def get_recommendations_endpoint(
     return APIResponse(data=RecommendationData(songs=songs))
 
 
-# ───────────────────────── Vibe Search (Spotify-style) ─────────────────────── #
-
-class VibeSearchRequest(BaseModel):
-    query: str
-    user_id: int | None = None
-    top_k: int = 12
+# ─────────────────────── Vibe Search (CLAP + Spotify hybrid) ────────────────── #
 
 
-class ImportFromVibeRequest(BaseModel):
-    user_id: int
-    vibe_description: str
-    top_k: int = 5
-    auto_import: bool = True
-
-
-@router.post("/vibe-search")
+@router.post("/vibe-search", response_model=APIResponse[VibeSearchData])
 def vibe_search_endpoint(
     payload: VibeSearchRequest,
     db: Session = Depends(get_db),
 ):
-    """Free-form text → ranked catalog songs (Spotify-style audio features)."""
-    data = vibe_search.search(
-        db, user_id=payload.user_id, query=payload.query, top_k=payload.top_k,
+    """Free-form text → CLAP local search + Spotify candidates merged."""
+    data = vibe_search(
+        db,
+        query=payload.query,
+        user_id=payload.user_id,
+        top_k=payload.top_k,
     )
     return APIResponse(data=data)
 
@@ -88,32 +82,12 @@ def import_from_vibe_endpoint(
     payload: ImportFromVibeRequest,
     db: Session = Depends(get_db),
 ):
-    """Vibe-search then auto-add the top results to the user's library."""
-    result = vibe_search.search(
-        db, user_id=payload.user_id, query=payload.vibe_description, top_k=payload.top_k,
+    """Vibe → Spotify → CLAP rerank → download + index."""
+    data = import_from_vibe(
+        db,
+        user_id=payload.user_id,
+        vibe_description=payload.vibe_description,
+        top_k=payload.top_k,
+        auto_import=payload.auto_import,
     )
-    imported: list[dict] = []
-    failed: list[dict] = []
-    if payload.auto_import:
-        for s in result["songs"]:
-            sid = s.get("song_id")
-            if not sid or s.get("in_library"):
-                continue
-            try:
-                lib = add_song_to_library(db, user_id=payload.user_id, song_id=int(sid))
-                imported.append({
-                    "song_id": sid,
-                    "library_song_id": lib.library_song_id,
-                    "title": lib.title,
-                    "artist": lib.artist,
-                })
-            except Exception as exc:  # noqa: BLE001 — surface error per item
-                failed.append({"song_id": sid, "title": s.get("title"), "error": str(exc)})
-    return APIResponse(data={
-        "query": result["query"],
-        "vibe_description": result["vibe_description"],
-        "genres": result["genres"],
-        "candidates": result["songs"],
-        "imported": imported,
-        "failed": failed,
-    })
+    return APIResponse(data=data)

@@ -17,6 +17,8 @@ from app.modules.recommendations.schemas import (
     DiscoverSection,
     DiscoverSongItem,
     RecommendedSongItem,
+    VibeSearchData,
+    VibeSearchSongItem,
 )
 
 # ───────────────── Style → display info mapping ─────────────────
@@ -385,3 +387,236 @@ def recommend_songs(
         RecommendedSongItem(song_id=song.id, title=song.title, artist=song.artist, in_library=True)
         for _, song in ranked[:10]
     ]
+
+
+# ───────────── Vibe search (CLAP + Spotify hybrid) ─────────────
+
+import logging as _logging
+
+_vibe_logger = _logging.getLogger(__name__)
+
+
+def vibe_search(
+    db: Session,
+    query: str,
+    user_id: Optional[int] = None,
+    top_k: int = 10,
+) -> VibeSearchData:
+    """Search songs by natural-language vibe description.
+
+    Pipeline:
+    1. interpret_vibe  → genres + vibe_description + Spotify search_query
+    2. CLAP text→audio → search local library via ChromaDB
+    3. Spotify search  → candidate tracks from Spotify catalog
+    4. Merge & sort by real similarity
+    """
+    from app.modules.recommendations.vibe_service import interpret_vibe
+    from app.modules.recommendations.spotify_service import search_tracks
+
+    vibe = interpret_vibe(query)
+    spotify_query = vibe.get("search_query", "")
+    vibe_desc = vibe["vibe_description"]
+    genres = vibe.get("genres", [])
+
+    songs: list[VibeSearchSongItem] = []
+
+    # ── Step 1: CLAP cross-modal search in local library ──
+    try:
+        from app.modules.recommendations.vector_store import search_songs as clap_search
+        local_results = clap_search(vibe_desc, top_k=top_k)
+        _vibe_logger.info("[vibe] CLAP returned %d local results", len(local_results))
+
+        for row in local_results:
+            # cosine distance → match percentage (0=perfect, 2=worst for cosine)
+            distance = row.get("distance", 1.0)
+            match_pct = round(max(0, (1.0 - distance)) * 100, 1)
+            song_id_str = row.get("song_id")
+            song_id = int(song_id_str) if song_id_str else None
+
+            # Check if song is in user's library
+            in_lib = False
+            if song_id and user_id:
+                lib_song = (
+                    db.query(LibrarySong)
+                    .filter(LibrarySong.song_id == song_id, LibrarySong.user_id == user_id)
+                    .first()
+                )
+                in_lib = lib_song is not None
+
+            songs.append(VibeSearchSongItem(
+                song_id=song_id,
+                title=row.get("title", "Unknown"),
+                artist=row.get("artist", "Unknown"),
+                style=row.get("style"),
+                energy=row.get("energy"),
+                source="local",
+                in_library=in_lib,
+                match_percentage=match_pct,
+            ))
+    except Exception:
+        _vibe_logger.warning("[vibe] CLAP local search failed, skipping", exc_info=True)
+
+    # ── Step 2: Spotify search ──
+    spotify_songs: list[VibeSearchSongItem] = []
+    if spotify_query:
+        try:
+            spotify_tracks = search_tracks(spotify_query, limit=min(top_k, 10))
+            _vibe_logger.info("[vibe] Spotify returned %d results", len(spotify_tracks))
+
+            for i, track in enumerate(spotify_tracks):
+                # Position-based score (Spotify relevance) scaled to [0, 80]
+                # Local CLAP results can score up to 100, Spotify max 80
+                match_pct = round((1.0 - i / max(len(spotify_tracks), 1)) * 80, 1)
+                spotify_songs.append(VibeSearchSongItem(
+                    title=track["title"],
+                    artist=track["artist"],
+                    spotify_id=track.get("spotify_id"),
+                    preview_url=track.get("preview_url"),
+                    album_art=track.get("album_art"),
+                    spotify_url=track.get("spotify_url"),
+                    source="spotify",
+                    in_library=False,
+                    match_percentage=match_pct,
+                ))
+        except Exception:
+            _vibe_logger.warning("[vibe] Spotify search failed, skipping", exc_info=True)
+
+    # ── Step 3: Merge & sort ──
+    # Deduplicate: if a Spotify track matches a local song by title+artist, keep local
+    local_keys = {(s.title.lower(), s.artist.lower()) for s in songs}
+    for sp_song in spotify_songs:
+        key = (sp_song.title.lower(), sp_song.artist.lower())
+        if key not in local_keys:
+            songs.append(sp_song)
+
+    # Sort by match_percentage descending
+    songs.sort(key=lambda s: s.match_percentage, reverse=True)
+    songs = songs[:top_k]
+
+    return VibeSearchData(
+        query=query,
+        vibe_description=vibe_desc,
+        search_query=spotify_query,
+        genres=genres,
+        songs=songs,
+    )
+
+
+# ───────────── Import from vibe / playlist pipelines ─────────────
+
+
+def import_from_vibe(
+    db: Session,
+    user_id: int,
+    vibe_description: str,
+    top_k: int = 5,
+    auto_import: bool = True,
+) -> dict:
+    """Full pipeline: vibe → Spotify search → CLAP rerank → download → index.
+
+    Returns ImportFromVibeData-compatible dict.
+    """
+    from app.modules.recommendations.vibe_service import interpret_vibe
+    from app.modules.recommendations.spotify_service import search_tracks
+    from app.modules.recommendations.rerank_service import rerank_tracks
+    from app.modules.recommendations.ingest_service import ingest_spotify_tracks
+
+    vibe = interpret_vibe(vibe_description)
+    spotify_query = vibe["search_query"]
+    vibe_desc = vibe["vibe_description"]
+    genres = vibe.get("genres", [])
+
+    # Step 1: Spotify search
+    spotify_raw = search_tracks(spotify_query, limit=min(top_k * 3, 10))
+    spotify_candidates: list[dict] = []
+    for item in spotify_raw:
+        spotify_candidates.append(VibeSearchSongItem(
+            title=item["title"],
+            artist=item["artist"],
+            spotify_id=item.get("spotify_id"),
+            preview_url=item.get("preview_url"),
+            album_art=item.get("album_art"),
+            spotify_url=item.get("spotify_url"),
+            source="spotify",
+            in_library=False,
+            match_percentage=0.0,
+        ))
+
+    # Step 2: CLAP rerank
+    if spotify_raw:
+        reranked = rerank_tracks(vibe_desc, spotify_raw)
+    else:
+        reranked = []
+    top_tracks = reranked[:top_k]
+
+    # Build enriched song items for reranked results
+    reranked_items: list[dict] = []
+    for t in top_tracks:
+        t_info = t.get("track") or t
+        reranked_items.append({
+            "title": str(t_info.get("name") or t.get("title") or ""),
+            "artist": (
+                ", ".join(a.get("name", "") for a in (t_info.get("artists") or []))
+                or str(t.get("artist") or "")
+            ),
+            "spotify_id": str(t_info.get("id") or t.get("spotify_id") or ""),
+            "semantic_score": t.get("semantic_score", 0),
+        })
+
+    # Step 3: Download + index
+    ingested: list[dict] = []
+    if auto_import and top_tracks:
+        ingested = ingest_spotify_tracks(top_tracks)
+
+    success_count = sum(1 for r in ingested if r.get("success"))
+    return {
+        "vibe_description": vibe_desc,
+        "search_query": spotify_query,
+        "genres": genres,
+        "spotify_candidates": spotify_candidates,
+        "reranked_candidates": reranked_items,
+        "ingested_tracks": ingested,
+        "pipeline_summary": (
+            f"Spotify returned {len(spotify_raw)} tracks, "
+            f"CLAP reranked to {len(reranked_items)}, "
+            f"ingested {success_count}/{len(ingested)} successfully."
+        ),
+    }
+
+
+def import_playlist_spotify(
+    db: Session,
+    user_id: int,
+    playlist_url: str,
+    auto_import: bool = True,
+) -> dict:
+    """Import a Spotify playlist: fetch tracks → download → index.
+
+    Returns ImportPlaylistData-compatible dict.
+    """
+    from app.modules.recommendations.spotify_service import fetch_playlist_tracks
+    from app.modules.recommendations.ingest_service import ingest_spotify_tracks
+
+    tracks = fetch_playlist_tracks(playlist_url)
+    if not tracks:
+        return {
+            "playlist_name": "",
+            "track_count": 0,
+            "ingested_tracks": [],
+            "pipeline_summary": "No tracks found in playlist.",
+        }
+
+    ingested: list[dict] = []
+    if auto_import:
+        ingested = ingest_spotify_tracks(tracks)
+
+    success_count = sum(1 for r in ingested if r.get("success"))
+    return {
+        "playlist_name": f"Spotify playlist ({len(tracks)} tracks)",
+        "track_count": len(tracks),
+        "ingested_tracks": ingested,
+        "pipeline_summary": (
+            f"Fetched {len(tracks)} tracks, "
+            f"ingested {success_count}/{len(ingested)} successfully."
+        ),
+    }

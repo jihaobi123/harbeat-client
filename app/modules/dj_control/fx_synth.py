@@ -393,15 +393,18 @@ def mc_hype(duration: float = 0.55, sr: int = SR_DEFAULT) -> np.ndarray:
 # Catalog & encoding
 # --------------------------------------------------------------------------- #
 FX_CATALOG: dict[str, dict] = {
-    # build-ups & accents
-    "air_horn":            {"label_zh": "喇叭 长鸣",         "fn": air_horn,            "default_duration": 1.4,  "category": "hype"},
-    "air_horn_burst":      {"label_zh": "喇叭 三连",         "fn": air_horn_burst,      "default_duration": 1.5,  "category": "hype"},
+    # build-ups & accents — rk_key maps to RK audio-engine sample slots
+    # (~/cypher/samples/*.wav). Mobile prefers calling /trigger with rk_key so
+    # the FX plays on the RK speaker (mixed onto the live bus) rather than the
+    # phone speaker. Backend audio fallback is still rendered on demand.
+    "air_horn":            {"label_zh": "喇叭 长鸣",         "fn": air_horn,            "default_duration": 1.4,  "category": "hype",  "rk_key": 1},
+    "air_horn_burst":      {"label_zh": "喇叭 三连",         "fn": air_horn_burst,      "default_duration": 1.5,  "category": "hype",  "rk_key": 2},
     # rhythmic stabs
-    "snare_crack":         {"label_zh": "嚓声 Snare",        "fn": snare_crack,         "default_duration": 0.20, "category": "drum"},
-    "beat_juggle_stutter": {"label_zh": "Beat Juggle",      "fn": beat_juggle_stutter, "default_duration": 1.0,  "category": "drum"},
+    "snare_crack":         {"label_zh": "嚓声 Snare",        "fn": snare_crack,         "default_duration": 0.20, "category": "drum",  "rk_key": 3},
+    "beat_juggle_stutter": {"label_zh": "Beat Juggle",      "fn": beat_juggle_stutter, "default_duration": 1.0,  "category": "drum",  "rk_key": 4},
     # drops & build-ups
-    "bass_drop":           {"label_zh": "Bass Drop",        "fn": bass_drop,           "default_duration": 1.6,  "category": "drop"},
-    "vinyl_stop":          {"label_zh": "黑胶刹停",          "fn": vinyl_stop,          "default_duration": 0.6,  "category": "drop"},
+    "bass_drop":           {"label_zh": "Bass Drop",        "fn": bass_drop,           "default_duration": 1.6,  "category": "drop",  "rk_key": 5},
+    "vinyl_stop":          {"label_zh": "黑胶刹停",          "fn": vinyl_stop,          "default_duration": 0.6,  "category": "drop",  "rk_key": 6},
 }
 
 
@@ -412,6 +415,7 @@ def list_fx() -> list[dict]:
             "label_zh": v["label_zh"],
             "default_duration": v["default_duration"],
             "category": v.get("category", "accent"),
+            "rk_key": v.get("rk_key"),
         }
         for k, v in FX_CATALOG.items()
     ]

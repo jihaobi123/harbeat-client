@@ -60,3 +60,81 @@ class AddToLibraryData(BaseModel):
     library_song_id: str
     title: str
     artist: str
+
+
+# --- Vibe search (CLAP + Spotify hybrid) ---
+class VibeSearchRequest(BaseModel):
+    query: str
+    user_id: Optional[int] = None
+    top_k: int = 10
+
+
+class VibeSearchSongItem(BaseModel):
+    song_id: Optional[int] = None
+    title: str
+    artist: str
+    style: Optional[str] = None
+    energy: Optional[str] = None
+    spotify_id: Optional[str] = None
+    preview_url: Optional[str] = None
+    album_art: Optional[str] = None
+    spotify_url: Optional[str] = None
+    source: str = "local"  # "local" | "spotify"
+    in_library: bool = False
+    match_percentage: float = 0.0
+
+
+class VibeSearchData(BaseModel):
+    query: str
+    vibe_description: str
+    search_query: str = ""
+    genres: list[str]
+    songs: list[VibeSearchSongItem]
+
+
+class ReindexData(BaseModel):
+    indexed_count: int
+
+
+class ReindexClapData(BaseModel):
+    success: int
+    failed: int
+    total: int
+
+
+class VectorStoreStatsData(BaseModel):
+    collection: str
+    count: int
+    text_count: int = 0
+
+
+# --- Import from vibe / playlist ---
+
+class ImportFromVibeRequest(BaseModel):
+    user_id: int
+    vibe_description: str
+    top_k: int = 5
+    auto_import: bool = True
+
+
+class ImportFromVibeData(BaseModel):
+    vibe_description: str
+    search_query: str
+    genres: list[str]
+    spotify_candidates: list[VibeSearchSongItem]
+    reranked_candidates: list[VibeSearchSongItem]
+    ingested_tracks: list[dict]
+    pipeline_summary: str
+
+
+class ImportPlaylistRequest(BaseModel):
+    user_id: int
+    playlist_url: str
+    auto_import: bool = True
+
+
+class ImportPlaylistData(BaseModel):
+    playlist_name: str = ""
+    track_count: int
+    ingested_tracks: list[dict]
+    pipeline_summary: str
