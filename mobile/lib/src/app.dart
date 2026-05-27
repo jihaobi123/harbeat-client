@@ -7,7 +7,7 @@ import 'models.dart';
 
 const String defaultBaseUrl = String.fromEnvironment(
   'HARBEAT_BASE_URL',
-  defaultValue: 'https://harbeat.com',
+  defaultValue: 'http://8.136.120.255',
 );
 
 const String tokenStorageKey = 'harbeat_token';
@@ -328,7 +328,7 @@ class _AuthPageState extends State<AuthPage> {
                         if (_registerMode) ...[
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            initialValue: _danceStyle,
+                            value: _danceStyle,
                             decoration: const InputDecoration(
                               labelText: '舞种',
                               border: OutlineInputBorder(),
@@ -348,7 +348,7 @@ class _AuthPageState extends State<AuthPage> {
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            initialValue: _level,
+                            value: _level,
                             decoration: const InputDecoration(
                               labelText: '水平',
                               border: OutlineInputBorder(),

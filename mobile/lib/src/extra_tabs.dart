@@ -507,7 +507,7 @@ class _SessionTabState extends State<SessionTab> {
                 const Text('Session 模式', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _mode,
+                  value: _mode,
                   items: const [
                     DropdownMenuItem(value: 'freeplay', child: Text('freeplay')),
                     DropdownMenuItem(value: 'cypher', child: Text('cypher')),
@@ -681,7 +681,7 @@ class _DjToolsTabState extends State<DjToolsTab> {
                 const Text('DJ Tools', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _style,
+                  value: _style,
                   decoration: const InputDecoration(labelText: '舞种'),
                   items: const [
                     'hiphop', 'jazz', 'breaking', 'popping', 'locking', 'waacking', 'house', 'krump'
@@ -690,7 +690,7 @@ class _DjToolsTabState extends State<DjToolsTab> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int?>(
-                  initialValue: _playlistId,
+                  value: _playlistId,
                   decoration: const InputDecoration(labelText: '来源歌单'),
                   items: [
                     const DropdownMenuItem<int?>(value: null, child: Text('全部曲库')),
@@ -703,7 +703,7 @@ class _DjToolsTabState extends State<DjToolsTab> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
-                  initialValue: _duration,
+                  value: _duration,
                   decoration: const InputDecoration(labelText: '时长'),
                   items: const [15, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value 分钟'))).toList(),
                   onChanged: (value) => setState(() => _duration = value ?? 30),
