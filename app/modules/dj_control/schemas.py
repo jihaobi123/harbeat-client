@@ -78,6 +78,7 @@ class FxItem(BaseModel):
     key: str
     label_zh: str
     default_duration: float
+    category: str | None = None
 
 
 class FxListResponse(BaseModel):

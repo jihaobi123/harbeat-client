@@ -415,7 +415,8 @@ export interface DjSequenceEntry {
   breakdown: Record<string, number>
 }
 export interface DjTransitionRule { key: string; label_zh: string }
-export interface DjFxItem { key: string; label_zh: string; default_duration: number }
+export interface DjFxItem { key: string; label_zh: string; default_duration: number; category?: string }
+export interface DjSequencePreset { key: string; label_zh: string; desc_zh: string; scene: string }
 
 export async function djListStyles() {
   return request<{ styles: DjStyle[] }>('/api/dj/styles')
@@ -426,7 +427,7 @@ export async function djPickByStyle(style: string, target_duration_sec: number, 
   )
 }
 export async function djListSequencePresets() {
-  return request<{ presets: string[] }>('/api/dj/sequence/presets')
+  return request<{ presets: string[]; meta?: DjSequencePreset[] }>('/api/dj/sequence/presets')
 }
 export async function djSequence(song_ids: string[], preset: string) {
   return request<{ preset: string; sequence: DjSequenceEntry[] }>(

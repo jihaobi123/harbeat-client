@@ -83,7 +83,10 @@ def pick_by_style_endpoint(
 # --------------------------------------------------------------------------- #
 @router.get("/sequence/presets")
 def list_sequence_presets():
-    return APIResponse(data={"presets": sequencer.PRESETS})
+    return APIResponse(data={
+        "presets": sequencer.PRESETS,
+        "meta": sequencer.list_presets(),
+    })
 
 
 @router.post("/sequence", response_model=APIResponse[SequenceResponse])
