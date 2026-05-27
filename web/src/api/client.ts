@@ -403,3 +403,63 @@ export function getMixStreamUrl(filename: string): string {
   const token = getToken()
   return `${BASE}/api/stream/mixes/${encodeURIComponent(filename)}?token=${token || ''}`
 }
+
+// ---- DJ Control ----
+export interface DjStyle { key: string; label_zh: string; bpm_range: [number, number] }
+export interface DjScoredSong {
+  song_id: string; title: string; artist: string
+  bpm: number | null; duration: number | null; score: number; energy: number | null
+}
+export interface DjSequenceEntry {
+  song_id: string; position: number; target_energy: number; actual_energy: number
+  breakdown: Record<string, number>
+}
+export interface DjTransitionRule { key: string; label_zh: string }
+export interface DjFxItem { key: string; label_zh: string; default_duration: number }
+
+export async function djListStyles() {
+  return request<{ styles: DjStyle[] }>('/api/dj/styles')
+}
+export async function djPickByStyle(style: string, target_duration_sec: number, min_score = 0.35) {
+  return request<{ style: string; target_duration_sec: number; achieved_duration_sec: number; songs: DjScoredSong[] }>(
+    '/api/dj/styles/pick', { method: 'POST', body: JSON.stringify({ style, target_duration_sec, min_score }) }
+  )
+}
+export async function djListSequencePresets() {
+  return request<{ presets: string[] }>('/api/dj/sequence/presets')
+}
+export async function djSequence(song_ids: string[], preset: string) {
+  return request<{ preset: string; sequence: DjSequenceEntry[] }>(
+    '/api/dj/sequence', { method: 'POST', body: JSON.stringify({ song_ids, preset }) }
+  )
+}
+export async function djSongEnergy(songId: string) {
+  return request<Record<string, number>>(`/api/dj/songs/${songId}/energy`)
+}
+export async function djListTransitionRules() {
+  return request<{ analyzed: DjTransitionRule[]; raw: DjTransitionRule[] }>('/api/dj/transitions/rules')
+}
+export async function djPlanTransition(prev_song_id: string, next_song_id: string, cursor_sec = 0, rule_key?: string) {
+  return request<Record<string, unknown>>(
+    '/api/dj/transitions/plan',
+    { method: 'POST', body: JSON.stringify({ prev_song_id, next_song_id, cursor_sec, rule_key }) }
+  )
+}
+export async function djPlanCut(payload: {
+  strategy: 'fast_cut' | 'energy_up_cut' | 'energy_down_cut'
+  current_song_id: string
+  cursor_sec: number
+  queue_song_ids: string[]
+  current_index: number
+  pool_song_ids?: string[]
+  max_wait_sec?: number
+}) {
+  return request<Record<string, unknown>>('/api/dj/cut/plan', { method: 'POST', body: JSON.stringify(payload) })
+}
+export async function djListFx() {
+  return request<{ fx: DjFxItem[] }>('/api/dj/fx')
+}
+export function djFxAudioUrl(key: string, duration?: number) {
+  const q = duration ? `?duration=${duration}` : ''
+  return `${BASE}/api/dj/fx/${key}.wav${q}`
+}

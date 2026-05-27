@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
 
-export type NavView = 'library' | 'platform' | 'recommend' | 'session' | 'profile'
+export type NavView = 'library' | 'platform' | 'recommend' | 'session' | 'dj' | 'profile'
 
 interface Props {
   currentView: NavView
@@ -16,6 +16,7 @@ const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
   { id: 'platform', icon: '🌐', label: 'Search' },
   { id: 'recommend', icon: '🔥', label: 'Discover' },
   { id: 'session', icon: '🎧', label: 'DJ Session' },
+  { id: 'dj', icon: '🎛️', label: 'DJ Control' },
   { id: 'profile', icon: '👤', label: 'Profile' },
 ]
 

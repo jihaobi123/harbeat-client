@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 
 import 'api_client.dart';
 import 'edge_agent_client.dart';
+import 'dj_control_page.dart';
 import 'extra_tabs.dart';
 import 'import/playlist_import_page.dart';
 import 'library/song_detail_page.dart';
@@ -964,6 +965,11 @@ class _HomePageState extends State<HomePage> {
                       );
                     },
                   ),
+                  DjControlPage(
+                    apiClient: widget.apiClient,
+                    token: widget.session.token,
+                    librarySongs: songs,
+                  ),
                 ],
               ),
             ),
@@ -987,6 +993,7 @@ class _HomePageState extends State<HomePage> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.library_music_outlined), label: '曲库'),
           NavigationDestination(icon: Icon(Icons.queue_music_outlined), label: '歌单'),
+          NavigationDestination(icon: Icon(Icons.graphic_eq_outlined), label: 'DJ Control'),
         ],
       ),
     );
@@ -998,6 +1005,8 @@ class _HomePageState extends State<HomePage> {
         return '曲库';
       case 1:
         return '歌单';
+      case 2:
+        return 'DJ Control';
       default:
         return 'HarBeat';
     }

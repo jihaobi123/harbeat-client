@@ -12,6 +12,7 @@ import PlatformSearch from '../components/PlatformSearch'
 import RecommendPanel from '../components/RecommendPanel'
 import SessionPanel from '../components/SessionPanel'
 import ProfilePanel from '../components/ProfilePanel'
+import DjControlPanel from '../components/DjControlPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export default function MainLayout() {
@@ -54,6 +55,8 @@ export default function MainLayout() {
         return <RecommendPanel />
       case 'session':
         return <SessionPanel />
+      case 'dj':
+        return <DjControlPanel />
       case 'profile':
         return <ProfilePanel />
       case 'library':

@@ -626,4 +626,69 @@ class HarBeatApiClient {
 
     return payload['data'] as T;
   }
+
+  // ---------------- DJ Control ----------------
+  Future<List<Map<String, dynamic>>> djListStyles({required String token}) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/styles', token: token,
+    );
+    return (data['styles'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> djPickByStyle({
+    required String token,
+    required String style,
+    required double targetDurationSec,
+    double minScore = 0.35,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/styles/pick',
+      token: token,
+      body: {
+        'style': style,
+        'target_duration_sec': targetDurationSec,
+        'min_score': minScore,
+      },
+    );
+  }
+
+  Future<List<String>> djSequencePresets({required String token}) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/sequence/presets', token: token,
+    );
+    return (data['presets'] as List<dynamic>? ?? const []).cast<String>();
+  }
+
+  Future<List<Map<String, dynamic>>> djSequence({
+    required String token,
+    required List<String> songIds,
+    required String preset,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/sequence',
+      token: token,
+      body: {'song_ids': songIds, 'preset': preset},
+    );
+    return (data['sequence'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> djListTransitionRules({required String token}) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/transitions/rules', token: token,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> djListFx({required String token}) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/fx', token: token,
+    );
+    return (data['fx'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  String djFxAudioUrl(String key, {double? duration}) {
+    final q = duration != null ? '?duration=$duration' : '';
+    return '$baseUrl/api/dj/fx/$key.wav$q';
+  }
 }
