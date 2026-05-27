@@ -230,12 +230,25 @@ def _detect_phrase_structure(
     return phrases
 
 
+MAX_ANALYSIS_DURATION = 420.0  # 7 min cap — sufficient for BPM/key/energy; prevents OOM on long mixes
+
+
 def analyze_audio_file(file_path: str) -> dict:
     """Full analysis: BPM, beat points, downbeats, key, camelot key, energy, cue points, phrase map, duration."""
     import librosa
+    import soundfile as sf
 
-    y, sr = librosa.load(file_path, sr=22050)
-    duration = float(librosa.get_duration(y=y, sr=sr))
+    # Get real file duration from metadata (no audio decode) so we always report true length
+    try:
+        real_duration = float(sf.info(file_path).duration)
+    except Exception:
+        real_duration = None
+
+    y, sr = librosa.load(file_path, sr=22050, duration=MAX_ANALYSIS_DURATION)
+    # Duration used for analysis-relative positioning (capped)
+    analysis_duration = float(librosa.get_duration(y=y, sr=sr))
+    # Reported duration = real file length when available
+    duration = real_duration if real_duration is not None else analysis_duration
 
     # BPM + beat points
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
@@ -272,11 +285,11 @@ def analyze_audio_file(file_path: str) -> dict:
         # Confidence: how well the best template matches (cosine similarity, 0-1)
         key_confidence = round(max(0, min(1, best_score)), 3)
 
-    # Section detection → cue points
-    cue_points = _detect_sections(y, sr, duration)
+    # Section detection → cue points (use analysis_duration for relative-position labels)
+    cue_points = _detect_sections(y, sr, analysis_duration)
 
     # Phrase structure (8-bar segments with labels)
-    phrase_map = _detect_phrase_structure(y, sr, duration, downbeats)
+    phrase_map = _detect_phrase_structure(y, sr, analysis_duration, downbeats)
 
     return {
         "bpm": round(bpm, 1),
