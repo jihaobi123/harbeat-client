@@ -18,9 +18,19 @@ class LoginRequest(BaseModel):
 
 class TokenData(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     user_id: int
     username: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class UserMeData(BaseModel):
@@ -29,5 +39,6 @@ class UserMeData(BaseModel):
     dance_style: str
     level: str
     favorite_style: str
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
