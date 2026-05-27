@@ -731,4 +731,47 @@ class HarBeatApiClient {
     final q = duration != null ? '?duration=$duration' : '';
     return '$baseUrl/api/dj/fx/$key.wav$q';
   }
+
+  /// Vibe search: free-form text description → ranked songs.
+  /// When [fillDuration] is true, server greedily fills to [targetDurationSec].
+  Future<Map<String, dynamic>> djVibeSearch({
+    required String token,
+    required String query,
+    double? targetDurationSec,
+    bool fillDuration = false,
+    int limit = 50,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/vibe/search',
+      token: token,
+      body: {
+        'query': query,
+        if (targetDurationSec != null) 'target_duration_sec': targetDurationSec,
+        'fill_duration': fillDuration,
+        'limit': limit,
+      },
+    );
+  }
+
+  /// Build a transition spec between two songs: {rule_key, fade_sec, ...}.
+  Future<Map<String, dynamic>> djPlanTransition({
+    required String token,
+    required String prevSongId,
+    required String nextSongId,
+    required double cursorSec,
+    String? ruleKey,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/transitions/plan',
+      token: token,
+      body: {
+        'prev_song_id': prevSongId,
+        'next_song_id': nextSongId,
+        'cursor_sec': cursorSec,
+        if (ruleKey != null) 'rule_key': ruleKey,
+      },
+    );
+  }
 }

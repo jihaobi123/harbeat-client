@@ -4,27 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'api_client.dart';
+import 'edge_agent_client.dart';
 import 'models.dart';
 
 // =========================================================================== //
-// DJ Control 5-step wizard (mobile)
-//   1) 选歌 — 导入歌单（可勾选子集）/ Vibe 搜索（+时长自动选满）/ 舞种+时长
+// DJ Control 4-step wizard (mobile) — RK3588 live playback
+//   1) 选歌 — 导入歌单 / Vibe 描述搜索 / 舞种+时长
 //   2) 排歌 — 街舞场景能量曲线（贪心分配）
-//   3) 混音 — 7+11 现有方案 + BPM 差衔接提示 + ▶ 开始混音播放
-//   4) 切歌 — 实时播放中：快切 / 升能量切 / 降能量切（POST /api/dj/cut/plan）
-//   5) 加花 — 实时播放中：街舞 DJ FX Pad（叠在主混音之上）
+//   3) 混音 — 7+11 现有方案 + BPM 差提示 + ▶ 开始混音播放
+//   4) 实时操作 — RK3588 播放中的切歌 + 加花 FX Pad，每首之间自动按 7/11 方案 xfade
 // =========================================================================== //
 
 class DjControlPage extends StatefulWidget {
   const DjControlPage({
     super.key,
     required this.apiClient,
+    required this.edgeClient,
     required this.token,
     required this.userId,
     required this.librarySongs,
   });
 
   final HarBeatApiClient apiClient;
+  final EdgeAgentClient edgeClient;
   final String token;
   final int userId;
   final List<LibrarySong> librarySongs;
@@ -34,7 +36,7 @@ class DjControlPage extends StatefulWidget {
 }
 
 class _DjControlPageState extends State<DjControlPage> {
-  int _step = 0; // 0..4
+  int _step = 0; // 0..3
 
   // Selection state
   final List<LibrarySong> _picked = [];
@@ -53,36 +55,23 @@ class _DjControlPageState extends State<DjControlPage> {
   // Playlists for import
   List<PlaylistSummary> _playlists = const [];
 
-  // ---- Live mix player state ----
-  final AudioPlayer _mainPlayer = AudioPlayer();
-  final AudioPlayer _fxPlayer = AudioPlayer();
+  // ---- Live mix state (RK3588) ----
+  final AudioPlayer _fxPlayer = AudioPlayer(); // local overlay only
   bool _liveStarted = false;
   int _liveIdx = 0;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   String? _cutInfo;
-  StreamSubscription<Duration>? _posSub;
-  StreamSubscription<Duration?>? _durSub;
-  StreamSubscription<PlayerState>? _stateSub;
+  String? _activeRule; // last applied transition rule label
+  int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
+  bool _xfadeInFlight = false;
+  Timer? _rkPoll;
 
   @override
   void initState() {
     super.initState();
     _loadCatalogs();
-    _posSub = _mainPlayer.positionStream.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
-    _durSub = _mainPlayer.durationStream.listen((d) {
-      if (mounted) setState(() => _duration = d ?? Duration.zero);
-    });
-    _stateSub = _mainPlayer.playerStateStream.listen((s) {
-      if (!mounted) return;
-      setState(() => _isPlaying = s.playing);
-      if (s.processingState == ProcessingState.completed) {
-        _advanceLive();
-      }
-    });
   }
 
   Future<void> _loadCatalogs() async {
@@ -111,10 +100,7 @@ class _DjControlPageState extends State<DjControlPage> {
 
   @override
   void dispose() {
-    _posSub?.cancel();
-    _durSub?.cancel();
-    _stateSub?.cancel();
-    _mainPlayer.dispose();
+    _rkPoll?.cancel();
     _fxPlayer.dispose();
     super.dispose();
   }
@@ -178,26 +164,96 @@ class _DjControlPageState extends State<DjControlPage> {
         .toList();
   }
 
+  /// Convert a LibrarySong.id (String) to the RK numeric song_id.
+  int? _rkId(LibrarySong s) => int.tryParse(s.id);
+
   Future<void> _startLiveMix() async {
     final ordered = _orderedSongs();
     if (ordered.isEmpty) return;
+    final first = ordered.first;
+    final rkId = _rkId(first);
+    if (rkId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('首曲 song_id 非数字，RK 无法识别: ${first.id}')),
+      );
+      return;
+    }
     setState(() {
       _liveStarted = true;
       _liveIdx = 0;
-      _step = 3; // jump to Step 4 (切歌)
+      _lastXfadeFromIdx = -1;
+      _step = 3; // jump to 实时操作
     });
-    await _loadAndPlay(ordered[0]);
+    try {
+      await widget.edgeClient.play(songId: first.id, startAtSec: 0);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('RK 启动失败: $e')),
+      );
+    }
+    _startRkPolling();
   }
 
-  Future<void> _loadAndPlay(LibrarySong song) async {
+  void _startRkPolling() {
+    _rkPoll?.cancel();
+    _rkPoll = Timer.periodic(const Duration(milliseconds: 600), (_) async {
+      if (!mounted) return;
+      try {
+        final st = await widget.edgeClient.getState();
+        if (!mounted) return;
+        setState(() {
+          _isPlaying = st.playing;
+          _position = Duration(milliseconds: (st.positionSec * 1000).round());
+          _duration = Duration(milliseconds: (st.durationSec * 1000).round());
+        });
+        _maybeAutoXfade();
+      } catch (_) {/* swallow */}
+    });
+  }
+
+  Future<void> _maybeAutoXfade() async {
+    if (_xfadeInFlight) return;
+    if (_liveIdx == _lastXfadeFromIdx) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx + 1 >= ordered.length) return;
+    if (_duration.inMilliseconds <= 0) return;
+    final remaining = _duration - _position;
+    // We'll plan transition ~10s before the end; rule fade_sec dictates actual mix length.
+    if (remaining.inMilliseconds > 10000) return;
+
+    final prev = ordered[_liveIdx];
+    final next = ordered[_liveIdx + 1];
+    final nextRkId = _rkId(next);
+    if (nextRkId == null) return;
+
+    _xfadeInFlight = true;
     try {
-      final url = widget.apiClient.streamUrl(songId: song.id, token: widget.token);
-      await _mainPlayer.setUrl(url);
-      await _mainPlayer.play();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('播放失败: $e')),
+      final plan = await widget.apiClient.djPlanTransition(
+        token: widget.token,
+        prevSongId: prev.id,
+        nextSongId: next.id,
+        cursorSec: _position.inMilliseconds / 1000.0,
       );
+      final ruleKey = plan['rule_key']?.toString() ?? 'blend';
+      final ruleLabel = plan['rule_label_zh']?.toString() ?? ruleKey;
+      final fadeSec = (plan['fade_sec'] as num?)?.toDouble() ?? 6.0;
+      await widget.edgeClient.xfade(
+        toSongId: nextRkId,
+        fadeSec: fadeSec,
+        toAtSec: 0.0,
+        style: ruleKey,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lastXfadeFromIdx = _liveIdx;
+        _liveIdx += 1;
+        _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
+        _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = '自动衔接失败: $e');
+    } finally {
+      _xfadeInFlight = false;
     }
   }
 
@@ -205,22 +261,42 @@ class _DjControlPageState extends State<DjControlPage> {
     final ordered = _orderedSongs();
     final next = _liveIdx + 1;
     if (next >= ordered.length) {
-      await _mainPlayer.stop();
+      await widget.edgeClient.pause();
       setState(() => _isPlaying = false);
       return;
     }
-    setState(() {
-      _liveIdx = next;
-      _cutInfo = null;
-    });
-    await _loadAndPlay(ordered[next]);
+    final nextSong = ordered[next];
+    final nextRk = _rkId(nextSong);
+    if (nextRk == null) return;
+    try {
+      // Hard cut via xfade w/ tiny fade.
+      await widget.edgeClient.xfade(
+        toSongId: nextRk,
+        fadeSec: 0.4,
+        toAtSec: 0.0,
+        style: 'hard_cut',
+      );
+      setState(() {
+        _liveIdx = next;
+        _lastXfadeFromIdx = next - 1;
+        _cutInfo = '手动跳到 #${next + 1}';
+      });
+    } catch (e) {
+      setState(() => _cutInfo = '跳曲失败: $e');
+    }
   }
 
   Future<void> _togglePlay() async {
-    if (_isPlaying) {
-      await _mainPlayer.pause();
-    } else {
-      await _mainPlayer.play();
+    try {
+      if (_isPlaying) {
+        await widget.edgeClient.pause();
+      } else {
+        await widget.edgeClient.resume();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('RK 控制失败: $e')),
+      );
     }
   }
 
@@ -240,32 +316,42 @@ class _DjControlPageState extends State<DjControlPage> {
         currentIndex: _liveIdx,
         poolSongIds: pool,
       );
-      final chosenId = plan['chosen_song_id']?.toString();
-      final switchAt = (plan['switch_at_sec'] as num?)?.toDouble();
-      if (chosenId != null) {
-        final hit = ordered.indexWhere((s) => s.id == chosenId);
-        setState(() {
-          _cutInfo = '⏭ $strategy → ${hit >= 0 ? '队列 #${hit + 1}' : chosenId} '
-              '${switchAt != null ? '@${switchAt.toStringAsFixed(2)}s' : ''}';
-        });
-        if (hit >= 0) {
-          setState(() => _liveIdx = hit);
-          await _loadAndPlay(ordered[hit]);
-        } else {
-          final byId = {for (final s in _picked) s.id: s};
-          final pick = byId[chosenId];
-          if (pick != null) {
-            setState(() {
-              _picked.removeWhere((s) => s.id == pick.id);
-              _picked.insert(0, pick);
-              _liveIdx = 0;
-            });
-            await _loadAndPlay(pick);
-          }
-        }
-      } else {
-        setState(() => _cutInfo = '⏭ $strategy → 无可换曲');
+      // Backend returns {next_song_id, cut_at_sec, swap, strategy}.
+      final nextId = plan['next_song_id']?.toString();
+      final cutAt = (plan['cut_at_sec'] as num?)?.toDouble();
+      if (nextId == null) {
+        setState(() => _cutInfo = '⏭ $strategy → 队尾，无下一首');
+        return;
       }
+      // Resolve target song.
+      final byId = {for (final s in _picked) s.id: s};
+      final target = byId[nextId] ??
+          ordered.firstWhere((s) => s.id == nextId,
+              orElse: () => current);
+      final targetRk = _rkId(target);
+      if (targetRk == null) {
+        setState(() => _cutInfo = '⏭ $strategy → $nextId 非数字 ID');
+        return;
+      }
+      // Insert target into queue immediately after current if it's not already next.
+      final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
+      await widget.edgeClient.xfade(
+        toSongId: targetRk,
+        fadeSec: 1.0,
+        toAtSec: 0.0,
+        style: 'hard_cut',
+      );
+      setState(() {
+        if (inOrderIdx > _liveIdx) {
+          _liveIdx = inOrderIdx;
+        } else {
+          // swap mode — the queue has been overridden; bump index by 1 logically
+          _liveIdx = _liveIdx + 1;
+        }
+        _lastXfadeFromIdx = _liveIdx - 1;
+        _cutInfo = '⏭ $strategy → ${target.title}'
+            '${cutAt != null ? ' @${cutAt.toStringAsFixed(2)}s' : ''}';
+      });
     } catch (e) {
       setState(() => _cutInfo = '切歌失败: $e');
     }
@@ -301,6 +387,7 @@ class _DjControlPageState extends State<DjControlPage> {
           isPlaying: _isPlaying,
           position: _position,
           duration: _duration,
+          activeRule: _activeRule,
           onPlayPause: _togglePlay,
           onNext: _advanceLive,
           cutInfo: _cutInfo,
@@ -320,16 +407,17 @@ class _DjControlPageState extends State<DjControlPage> {
   bool _canGoNext() {
     if (_step == 0) return _picked.length >= 2;
     if (_step == 1) return _sequence.isNotEmpty;
-    if (_step == 2) return true; // Step 3 → start live + go to Step 4
-    if (_step == 3) return true; // Step 4 → Step 5
-    return false; // Step 5 last
+    if (_step == 2) return _sequence.isNotEmpty; // start live
+    return false; // step 3 is the last (live)
   }
 
   Future<void> _onNext() async {
     if (_step == 2) {
-      // From "混音" to "切歌" → start live mix
-      if (!_liveStarted) await _startLiveMix();
-      else setState(() => _step = 3);
+      if (!_liveStarted) {
+        await _startLiveMix();
+      } else {
+        setState(() => _step = 3);
+      }
       return;
     }
     setState(() => _step = _step + 1);
@@ -371,17 +459,12 @@ class _DjControlPageState extends State<DjControlPage> {
           onStart: _startLiveMix,
         );
       case 3:
-        return _Step4Cut(
+        return _Step4Live(
           ordered: _orderedSongs(),
           idx: _liveIdx,
-          isPlaying: _isPlaying,
           liveStarted: _liveStarted,
+          fxItems: _fxItems,
           onCut: _doCut,
-        );
-      case 4:
-        return _Step5Fx(
-          items: _fxItems,
-          liveStarted: _liveStarted,
           onPlayFx: _playFx,
         );
     }
@@ -406,14 +489,14 @@ class _StepHeader extends StatelessWidget {
   final bool liveStarted;
   final ValueChanged<int> onJump;
 
-  static const _labels = ['选歌', '排歌', '混音', '切歌', '加花'];
-  static const _icons = ['🎯', '📈', '🎚️', '✂️', '🔊'];
+  static const _labels = ['选歌', '排歌', '混音', '实时操作'];
+  static const _icons = ['🎯', '📈', '🎚️', '🎛️'];
 
   bool _reachable(int i) {
     if (i == 0) return true;
     if (i == 1) return pickedCount >= 2;
     if (i == 2) return sequencedCount > 0;
-    if (i >= 3) return liveStarted || sequencedCount > 0;
+    if (i == 3) return liveStarted || sequencedCount > 0;
     return false;
   }
 
@@ -425,7 +508,7 @@ class _StepHeader extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(5, (i) {
+          children: List.generate(4, (i) {
             final active = i == step;
             final done = i < step;
             final reachable = _reachable(i);
@@ -477,7 +560,14 @@ class _StepFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextLabel = step == 2 ? '开始混音 ▶' : (step == 4 ? '完成' : '下一步 →');
+    String nextLabel;
+    if (step == 2) {
+      nextLabel = '开始混音 ▶';
+    } else if (step == 3) {
+      nextLabel = '已到最后';
+    } else {
+      nextLabel = '下一步 →';
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -488,7 +578,7 @@ class _StepFooter extends StatelessWidget {
             child: const Text('← 上一步'),
           ),
           ElevatedButton(
-            onPressed: canNext && step < 4 ? onNext : null,
+            onPressed: canNext && step < 3 ? onNext : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.amber,
               foregroundColor: Colors.black,
@@ -508,6 +598,7 @@ class _LiveMixBar extends StatelessWidget {
     required this.isPlaying,
     required this.position,
     required this.duration,
+    required this.activeRule,
     required this.onPlayPause,
     required this.onNext,
     required this.cutInfo,
@@ -517,6 +608,7 @@ class _LiveMixBar extends StatelessWidget {
   final bool isPlaying;
   final Duration position;
   final Duration duration;
+  final String? activeRule;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
   final String? cutInfo;
@@ -587,6 +679,11 @@ class _LiveMixBar extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(cutInfo!, style: const TextStyle(fontSize: 10, color: Colors.amberAccent)),
           ),
+          if (activeRule != null) Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text('当前过渡：$activeRule',
+                style: const TextStyle(fontSize: 10, color: Colors.lightGreenAccent)),
+          ),
         ],
       ),
     );
@@ -649,6 +746,7 @@ class _Step1PickState extends State<_Step1Pick> {
           onAdd: widget.onAdd,
         ),
         if (_mode == 1) _VibeSource(
+          api: widget.api, token: widget.token,
           library: widget.library, onAdd: widget.onAdd,
         ),
         if (_mode == 2) _StyleSource(
@@ -877,9 +975,16 @@ class _ImportSourceState extends State<_ImportSource> {
   }
 }
 
-// ---- Vibe Source: keyword search + duration auto-fill ---- //
+// ---- Vibe Source: server-side description → ranked songs ---- //
 class _VibeSource extends StatefulWidget {
-  const _VibeSource({required this.library, required this.onAdd});
+  const _VibeSource({
+    required this.api,
+    required this.token,
+    required this.library,
+    required this.onAdd,
+  });
+  final HarBeatApiClient api;
+  final String token;
   final List<LibrarySong> library;
   final void Function(Iterable<LibrarySong>) onAdd;
 
@@ -891,37 +996,40 @@ class _VibeSourceState extends State<_VibeSource> {
   final _ctrl = TextEditingController();
   final Set<String> _sel = {};
   double _minutes = 15;
+  bool _loading = false;
+  String? _error;
+  List<Map<String, dynamic>> _hits = const [];
 
-  List<LibrarySong> get _matched {
-    final q = _ctrl.text.trim().toLowerCase();
-    if (q.isEmpty) return const [];
-    final kws = q.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
-    return widget.library.where((s) {
-      final hay = '${s.title} ${s.artist}'.toLowerCase();
-      return kws.every(hay.contains);
-    }).toList();
-  }
-
-  void _autoFillByDuration() {
-    final target = _minutes * 60;
-    final list = _matched.toList();
-    if (list.isEmpty) return;
-    // sort by bpm asc for predictability; fallback to title
-    list.sort((a, b) {
-      final ab = a.bpm ?? 0;
-      final bb = b.bpm ?? 0;
-      return ab.compareTo(bb);
-    });
-    double acc = 0;
-    final chosen = <String>{};
-    for (final s in list) {
-      if (acc >= target) break;
-      chosen.add(s.id);
-      acc += s.duration > 0 ? s.duration : 180;
+  Future<void> _search({required bool fill}) async {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty) {
+      setState(() => _error = '请输入描述，例如：深夜地下 boom bap 95bpm');
+      return;
     }
     setState(() {
-      _sel..clear()..addAll(chosen);
+      _loading = true;
+      _error = null;
+      _hits = const [];
+      _sel.clear();
     });
+    try {
+      final data = await widget.api.djVibeSearch(
+        token: widget.token,
+        query: q,
+        targetDurationSec: _minutes * 60,
+        fillDuration: fill,
+        limit: 60,
+      );
+      final songs = (data['songs'] as List? ?? const []).cast<Map<String, dynamic>>();
+      setState(() {
+        _hits = songs;
+        _sel.addAll(songs.map((e) => e['song_id'].toString()));
+      });
+    } catch (e) {
+      setState(() => _error = '搜索失败: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -929,8 +1037,9 @@ class _VibeSourceState extends State<_VibeSource> {
 
   @override
   Widget build(BuildContext context) {
-    final matched = _matched;
-    final selDur = matched.where((s) => _sel.contains(s.id)).fold<double>(0, (a, s) => a + (s.duration > 0 ? s.duration : 180));
+    final selDur = _hits
+        .where((m) => _sel.contains(m['song_id'].toString()))
+        .fold<double>(0, (a, m) => a + ((m['duration'] as num?)?.toDouble() ?? 0));
     return Card(
       color: Colors.white10,
       child: Padding(
@@ -938,17 +1047,17 @@ class _VibeSourceState extends State<_VibeSource> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('关键词在曲库内搜（标题+艺人，多词 AND 命中）。可点「按时长自动选满」。',
+            const Text('用一句话描述「我想要的氛围」。后端会按曲库标签 / BPM / 能量 评分匹配。',
                 style: TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 6),
             TextField(
               controller: _ctrl,
               decoration: const InputDecoration(
                 isDense: true,
-                hintText: '例如：boom bap dark',
+                hintText: '例如：深夜地下 boom bap 95bpm dark',
                 border: OutlineInputBorder(),
               ),
-              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _search(fill: false),
             ),
             const SizedBox(height: 6),
             Row(
@@ -967,19 +1076,32 @@ class _VibeSourceState extends State<_VibeSource> {
             ),
             Row(
               children: [
-                TextButton(onPressed: matched.isEmpty ? null : _autoFillByDuration,
-                    child: const Text('按时长自动选满')),
-                TextButton(onPressed: () => setState(() => _sel.clear()), child: const Text('全不选')),
+                ElevatedButton(
+                  onPressed: _loading ? null : () => _search(fill: false),
+                  child: Text(_loading ? '搜索中…' : '🔍 搜索'),
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton(
+                  onPressed: _loading ? null : () => _search(fill: true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple, foregroundColor: Colors.white,
+                  ),
+                  child: const Text('按时长自动选满'),
+                ),
                 const Spacer(),
                 Text('已选 ${_sel.length} · ${(selDur / 60).toStringAsFixed(1)} 分',
                     style: const TextStyle(fontSize: 11)),
                 const SizedBox(width: 4),
                 ElevatedButton(
                   onPressed: _sel.isEmpty ? null : () {
-                    final picks = matched.where((s) => _sel.contains(s.id));
+                    final byId = {for (final s in widget.library) s.id: s};
+                    final picks = _sel
+                        .map((id) => byId[id])
+                        .whereType<LibrarySong>();
                     widget.onAdd(picks);
                     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('加入 ${picks.length} 首'), duration: const Duration(seconds: 1)),
+                      SnackBar(content: Text('加入 ${picks.length} 首'),
+                          duration: const Duration(seconds: 1)),
                     );
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
@@ -987,28 +1109,36 @@ class _VibeSourceState extends State<_VibeSource> {
                 ),
               ],
             ),
-            if (_ctrl.text.isNotEmpty && matched.isEmpty) const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Text('无命中', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            if (_error != null) Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 11)),
             ),
-            if (matched.isNotEmpty) SizedBox(
-              height: 240,
+            if (_hits.isNotEmpty) SizedBox(
+              height: 260,
               child: ListView.builder(
-                itemCount: matched.length,
+                itemCount: _hits.length,
                 itemBuilder: (_, i) {
-                  final s = matched[i];
-                  final on = _sel.contains(s.id);
+                  final m = _hits[i];
+                  final id = m['song_id'].toString();
+                  final on = _sel.contains(id);
+                  final matched = (m['matched'] as List? ?? const []).join(' · ');
+                  final score = (m['score'] as num?)?.toDouble() ?? 0;
                   return CheckboxListTile(
                     dense: true,
                     value: on,
-                    title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    title: Text(m['title']?.toString() ?? '—',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 12)),
                     subtitle: Text(
-                      '${s.artist} · ${s.bpm?.toStringAsFixed(0) ?? '-'} BPM · ${(s.duration / 60).toStringAsFixed(1)}m',
+                      '${m['artist'] ?? '-'} · ${(m['bpm'] as num?)?.toStringAsFixed(0) ?? '-'} BPM · '
+                      '${(((m['duration'] as num?)?.toDouble() ?? 0) / 60).toStringAsFixed(1)}m · '
+                      'score ${score.toStringAsFixed(1)}'
+                      '${matched.isEmpty ? '' : '\n命中: $matched'}',
                       style: const TextStyle(fontSize: 10),
                     ),
+                    isThreeLine: matched.isNotEmpty,
                     onChanged: (v) => setState(() {
-                      if (v == true) _sel.add(s.id); else _sel.remove(s.id);
+                      if (v == true) _sel.add(id); else _sel.remove(id);
                     }),
                   );
                 },
@@ -1402,37 +1532,63 @@ class _Step3Mix extends StatelessWidget {
 }
 
 // =========================================================================== //
-// Step 4 — 切歌（实时）
+// Step 4 — 实时操作（切歌 + 加花 FX，全部叠在 RK3588 播放之上）
 // =========================================================================== //
-class _Step4Cut extends StatelessWidget {
-  const _Step4Cut({
-    required this.ordered, required this.idx, required this.isPlaying,
-    required this.liveStarted, required this.onCut,
+class _Step4Live extends StatelessWidget {
+  const _Step4Live({
+    required this.ordered,
+    required this.idx,
+    required this.liveStarted,
+    required this.fxItems,
+    required this.onCut,
+    required this.onPlayFx,
   });
   final List<LibrarySong> ordered;
   final int idx;
-  final bool isPlaying;
   final bool liveStarted;
+  final List<Map<String, dynamic>> fxItems;
   final Future<void> Function(String strategy) onCut;
+  final Future<void> Function(String key) onPlayFx;
+
+  static const _groupOrder = ['hype', 'drop', 'drum', 'accent'];
+  static const _groupTitle = {
+    'hype': '🚨 喊场 / 起势',
+    'drop': '💥 Drop / Build',
+    'drum': '🥁 鼓点 Stab',
+    'accent': '⚡ 单点强调',
+  };
+
+  String _iconFor(String key) => const {
+    'air_horn': '📯',
+    'air_horn_burst': '📯',
+    'snare_crack': '🥁',
+    'beat_juggle_stutter': '🎛️',
+    'bass_drop': '💣',
+    'vinyl_stop': '🛑',
+  }[key] ?? '🔊';
 
   @override
   Widget build(BuildContext context) {
-    if (!liveStarted) return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Text('请先回到 Step 3 点 ▶ 开始混音播放', style: TextStyle(color: Colors.grey)),
-      ),
-    );
+    if (!liveStarted) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text('请先回到 Step 3 点 ▶ 开始混音播放', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
     final current = idx < ordered.length ? ordered[idx] : null;
     final next = idx + 1 < ordered.length ? ordered[idx + 1] : null;
+
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final it in fxItems) {
+      final g = (it['category'] as String?) ?? 'accent';
+      groups.putIfAbsent(g, () => []).add(it);
+    }
+
     return ListView(
       padding: const EdgeInsets.all(10),
       children: [
-        const Text(
-          '现场切歌（实时）— 由后端按 BPM/Beat/Phrase 找下一个边界。',
-          style: TextStyle(fontSize: 11, color: Colors.grey),
-        ),
-        const SizedBox(height: 8),
         Card(
           color: Colors.white10,
           child: Padding(
@@ -1446,96 +1602,30 @@ class _Step4Cut extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text('下一首：${next?.title ?? '— 队尾 —'}',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                const SizedBox(height: 4),
+                const Text('每首结束前 10 秒自动按 7/11 衔接方案 xfade。',
+                    style: TextStyle(fontSize: 10, color: Colors.lightGreenAccent)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 10),
-        _cutBtn('⚡ 快切 fast_cut', '5 秒内寻找下一个 downbeat/beat/小节边界，硬切到下一首。', 'fast_cut'),
+        const Text('✂️ 现场切歌', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const SizedBox(height: 4),
+        _cutBtn('⚡ 快切 fast_cut', '5 秒内寻找下一个 downbeat/beat，硬切到队列下一首。', 'fast_cut'),
         _cutBtn('🔥 升能量切 energy_up_cut', '从已选池挑能量更高的歌替换后切。冲峰 / 喊大招用。', 'energy_up_cut'),
         _cutBtn('❄️ 降能量切 energy_down_cut', '挑能量更低的歌，让 cypher 喘口气。', 'energy_down_cut'),
-      ],
-    );
-  }
-
-  Widget _cutBtn(String title, String desc, String strategy) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: ElevatedButton(
-        onPressed: () => onCut(strategy),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white10,
-          foregroundColor: Colors.white,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.all(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(desc, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =========================================================================== //
-// Step 5 — 加花（实时 FX）
-// =========================================================================== //
-class _Step5Fx extends StatelessWidget {
-  const _Step5Fx({required this.items, required this.liveStarted, required this.onPlayFx});
-  final List<Map<String, dynamic>> items;
-  final bool liveStarted;
-  final Future<void> Function(String key) onPlayFx;
-
-  static const _groupOrder = ['hype', 'drop', 'scratch', 'drum', 'accent'];
-  static const _groupTitle = {
-    'hype': '🚨 喊场 / 起势',
-    'drop': '💥 Drop / Build',
-    'scratch': '🎚️ 搓碟 Scratch',
-    'drum': '🥁 鼓点 Stab',
-    'accent': '⚡ 单点强调',
-  };
-
-  String _iconFor(String key) => const {
-    'air_horn': '📯', 'air_horn_burst': '📯', 'siren': '🚨', 'reload_cock': '🔫',
-    'mc_hype': '🎤', 'scratch_chirp': '🎚️', 'scratch_transformer': '🤖',
-    'scratch_baby': '👶', 'snare_crack': '🥁', 'kick_roll': '🦶',
-    'beat_juggle_stutter': '🎛️', 'bass_drop': '💣', 'reverse_cymbal': '🌊',
-    'cymbal_swell': '💥', 'rewind_zip': '⏪', 'vinyl_stop': '🛑', 'laser_zap': '⚡',
-  }[key] ?? '🔊';
-
-  @override
-  Widget build(BuildContext context) {
-    final groups = <String, List<Map<String, dynamic>>>{};
-    for (final it in items) {
-      final g = (it['category'] as String?) ?? 'accent';
-      groups.putIfAbsent(g, () => []).add(it);
-    }
-    return ListView(
-      padding: const EdgeInsets.all(10),
-      children: [
-        if (!liveStarted) const Padding(
-          padding: EdgeInsets.symmetric(vertical: 4),
-          child: Text('提示：建议先从 Step 3 启动混音播放，再叠加 FX。',
-              style: TextStyle(fontSize: 11, color: Colors.amberAccent)),
-        ),
-        const Text(
-          '街舞 DJ 现场音效，全部由后端 numpy 实时合成 WAV，叠在主混音之上播放。',
-          style: TextStyle(fontSize: 11, color: Colors.grey),
-        ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 14),
+        const Text('🎛️ 加花 FX Pad', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const SizedBox(height: 4),
         ..._groupOrder.where((k) => groups[k]?.isNotEmpty == true).map((g) {
           final list = groups[g]!;
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_groupTitle[g]!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(_groupTitle[g]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 const SizedBox(height: 4),
                 GridView.count(
                   crossAxisCount: 3,
@@ -1575,6 +1665,29 @@ class _Step5Fx extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+
+  Widget _cutBtn(String title, String desc, String strategy) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ElevatedButton(
+        onPressed: () => onCut(strategy),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white10,
+          foregroundColor: Colors.white,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.all(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(desc, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -967,6 +967,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   DjControlPage(
                     apiClient: widget.apiClient,
+                    edgeClient: _edgeClient,
                     token: widget.session.token,
                     userId: widget.session.profile.id,
                     librarySongs: songs,

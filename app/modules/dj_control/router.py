@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
-from app.modules.dj_control import cut_strategy, dance_style, fx_synth, mixer_rules, sequencer
+from app.modules.dj_control import cut_strategy, dance_style, fx_synth, mixer_rules, sequencer, vibe_search
 from app.modules.dj_control.energy_hiphop import compute_dance_energy
 from app.modules.dj_control.schemas import (
     CutPlanRequest,
@@ -183,6 +183,55 @@ def plan_cut_endpoint(
         max_wait_sec=payload.max_wait_sec,
     )
     return APIResponse(data=plan)
+
+
+# --------------------------------------------------------------------------- #
+# Vibe search — free-form text → ranked songs
+# --------------------------------------------------------------------------- #
+from pydantic import BaseModel
+
+
+class VibeSearchRequest(BaseModel):
+    query: str
+    target_duration_sec: float | None = None
+    fill_duration: bool = False
+    limit: int = 50
+
+
+@router.post("/vibe/search")
+def vibe_search_endpoint(
+    payload: VibeSearchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    songs = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id)
+        .all()
+    )
+    matches = vibe_search.score_songs(songs, payload.query)
+    if payload.fill_duration and payload.target_duration_sec:
+        matches = vibe_search.fill_to_duration(matches, payload.target_duration_sec)
+    else:
+        matches = matches[: max(1, payload.limit)]
+    total_dur = sum(float(m.song.duration or 0) for m in matches)
+    return APIResponse(data={
+        "query": payload.query,
+        "total_duration_sec": total_dur,
+        "songs": [
+            {
+                "song_id": m.song.id,
+                "title": m.song.title,
+                "artist": m.song.artist,
+                "bpm": m.song.bpm,
+                "duration": m.song.duration,
+                "energy": m.song.energy,
+                "score": round(m.score, 3),
+                "matched": m.matched,
+            }
+            for m in matches
+        ],
+    })
 
 
 # --------------------------------------------------------------------------- #

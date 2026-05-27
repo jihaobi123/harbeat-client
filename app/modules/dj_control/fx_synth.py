@@ -396,24 +396,12 @@ FX_CATALOG: dict[str, dict] = {
     # build-ups & accents
     "air_horn":            {"label_zh": "喇叭 长鸣",         "fn": air_horn,            "default_duration": 1.4,  "category": "hype"},
     "air_horn_burst":      {"label_zh": "喇叭 三连",         "fn": air_horn_burst,      "default_duration": 1.5,  "category": "hype"},
-    "siren":               {"label_zh": "警笛 / Dancehall",  "fn": siren,               "default_duration": 2.5,  "category": "hype"},
-    "reload_cock":         {"label_zh": "Reload 重播",       "fn": reload_cock,         "default_duration": 0.50, "category": "hype"},
-    "mc_hype":             {"label_zh": "MC Yeah!",         "fn": mc_hype,             "default_duration": 0.55, "category": "hype"},
-    # scratches
-    "scratch_chirp":       {"label_zh": "搓碟 Wikka",        "fn": scratch_chirp,       "default_duration": 0.45, "category": "scratch"},
-    "scratch_transformer": {"label_zh": "Transformer 切片", "fn": scratch_transformer, "default_duration": 0.70, "category": "scratch"},
-    "scratch_baby":        {"label_zh": "Baby Scratch",     "fn": scratch_baby,        "default_duration": 0.35, "category": "scratch"},
     # rhythmic stabs
     "snare_crack":         {"label_zh": "嚓声 Snare",        "fn": snare_crack,         "default_duration": 0.20, "category": "drum"},
-    "kick_roll":           {"label_zh": "Kick Roll",        "fn": kick_roll,           "default_duration": 1.0,  "category": "drum"},
     "beat_juggle_stutter": {"label_zh": "Beat Juggle",      "fn": beat_juggle_stutter, "default_duration": 1.0,  "category": "drum"},
     # drops & build-ups
     "bass_drop":           {"label_zh": "Bass Drop",        "fn": bass_drop,           "default_duration": 1.6,  "category": "drop"},
-    "reverse_cymbal":      {"label_zh": "反向镲片 Build",   "fn": reverse_cymbal,      "default_duration": 2.0,  "category": "drop"},
-    "cymbal_swell":        {"label_zh": "正向镲片 渐强",     "fn": cymbal_swell,        "default_duration": 2.0,  "category": "drop"},
-    "rewind_zip":          {"label_zh": "倒带 Rewind",       "fn": rewind_zip,          "default_duration": 1.4,  "category": "drop"},
     "vinyl_stop":          {"label_zh": "黑胶刹停",          "fn": vinyl_stop,          "default_duration": 0.6,  "category": "drop"},
-    "laser_zap":           {"label_zh": "Laser Zap",        "fn": laser_zap,           "default_duration": 0.35, "category": "accent"},
 }
 
 
