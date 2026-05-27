@@ -233,8 +233,12 @@ def _detect_phrase_structure(
 MAX_ANALYSIS_DURATION = 420.0  # 7 min cap — sufficient for BPM/key/energy; prevents OOM on long mixes
 
 
-def analyze_audio_file(file_path: str) -> dict:
-    """Full analysis: BPM, beat points, downbeats, key, camelot key, energy, cue points, phrase map, duration."""
+def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str | None = None, **_kwargs) -> dict:
+    """Full analysis: BPM, beat points, downbeats, key, camelot key, energy, cue points, phrase map, duration.
+
+    `title` / `artist` are accepted for forward-compatibility with callers that
+    pass song metadata (used by future genre/style classifiers); currently ignored.
+    """
     import librosa
     import soundfile as sf
 
