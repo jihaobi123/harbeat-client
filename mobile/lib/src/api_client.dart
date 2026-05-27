@@ -146,6 +146,136 @@ class HarBeatApiClient {
     return LibrarySong.fromJson(data);
   }
 
+  // ─── Module 2: Playlist Import (Vibe + URL) ───
+
+  Future<VibeSearchResult> vibeSearch({
+    String? token,
+    required String query,
+    int? userId,
+    int topK = 12,
+  }) async {
+    final body = <String, dynamic>{'query': query, 'top_k': topK};
+    if (userId != null) body['user_id'] = userId;
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/recommendations/vibe-search',
+      token: token,
+      body: body,
+    );
+    return VibeSearchResult.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> importFromVibe({
+    String? token,
+    required int userId,
+    required String vibeDescription,
+    int topK = 5,
+    bool autoImport = true,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/recommendations/import-from-vibe',
+      token: token,
+      body: {
+        'user_id': userId,
+        'vibe_description': vibeDescription,
+        'top_k': topK,
+        'auto_import': autoImport,
+      },
+    );
+    return data;
+  }
+
+  Future<ParsedExternalPlaylist> parseExternalPlaylist({
+    required String token,
+    required String url,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/fangpi/parse-playlist',
+      token: token,
+      body: {'url': url},
+    );
+    return ParsedExternalPlaylist.fromJson(data);
+  }
+
+  Future<List<BatchSearchEntry>> batchSearchExternal({
+    required String token,
+    required List<ExternalPlaylistTrack> tracks,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/fangpi/batch-search',
+      token: token,
+      body: {
+        'songs': tracks
+            .map((t) => {'title': t.title, 'artist': t.artist})
+            .toList(),
+      },
+    );
+    return (data['results'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(BatchSearchEntry.fromJson)
+        .toList();
+  }
+
+  Future<LibrarySong> downloadFangpiCandidate({
+    required String token,
+    required FangpiCandidate candidate,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/fangpi/download',
+      token: token,
+      body: {
+        'music_id': candidate.id,
+        'title': candidate.title,
+        'artist': candidate.artist,
+        'source': candidate.source ?? 'fangpi',
+      },
+    );
+    return LibrarySong.fromJson(data);
+  }
+
+  Future<LibrarySong> getLibrarySong({
+    required String token,
+    required String songId,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/library/songs/$songId',
+      token: token,
+    );
+    return LibrarySong.fromJson(data);
+  }
+
+  Future<int> createPlaylist({
+    required String token,
+    required String name,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/playlists/create',
+      token: token,
+      body: {'name': name},
+    );
+    return (data['id'] as num).toInt();
+  }
+
+  Future<int> addSongsToPlaylist({
+    required String token,
+    required int playlistId,
+    required List<String> librarySongIds,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/playlists/$playlistId/add-songs',
+      token: token,
+      body: {'library_song_ids': librarySongIds},
+    );
+    return (data['added'] as num?)?.toInt() ?? 0;
+  }
+
   Future<LibrarySong> analyzeSong({
     required String token,
     required String songId,
@@ -396,6 +526,25 @@ class HarBeatApiClient {
     return '$baseUrl/api/stream/$songId?token=$token';
   }
 
+  String stemStreamUrl({
+    required String token,
+    required String songId,
+    required String stemName,
+  }) {
+    return '$baseUrl/api/stream/$songId/stem/$stemName?token=$token';
+  }
+
+  Future<Map<String, dynamic>> separateStems({
+    required String token,
+    required String songId,
+  }) async {
+    return _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/library/songs/$songId/separate-stems',
+      token: token,
+    );
+  }
+
   String processedStreamUrl({
     required String token,
     required String filePath,
@@ -438,17 +587,20 @@ class HarBeatApiClient {
 
     final uri = _uri(path, queryParameters);
     late final http.Response response;
+    const reqTimeout = Duration(seconds: 15);
 
     try {
       switch (method) {
         case 'GET':
-          response = await http.get(uri, headers: headers);
+          response = await http.get(uri, headers: headers).timeout(reqTimeout);
           break;
         case 'POST':
-          response = await http.post(uri, headers: headers, body: jsonEncode(body));
+          response = await http
+              .post(uri, headers: headers, body: jsonEncode(body))
+              .timeout(reqTimeout);
           break;
         case 'DELETE':
-          response = await http.delete(uri, headers: headers);
+          response = await http.delete(uri, headers: headers).timeout(reqTimeout);
           break;
         default:
           throw Exception('Unsupported method: $method');

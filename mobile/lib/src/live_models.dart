@@ -58,12 +58,18 @@ class LivePlaybackState {
   final String? error;
 
   factory LivePlaybackState.fromJson(Map<String, dynamic> json) {
+    String? _idToStr(dynamic v) {
+      if (v == null) return null;
+      if (v is String) return v;
+      if (v is num) return v.toString();
+      return v.toString();
+    }
     return LivePlaybackState(
       playing: json['playing'] as bool? ?? false,
-      currentSongId: (json['current_song_id'] as num?)?.toString(),
+      currentSongId: _idToStr(json['current_song_id']),
       positionSec: (json['position_sec'] as num?)?.toDouble() ?? 0,
       durationSec: (json['duration_sec'] as num?)?.toDouble() ?? 0,
-      nextSongId: (json['next_song_id'] as num?)?.toString(),
+      nextSongId: _idToStr(json['next_song_id']),
       nextTransitionInSec:
           (json['next_transition_in_sec'] as num?)?.toDouble(),
       playbackTier: json['playback_tier'] as String?,

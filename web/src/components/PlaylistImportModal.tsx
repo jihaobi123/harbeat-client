@@ -20,11 +20,12 @@ interface TrackItem {
   fangpiTitle: string | null
   fangpiArtist: string | null
   fangpiSource: string | null
-  searchStatus: 'pending' | 'found' | 'not-found'
+  searchStatus: 'pending' | 'found' | 'not-found' | 'in-library'
+  librarySongId: string | null   // set when searchStatus === 'in-library'
   tags: DanceStyle[]
   energy: string[]
   scenes: string[]
-  downloadStatus: 'pending' | 'downloading' | 'done' | 'failed'
+  downloadStatus: 'pending' | 'downloading' | 'done' | 'failed' | 'skipped'
 }
 
 type Stage = 'parse' | 'select' | 'search' | 'tag' | 'downloading' | 'done'
@@ -61,6 +62,7 @@ export default function PlaylistImportModal({ onClose }: Props) {
         fangpiArtist: null,
         fangpiSource: null,
         searchStatus: 'pending' as const,
+        librarySongId: null as string | null,
         tags: [],
         energy: [],
         scenes: [],
@@ -88,17 +90,43 @@ export default function PlaylistImportModal({ onClose }: Props) {
     setStage('search')
     setBusy(true)
     setError('')
-    setProgress({ current: 0, total: selected.length, label: '正在搜索歌曲资源...' })
+    setProgress({ current: 0, total: selected.length, label: '检查曲库去重...' })
 
     try {
-      const result = await api.batchSearchFangpi(
-        selected.map(t => ({ title: t.title, artist: t.artist }))
-      )
+      // ── Step 1: dedup against user's existing library ─────────────────
+      const norm = (a: string, b: string) =>
+        `${a.trim().toLowerCase()}|${b.trim().toLowerCase()}`
+      let libIndex: Map<string, string> = new Map()
+      try {
+        const lib = await api.getLibrarySongs()
+        for (const s of lib.songs) libIndex.set(norm(s.title, s.artist), s.id)
+      } catch { /* fall back: backend dedups anyway */ }
+
+      const toSearch: typeof selected = []
+      const libraryHits: { key: string; songId: string }[] = []
+      for (const t of selected) {
+        const hit = libIndex.get(norm(t.title, t.artist))
+        if (hit) libraryHits.push({ key: t.key, songId: hit })
+        else toSearch.push(t)
+      }
+
+      // ── Step 2: batch-search only the rows not already in library ────
+      setProgress({ current: 0, total: toSearch.length, label: '正在搜索歌曲资源...' })
+      const result = toSearch.length > 0
+        ? await api.batchSearchFangpi(toSearch.map(t => ({ title: t.title, artist: t.artist })))
+        : { results: [] as any[] }
+
       setTracks(prev => {
         const updated = [...prev]
+        const inLibKeys = new Set(libraryHits.map(h => h.key))
+        const libIdByKey = new Map(libraryHits.map(h => [h.key, h.songId]))
         let resultIdx = 0
         for (let i = 0; i < updated.length; i++) {
           if (!updated[i].selected) continue
+          if (inLibKeys.has(updated[i].key)) {
+            updated[i] = { ...updated[i], searchStatus: 'in-library', librarySongId: libIdByKey.get(updated[i].key) || null, downloadStatus: 'skipped' }
+            continue
+          }
           const r = result.results[resultIdx]
           resultIdx++
           if (r && r.found && r.candidates.length > 0) {
@@ -227,13 +255,16 @@ export default function PlaylistImportModal({ onClose }: Props) {
     )
 
     await loadSongs()
-    // Only add successfully downloaded songs to the playlist
-    if (succeeded.length > 0) {
+    // Add successfully downloaded songs PLUS any already-in-library tracks
+    // (user expects "import" to include them in the new playlist too).
+    const inLibraryTracks = tracks.filter(t => t.selected && t.searchStatus === 'in-library')
+    const playlistTracks = [...succeeded, ...inLibraryTracks]
+    if (playlistTracks.length > 0) {
       try {
         await useMusicStore.getState().importPlaylistFromSongs(
           user.id,
           playlistName.trim(),
-          succeeded.map(item => ({ title: item.title, artist: item.artist, duration: item.duration, tags: item.tags }))
+          playlistTracks.map(item => ({ title: item.title, artist: item.artist, duration: item.duration, tags: item.tags }))
         )
       } catch { /* playlist creation failed but downloads done */ }
     }
@@ -394,9 +425,10 @@ export default function PlaylistImportModal({ onClose }: Props) {
                 {tracks.filter(t => t.selected).map(t => (
                   <div key={t.key} className={`rounded-lg p-3 ${t.searchStatus === 'found' ? 'bg-surface' : 'bg-surface opacity-60'}`}>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${t.searchStatus === 'found' ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${t.searchStatus === 'found' ? 'bg-green-400' : t.searchStatus === 'in-library' ? 'bg-blue-400' : 'bg-yellow-400'}`} />
                       <span className="text-sm text-white truncate">{t.title}</span>
                       <span className="text-xs text-gray-500">- {t.artist}</span>
+                      {t.searchStatus === 'in-library' && <span className="text-xs text-blue-400 ml-auto">已在曲库，跳过</span>}
                       {t.searchStatus === 'not-found' && <span className="text-xs text-yellow-500 ml-auto">未找到音源</span>}
                     </div>
                     {t.searchStatus === 'found' && (

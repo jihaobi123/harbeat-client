@@ -12,7 +12,8 @@ const String defaultBaseUrl = String.fromEnvironment(
 
 const String tokenStorageKey = 'harbeat_token';
 const String rkBaseUrlStorageKey = 'harbeat_rk_base_url';
-const String defaultRkBaseUrl = '192.168.5.17:9000';
+const String apiBaseUrlStorageKey = 'harbeat_api_base_url';
+const String defaultRkBaseUrl = '192.168.43.7:9000';
 
 class HarBeatApp extends StatelessWidget {
   const HarBeatApp({super.key});
@@ -43,7 +44,8 @@ class RootPage extends StatefulWidget {
 }
 
 class _RootPageState extends State<RootPage> {
-  late final HarBeatApiClient _apiClient = HarBeatApiClient(baseUrl: defaultBaseUrl);
+  HarBeatApiClient _apiClient = HarBeatApiClient(baseUrl: defaultBaseUrl);
+  String _apiBaseUrl = defaultBaseUrl;
   SessionBundle? _session;
   DashboardData? _dashboard;
   bool _booting = true;
@@ -66,6 +68,11 @@ class _RootPageState extends State<RootPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(tokenStorageKey);
     final rkUrl = prefs.getString(rkBaseUrlStorageKey);
+    final apiUrl = prefs.getString(apiBaseUrlStorageKey);
+    if (apiUrl != null && apiUrl.isNotEmpty) {
+      _apiBaseUrl = apiUrl;
+      _apiClient = HarBeatApiClient(baseUrl: apiUrl);
+    }
     if (rkUrl != null && rkUrl.isNotEmpty) {
       _rkBaseUrl = rkUrl;
     }
@@ -161,6 +168,17 @@ class _RootPageState extends State<RootPage> {
       apiClient: _apiClient,
       session: _session!,
       rkBaseUrl: _rkBaseUrl,
+      apiBaseUrl: _apiBaseUrl,
+      onApiBaseUrlChanged: (url) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(apiBaseUrlStorageKey, url);
+        setState(() {
+          _apiBaseUrl = url;
+          _apiClient = HarBeatApiClient(baseUrl: url);
+          _dashboard = null;
+        });
+        await _loadDashboard();
+      },
       onRkBaseUrlChanged: (url) async {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(rkBaseUrlStorageKey, url);

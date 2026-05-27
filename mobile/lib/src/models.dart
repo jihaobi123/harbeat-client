@@ -58,7 +58,11 @@ class LibrarySong {
     this.bpm,
     this.key,
     this.camelotKey,
+    this.energy,
     this.sourceType = '',
+    this.stems = const {},
+    this.cuePoints = const [],
+    this.beatPoints = const [],
   });
 
   final String id;
@@ -73,9 +77,32 @@ class LibrarySong {
   final double? bpm;
   final String? key;
   final String? camelotKey;
+  final double? energy;
   final String sourceType;
+  final Map<String, String> stems;
+  final List<LibraryCuePoint> cuePoints;
+  final List<double> beatPoints;
+
+  bool get hasStems => stems.length == 4;
 
   factory LibrarySong.fromJson(Map<String, dynamic> json) {
+    final stemsRaw = json['stems'];
+    final stems = <String, String>{};
+    if (stemsRaw is Map) {
+      stemsRaw.forEach((k, v) {
+        if (v is String && v.isNotEmpty) stems[k.toString()] = v;
+      });
+    }
+    final cuesRaw = json['cue_points'] as List<dynamic>? ?? const [];
+    final cues = cuesRaw
+        .whereType<Map<String, dynamic>>()
+        .map(LibraryCuePoint.fromJson)
+        .toList();
+    final beatsRaw = json['beat_points'] as List<dynamic>? ?? const [];
+    final beats = beatsRaw
+        .map((e) => (e as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
     return LibrarySong(
       id: json['id'] as String,
       userId: (json['user_id'] as num?)?.toInt() ?? 0,
@@ -89,7 +116,34 @@ class LibrarySong {
       bpm: (json['bpm'] as num?)?.toDouble(),
       key: json['key'] as String?,
       camelotKey: json['camelot_key'] as String?,
+      energy: (json['energy'] as num?)?.toDouble(),
       sourceType: json['source_type'] as String? ?? '',
+      stems: stems,
+      cuePoints: cues,
+      beatPoints: beats,
+    );
+  }
+}
+
+class LibraryCuePoint {
+  LibraryCuePoint({
+    required this.id,
+    required this.time,
+    required this.label,
+    required this.color,
+  });
+
+  final String id;
+  final double time;
+  final String label;
+  final String color;
+
+  factory LibraryCuePoint.fromJson(Map<String, dynamic> json) {
+    return LibraryCuePoint(
+      id: json['id']?.toString() ?? '',
+      time: (json['time'] as num?)?.toDouble() ?? 0,
+      label: json['label'] as String? ?? '',
+      color: json['color'] as String? ?? '#999999',
     );
   }
 }
@@ -508,6 +562,180 @@ class DjOfflineMixResult {
           .map((key, value) => MapEntry(key, value.toString())),
       warnings: (json['warnings'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
       durationSec: (json['duration_sec'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+
+// ─── Module 2: Playlist Import (Vibe + URL) ───
+
+class VibeSong {
+  VibeSong({
+    required this.title,
+    required this.artist,
+    required this.source,
+    required this.inLibrary,
+    required this.matchPercentage,
+    this.songId,
+    this.style,
+    this.energy,
+    this.spotifyId,
+    this.previewUrl,
+    this.albumArt,
+    this.spotifyUrl,
+  });
+
+  final String title;
+  final String artist;
+  final String source;
+  final bool inLibrary;
+  final double matchPercentage;
+  final int? songId;
+  final String? style;
+  final String? energy;
+  final String? spotifyId;
+  final String? previewUrl;
+  final String? albumArt;
+  final String? spotifyUrl;
+
+  factory VibeSong.fromJson(Map<String, dynamic> json) {
+    return VibeSong(
+      title: json['title'] as String? ?? 'Untitled',
+      artist: json['artist'] as String? ?? 'Unknown',
+      source: json['source'] as String? ?? 'spotify',
+      inLibrary: json['in_library'] as bool? ?? false,
+      matchPercentage: (json['match_percentage'] as num?)?.toDouble() ?? 0,
+      songId: (json['song_id'] as num?)?.toInt(),
+      style: json['style'] as String?,
+      energy: json['energy'] as String?,
+      spotifyId: json['spotify_id'] as String?,
+      previewUrl: json['preview_url'] as String?,
+      albumArt: json['album_art'] as String?,
+      spotifyUrl: json['spotify_url'] as String?,
+    );
+  }
+}
+
+class VibeSearchResult {
+  VibeSearchResult({
+    required this.query,
+    required this.vibeDescription,
+    required this.searchQuery,
+    required this.genres,
+    required this.songs,
+  });
+
+  final String query;
+  final String vibeDescription;
+  final String searchQuery;
+  final List<String> genres;
+  final List<VibeSong> songs;
+
+  factory VibeSearchResult.fromJson(Map<String, dynamic> json) {
+    return VibeSearchResult(
+      query: json['query'] as String? ?? '',
+      vibeDescription: json['vibe_description'] as String? ?? '',
+      searchQuery: json['search_query'] as String? ?? '',
+      genres: (json['genres'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
+      songs: (json['songs'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(VibeSong.fromJson)
+          .toList(),
+    );
+  }
+}
+
+class ExternalPlaylistTrack {
+  ExternalPlaylistTrack({
+    required this.title,
+    required this.artist,
+    this.album,
+    this.duration,
+  });
+
+  final String title;
+  final String artist;
+  final String? album;
+  final double? duration;
+
+  factory ExternalPlaylistTrack.fromJson(Map<String, dynamic> json) {
+    return ExternalPlaylistTrack(
+      title: json['title'] as String? ?? 'Untitled',
+      artist: json['artist'] as String? ?? 'Unknown',
+      album: json['album'] as String?,
+      duration: (json['duration'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class ParsedExternalPlaylist {
+  ParsedExternalPlaylist({
+    required this.name,
+    required this.tracks,
+    this.source,
+  });
+
+  final String name;
+  final List<ExternalPlaylistTrack> tracks;
+  final String? source;
+
+  factory ParsedExternalPlaylist.fromJson(Map<String, dynamic> json) {
+    return ParsedExternalPlaylist(
+      name: json['name'] as String? ?? 'Untitled Playlist',
+      source: json['source'] as String?,
+      tracks: (json['tracks'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(ExternalPlaylistTrack.fromJson)
+          .toList(),
+    );
+  }
+}
+
+class FangpiCandidate {
+  FangpiCandidate({
+    required this.id,
+    required this.title,
+    required this.artist,
+    this.source,
+  });
+
+  final String id;
+  final String title;
+  final String artist;
+  final String? source;
+
+  factory FangpiCandidate.fromJson(Map<String, dynamic> json) {
+    return FangpiCandidate(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      artist: json['artist'] as String? ?? '',
+      source: json['source'] as String?,
+    );
+  }
+}
+
+class BatchSearchEntry {
+  BatchSearchEntry({
+    required this.title,
+    required this.artist,
+    required this.found,
+    required this.candidates,
+  });
+
+  final String title;
+  final String artist;
+  final bool found;
+  final List<FangpiCandidate> candidates;
+
+  factory BatchSearchEntry.fromJson(Map<String, dynamic> json) {
+    return BatchSearchEntry(
+      title: json['title'] as String? ?? '',
+      artist: json['artist'] as String? ?? '',
+      found: json['found'] as bool? ?? false,
+      candidates: (json['candidates'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(FangpiCandidate.fromJson)
+          .toList(),
     );
   }
 }
