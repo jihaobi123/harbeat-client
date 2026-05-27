@@ -55,6 +55,7 @@ class LibrarySong {
     required this.analysisStatus,
     required this.fileSize,
     required this.createdAt,
+    this.songId,
     this.bpm,
     this.key,
     this.camelotKey,
@@ -66,6 +67,7 @@ class LibrarySong {
   });
 
   final String id;
+  final int? songId;
   final int userId;
   final String title;
   final String artist;
@@ -105,6 +107,7 @@ class LibrarySong {
         .toList();
     return LibrarySong(
       id: json['id'] as String,
+      songId: (json['song_id'] as num?)?.toInt(),
       userId: (json['user_id'] as num?)?.toInt() ?? 0,
       title: json['title'] as String? ?? 'Untitled',
       artist: json['artist'] as String? ?? 'Unknown Artist',

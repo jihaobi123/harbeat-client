@@ -165,7 +165,7 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   /// Convert a LibrarySong.id (String) to the RK numeric song_id.
-  int? _rkId(LibrarySong s) => int.tryParse(s.id);
+  int? _rkId(LibrarySong s) => s.songId ?? int.tryParse(s.id);
 
   Future<void> _startLiveMix() async {
     final ordered = _orderedSongs();
@@ -185,7 +185,7 @@ class _DjControlPageState extends State<DjControlPage> {
       _step = 3; // jump to 实时操作
     });
     try {
-      await widget.edgeClient.play(songId: first.id, startAtSec: 0);
+      await widget.edgeClient.play(songId: rkId.toString(), startAtSec: 0);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('RK 启动失败: $e')),
