@@ -211,9 +211,13 @@ def _convert_to_wav(src: Path, dst: Path) -> None:
 
 
 def _choose_ext(kind: str, info: dict, url: str) -> str:
-    """Pick storage extension. Stems always wav; original keeps server format."""
-    if kind != "original":
-        return "wav"
+    """Pick storage extension.
+
+    Phase B: stems and original both keep the server format. Jetson stem
+    endpoint serves mp3 (~10x smaller than wav) and audio-engine reads
+    mp3 directly via libsndfile, so we no longer force-transcode stems
+    to wav. Falls back to .wav only when the format is unknown.
+    """
     fmt = str(info.get("format") or "").lower().lstrip(".")
     if fmt in ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac"):
         return fmt
@@ -272,11 +276,10 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                     raise ValueError(f"size mismatch {song_id}/{kind}: got {tmp_path.stat().st_size}, want {expected_size}")
                 if expected_sha and _sha256(tmp_path) != expected_sha:
                     raise ValueError(f"sha256 mismatch {song_id}/{kind}")
-                # Phase B: if the destination should be wav (stems always; original
-                # when ext was set to wav) but the bytes are actually mp3/other,
-                # transcode with ffmpeg so audio-engine's soundfile can read it.
-                # Detect mp3 by looking at the first 3 bytes (ID3 header or 0xFF 0xFB frame sync).
-                wants_wav = (final_path.suffix.lower() == ".wav")
+                # Phase B: store bytes as-is. soundfile/libsndfile decodes mp3
+                # natively, so we do not force-transcode stems to wav anymore.
+                # The only mismatch case left is when ext was guessed ".wav"
+                # but server actually returned mp3 — fall back to ffmpeg there.
                 head = b""
                 try:
                     with tmp_path.open("rb") as fh:
@@ -284,9 +287,12 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                 except Exception:
                     head = b""
                 is_mp3 = head[:3] == b"ID3" or (len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0)
-                if wants_wav and is_mp3:
-                    logger.info("%s/%s: server returned mp3 but storage wants wav, transcoding", song_id, kind)
-                    _convert_to_wav(tmp_path, final_path)
+                if final_path.suffix.lower() == ".wav" and is_mp3:
+                    # rare fallback: rename to .mp3 (keeps zero-cost) so engine
+                    # finds it via _find_existing_stem.
+                    mp3_path = final_path.with_suffix(".mp3")
+                    tmp_path.replace(mp3_path)
+                    logger.info("%s/%s: server returned mp3, stored as %s", song_id, kind, mp3_path.name)
                 else:
                     tmp_path.replace(final_path)
                 if expected_sha:

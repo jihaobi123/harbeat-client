@@ -128,6 +128,15 @@ def _read_segment(buf: np.ndarray, pos: int, frames: int) -> tuple[np.ndarray, i
     return chunk, new_pos
 
 
+def _find_existing_stem(out_dir, name):
+    """Locate <stem>.{wav,mp3,...} for lazy-loading; returns Path or None."""
+    for ext in ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac"):
+        cand = out_dir / f"{name}.{ext}"
+        if cand.is_file():
+            return cand
+    return None
+
+
 class Deck:
     __slots__ = (
         "audio", "pos", "song_id", "stems", "gain",
@@ -239,8 +248,8 @@ class Deck:
             self.stems = {}
             if load_stems and audio_path is None:
                 for name in REQUIRED_STEMS:
-                    stem_path = _song_dir(song_id) / f"{name}.wav"
-                    if stem_path.is_file():
+                    stem_path = _find_existing_stem(_song_dir(song_id), name)
+                    if stem_path is not None:
                         self.stems[name] = _load_wav_stereo(stem_path)
         start_frame = int(max(0.0, start_at_sec) * SAMPLE_RATE)
         self.pos = min(start_frame, max(0, len(self.audio) - 1))
@@ -707,8 +716,8 @@ class AudioEngineMVP:
                 song_id = self.active_deck.song_id
                 if song_id is None:
                     raise SongCacheError("no song loaded", code=409)
-                stem_path = _song_dir(song_id) / f"{stem}.wav"
-                if stem_path.is_file():
+                stem_path = _find_existing_stem(_song_dir(song_id), stem)
+                if stem_path is not None:
                     try:
                         self.active_deck.stems[stem] = _load_wav_stereo(stem_path)
                         logger.info("lazy-loaded stem %s for %s from %s", stem, song_id, stem_path)
@@ -751,8 +760,8 @@ class AudioEngineMVP:
             audio = _load_wav_stereo(path)
             stems: dict[str, np.ndarray] = {}
             for name in REQUIRED_STEMS:
-                stem_path = _song_dir(song_id) / f"{name}.wav"
-                if stem_path.is_file():
+                stem_path = _find_existing_stem(_song_dir(song_id), name)
+                if stem_path is not None:
                     stems[name] = _load_wav_stereo(stem_path)
             with _PREFETCH_LOCK:
                 # LRU：超出上限丢最早项
