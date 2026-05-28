@@ -56,6 +56,21 @@ class SyncWorkerClient {
     return SyncStatus.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }
 
+  /// 询问 sync-worker：某首歌的 original.{mp3,wav,...} 是否已落盘。
+  /// 用来在快路径里轮询：文件一存在就立刻让 RK 出声，不用等整个 sync 标 done。
+  Future<bool> cacheExists(String songId) async {
+    try {
+      final resp = await http
+          .get(_u('/cache/check?song_id=${Uri.encodeQueryComponent(songId)}'))
+          .timeout(const Duration(seconds: 2));
+      if (resp.statusCode != 200) return false;
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      return body['exists'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// 健康探测：返回 true 表示 sync-worker 可达。
   Future<bool> ping() async {
     try {

@@ -75,6 +75,17 @@ class EdgeAgentClient {
     return _request(method: 'POST', path: '/resume');
   }
 
+  /// 跳到指定秒数。RK edge-agent /seek 不会重新加载文件，比重发 /play 快得多。
+  Future<Map<String, dynamic>> seek(double sec) async {
+    return _request(method: 'POST', path: '/seek', body: {'sec': sec});
+  }
+
+  /// 切到 stem 单轨独奏。stem ∈ {vocals,drums,bass,other}，传 null 取消独奏（恢复完整曲）。
+  /// RK edge-agent 在 audio engine 已加载的当前曲上即时切换，不重新加载文件，毫秒级响应。
+  Future<Map<String, dynamic>> stemSolo(String? stem) async {
+    return _request(method: 'POST', path: '/stem_solo', body: {'stem': stem});
+  }
+
   /// [toSongId] accepts an int (catalog Song.id) or a String (LibrarySong UUID).
   /// RK accepts both via `int | str`; UUID is preferred because the sync
   /// worker caches wavs under `~/cypher/cache/{UUID}/original.wav`.

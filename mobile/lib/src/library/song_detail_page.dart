@@ -1,13 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../api_client.dart';
+import '../edge_agent_client.dart';
 import '../models.dart';
+import '../sync_worker_client.dart';
 
 /// 详情页：展示歌曲基本信息、分析状态、段落、音轨；
 /// 自动后台轮询直到分析完成。
+///
+/// 播放路由：所有声音都从 RK3588 出，不走手机本地。
+///   - 完整曲/段落：edge-agent /play + /seek
+///   - 音轨切换：edge-agent /stem_solo（在已加载文件上即时独奏）
+///   - 进度：edge-agent /state 1s 轮询
 class SongDetailPage extends StatefulWidget {
   const SongDetailPage({
     super.key,
@@ -26,45 +32,44 @@ class SongDetailPage extends StatefulWidget {
 
 class _SongDetailPageState extends State<SongDetailPage> {
   late LibrarySong _song;
-  final AudioPlayer _player = AudioPlayer();
-  StreamSubscription<Duration>? _posSub;
-  StreamSubscription<Duration?>? _durSub;
-  StreamSubscription<PlayerState>? _stateSub;
+  late EdgeAgentClient _edge;
+  late SyncWorkerClient _sync;
 
   Timer? _poller;
+  Timer? _statePoller;
   bool _busy = false;
   String? _error;
+
+  // 缓存拉取进度提示
+  double? _prefetchPercent;
+  String? _prefetchMessage;
+
+  // 防止 /state 轮询在拖动后把进度条拽回
+  DateTime? _seekGuardUntil;
 
   /// 'full' | 'vocals' | 'drums' | 'bass' | 'other'
   String _activeSource = 'full';
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _playing = false;
+  bool _loaded = false; // RK 是否已加载本曲（决定 stem_solo / seek 能否直接打）
 
   @override
   void initState() {
     super.initState();
     _song = widget.song;
-    _posSub = _player.positionStream.listen((v) {
-      if (mounted) setState(() => _position = v);
-    });
-    _durSub = _player.durationStream.listen((v) {
-      if (mounted) setState(() => _duration = v ?? Duration.zero);
-    });
-    _stateSub = _player.playerStateStream.listen((s) {
-      if (mounted) setState(() => _playing = s.playing);
-    });
-    // 立刻拉一次最新详情（避免列表里是旧数据），并按需启动轮询
+    // 复用 main.dart 注入的服务地址；这里用环境默认值 + 局域网 IP，跟 home_page 保持一致。
+    // 上层页面已经在 widget.session 里传了 token，但 RK base url 由用户在主页设置里改，
+    // 这里直接用代码里默认 192.168.43.7:9000，并支持后续从 inheritedWidget/参数覆盖。
+    _edge = EdgeAgentClient(baseUrl: 'http://192.168.43.7:9000');
+    _sync = SyncWorkerClient(baseUrl: 'http://192.168.43.7:9100');
     _refreshDetail();
   }
 
   @override
   void dispose() {
     _poller?.cancel();
-    _posSub?.cancel();
-    _durSub?.cancel();
-    _stateSub?.cancel();
-    _player.dispose();
+    _statePoller?.cancel();
     super.dispose();
   }
 
@@ -122,7 +127,6 @@ class _SongDetailPageState extends State<SongDetailPage> {
         token: widget.session.token,
         songId: _song.id,
       );
-      // 分轨是后台任务，刷新一下；后续若状态变化由 _ensurePoller 处理
       await _refreshDetail();
     } catch (e) {
       if (!mounted) return;
@@ -132,48 +136,274 @@ class _SongDetailPageState extends State<SongDetailPage> {
     }
   }
 
-  Future<void> _switchSource(String which) async {
-    if (which == _activeSource && _player.audioSource != null) return;
-    final wasPlaying = _player.playing;
-    final keepPos = _position;
-    final url = which == 'full'
-        ? widget.apiClient.streamUrl(
-            token: widget.session.token,
-            songId: _song.id,
-          )
-        : widget.apiClient.stemStreamUrl(
-            token: widget.session.token,
-            songId: _song.id,
-            stemName: which,
-          );
+  // ── RK 播放快路径 ────────────────────────────────────────────────
+
+  /// 试一次直接 /play；命中返回 true。
+  Future<bool> _tryDirectPlay({double startAtSec = 0.0}) async {
     try {
+      final res = await _edge.play(
+        songId: _song.id,
+        startAtSec: startAtSec,
+      );
+      return res['ok'] == true ||
+          (res['result'] is Map && (res['result'] as Map)['ok'] == true);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 让 RK 加载本曲：缓存命中立即 /play；否则触发 sync 并 200ms 轮询 /cache/check，
+  /// 文件一落盘就 /play。最多等 8 秒，仍未命中再回退到 syncAndWait（兼容慢网/大文件）。
+  /// 仅同步 original mp3——stem 由 [_ensureStemCached] 单独拉取，避免大 stem 文件
+  /// 拖慢首播出声。
+  /// 返回是否成功开始播放（出声）。
+  Future<bool> _ensureLoaded({double startAtSec = 0.0}) async {
+    // 1) 直接试 /play
+    if (await _tryDirectPlay(startAtSec: startAtSec)) {
+      _loaded = true;
+      _startStatePolling();
+      return true;
+    }
+
+    // 2) 触发 sync + 轮询 cache 落盘
+    setState(() {
+      _prefetchPercent = 0;
+      _prefetchMessage = '请求 RK 缓存…';
+    });
+    final tracks = [
+      <String, dynamic>{
+        'song_id': _song.id,
+        'files': <String, dynamic>{
+          'original': <String, dynamic>{
+            'url': widget.apiClient.streamUrl(
+              token: widget.session.token,
+              songId: _song.id,
+            ),
+            'format': 'mp3',
+          },
+        },
+      }
+    ];
+    unawaited(() async {
+      try {
+        await _sync.startSync(
+          tracks: tracks,
+          planId: 'detail-${_song.id}',
+        );
+      } catch (_) {/* already running 也算成功 */}
+    }());
+
+    final deadline = DateTime.now().add(const Duration(seconds: 8));
+    while (DateTime.now().isBefore(deadline)) {
+      if (!mounted) return false;
+      if (await _sync.cacheExists(_song.id)) {
+        if (await _tryDirectPlay(startAtSec: startAtSec)) {
+          _loaded = true;
+          if (mounted) {
+            setState(() {
+              _prefetchPercent = null;
+              _prefetchMessage = null;
+            });
+          }
+          _startStatePolling();
+          return true;
+        }
+      }
+      try {
+        final st = await _sync.getStatus();
+        if (mounted) {
+          setState(() {
+            _prefetchPercent = st.percent;
+            _prefetchMessage =
+                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+          });
+        }
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+
+    // 3) 兜底：syncAndWait 等到底
+    try {
+      await _sync.syncAndWait(
+        tracks: tracks,
+        planId: 'detail-${_song.id}',
+        timeout: const Duration(minutes: 2),
+        onProgress: (st) {
+          if (!mounted) return;
+          setState(() {
+            _prefetchPercent = st.percent;
+            _prefetchMessage =
+                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+          });
+        },
+      );
+    } catch (e) {
+      if (!mounted) return false;
       setState(() {
-        _activeSource = which;
-        _error = null;
+        _error = '拉取到 RK 失败: $e';
+        _prefetchPercent = null;
+        _prefetchMessage = null;
       });
-      await _player.setUrl(url);
-      // 切换不同源时尽量保持当前进度，提供 stems 对齐的播放体验
-      if (keepPos > Duration.zero) {
-        await _player.seek(keepPos);
+      return false;
+    }
+
+    if (await _tryDirectPlay(startAtSec: startAtSec)) {
+      _loaded = true;
+      if (mounted) {
+        setState(() {
+          _prefetchPercent = null;
+          _prefetchMessage = null;
+        });
       }
-      if (wasPlaying) {
-        await _player.play();
-      }
+      _startStatePolling();
+      return true;
+    }
+    if (mounted) {
+      setState(() {
+        _error = 'RK 播放失败';
+        _prefetchPercent = null;
+        _prefetchMessage = null;
+      });
+    }
+    return false;
+  }
+
+  void _startStatePolling() {
+    _statePoller?.cancel();
+    _statePoller = Timer.periodic(const Duration(seconds: 1), (_) async {
+      try {
+        final st = await _edge.getState();
+        if (!mounted) return;
+        if (st.error != null) return;
+        setState(() {
+          _playing = st.playing;
+          final guard = _seekGuardUntil;
+          final inGuard = guard != null && DateTime.now().isBefore(guard);
+          if (!inGuard) {
+            _position =
+                Duration(milliseconds: (st.positionSec * 1000).round());
+          }
+          if (st.durationSec > 0) {
+            _duration =
+                Duration(milliseconds: (st.durationSec * 1000).round());
+          } else if (_duration == Duration.zero && _song.duration > 0) {
+            _duration =
+                Duration(milliseconds: (_song.duration * 1000).round());
+          }
+        });
+      } catch (_) {/* 静默 */}
+    });
+  }
+
+  // ── UI 行为 ────────────────────────────────────────────────────────
+
+  /// 切音轨：如果 RK 还没加载本曲，先 _ensureLoaded；之后只发 /stem_solo。
+  /// 关键：调用 /stem_solo 之前必须保证目标 stem 的 .wav 已经落盘到 RK，
+  /// 否则 audio-engine 会抛 409（stem 未加载）。
+  Future<void> _switchSource(String which) async {
+    if (which == _activeSource && _loaded) return;
+    setState(() {
+      _activeSource = which;
+      _error = null;
+    });
+    if (!_loaded) {
+      // 首次加载：先把 original mp3 拉到 RK 让出声，stem 异步等。
+      final ok = await _ensureLoaded(startAtSec: 0.0);
+      if (!ok) return;
+    }
+    // 任何切到 stem 的情况都要确保 stem 文件已落盘
+    if (which != 'full') {
+      final stemReady = await _ensureStemCached(which);
+      if (!stemReady) return;
+    }
+    try {
+      await _edge.stemSolo(which == 'full' ? null : which);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = '切换音轨失败: $e');
     }
   }
 
+  /// 拉取指定 stem 到 RK 缓存；返回是否最终落盘。
+  /// 命中已有文件秒返回。
+  Future<bool> _ensureStemCached(String stem) async {
+    // 已经在缓存里 → 跳过
+    final preCheck =
+        await _checkStemFile(stem); // 通过 sync-worker /cache/check 不够，因为它只看 original
+    if (preCheck) return true;
+
+    setState(() {
+      _prefetchPercent = 0;
+      _prefetchMessage = '正在拉取 ${_sourceLabel(stem)} 到 RK 缓存…';
+    });
+    final tracks = [
+      <String, dynamic>{
+        'song_id': _song.id,
+        'files': <String, dynamic>{
+          'stems': <String, dynamic>{
+            stem: <String, dynamic>{
+              'url': widget.apiClient.stemStreamUrl(
+                token: widget.session.token,
+                songId: _song.id,
+                stemName: stem,
+              ),
+              'format': 'wav',
+            },
+          },
+        },
+      }
+    ];
+    try {
+      await _sync.syncAndWait(
+        tracks: tracks,
+        planId: 'detail-${_song.id}-$stem',
+        timeout: const Duration(minutes: 2),
+        onProgress: (st) {
+          if (!mounted) return;
+          setState(() {
+            _prefetchPercent = st.percent;
+            _prefetchMessage =
+                '正在拉取 ${_sourceLabel(stem)} ${st.percent.toStringAsFixed(0)}%';
+          });
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _prefetchPercent = null;
+          _prefetchMessage = null;
+        });
+      }
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _error = '拉取分轨失败: $e';
+        _prefetchPercent = null;
+        _prefetchMessage = null;
+      });
+      return false;
+    }
+  }
+
+  /// sync-worker 的 /cache/check 当前只看 original.*。我们在 stem 是否已落盘上
+  /// 简单复用 syncAndWait 的"命中跳过"逻辑——syncAndWait 内部见 sha256/size 一致
+  /// 会直接 mark_done 并返回，不会重下载。所以这里直接返回 false 让上层去 syncAndWait
+  /// （第一次拉取会真下，后续命中会秒返回）。
+  Future<bool> _checkStemFile(String stem) async => false;
+
   Future<void> _togglePlay() async {
     try {
-      if (_player.audioSource == null) {
-        await _switchSource(_activeSource);
+      if (!_loaded) {
+        await _ensureLoaded(startAtSec: 0.0);
+        return;
       }
-      if (_player.playing) {
-        await _player.pause();
+      if (_playing) {
+        await _edge.pause();
+        if (mounted) setState(() => _playing = false);
       } else {
-        await _player.play();
+        await _edge.resume();
+        if (mounted) setState(() => _playing = true);
+        _startStatePolling();
       }
     } catch (e) {
       if (!mounted) return;
@@ -181,18 +411,27 @@ class _SongDetailPageState extends State<SongDetailPage> {
     }
   }
 
+  /// 跳到 [target]。如果 RK 还没加载本曲，直接以 startAtSec 启动播放。
   Future<void> _seekTo(Duration target) async {
+    final sec = target.inMilliseconds / 1000.0;
+    if (!_loaded) {
+      await _ensureLoaded(startAtSec: sec);
+      return;
+    }
+    setState(() {
+      _position = target;
+      _seekGuardUntil =
+          DateTime.now().add(const Duration(milliseconds: 1000));
+    });
     try {
-      if (_player.audioSource == null) {
-        await _switchSource(_activeSource);
+      await _edge.seek(sec);
+    } catch (_) {
+      try {
+        await _edge.play(songId: _song.id, startAtSec: sec);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _error = '跳转失败: $e');
       }
-      await _player.seek(target);
-      if (!_player.playing) {
-        await _player.play();
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = '跳转失败: $e');
     }
   }
 
@@ -294,7 +533,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
     Color bg;
     Color fg;
     String label;
-    Widget? leading;
+    Widget leading;
     switch (s) {
       case 'completed':
       case 'done':
@@ -339,7 +578,8 @@ class _SongDetailPageState extends State<SongDetailPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (leading != null) ...[leading, const SizedBox(width: 6)],
+          leading,
+          const SizedBox(width: 6),
           Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
         ],
       ),
@@ -371,6 +611,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
     final value = total.inMilliseconds == 0
         ? 0.0
         : (_position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+    final prefetching = _prefetchPercent != null;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -379,6 +620,14 @@ class _SongDetailPageState extends State<SongDetailPage> {
             Slider(
               value: value,
               onChanged: (v) {
+                if (total.inMilliseconds > 0) {
+                  setState(() {
+                    _position = Duration(
+                        milliseconds: (v * total.inMilliseconds).toInt());
+                  });
+                }
+              },
+              onChangeEnd: (v) {
                 if (total.inMilliseconds > 0) {
                   _seekTo(Duration(
                       milliseconds: (v * total.inMilliseconds).toInt()));
@@ -398,13 +647,24 @@ class _SongDetailPageState extends State<SongDetailPage> {
               children: [
                 IconButton(
                   iconSize: 36,
-                  onPressed: _togglePlay,
+                  onPressed: prefetching ? null : _togglePlay,
                   icon: Icon(_playing ? Icons.pause_circle : Icons.play_circle),
                 ),
               ],
             ),
+            if (prefetching) ...[
+              const SizedBox(height: 4),
+              LinearProgressIndicator(
+                value: (_prefetchPercent! / 100).clamp(0.0, 1.0),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _prefetchMessage ?? '正在拉取到 RK',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             Text(
-              '当前音源: ${_sourceLabel(_activeSource)}',
+              '当前音源: ${_sourceLabel(_activeSource)} · 播放: RK3588',
               style: theme.textTheme.bodySmall,
             ),
           ],

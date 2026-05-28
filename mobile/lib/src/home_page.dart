@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -9,10 +9,8 @@ import 'package:just_audio/just_audio.dart';
 import 'api_client.dart';
 import 'edge_agent_client.dart';
 import 'dj_control_page.dart';
-import 'extra_tabs.dart';
 import 'import/playlist_import_page.dart';
 import 'library/song_detail_page.dart';
-import 'live_deck_page.dart';
 import 'models.dart';
 import 'sync_worker_client.dart';
 
@@ -53,11 +51,9 @@ class _HomePageState extends State<HomePage> {
   late SyncWorkerClient _syncWorker;
   final AudioPlayer _player = AudioPlayer();
   final TextEditingController _librarySearchController = TextEditingController();
-  final TextEditingController _onlineSearchController = TextEditingController();
 
   DashboardData? _data;
   List<LibrarySong> _displaySongs = const [];
-  List<FangpiSong> _remoteResults = const [];
   PlaylistDetail? _selectedPlaylist;
   LibrarySong? _currentSong;
   Duration _position = Duration.zero;
@@ -68,9 +64,11 @@ class _HomePageState extends State<HomePage> {
   // 同步缓存进度 0..100；非空时显示 prefetch 提示
   double? _prefetchPercent;
   String? _prefetchMessage;
+  // 拖动 seek 后的"防回弹"截止时间：在此之前忽略 RK /state 轮询返回的 position，
+  // 避免轮询返回旧 position 把进度条拽回。
+  DateTime? _seekGuardUntil;
 
   bool _librarySearching = false;
-  bool _remoteSearching = false;
   bool _uploading = false;
   bool _playlistLoading = false;
   bool _testing = false;
@@ -156,7 +154,6 @@ class _HomePageState extends State<HomePage> {
     _durationSub?.cancel();
     _player.dispose();
     _librarySearchController.dispose();
-    _onlineSearchController.dispose();
     super.dispose();
   }
 
@@ -164,40 +161,6 @@ class _HomePageState extends State<HomePage> {
     await widget.onRefresh();
     _syncFromWidget();
     if (mounted) setState(() {});
-  }
-
-  void _showRkSettingsDialog() {
-    final controller = TextEditingController(text: widget.rkBaseUrl);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('RK 地址'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'RK Edge-Agent 地址',
-            hintText: '192.168.43.7:9000',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final url = controller.text.trim();
-              if (url.isNotEmpty) {
-                widget.onRkBaseUrlChanged(url);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _showSettingsDialog() async {
@@ -337,17 +300,9 @@ class _HomePageState extends State<HomePage> {
 
     // 5) 随机选音轨
     String stemKey = 'full';
-    String stemLabel = '完整曲';
     if (detail.hasStems) {
       final stemNames = const ['vocals', 'drums', 'bass', 'other'];
       stemKey = stemNames[rand.nextInt(stemNames.length)];
-      stemLabel = {
-            'vocals': '人声',
-            'drums': '鼓组',
-            'bass': '贝斯',
-            'other': '其他'
-          }[stemKey] ??
-          stemKey;
     }
 
     final url = stemKey == 'full'
@@ -431,49 +386,6 @@ class _HomePageState extends State<HomePage> {
         _localError = error.toString();
         _librarySearching = false;
       });
-    }
-  }
-
-  Future<void> _searchOnline() async {
-    if (_onlineSearchController.text.trim().isEmpty) return;
-    setState(() {
-      _remoteSearching = true;
-      _localError = null;
-    });
-    try {
-      final result = await widget.apiClient.searchFangpi(
-        token: widget.session.token,
-        query: _onlineSearchController.text.trim(),
-      );
-      setState(() {
-        _remoteResults = result;
-        _remoteSearching = false;
-      });
-    } catch (error) {
-      setState(() {
-        _remoteSearching = false;
-        _localError = error.toString();
-      });
-    }
-  }
-
-  Future<void> _downloadRemote(FangpiSong song) async {
-    try {
-      final created = await widget.apiClient.downloadFangpi(
-        token: widget.session.token,
-        song: song,
-      );
-      final songs = [created, ...?_data?.songs];
-      setState(() {
-        _data = DashboardData(
-          profile: _data?.profile ?? widget.session.profile,
-          songs: songs,
-          playlists: _data?.playlists ?? const [],
-        );
-        _displaySongs = songs;
-      });
-    } catch (error) {
-      setState(() => _localError = error.toString());
     }
   }
 
@@ -606,7 +518,15 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // 2) 未命中 → 发起 sync-worker 拉取 → 等完成 → 再 /play。
+    // 2) 未命中：触发 sync（不等它跑完），同时 200ms 轮询 sync-worker /cache/check，
+    //    文件一落盘就立刻 /play。这样首播延迟 ≈ "下载完单文件 + 200ms"。
+    final fastOk = await _fastPlayWhenCached(song, messenger);
+    if (fastOk) {
+      _onRkPlaybackStarted(song, messenger);
+      return;
+    }
+
+    // 3) 快路径超时（典型：mp3 较大或网络慢）→ 回退到老的 syncAndWait 全量等待
     final prefetchOk = await _prefetchToRkCache(song, messenger);
     if (!prefetchOk) return;
 
@@ -625,6 +545,72 @@ class _HomePageState extends State<HomePage> {
         content: const Text('RK 播放失败'),
       ));
     }
+  }
+
+  /// 触发后台 sync，同时以 200ms 频率轮询 RK 缓存：
+  ///   - 文件落盘 → 立刻 /play 出声，返回 true。
+  ///   - 8 秒内未落盘 → 返回 false，让上层回退到 syncAndWait 等到底。
+  Future<bool> _fastPlayWhenCached(
+    LibrarySong song,
+    ScaffoldMessengerState messenger,
+  ) async {
+    setState(() {
+      _prefetchPercent = 0;
+      _prefetchMessage = '请求 RK 缓存…';
+    });
+
+    final tracks = [
+      <String, dynamic>{
+        'song_id': song.id,
+        'files': <String, dynamic>{
+          'original': <String, dynamic>{
+            'url': _buildJetsonStreamUrl(song.id),
+            'format': 'mp3',
+          },
+        },
+      }
+    ];
+
+    // 启动 sync（不等它跑完），失败也不致命：可能是已经在跑
+    unawaited(() async {
+      try {
+        await _syncWorker.startSync(
+          tracks: tracks,
+          planId: 'mobile-${song.id}',
+        );
+      } catch (_) {/* already running 也算成功 */}
+    }());
+
+    final deadline = DateTime.now().add(const Duration(seconds: 8));
+    while (DateTime.now().isBefore(deadline)) {
+      if (!mounted) return false;
+      // 调 sync-worker /cache/check 看 original.* 是否落盘
+      if (await _syncWorker.cacheExists(song.id)) {
+        // 命中 → 立刻 /play
+        if (await _tryDirectPlay(song)) {
+          if (mounted) {
+            setState(() {
+              _prefetchPercent = null;
+              _prefetchMessage = null;
+            });
+          }
+          return true;
+        }
+      }
+      // 同时刷一下 sync-worker 进度，在 UI 上反馈
+      try {
+        final st = await _syncWorker.getStatus();
+        if (mounted) {
+          setState(() {
+            _prefetchPercent = st.percent;
+            _prefetchMessage =
+                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+          });
+        }
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    return false;
   }
 
   /// 试一次 /play；任何异常/ok=false 都返回 false，交给上层走 prefetch 分支。
@@ -728,7 +714,13 @@ class _HomePageState extends State<HomePage> {
         // 如果 RK 当前曲与本地 _currentSong 不一致，仍然跟随 RK
         setState(() {
           _rkPlaying = st.playing;
-          _position = Duration(milliseconds: (st.positionSec * 1000).round());
+          // 拖动结束后短暂窗口内忽略 position（防止 RK 回报旧值把进度条拽回）
+          final guard = _seekGuardUntil;
+          final inGuard = guard != null && DateTime.now().isBefore(guard);
+          if (!inGuard) {
+            _position =
+                Duration(milliseconds: (st.positionSec * 1000).round());
+          }
           // 只有 RK 真的返回了 duration_sec>0 才覆盖；否则保留来自 Library 元数据的时长
           if (st.durationSec > 0) {
             _duration = Duration(milliseconds: (st.durationSec * 1000).round());
@@ -748,16 +740,6 @@ class _HomePageState extends State<HomePage> {
   void _stopRkStatePolling() {
     _rkStateTimer?.cancel();
     _rkStateTimer = null;
-  }
-
-  Future<void> _playSongById(String librarySongId) async {
-    for (final item in _data?.songs ?? const <LibrarySong>[]) {
-      if (item.id == librarySongId) {
-        await _playSong(item);
-        return;
-      }
-    }
-    setState(() => _localError = '曲库中未找到对应歌曲');
   }
 
   Future<void> _playPlaylistSong(PlaylistSong playlistSong) async {
@@ -802,13 +784,24 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _seek(double value) async {
     if (_currentSong != null) {
-      // RK 以 /play start_at_sec 重新定位
+      // 乐观更新本地 position，开 1 秒防回弹窗，等 RK /state 在下一次轮询追上
+      setState(() {
+        _position = Duration(milliseconds: (value * 1000).round());
+        _seekGuardUntil =
+            DateTime.now().add(const Duration(milliseconds: 1000));
+      });
       try {
-        await _edgeClient.play(
-          songId: _currentSong!.id,
-          startAtSec: value,
-        );
-      } catch (_) {}
+        // 走 RK /seek，比重发 /play 快得多（不重新加载文件）
+        await _edgeClient.seek(value);
+      } catch (e) {
+        // /seek 失败兜底走 /play start_at_sec（旧路径），避免完全失灵
+        try {
+          await _edgeClient.play(
+            songId: _currentSong!.id,
+            startAtSec: value,
+          );
+        } catch (_) {}
+      }
       return;
     }
     await _player.seek(Duration(seconds: value.round()));
@@ -1182,75 +1175,6 @@ class LibraryTab extends StatelessWidget {
   }
 }
 
-class OnlineSearchTab extends StatelessWidget {
-  const OnlineSearchTab({
-    super.key,
-    required this.controller,
-    required this.results,
-    required this.searching,
-    required this.onSearch,
-    required this.onDownload,
-  });
-
-  final TextEditingController controller;
-  final List<FangpiSong> results;
-  final bool searching;
-  final Future<void> Function() onSearch;
-  final Future<void> Function(FangpiSong song) onDownload;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.travel_explore),
-                    hintText: '搜索在线歌曲',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => onSearch(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              FilledButton(
-                onPressed: searching ? null : () => onSearch(),
-                child: searching
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('搜索'),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: results.isEmpty
-              ? const Center(child: Text('输入关键词后搜索在线音乐'))
-              : ListView.separated(
-                  itemCount: results.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final song = results[index];
-                    return ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.cloud_download_outlined)),
-                      title: Text(song.title),
-                      subtitle: Text(song.artist),
-                      trailing: FilledButton.tonal(
-                        onPressed: () => onDownload(song),
-                        child: const Text('下载'),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-}
 
 class PlaylistsTab extends StatelessWidget {
   const PlaylistsTab({
@@ -1380,7 +1304,12 @@ class MiniPlayer extends StatefulWidget {
 }
 
 class _MiniPlayerState extends State<MiniPlayer> {
-  double? _dragValue; // 非空表示用户正在拖动，使用本地值显示，停止下发 seek
+  // 非空表示用户正在拖动，使用本地值显示，停止下发 seek。
+  // 松手后保留一段时间（直到外部 position 追上 _latchTarget），
+  // 防止外部 1Hz 轮询把 UI 拽回旧位置。
+  double? _dragValue;
+  double? _latchTarget;
+  DateTime? _latchUntil;
 
   @override
   Widget build(BuildContext context) {
@@ -1398,8 +1327,26 @@ class _MiniPlayerState extends State<MiniPlayer> {
         : (song.duration > 0 ? song.duration.toDouble() : 1.0);
     final livePosition =
         position.inMilliseconds.clamp(0, (maxSeconds * 1000).toInt()) / 1000.0;
-    final currentSeconds =
-        (_dragValue ?? livePosition).clamp(0.0, maxSeconds);
+    // 松手后的"latch"：在 _latchUntil 截止前 OR 直到 livePosition 追上 _latchTarget，
+    // 优先用 _latchTarget 显示，避免被旧的 RK position 拽回去。
+    double sliderValue;
+    if (_dragValue != null) {
+      sliderValue = _dragValue!;
+    } else if (_latchTarget != null) {
+      final until = _latchUntil;
+      final expired = until != null && DateTime.now().isAfter(until);
+      final caughtUp = (livePosition - _latchTarget!).abs() < 1.0;
+      if (expired || caughtUp) {
+        _latchTarget = null;
+        _latchUntil = null;
+        sliderValue = livePosition;
+      } else {
+        sliderValue = _latchTarget!;
+      }
+    } else {
+      sliderValue = livePosition;
+    }
+    final currentSeconds = sliderValue.clamp(0.0, maxSeconds);
     final prefetching = prefetchPercent != null;
     final displayedPosition = Duration(
       milliseconds: (currentSeconds * 1000).round(),
@@ -1447,13 +1394,23 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   value: currentSeconds,
                   max: maxSeconds,
                   onChangeStart: (value) {
-                    setState(() => _dragValue = value);
+                    setState(() {
+                      _dragValue = value;
+                      _latchTarget = null;
+                      _latchUntil = null;
+                    });
                   },
                   onChanged: (value) {
                     setState(() => _dragValue = value);
                   },
                   onChangeEnd: (value) {
-                    setState(() => _dragValue = null);
+                    setState(() {
+                      _dragValue = null;
+                      // 松手后短暂锁住 UI 显示在 value，直到 RK 轮询追上
+                      _latchTarget = value;
+                      _latchUntil =
+                          DateTime.now().add(const Duration(milliseconds: 1500));
+                    });
                     onSeek(value);
                   },
                 ),
