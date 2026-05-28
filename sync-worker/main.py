@@ -118,6 +118,34 @@ def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
+def _manifest_asset_report(manifest: dict[str, Any]) -> dict[str, Any]:
+    items = _file_items(manifest)
+    missing: dict[str, list[str]] = {}
+    complete_tracks = 0
+    track_count = 0
+    for track in manifest.get("tracks") or []:
+        song_id = track.get("song_id") or track.get("library_song_id") or track.get("id")
+        if song_id is None:
+            continue
+        track_count += 1
+        files = track.get("files") or {}
+        stems = files.get("stems") or {}
+        absent = []
+        if not files.get("original"):
+            absent.append("original")
+        absent.extend(stem for stem in ("vocals", "drums", "bass", "other") if not stems.get(stem))
+        if absent:
+            missing[str(song_id)] = absent
+        else:
+            complete_tracks += 1
+    return {
+        "track_count": track_count,
+        "asset_count": len(items),
+        "complete_tracks": complete_tracks,
+        "missing": missing,
+    }
+
+
 def _headers() -> dict[str, str]:
     headers: dict[str, str] = {}
     if JWT_TOKEN:
@@ -181,6 +209,30 @@ def _convert_to_wav(src: Path, dst: Path) -> None:
     src.unlink(missing_ok=True)
 
 
+
+def _choose_ext(kind: str, info: dict, url: str) -> str:
+    """Pick storage extension. Stems always wav; original keeps server format."""
+    if kind != "original":
+        return "wav"
+    fmt = str(info.get("format") or "").lower().lstrip(".")
+    if fmt in ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac"):
+        return fmt
+    from urllib.parse import urlparse
+    path = urlparse(url).path.lower()
+    for ext in ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac"):
+        if path.endswith(f".{ext}"):
+            return ext
+    return "wav"
+
+
+def _find_existing_original(out_dir: Path) -> Path | None:
+    for ext in ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac"):
+        cand = out_dir / f"original.{ext}"
+        if cand.is_file():
+            return cand
+    return None
+
+
 async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: asyncio.Semaphore) -> None:
     song_id = str(item["song_id"])
     kind = str(item["kind"])
@@ -190,18 +242,27 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
     url = _final_url(str(info["url"]))
     out_dir = CACHE_DIR / song_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    final_path = out_dir / f"{kind}.wav"
+    ext = _choose_ext(kind, info, url)
+    final_path = out_dir / f"{kind}.{ext}"
 
-    if _already_valid(final_path, expected_sha, expected_size if not _needs_wav_conversion(info) else None):
+    # legacy: original.wav may already exist from old runs; treat as valid for original
+    if kind == "original":
+        existing = _find_existing_original(out_dir)
+        if existing and _already_valid(existing, expected_sha, expected_size):
+            await state.mark_done()
+            return
+    if _already_valid(final_path, expected_sha, expected_size):
         await state.mark_done()
         return
 
     async with sem:
         await state.mark_current(f"{song_id}/{kind}")
         tmp_path = out_dir / f".{kind}.download"
+        url_has_token = ("token=" in url)
+        req_headers = None if url_has_token else (_headers() or None)
         for attempt in range(1, 4):
             try:
-                async with client.stream("GET", url) as resp:
+                async with client.stream("GET", url, headers=req_headers) as resp:
                     resp.raise_for_status()
                     with tmp_path.open("wb") as f:
                         async for chunk in resp.aiter_bytes():
@@ -211,7 +272,20 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                     raise ValueError(f"size mismatch {song_id}/{kind}: got {tmp_path.stat().st_size}, want {expected_size}")
                 if expected_sha and _sha256(tmp_path) != expected_sha:
                     raise ValueError(f"sha256 mismatch {song_id}/{kind}")
-                if _needs_wav_conversion(info):
+                # Phase B: if the destination should be wav (stems always; original
+                # when ext was set to wav) but the bytes are actually mp3/other,
+                # transcode with ffmpeg so audio-engine's soundfile can read it.
+                # Detect mp3 by looking at the first 3 bytes (ID3 header or 0xFF 0xFB frame sync).
+                wants_wav = (final_path.suffix.lower() == ".wav")
+                head = b""
+                try:
+                    with tmp_path.open("rb") as fh:
+                        head = fh.read(3)
+                except Exception:
+                    head = b""
+                is_mp3 = head[:3] == b"ID3" or (len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0)
+                if wants_wav and is_mp3:
+                    logger.info("%s/%s: server returned mp3 but storage wants wav, transcoding", song_id, kind)
                     _convert_to_wav(tmp_path, final_path)
                 else:
                     tmp_path.replace(final_path)
@@ -236,7 +310,7 @@ async def _run_sync(manifest: dict[str, Any]) -> None:
         await state.finish()
         return
     sem = asyncio.Semaphore(MAX_CONCURRENCY)
-    async with httpx.AsyncClient(headers=_headers(), timeout=REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
         await asyncio.gather(*[_download_one(client, item, sem) for item in items])
     await state.finish()
 
@@ -248,9 +322,36 @@ async def sync(body: dict[str, Any]) -> dict[str, Any]:
     if _sync_task and not _sync_task.done():
         return {"ok": False, "error": "sync already running", "status": await state.snapshot()}
     _sync_task = asyncio.create_task(_run_sync(manifest))
-    return {"ok": True, "sync_started": True, "total": len(_file_items(manifest))}
+    report = _manifest_asset_report(manifest)
+    return {"ok": True, "sync_started": True, "total": len(_file_items(manifest)), "manifest": report}
 
 
 @app.get("/status")
 async def status() -> dict[str, Any]:
     return await state.snapshot()
+
+
+@app.get("/cache/check")
+async def cache_check(song_id: str) -> dict[str, Any]:
+    """Quick presence check for a song's original file in cache.
+
+    Returns {ok, exists, path, size, ext}. mobile uses this to decide when
+    edge-agent /play will succeed without waiting for the whole sync to finish.
+    """
+    out_dir = CACHE_DIR / song_id
+    if not out_dir.is_dir():
+        return {"ok": True, "exists": False}
+    found = _find_existing_original(out_dir)
+    if not found:
+        return {"ok": True, "exists": False}
+    try:
+        size = found.stat().st_size
+    except OSError:
+        size = 0
+    return {
+        "ok": True,
+        "exists": True,
+        "path": str(found),
+        "size": size,
+        "ext": found.suffix.lstrip('.'),
+    }
