@@ -1353,7 +1353,7 @@ class PlaylistDetailSheet extends StatelessWidget {
   }
 }
 
-class MiniPlayer extends StatelessWidget {
+class MiniPlayer extends StatefulWidget {
   const MiniPlayer({
     super.key,
     required this.song,
@@ -1376,12 +1376,34 @@ class MiniPlayer extends StatelessWidget {
   final String? prefetchMessage;
 
   @override
+  State<MiniPlayer> createState() => _MiniPlayerState();
+}
+
+class _MiniPlayerState extends State<MiniPlayer> {
+  double? _dragValue; // 非空表示用户正在拖动，使用本地值显示，停止下发 seek
+
+  @override
   Widget build(BuildContext context) {
+    final song = widget.song;
+    final duration = widget.duration;
+    final position = widget.position;
+    final isPlaying = widget.isPlaying;
+    final onToggle = widget.onToggle;
+    final onSeek = widget.onSeek;
+    final prefetchPercent = widget.prefetchPercent;
+    final prefetchMessage = widget.prefetchMessage;
+
     final maxSeconds = duration.inSeconds > 0
         ? duration.inSeconds.toDouble()
         : (song.duration > 0 ? song.duration.toDouble() : 1.0);
-    final currentSeconds = position.inSeconds.clamp(0, maxSeconds.toInt()).toDouble();
+    final livePosition =
+        position.inMilliseconds.clamp(0, (maxSeconds * 1000).toInt()) / 1000.0;
+    final currentSeconds =
+        (_dragValue ?? livePosition).clamp(0.0, maxSeconds);
     final prefetching = prefetchPercent != null;
+    final displayedPosition = Duration(
+      milliseconds: (currentSeconds * 1000).round(),
+    );
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: SafeArea(
@@ -1424,12 +1446,21 @@ class MiniPlayer extends StatelessWidget {
                 Slider(
                   value: currentSeconds,
                   max: maxSeconds,
-                  onChanged: (value) => onSeek(value),
+                  onChangeStart: (value) {
+                    setState(() => _dragValue = value);
+                  },
+                  onChanged: (value) {
+                    setState(() => _dragValue = value);
+                  },
+                  onChangeEnd: (value) {
+                    setState(() => _dragValue = null);
+                    onSeek(value);
+                  },
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_formatDuration(position)),
+                    Text(_formatDuration(displayedPosition)),
                     Text(_formatDuration(duration)),
                   ],
                 ),
