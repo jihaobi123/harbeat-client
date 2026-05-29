@@ -161,6 +161,8 @@ class HarBeatApiClient {
       path: '/api/recommendations/vibe-search',
       token: token,
       body: body,
+      // CLAP subprocess 冷启动 + Spotify API + reranker 实测 17-18s，留 60% 余量。
+      timeout: const Duration(seconds: 30),
     );
     return VibeSearchResult.fromJson(data);
   }
@@ -182,6 +184,8 @@ class HarBeatApiClient {
         'top_k': topK,
         'auto_import': autoImport,
       },
+      // import 链路含 yt-dlp 下载 + 特征提取 + 入 ChromaDB，比 vibeSearch 还慢，给 30s。
+      timeout: const Duration(seconds: 30),
     );
     return data;
   }
@@ -576,6 +580,7 @@ class HarBeatApiClient {
     String? token,
     Object? body,
     Map<String, String>? queryParameters,
+    Duration? timeout,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) {
@@ -587,7 +592,7 @@ class HarBeatApiClient {
 
     final uri = _uri(path, queryParameters);
     late final http.Response response;
-    const reqTimeout = Duration(seconds: 15);
+    final reqTimeout = timeout ?? const Duration(seconds: 15);
 
     try {
       switch (method) {

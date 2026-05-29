@@ -622,6 +622,7 @@ class _DjControlPageState extends State<DjControlPage> {
         return _Step1Pick(
           api: widget.apiClient,
           token: widget.token,
+          userId: widget.userId,
           library: widget.librarySongs,
           playlists: _playlists,
           picked: _picked,
@@ -890,6 +891,7 @@ class _Step1Pick extends StatefulWidget {
   const _Step1Pick({
     required this.api,
     required this.token,
+    required this.userId,
     required this.library,
     required this.playlists,
     required this.picked,
@@ -899,6 +901,7 @@ class _Step1Pick extends StatefulWidget {
   });
   final HarBeatApiClient api;
   final String token;
+  final int userId;
   final List<LibrarySong> library;
   final List<PlaylistSummary> playlists;
   final List<LibrarySong> picked;
@@ -939,7 +942,7 @@ class _Step1PickState extends State<_Step1Pick> {
           onAdd: widget.onAdd,
         ),
         if (_mode == 1) _VibeSource(
-          api: widget.api, token: widget.token,
+          api: widget.api, token: widget.token, userId: widget.userId,
           library: widget.library, onAdd: widget.onAdd,
         ),
         if (_mode == 2) _StyleSource(
@@ -1173,11 +1176,13 @@ class _VibeSource extends StatefulWidget {
   const _VibeSource({
     required this.api,
     required this.token,
+    required this.userId,
     required this.library,
     required this.onAdd,
   });
   final HarBeatApiClient api;
   final String token;
+  final int userId;
   final List<LibrarySong> library;
   final void Function(Iterable<LibrarySong>) onAdd;
 
@@ -1188,12 +1193,11 @@ class _VibeSource extends StatefulWidget {
 class _VibeSourceState extends State<_VibeSource> {
   final _ctrl = TextEditingController();
   final Set<String> _sel = {};
-  double _minutes = 15;
   bool _loading = false;
   String? _error;
-  List<Map<String, dynamic>> _hits = const [];
+  VibeSearchResult? _result;
 
-  Future<void> _search({required bool fill}) async {
+  Future<void> _search() async {
     final q = _ctrl.text.trim();
     if (q.isEmpty) {
       setState(() => _error = '请输入描述，例如：深夜地下 boom bap 95bpm');
@@ -1202,24 +1206,28 @@ class _VibeSourceState extends State<_VibeSource> {
     setState(() {
       _loading = true;
       _error = null;
-      _hits = const [];
+      _result = null;
       _sel.clear();
     });
     try {
-      final data = await widget.api.djVibeSearch(
+      // 复用导入歌单页的 vibe 链路：CLAP(本地曲库) + Spotify(公网) 双路召回
+      final res = await widget.api.vibeSearch(
         token: widget.token,
+        userId: widget.userId,
         query: q,
-        targetDurationSec: _minutes * 60,
-        fillDuration: fill,
-        limit: 60,
+        topK: 24,
       );
-      final songs = (data['songs'] as List? ?? const []).cast<Map<String, dynamic>>();
       setState(() {
-        _hits = songs;
-        _sel.addAll(songs.map((e) => e['song_id'].toString()));
+        _result = res;
+        // 默认勾选所有已在曲库里的命中（DJ 池子里能直接加的就这些）
+        for (final s in res.songs) {
+          if (s.source == 'local' && s.songId != null) {
+            _sel.add(s.songId.toString());
+          }
+        }
       });
     } catch (e) {
-      setState(() => _error = '搜索失败: $e');
+      setState(() => _error = 'Vibe 搜索失败: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1230,9 +1238,12 @@ class _VibeSourceState extends State<_VibeSource> {
 
   @override
   Widget build(BuildContext context) {
-    final selDur = _hits
-        .where((m) => _sel.contains(m['song_id'].toString()))
-        .fold<double>(0, (a, m) => a + ((m['duration'] as num?)?.toDouble() ?? 0));
+    final hits = _result?.songs ?? const <VibeSong>[];
+    // VibeSong.songId 是 int (Jetson catalog Song.id)，需要回查 LibrarySong.songId 一致的项
+    final byCatalogId = <int, LibrarySong>{};
+    for (final s in widget.library) {
+      if (s.songId != null) byCatalogId[s.songId!] = s;
+    }
     return Card(
       color: Colors.white10,
       child: Padding(
@@ -1240,8 +1251,10 @@ class _VibeSourceState extends State<_VibeSource> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('用一句话描述「我想要的氛围」。后端会按曲库标签 / BPM / 能量 评分匹配。',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const Text(
+              '一句话描述「我想要的氛围」。后端用 CLAP 跨模态检索本地曲库 + Spotify 公网召回。',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
             const SizedBox(height: 6),
             TextField(
               controller: _ctrl,
@@ -1250,93 +1263,110 @@ class _VibeSourceState extends State<_VibeSource> {
                 hintText: '例如：深夜地下 boom bap 95bpm dark',
                 border: OutlineInputBorder(),
               ),
-              onSubmitted: (_) => _search(fill: false),
+              onSubmitted: (_) => _search(),
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                const Text('目标时长', style: TextStyle(fontSize: 11)),
-                Expanded(
-                  child: Slider(
-                    value: _minutes,
-                    min: 1, max: 60, divisions: 59,
-                    label: '${_minutes.toInt()} 分',
-                    onChanged: (v) => setState(() => _minutes = v),
-                  ),
-                ),
-                Text('${_minutes.toInt()} 分', style: const TextStyle(fontSize: 11)),
-              ],
-            ),
-            Row(
-              children: [
                 ElevatedButton(
-                  onPressed: _loading ? null : () => _search(fill: false),
-                  child: Text(_loading ? '搜索中…' : '🔍 搜索'),
-                ),
-                const SizedBox(width: 6),
-                ElevatedButton(
-                  onPressed: _loading ? null : () => _search(fill: true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple, foregroundColor: Colors.white,
-                  ),
-                  child: const Text('按时长自动选满'),
+                  onPressed: _loading ? null : _search,
+                  child: Text(_loading ? '搜索中…(15-25s)' : '🔍 搜索'),
                 ),
                 const Spacer(),
-                Text('已选 ${_sel.length} · ${(selDur / 60).toStringAsFixed(1)} 分',
-                    style: const TextStyle(fontSize: 11)),
+                Text('已选 ${_sel.length}', style: const TextStyle(fontSize: 11)),
                 const SizedBox(width: 4),
                 ElevatedButton(
-                  onPressed: _sel.isEmpty ? null : () {
-                    final byId = {for (final s in widget.library) s.id: s};
-                    final picks = _sel
-                        .map((id) => byId[id])
-                        .whereType<LibrarySong>();
-                    widget.onAdd(picks);
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('加入 ${picks.length} 首'),
-                          duration: const Duration(seconds: 1)),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                  onPressed: _sel.isEmpty
+                      ? null
+                      : () {
+                          final picks = _sel
+                              .map((id) => byCatalogId[int.tryParse(id) ?? -1])
+                              .whereType<LibrarySong>();
+                          widget.onAdd(picks);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('加入 ${picks.length} 首'),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                  ),
                   child: Text('加入 ${_sel.length}'),
                 ),
               ],
             ),
-            if (_error != null) Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 11)),
-            ),
-            if (_hits.isNotEmpty) SizedBox(
-              height: 260,
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_error!,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 11)),
+              ),
+            if (_result != null) ...[
+              const SizedBox(height: 6),
+              if (_result!.vibeDescription.isNotEmpty)
+                Text('🎭 解读: ${_result!.vibeDescription}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              if (_result!.genres.isNotEmpty)
+                Text('genres: ${_result!.genres.join(", ")}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
+            if (hits.isNotEmpty) SizedBox(
+              height: 280,
               child: ListView.builder(
-                itemCount: _hits.length,
+                itemCount: hits.length,
                 itemBuilder: (_, i) {
-                  final m = _hits[i];
-                  final id = m['song_id'].toString();
-                  final on = _sel.contains(id);
-                  final matched = (m['matched'] as List? ?? const []).join(' · ');
-                  final score = (m['score'] as num?)?.toDouble() ?? 0;
+                  final m = hits[i];
+                  final inLibViaCatalog =
+                      m.songId != null && byCatalogId.containsKey(m.songId);
+                  final selectable = m.source == 'local' && inLibViaCatalog;
+                  final id = m.songId?.toString() ?? '';
+                  final on = selectable && _sel.contains(id);
+                  final pct = m.matchPercentage.round();
+                  final tag = m.source == 'local'
+                      ? (selectable ? '本地' : '本地·未入库')
+                      : 'Spotify';
+                  final tagColor = selectable
+                      ? Colors.greenAccent
+                      : (m.source == 'local' ? Colors.orange : Colors.grey);
                   return CheckboxListTile(
                     dense: true,
                     value: on,
-                    title: Text(m['title']?.toString() ?? '—',
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                    onChanged: !selectable
+                        ? null
+                        : (v) => setState(() {
+                              if (v == true) {
+                                _sel.add(id);
+                              } else {
+                                _sel.remove(id);
+                              }
+                            }),
+                    title: Text(m.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 12)),
                     subtitle: Text(
-                      '${m['artist'] ?? '-'} · ${(m['bpm'] as num?)?.toStringAsFixed(0) ?? '-'} BPM · '
-                      '${(((m['duration'] as num?)?.toDouble() ?? 0) / 60).toStringAsFixed(1)}m · '
-                      'score ${score.toStringAsFixed(1)}'
-                      '${matched.isEmpty ? '' : '\n命中: $matched'}',
+                      '${m.artist} · ${m.style ?? '-'} · 匹配 $pct%',
                       style: const TextStyle(fontSize: 10),
                     ),
-                    isThreeLine: matched.isNotEmpty,
-                    onChanged: (v) => setState(() {
-                      if (v == true) _sel.add(id); else _sel.remove(id);
-                    }),
+                    secondary: Text(tag,
+                        style: TextStyle(fontSize: 10, color: tagColor)),
                   );
                 },
               ),
             ),
+            if (hits.any((s) => s.source == 'spotify'))
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  '提示：Spotify 候选需先到「歌单 → 导入歌单 → Vibe」导入到曲库才能加入 DJ 池。',
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ),
           ],
         ),
       ),

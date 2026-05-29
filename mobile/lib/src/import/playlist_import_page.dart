@@ -937,16 +937,23 @@ class _VibeImportTabState extends State<VibeImportTab> {
   Future<void> _importSong(VibeSong song) async {
     final key = song.spotifyId ?? '${song.title}-${song.artist}';
     if (song.inLibrary) return;
-    setState(() => _importing.add(key));
+    setState(() {
+      _importing.add(key);
+      _error = null;
+    });
     try {
-      // import-from-vibe expects a vibe_description; we pass the title+artist
-      // as a description so the server downloads that specific track.
-      await widget.apiClient.importFromVibe(
+      // 复用单曲搜索导入路径：title + artist → searchFangpi → downloadFangpi(first hit)。
+      // 比 importFromVibe（再跑一次 Spotify+CLAP+yt-dlp）快得多，也不容易超时。
+      final hits = await widget.apiClient.searchFangpi(
         token: widget.token,
-        userId: widget.userId,
-        vibeDescription: '${song.title} ${song.artist}',
-        topK: 1,
-        autoImport: true,
+        query: '${song.title} ${song.artist}'.trim(),
+      );
+      if (hits.isEmpty) {
+        throw Exception('未找到可用音源');
+      }
+      await widget.apiClient.downloadFangpi(
+        token: widget.token,
+        song: hits.first,
       );
       _imported.add(key);
       if (widget.onImported != null) await widget.onImported!();

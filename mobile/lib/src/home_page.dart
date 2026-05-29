@@ -1379,6 +1379,37 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                 ],
               ),
+              Slider(
+                value: currentSeconds,
+                max: maxSeconds,
+                onChangeStart: (value) {
+                  setState(() {
+                    _dragValue = value;
+                    _latchTarget = null;
+                    _latchUntil = null;
+                  });
+                },
+                onChanged: (value) {
+                  setState(() => _dragValue = value);
+                },
+                onChangeEnd: (value) {
+                  setState(() {
+                    _dragValue = null;
+                    // 松手后短暂锁住 UI 显示在 value，直到 RK 轮询追上
+                    _latchTarget = value;
+                    _latchUntil =
+                        DateTime.now().add(const Duration(milliseconds: 1500));
+                  });
+                  onSeek(value);
+                },
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_formatDuration(displayedPosition)),
+                  Text(_formatDuration(duration)),
+                ],
+              ),
               if (prefetching) ...[
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
@@ -1388,38 +1419,6 @@ class _MiniPlayerState extends State<MiniPlayer> {
                 Text(
                   prefetchMessage ?? '正在拉取到 RK',
                   style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ] else ...[
-                Slider(
-                  value: currentSeconds,
-                  max: maxSeconds,
-                  onChangeStart: (value) {
-                    setState(() {
-                      _dragValue = value;
-                      _latchTarget = null;
-                      _latchUntil = null;
-                    });
-                  },
-                  onChanged: (value) {
-                    setState(() => _dragValue = value);
-                  },
-                  onChangeEnd: (value) {
-                    setState(() {
-                      _dragValue = null;
-                      // 松手后短暂锁住 UI 显示在 value，直到 RK 轮询追上
-                      _latchTarget = value;
-                      _latchUntil =
-                          DateTime.now().add(const Duration(milliseconds: 1500));
-                    });
-                    onSeek(value);
-                  },
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(_formatDuration(displayedPosition)),
-                    Text(_formatDuration(duration)),
-                  ],
                 ),
               ],
             ],
