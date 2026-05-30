@@ -18,6 +18,13 @@ class TriggerRequest(BaseModel):
     key: int = Field(ge=0, le=9)
 
 
+class XfadeRequest(BaseModel):
+    to_song_id: int | str
+    fade_sec: float = Field(default=8.0, ge=0.05, le=30.0)
+    to_at_sec: float = 0.0
+    style: str = "blend"
+
+
 class LoadPlanRequest(BaseModel):
     mix_plan: dict[str, Any]
     manifest: dict[str, Any]
@@ -31,6 +38,10 @@ class HealthResponse(BaseModel):
     plan_id: str | None = None
     session_id: str | None = None
     sync_status: dict[str, Any] | None = None
+    device_id: str | None = None
+    name: str | None = None
+    tailscale_url: str | None = None
+    gateway_url: str | None = None
 
 
 class RKPlaybackState(BaseModel):

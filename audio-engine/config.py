@@ -13,8 +13,9 @@ REQUIRE_STEMS_FOR_PLAY = os.environ.get("CYPHER_REQUIRE_STEMS_FOR_PLAY", "0").lo
 )
 
 # sounddevice 设备：索引号(如 6) 或名称子串(如 "hdmi", "USB")
-# 留空则用系统默认（当前板子为 PulseAudio → ES8388 耳机孔）
-_RAW_AUDIO_DEVICE = os.environ.get("CYPHER_AUDIO_DEVICE") or None
+# 默认强制走板载 ES8388 耳机孔（接耳机线到音箱）。
+# 要切到 HDMI / USB 声卡时设 CYPHER_AUDIO_DEVICE=hdmi / USB / 数字。
+_RAW_AUDIO_DEVICE = os.environ.get("CYPHER_AUDIO_DEVICE") or "es8388"
 
 
 def resolve_audio_device(raw: str | None) -> int | str | None:

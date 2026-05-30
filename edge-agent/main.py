@@ -19,6 +19,7 @@ from edge_agent.models import (
   RKPlaybackState,
   SeekRequest,
   TriggerRequest,
+  XfadeRequest,
 )
 from edge_agent.state import edge_state
 
@@ -157,6 +158,10 @@ async def health() -> HealthResponse:
     plan_id=edge_state.plan_id,
     session_id=edge_state.session_id,
     sync_status=sync_status,
+    device_id=settings.rk_id,
+    name=f"Cypher Edge ({settings.rk_id})",
+    tailscale_url=settings.tailscale_url if settings.tailscale_url else None,
+    gateway_url=settings.gateway_url if settings.gateway_url else None,
   )
 
 
@@ -215,6 +220,30 @@ async def next_track() -> dict[str, Any]:
 async def seek(req: SeekRequest) -> dict[str, Any]:
   result = await _forward("seek", sec=req.sec)
   await edge_state.update_playback(position_sec=req.sec)
+  return {"ok": True, "result": result}
+
+
+@app.post("/xfade", dependencies=[Depends(_optional_auth)])
+async def xfade(req: XfadeRequest) -> dict[str, Any]:
+  result = await _forward(
+    "xfade",
+    to_song_id=req.to_song_id,
+    fade_sec=req.fade_sec,
+    to_at_sec=req.to_at_sec,
+    style=req.style,
+  )
+  await edge_state.update_playback(
+    playing=True,
+    paused=False,
+    current_song_id=req.to_song_id,
+    position_sec=req.to_at_sec,
+  )
+  await edge_state.append_event({
+    "type": "xfade",
+    "to_song_id": req.to_song_id,
+    "fade_sec": req.fade_sec,
+    "style": req.style,
+  })
   return {"ok": True, "result": result}
 
 

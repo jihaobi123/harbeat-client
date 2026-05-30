@@ -49,18 +49,17 @@ STEM_AWARE_STYLES = {
 _PREFETCH_CACHE: dict[str, dict] = {}
 _PREFETCH_LOCK = threading.Lock()
 _PREFETCH_MAX = 4  # 最多同时备 4 首
-# 5 个常见 DJ 加花音效（2026-05 更新）。文件需预先放在 ~/cypher/samples/ 下。
-# 名字使用加花上下文词，后续替换素材只需覆盖同名 wav。
+# 5 个 DJ 加花音效，对应 9 键数字键盘 1-5。
+# 文件需预先放在 ~/cypher/samples/ 下。
 SAMPLE_FILES = {
-    1: "air_horn.wav",            # 喇叭 长鸣
-    2: "air_horn_burst.wav",      # 喇叭 三连
-    3: "snare_crack.wav",         # 嚓声 Snare
-    4: "beat_juggle_stutter.wav", # Beat Juggle
-    5: "bass_drop.wav",           # Bass Drop
-    6: "vinyl_stop.wav",          # 黑胶刹停
+    1: "air_horn.wav",            # 喇叭长鸣
+    2: "bass_drop.wav",           # Bass Drop
+    3: "vinyl_stop.wav",          # 黑胶刹停
+    4: "snare_crack.wav",         # 嚓声
+    5: "beat_juggle_stutter.wav", # Beat Juggle
 }
-# 叠到主轨上的增益
-SAMPLE_GAIN = {1: 1.4, 2: 1.4, 3: 1.4, 4: 1.2, 5: 1.6, 6: 1.3}
+# 音效音量比歌曲大很多，确保现场能盖过音乐
+SAMPLE_GAIN = {1: 3.0, 2: 3.0, 3: 3.0, 4: 3.0, 5: 3.0}
 PRELOAD_BEFORE_SEC = 30.0
 BEATMATCH_MAX_SHIFT = 0.06
 BEATMATCH_MIN_SHIFT = 0.005
@@ -1266,7 +1265,7 @@ class AudioEngineMVP:
                     self._paused = True
                     action = "pause"
                 return {"key": 0, "action": action}
-            if key in (1, 2, 3, 4, 5, 6):
+            if key in (1, 2, 3, 4, 5):
                 buf = self.samples.get(key)
                 if buf is None:
                     return {"key": key, "error": "sample_missing"}
