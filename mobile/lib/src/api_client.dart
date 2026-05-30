@@ -719,6 +719,32 @@ class HarBeatApiClient {
     return (data['sequence'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// 5-bucket schema for energy chips/colors (cold/warm/mid/high/peak).
+  /// Returns [{key, label_zh, color, lo, hi}, ...].
+  Future<List<Map<String, dynamic>>> djListEnergyBuckets({required String token}) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET', path: '/api/dj/energy/buckets', token: token,
+    );
+    return (data['buckets'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// v2 street-dance energy for a single song. Pass a `style` key from
+  /// {breaking, hiphop, popping, locking, house, krump, waacking, generic}
+  /// to get style-aware ranking; omit it for v1 legacy parity.
+  /// Returns the StreetEnergy as a map (total/bucket/bucket_color/factors/...).
+  Future<Map<String, dynamic>> djSongEnergyV2({
+    required String token,
+    required String songId,
+    String? style,
+  }) async {
+    final qs = (style != null && style.isNotEmpty) ? '?style=$style' : '';
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/songs/$songId/energy$qs',
+      token: token,
+    );
+  }
+
   Future<Map<String, dynamic>> djListTransitionRules({required String token}) async {
     return await _request<Map<String, dynamic>>(
       method: 'GET', path: '/api/dj/transitions/rules', token: token,

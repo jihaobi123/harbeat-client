@@ -105,8 +105,10 @@ class SyncWorkerClient {
           }
           return last;
         }
-      } catch (e) {
-        // 单次轮询失败不中止，继续
+      } on Exception catch (e) {
+        final msg = e.toString();
+        if (msg.contains('sync 失败')) rethrow;
+        // Transient poll failure (network hiccup) — keep retrying.
       }
     }
     throw TimeoutException('sync 超时');

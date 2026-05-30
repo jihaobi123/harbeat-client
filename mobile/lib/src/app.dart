@@ -26,9 +26,35 @@ class HarBeatApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFFE85A2A),
-          brightness: Brightness.dark,
+          brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor: const Color(0xFFF5EDE3),
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            side: BorderSide(color: Color(0xFFE0D6CC)),
+          ),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1A1A1A),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFE85A2A),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        textTheme: const TextTheme(
+          headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+          bodyLarge: TextStyle(color: Color(0xFF1A1A1A)),
+          bodyMedium: TextStyle(color: Color(0xFF333333)),
+          bodySmall: TextStyle(color: Color(0xFF666666)),
+        ),
         useMaterial3: true,
       ),
       home: const RootPage(),

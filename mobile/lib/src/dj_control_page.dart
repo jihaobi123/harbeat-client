@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -49,6 +50,13 @@ class _DjControlPageState extends State<DjControlPage> {
   bool _seqLoading = false;
   String? _seqError;
 
+  // v2 energy state — populated after排序，每首歌补一份 StreetEnergy 数据。
+  List<Map<String, dynamic>> _energyBuckets = const [];
+  // song_id -> v2 energy map: {total, bucket, bucket_color, factors, bpm,
+  // explain_zh, style_used, ...}. Filled by [_loadEnergyForSequence].
+  Map<String, Map<String, dynamic>> _songEnergyV2 = const {};
+  bool _energyLoading = false;
+
   // Mix rules + FX catalog
   Map<String, dynamic>? _rules;
   List<Map<String, dynamic>> _fxItems = const [];
@@ -63,6 +71,20 @@ class _DjControlPageState extends State<DjControlPage> {
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  String? _rkCurrentSongId; // RK-reported current song id (from /state)
+  /// Wall-clock time of last successful xfade. Used as a cooldown to keep
+  /// transient state hiccups (RK reporting playing=false for one tick during
+  /// the deck swap, or position spuriously crossing the trigger threshold)
+  /// from cascading more xfades. Cleared on _startLiveMix.
+  DateTime? _lastXfadeAt;
+  /// fade_sec of the last issued xfade — cooldown must outlast this so we
+  /// don't re-fire while the previous fade is still running.
+  double _lastXfadeSec = 0.0;
+  /// RK song id we just xfaded TO. While RK still reports this song id
+  /// (no further user-driven cuts), block additional auto-xfades — the
+  /// queue index has already advanced and any further trigger would be
+  /// a cascading mistake.
+  String? _lastXfadeToSongId;
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
@@ -92,6 +114,8 @@ class _DjControlPageState extends State<DjControlPage> {
         widget.apiClient.djListFx(token: widget.token),
         widget.apiClient.getPlaylists(token: widget.token, userId: widget.userId)
             .catchError((_) => <PlaylistSummary>[]),
+        widget.apiClient.djListEnergyBuckets(token: widget.token)
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
       if (!mounted) return;
       setState(() {
@@ -100,6 +124,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _rules = futures[1] as Map<String, dynamic>;
         _fxItems = (futures[2] as List).cast<Map<String, dynamic>>();
         _playlists = (futures[3] as List).cast<PlaylistSummary>();
+        _energyBuckets = (futures[4] as List).cast<Map<String, dynamic>>();
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -149,6 +174,7 @@ class _DjControlPageState extends State<DjControlPage> {
       _seqLoading = true;
       _seqError = null;
       _sequence = const [];
+      _songEnergyV2 = const {};
     });
     try {
       final r = await widget.apiClient.djSequence(
@@ -157,10 +183,71 @@ class _DjControlPageState extends State<DjControlPage> {
         preset: _preset,
       );
       setState(() => _sequence = r);
+      // Fire-and-forget v2 energy enrichment (UI degrades gracefully if it
+      // fails — Step 2 still shows v1 actual_energy from the sequencer).
+      // ignore: discarded_futures
+      _loadEnergyForSequence();
     } catch (e) {
       setState(() => _seqError = e.toString());
     } finally {
       if (mounted) setState(() => _seqLoading = false);
+    }
+  }
+
+  /// Map a sequencer preset to a v2 street-style key. Falls back to 'generic'
+  /// when the preset's `scene` doesn't map to a v2 weight profile.
+  String _v2StyleForPreset() {
+    final preset = _presets.firstWhere(
+      (p) => p['key'] == _preset,
+      orElse: () => const <String, dynamic>{},
+    );
+    final scene = (preset['scene'] as String? ?? 'generic').toLowerCase();
+    const sceneToStyle = <String, String>{
+      'battle':   'breaking',
+      'cypher':   'breaking',
+      'class':    'hiphop',
+      'showcase': 'popping',
+      'generic':  'generic',
+    };
+    return sceneToStyle[scene] ?? 'generic';
+  }
+
+  Future<void> _loadEnergyForSequence() async {
+    if (_sequence.isEmpty) return;
+    final ids = _sequence
+        .map((e) => e['song_id']?.toString())
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) return;
+    setState(() => _energyLoading = true);
+    final style = _v2StyleForPreset();
+    final out = <String, Map<String, dynamic>>{};
+    try {
+      final results = await Future.wait(ids.map((id) async {
+        try {
+          final raw = await widget.apiClient.djSongEnergyV2(
+            token: widget.token, songId: id, style: style,
+          );
+          // Backend wraps v2 result as {data: {version: 'v2', ...fields}}
+          // but our _request unwraps to the inner map; either shape is fine.
+          if (raw['version'] == 'v2' || raw.containsKey('total')) {
+            return MapEntry(id, raw);
+          }
+          return MapEntry(id, <String, dynamic>{});
+        } catch (_) {
+          return MapEntry(id, <String, dynamic>{});
+        }
+      }));
+      for (final e in results) {
+        if (e.value.isNotEmpty) out[e.key] = e.value;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _songEnergyV2 = out;
+          _energyLoading = false;
+        });
+      }
     }
   }
 
@@ -205,9 +292,55 @@ class _DjControlPageState extends State<DjControlPage> {
     'drum_swap', 'instrumental_only', 'vocal_solo_intro', 'echo_freeze',
   };
 
+  /// Map Jetson `mixer_rules.py` 的 7+11 rule_key 到 RK `XfadeRequest.style`。
+  /// 注意 RK 的 18 个 preset 只有音量/EQ 包络，没有 reverse/loop/echo FX。
+  /// 后端 spin_back/loop_roll/back_to_back_drop 这种"戏剧性"rule 在 RK 上
+  /// 真听不到原意，只能映射到"听起来不突兀"的近似 preset，并由 [_minFadeFor]
+  /// 把过短的硬切 duration 抬到能软衔接的最小值，避免播出来生硬。
+  static const Map<String, String> _ruleKeyToRkStyle = <String, String>{
+    // 11 ANALYZED rules
+    'harmonic_blend':    'blend',
+    'eq_swap_4bar':      'filter',
+    'filter_sweep_high': 'filter',
+    'drop_swap':         'bass_swap',
+    'echo_tail':         'echo_freeze',
+    'loop_roll':         'wave',           // was 'slam' (sounded like a glitch)
+    'spin_back':         'filter',          // was 'cut' (1.5s 硬切→现改高通扫频淡出)
+    'drum_only_bridge':  'drum_swap',
+    'key_lift':          'rise',
+    'reverb_throw':      'echo_freeze',
+    'back_to_back_drop': 'power',          // was 'slam'
+    // 7 RAW rules
+    'raw_xfade_3s':   'blend',
+    'raw_xfade_6s':   'blend',
+    'raw_xfade_10s':  'melt',
+    'raw_hard_cut':   'cut',
+    'raw_fade_out_in':'fade',
+    'raw_echo_drop':  'echo_freeze',
+    'raw_lp_swap':    'filter',
+  };
+
+  /// Per-rule minimum fade in seconds. The backend rule_key authoritatively
+  /// describes _intent_; the duration_sec returned by the planner is what
+  /// makes physical sense for the FX in the original spec (e.g. spin_back
+  /// is 1.5s because that's how long a real reverse_decel is). Without the
+  /// reverse FX on RK, those tiny windows produce a hard cut. Raise the
+  /// floor for rules that *must* sound like a transition, not a splice.
+  static const Map<String, double> _minFadeForRule = <String, double>{
+    'spin_back':         5.0,
+    'loop_roll':         4.0,
+    'drop_swap':         4.0,
+    'back_to_back_drop': 4.0,
+    'echo_tail':         5.0,
+    'reverb_throw':      5.0,
+    'raw_hard_cut':      0.05,  // legitimate hard cut
+  };
+
   String _rkStyle(String raw, {String fallback = 'smooth'}) {
     final k = raw.trim();
     if (_rkXfadeStyles.contains(k)) return k;
+    final mapped = _ruleKeyToRkStyle[k];
+    if (mapped != null && _rkXfadeStyles.contains(mapped)) return mapped;
     // Common aliases coming from backend / UI.
     const alias = <String, String>{
       'hard_cut': 'cut',
@@ -218,8 +351,8 @@ class _DjControlPageState extends State<DjControlPage> {
       'normal': 'blend',
       'soft': 'smooth',
     };
-    final mapped = alias[k.toLowerCase()];
-    if (mapped != null && _rkXfadeStyles.contains(mapped)) return mapped;
+    final aliased = alias[k.toLowerCase()];
+    if (aliased != null && _rkXfadeStyles.contains(aliased)) return aliased;
     return fallback;
   }
 
@@ -294,6 +427,9 @@ class _DjControlPageState extends State<DjControlPage> {
       _liveStarted = true;
       _liveIdx = 0;
       _lastXfadeFromIdx = -1;
+      _lastXfadeAt = null;
+      _lastXfadeSec = 0.0;
+      _lastXfadeToSongId = null;
       _step = 3; // jump to 实时操作
       _cutInfo = '正在同步首曲到 RK…';
     });
@@ -342,6 +478,7 @@ class _DjControlPageState extends State<DjControlPage> {
           _isPlaying = st.playing;
           _position = Duration(milliseconds: (st.positionSec * 1000).round());
           _duration = Duration(milliseconds: (st.durationSec * 1000).round());
+          _rkCurrentSongId = st.currentSongId;
         });
         _maybeAutoXfade();
       } catch (_) {/* swallow */}
@@ -353,10 +490,39 @@ class _DjControlPageState extends State<DjControlPage> {
     if (_liveIdx == _lastXfadeFromIdx) return;
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return;
-    if (_duration.inMilliseconds <= 0) return;
-    final remaining = _duration - _position;
-    // We'll plan transition ~10s before the end; rule fade_sec dictates actual mix length.
-    if (remaining.inMilliseconds > 10000) return;
+
+    // Lockout: while RK still reports the song we just xfaded TO, the previous
+    // fade is either still running or just finished — refuse to fire again.
+    // Combined with a wall-clock cooldown that outlasts the fade duration,
+    // this prevents the cascade where one trigger eats through the queue.
+    if (_lastXfadeToSongId != null &&
+        _rkCurrentSongId != null &&
+        _rkCurrentSongId == _lastXfadeToSongId) {
+      // Only release the lock once RK has played meaningfully into the new
+      // song (position > fade_sec + 4s safety) — by then the deck swap is
+      // settled and we're firmly on the new track.
+      final settled = _position.inMilliseconds / 1000.0 > _lastXfadeSec + 4.0;
+      if (!settled) return;
+    }
+
+    // Cooldown: at least max(8s, fade_sec + 4s) since last xfade.
+    final last = _lastXfadeAt;
+    if (last != null) {
+      final cooldownSec = math.max(8.0, _lastXfadeSec + 4.0);
+      if (DateTime.now().difference(last).inMilliseconds < cooldownSec * 1000) {
+        return;
+      }
+    }
+
+    // Trigger condition: prefer remaining ≤ 10s when duration is known.
+    final bool shouldTrigger;
+    if (_duration.inMilliseconds > 0) {
+      final remaining = _duration - _position;
+      shouldTrigger = remaining.inMilliseconds <= 10000;
+    } else {
+      shouldTrigger = !_isPlaying && _position.inMilliseconds > 30000;
+    }
+    if (!shouldTrigger) return;
 
     final prev = ordered[_liveIdx];
     final next = ordered[_liveIdx + 1];
@@ -364,7 +530,6 @@ class _DjControlPageState extends State<DjControlPage> {
 
     _xfadeInFlight = true;
     try {
-      // Make sure RK has the next song cached before we ask it to crossfade.
       await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
       final plan = await widget.apiClient.djPlanTransition(
         token: widget.token,
@@ -372,12 +537,14 @@ class _DjControlPageState extends State<DjControlPage> {
         nextSongId: next.id,
         cursorSec: _position.inMilliseconds / 1000.0,
       );
-      final ruleKey = _rkStyle(
-        plan['rule_key']?.toString() ?? 'blend',
-        fallback: 'blend',
-      );
-      final ruleLabel = plan['rule_label_zh']?.toString() ?? ruleKey;
-      final fadeSec = (plan['fade_sec'] as num?)?.toDouble() ?? 6.0;
+      final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
+      final ruleKey = _rkStyle(rawRuleKey, fallback: 'blend');
+      final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
+      final rawDur = (plan['duration_sec'] as num?)?.toDouble()
+          ?? (plan['fade_sec'] as num?)?.toDouble()
+          ?? 6.0;
+      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
+      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
       Future<void> doXfade() => widget.edgeClient.xfade(
             toSongId: nextRkId,
             fadeSec: fadeSec,
@@ -400,6 +567,9 @@ class _DjControlPageState extends State<DjControlPage> {
         _liveIdx += 1;
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel';
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = nextRkId.toString();
       });
       _kickPrefetchNext();
     } catch (e) {
@@ -441,6 +611,9 @@ class _DjControlPageState extends State<DjControlPage> {
       setState(() {
         _liveIdx = next;
         _lastXfadeFromIdx = next - 1;
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = 0.4;
+        _lastXfadeToSongId = nextRk.toString();
         _cutInfo = '手动跳到 #${next + 1}';
       });
       _kickPrefetchNext();
@@ -479,9 +652,9 @@ class _DjControlPageState extends State<DjControlPage> {
         currentIndex: _liveIdx,
         poolSongIds: pool,
       );
-      // Backend returns {next_song_id, cut_at_sec, swap, strategy}.
       final nextId = plan['next_song_id']?.toString();
-      final cutAt = (plan['cut_at_sec'] as num?)?.toDouble();
+      final cutAt = (plan['cut_at_sec'] as num?)?.toDouble()
+          ?? _position.inMilliseconds / 1000.0;
       if (nextId == null) {
         setState(() => _cutInfo = '⏭ $strategy → 队尾，无下一首');
         return;
@@ -492,21 +665,37 @@ class _DjControlPageState extends State<DjControlPage> {
           ordered.firstWhere((s) => s.id == nextId,
               orElse: () => current);
       final targetRk = _rkIdForXfade(target);
-      // Insert target into queue immediately after current if it's not already next.
       final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
       await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
-      Future<void> doCut() => widget.edgeClient.xfade(
+
+      // Use 7+11 transition rules: plan transition from cut point.
+      final transition = await widget.apiClient.djPlanTransition(
+        token: widget.token,
+        prevSongId: current.id,
+        nextSongId: nextId,
+        cursorSec: cutAt,
+      );
+      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
+      final ruleKey = _rkStyle(rawRuleKey, fallback: 'blend');
+      final ruleLabel = transition['rule_label_zh']?.toString() ?? rawRuleKey;
+      final rawDur = (transition['duration_sec'] as num?)?.toDouble()
+          ?? (transition['fade_sec'] as num?)?.toDouble()
+          ?? 6.0;
+      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
+      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+
+      Future<void> doXfade() => widget.edgeClient.xfade(
             toSongId: targetRk,
-            fadeSec: 1.0,
+            fadeSec: fadeSec,
             toAtSec: 0.0,
-            style: 'cut',
+            style: ruleKey,
           );
       try {
-        await doCut();
+        await doXfade();
       } catch (e) {
         if (_isMissingCacheError(e)) {
           await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
-          await doCut();
+          await doXfade();
         } else {
           rethrow;
         }
@@ -515,13 +704,16 @@ class _DjControlPageState extends State<DjControlPage> {
         if (inOrderIdx > _liveIdx) {
           _liveIdx = inOrderIdx;
         } else {
-          // swap mode — the queue has been overridden; bump index by 1 logically
           _liveIdx = _liveIdx + 1;
         }
         _lastXfadeFromIdx = _liveIdx - 1;
-        _cutInfo = '⏭ $strategy → ${target.title}'
-            '${cutAt != null ? ' @${cutAt.toStringAsFixed(2)}s' : ''}';
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = targetRk.toString();
+        _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
+        _cutInfo = '⏭ $strategy → ${target.title} · $ruleLabel';
       });
+      _kickPrefetchNext();
     } catch (e) {
       setState(() => _cutInfo = '切歌失败: $e');
     }
@@ -641,6 +833,9 @@ class _DjControlPageState extends State<DjControlPage> {
           error: _seqError,
           picked: _picked,
           sequence: _sequence,
+          buckets: _energyBuckets,
+          songEnergy: _songEnergyV2,
+          energyLoading: _energyLoading,
           onPickPreset: (k) => setState(() => _preset = k),
           onRun: _runSequence,
         );
@@ -713,12 +908,12 @@ class _StepHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: active
-                      ? Colors.amber
+                      ? const Color(0xFFE85A2A)
                       : done
-                          ? Colors.amber.withOpacity(0.35)
+                          ? const Color(0xFFE85A2A).withOpacity(0.35)
                           : reachable
-                              ? Colors.white12
-                              : Colors.white10,
+                              ? const Color(0x08000000)
+                              : const Color(0x0A000000),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -774,7 +969,7 @@ class _StepFooter extends StatelessWidget {
           ElevatedButton(
             onPressed: canNext && step < 3 ? onNext : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
+              backgroundColor: const Color(0xFFE85A2A),
               foregroundColor: Colors.black,
             ),
             child: Text(nextLabel),
@@ -820,7 +1015,7 @@ class _LiveMixBar extends StatelessWidget {
         ? 0.0
         : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
     return Container(
-      color: Colors.black.withOpacity(0.55),
+      color: const Color(0xFF1A1A1A),
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -828,7 +1023,7 @@ class _LiveMixBar extends StatelessWidget {
           Row(
             children: [
               IconButton(
-                icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, size: 28, color: Colors.amber),
+                icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, size: 28, color: const Color(0xFFE85A2A)),
                 onPressed: onPlayPause,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -841,21 +1036,21 @@ class _LiveMixBar extends StatelessWidget {
                   children: [
                     Text(
                       '#${idx + 1}/${ordered.length} ${current?.title ?? '—'}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '下一首：${next?.title ?? '—'}',
-                      style: const TextStyle(fontSize: 10, color: Colors.white70),
+                      style: const TextStyle(fontSize: 10, color: const Color(0xFF555555)),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               Text('${_fmt(position)}/${_fmt(duration)}',
-                  style: const TextStyle(fontSize: 11, color: Colors.white)),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF1A1A1A))),
               IconButton(
-                icon: const Icon(Icons.skip_next, size: 24, color: Colors.white),
+                icon: const Icon(Icons.skip_next, size: 24, color: Color(0xFF1A1A1A)),
                 onPressed: onNext,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
@@ -865,18 +1060,18 @@ class _LiveMixBar extends StatelessWidget {
           const SizedBox(height: 4),
           LinearProgressIndicator(
             value: pct,
-            backgroundColor: Colors.white12,
-            valueColor: const AlwaysStoppedAnimation(Colors.amber),
+            backgroundColor: const Color(0x08000000),
+            valueColor: const AlwaysStoppedAnimation(const Color(0xFFE85A2A)),
             minHeight: 3,
           ),
           if (cutInfo != null) Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(cutInfo!, style: const TextStyle(fontSize: 10, color: Colors.amberAccent)),
+            child: Text(cutInfo!, style: const TextStyle(fontSize: 10, color: const Color(0xFFE85A2A))),
           ),
           if (activeRule != null) Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text('当前过渡：$activeRule',
-                style: const TextStyle(fontSize: 10, color: Colors.lightGreenAccent)),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32))),
           ),
         ],
       ),
@@ -961,7 +1156,7 @@ class _Step1PickState extends State<_Step1Pick> {
       child: ElevatedButton(
         onPressed: () => setState(() => _mode = i),
         style: ElevatedButton.styleFrom(
-          backgroundColor: active ? Colors.amber : Colors.white10,
+          backgroundColor: active ? const Color(0xFFE85A2A) : const Color(0x0A000000),
           foregroundColor: active ? Colors.black : Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 8),
           minimumSize: const Size(0, 0),
@@ -982,7 +1177,7 @@ class _PickedPool extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalSec = picked.fold<double>(0.0, (a, s) => a + s.duration);
     return Card(
-      color: Colors.white10,
+      color: const Color(0x0A000000),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -1004,7 +1199,7 @@ class _PickedPool extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.white12)),
+                  border: Border(top: BorderSide(color: const Color(0x08000000))),
                 ),
                 child: Row(
                   children: [
@@ -1047,32 +1242,63 @@ class _ImportSource extends StatefulWidget {
 }
 
 class _ImportSourceState extends State<_ImportSource> {
+  int _sub = 0; // 0=歌单, 1=链接, 2=曲库
+
+  // --- Playlist sub ---
   int? _pid;
   bool _loading = false;
   String? _msg;
-  /// matched library songs in playlist order
   List<LibrarySong> _matched = const [];
   final Set<String> _sel = {};
 
+  // --- URL import sub ---
+  final TextEditingController _urlCtrl = TextEditingController();
+  bool _urlLoading = false;
+  String? _urlMsg;
+  List<ExternalPlaylistTrack> _urlTracks = const [];
+  String? _urlPlaylistName;
+  final Set<int> _urlSel = {};
+  bool _urlDownloading = false;
+  String? _urlDownloadMsg;
+
+  // --- Library sub ---
+  String _libQuery = '';
+
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    super.dispose();
+  }
+
+  // ---- Playlist logic ----
   Future<void> _loadDetail() async {
     if (_pid == null) return;
     setState(() { _loading = true; _msg = null; _matched = const []; _sel.clear(); });
     try {
-      final detail = await widget.api.getPlaylistDetail(token: widget.token, playlistId: _pid!);
-      final libKey = <String, LibrarySong>{};
-      for (final s in widget.library) {
-        libKey['${s.title.toLowerCase()}|${s.artist.toLowerCase()}'] = s;
+      // pid == -1 is the virtual "曲库（全部）" entry
+      if (_pid == -1) {
+        setState(() {
+          _matched = List.of(widget.library);
+          _sel.addAll(widget.library.map((s) => s.id));
+          _msg = '曲库全部 ${widget.library.length} 首';
+        });
+      } else {
+        final detail = await widget.api.getPlaylistDetail(token: widget.token, playlistId: _pid!);
+        final libKey = <String, LibrarySong>{};
+        for (final s in widget.library) {
+          libKey['${s.title.toLowerCase()}|${s.artist.toLowerCase()}'] = s;
+        }
+        final hits = <LibrarySong>[];
+        for (final ps in detail.songs) {
+          final hit = libKey['${ps.title.toLowerCase()}|${ps.artist.toLowerCase()}'];
+          if (hit != null) hits.add(hit);
+        }
+        setState(() {
+          _matched = hits;
+          _sel.addAll(hits.map((s) => s.id));
+          _msg = '匹配 ${hits.length}/${detail.songs.length} 首';
+        });
       }
-      final hits = <LibrarySong>[];
-      for (final ps in detail.songs) {
-        final hit = libKey['${ps.title.toLowerCase()}|${ps.artist.toLowerCase()}'];
-        if (hit != null) hits.add(hit);
-      }
-      setState(() {
-        _matched = hits;
-        _sel.addAll(hits.map((s) => s.id)); // default: all
-        _msg = '匹配 ${hits.length}/${detail.songs.length} 首';
-      });
     } catch (e) {
       setState(() => _msg = '错误: $e');
     } finally {
@@ -1080,7 +1306,7 @@ class _ImportSourceState extends State<_ImportSource> {
     }
   }
 
-  void _commit() {
+  void _commitPlaylist() {
     final picks = _matched.where((s) => _sel.contains(s.id));
     widget.onAdd(picks);
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -1088,85 +1314,309 @@ class _ImportSourceState extends State<_ImportSource> {
     );
   }
 
+  // ---- URL import logic ----
+  Future<void> _parseUrl() async {
+    final url = _urlCtrl.text.trim();
+    if (url.isEmpty) return;
+    setState(() { _urlLoading = true; _urlMsg = null; _urlTracks = const []; _urlSel.clear(); _urlPlaylistName = null; });
+    try {
+      final result = await widget.api.parseExternalPlaylist(token: widget.token, url: url);
+      setState(() {
+        _urlPlaylistName = result.name;
+        _urlTracks = result.tracks;
+        _urlSel.addAll(List.generate(result.tracks.length, (i) => i));
+        _urlMsg = '${result.source ?? ''} · ${result.tracks.length} 首';
+      });
+    } catch (e) {
+      setState(() => _urlMsg = '解析失败: $e');
+    } finally {
+      if (mounted) setState(() => _urlLoading = false);
+    }
+  }
+
+  Future<void> _downloadUrlTracks() async {
+    if (_urlSel.isEmpty) return;
+    setState(() { _urlDownloading = true; _urlDownloadMsg = '搜索中…'; });
+    try {
+      final selected = _urlSel.map((i) => _urlTracks[i]).toList();
+      final searchResults = await widget.api.batchSearchExternal(token: widget.token, tracks: selected);
+      int downloaded = 0;
+      int failed = 0;
+      for (int i = 0; i < searchResults.length; i++) {
+        final entry = searchResults[i];
+        if (entry.candidates.isEmpty) { failed++; continue; }
+        final best = entry.candidates.first;
+        try {
+          setState(() => _urlDownloadMsg = '下载 ${i + 1}/${searchResults.length}…');
+          await widget.api.downloadFangpiCandidate(token: widget.token, candidate: best);
+          downloaded++;
+        } catch (_) { failed++; }
+      }
+      setState(() => _urlDownloadMsg = '完成: 导入 $downloaded 首${failed > 0 ? '，失败 $failed' : ''}');
+    } catch (e) {
+      setState(() => _urlDownloadMsg = '批量导入失败: $e');
+    } finally {
+      if (mounted) setState(() => _urlDownloading = false);
+    }
+  }
+
+  // ---- Library logic ----
+  void _commitLibrary(Iterable<LibrarySong> songs) {
+    widget.onAdd(songs);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('加入 ${songs.length} 首'), duration: const Duration(seconds: 1)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white10,
+      color: const Color(0x0A000000),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('导入歌单后勾选要加入的歌（默认全选）。',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
-            const SizedBox(height: 6),
             Row(
               children: [
-                Expanded(
-                  child: DropdownButton<int>(
-                    isExpanded: true,
-                    value: _pid,
-                    hint: const Text('— 选择歌单 —'),
-                    items: widget.playlists.map((p) => DropdownMenuItem(
-                      value: p.id,
-                      child: Text('${p.name}（${p.songCount}）', overflow: TextOverflow.ellipsis),
-                    )).toList(),
-                    onChanged: (v) {
-                      setState(() => _pid = v);
-                      _loadDetail();
-                    },
-                  ),
-                ),
+                _subBtn(0, '歌单'),
+                const SizedBox(width: 4),
+                _subBtn(1, '链接'),
+                const SizedBox(width: 4),
+                _subBtn(2, '曲库'),
               ],
             ),
-            if (_msg != null) Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(_msg!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            ),
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
-            if (_matched.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  TextButton(onPressed: () => setState(() {
-                    _sel..clear()..addAll(_matched.map((s) => s.id));
-                  }), child: const Text('全选')),
-                  TextButton(onPressed: () => setState(() => _sel.clear()), child: const Text('全不选')),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _sel.isEmpty ? null : _commit,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
-                    child: Text('加入 ${_sel.length}'),
-                  ),
-                ],
-              ),
-              SizedBox(
-                height: 260,
-                child: ListView.builder(
-                  itemCount: _matched.length,
-                  itemBuilder: (_, i) {
-                    final s = _matched[i];
-                    final on = _sel.contains(s.id);
-                    return CheckboxListTile(
-                      dense: true,
-                      value: on,
-                      title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12)),
-                      subtitle: Text(
-                        '${s.artist} · ${s.bpm?.toStringAsFixed(0) ?? '-'} BPM · ${(s.duration / 60).toStringAsFixed(1)}m',
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                      onChanged: (v) => setState(() {
-                        if (v == true) _sel.add(s.id); else _sel.remove(s.id);
-                      }),
-                    );
-                  },
-                ),
-              ),
-            ],
+            const SizedBox(height: 8),
+            if (_sub == 0) _buildPlaylistSub(),
+            if (_sub == 1) _buildUrlSub(),
+            if (_sub == 2) _buildLibrarySub(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _subBtn(int i, String label) {
+    final active = _sub == i;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _sub = i),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFFE85A2A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: active ? const Color(0xFFE85A2A) : const Color(0x18000000)),
+          ),
+          alignment: Alignment.center,
+          child: Text(label, style: TextStyle(fontSize: 11, color: active ? Colors.black : const Color(0xFF555555))),
+        ),
+      ),
+    );
+  }
+
+  // ---- Playlist sub UI ----
+  Widget _buildPlaylistSub() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('选择歌单或曲库全部歌曲。', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 6),
+        DropdownButton<int>(
+          isExpanded: true,
+          value: _pid,
+          hint: const Text('— 选择歌单 —'),
+          items: [
+            DropdownMenuItem(
+              value: -1,
+              child: Text('曲库（全部 ${widget.library.length} 首）'),
+            ),
+            ...widget.playlists.map((p) => DropdownMenuItem(
+              value: p.id,
+              child: Text('${p.name}（${p.songCount}）', overflow: TextOverflow.ellipsis),
+            )),
+          ],
+          onChanged: (v) {
+            setState(() => _pid = v);
+            _loadDetail();
+          },
+        ),
+        if (_msg != null) Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_msg!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ),
+        if (_loading) const LinearProgressIndicator(minHeight: 2),
+        if (_matched.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              TextButton(onPressed: () => setState(() {
+                _sel..clear()..addAll(_matched.map((s) => s.id));
+              }), child: const Text('全选')),
+              TextButton(onPressed: () => setState(() => _sel.clear()), child: const Text('全不选')),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _sel.isEmpty ? null : _commitPlaylist,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE85A2A), foregroundColor: Colors.black),
+                child: Text('加入 ${_sel.length}'),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 260,
+            child: ListView.builder(
+              itemCount: _matched.length,
+              itemBuilder: (_, i) {
+                final s = _matched[i];
+                final on = _sel.contains(s.id);
+                return CheckboxListTile(
+                  dense: true,
+                  value: on,
+                  title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12)),
+                  subtitle: Text(
+                    '${s.artist} · ${s.bpm?.toStringAsFixed(0) ?? '-'} BPM · ${(s.duration / 60).toStringAsFixed(1)}m',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                  onChanged: (v) => setState(() {
+                    if (v == true) _sel.add(s.id); else _sel.remove(s.id);
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ---- URL import sub UI ----
+  Widget _buildUrlSub() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('粘贴 QQ 音乐 / 网易云音乐 歌单链接，解析后批量导入到曲库。',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _urlCtrl,
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                  hintText: '粘贴歌单链接…',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            ElevatedButton(
+              onPressed: _urlLoading ? null : _parseUrl,
+              child: Text(_urlLoading ? '解析中' : '解析'),
+            ),
+          ],
+        ),
+        if (_urlMsg != null) Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_urlMsg!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ),
+        if (_urlTracks.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              TextButton(onPressed: () => setState(() {
+                _urlSel..clear()..addAll(List.generate(_urlTracks.length, (i) => i));
+              }), child: const Text('全选')),
+              TextButton(onPressed: () => setState(() => _urlSel.clear()), child: const Text('全不选')),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _urlDownloading || _urlSel.isEmpty ? null : _downloadUrlTracks,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE85A2A), foregroundColor: Colors.black),
+                child: Text(_urlDownloading ? '导入中…' : '导入 ${_urlSel.length} 首'),
+              ),
+            ],
+          ),
+          if (_urlDownloadMsg != null) Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(_urlDownloadMsg!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ),
+          SizedBox(
+            height: 220,
+            child: ListView.builder(
+              itemCount: _urlTracks.length,
+              itemBuilder: (_, i) {
+                final t = _urlTracks[i];
+                final on = _urlSel.contains(i);
+                return CheckboxListTile(
+                  dense: true,
+                  value: on,
+                  title: Text(t.title, maxLines: 1,
+                      overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                  subtitle: Text(t.artist,
+                      style: const TextStyle(fontSize: 10)),
+                  onChanged: (v) => setState(() {
+                    if (v == true) _urlSel.add(i); else _urlSel.remove(i);
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ---- Library browse sub UI ----
+  Widget _buildLibrarySub() {
+    final q = _libQuery.toLowerCase();
+    final filtered = q.isEmpty
+        ? widget.library
+        : widget.library.where((s) =>
+            s.title.toLowerCase().contains(q) ||
+            s.artist.toLowerCase().contains(q)).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('从曲库直接选歌加入 DJ 池。', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 6),
+        TextField(
+          style: const TextStyle(fontSize: 12),
+          decoration: const InputDecoration(
+            hintText: '搜索曲库…',
+            isDense: true,
+            prefixIcon: Icon(Icons.search, size: 16),
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+          onChanged: (v) => setState(() => _libQuery = v),
+        ),
+        const SizedBox(height: 4),
+        Text('${filtered.length} 首可选', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        SizedBox(
+          height: 300,
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (_, i) {
+              final s = filtered[i];
+              return ListTile(
+                dense: true,
+                title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12)),
+                subtitle: Text(
+                  '${s.artist} · ${s.bpm?.toStringAsFixed(0) ?? '-'} BPM · ${(s.duration / 60).toStringAsFixed(1)}m',
+                  style: const TextStyle(fontSize: 10),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 20),
+                  onPressed: () => _commitLibrary([s]),
+                ),
+                onTap: () => _commitLibrary([s]),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1245,7 +1695,7 @@ class _VibeSourceState extends State<_VibeSource> {
       if (s.songId != null) byCatalogId[s.songId!] = s;
     }
     return Card(
-      color: Colors.white10,
+      color: const Color(0x0A000000),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -1293,7 +1743,7 @@ class _VibeSourceState extends State<_VibeSource> {
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
+                    backgroundColor: const Color(0xFFE85A2A),
                     foregroundColor: Colors.black,
                   ),
                   child: Text('加入 ${_sel.length}'),
@@ -1426,7 +1876,7 @@ class _StyleSourceState extends State<_StyleSource> {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white10,
+      color: const Color(0x0A000000),
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -1474,7 +1924,7 @@ class _StyleSourceState extends State<_StyleSource> {
                     final picks = ids.map((id) => byId[id]).whereType<LibrarySong>();
                     widget.onAdd(picks);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE85A2A), foregroundColor: Colors.black),
                   child: Text('全部加入 (${_result.length})'),
                 ),
               ],
@@ -1515,6 +1965,7 @@ class _Step2Sequence extends StatelessWidget {
   const _Step2Sequence({
     required this.presets, required this.selected, required this.loading, required this.error,
     required this.picked, required this.sequence,
+    required this.buckets, required this.songEnergy, required this.energyLoading,
     required this.onPickPreset, required this.onRun,
   });
   final List<Map<String, dynamic>> presets;
@@ -1523,12 +1974,26 @@ class _Step2Sequence extends StatelessWidget {
   final String? error;
   final List<LibrarySong> picked;
   final List<Map<String, dynamic>> sequence;
+  final List<Map<String, dynamic>> buckets;
+  final Map<String, Map<String, dynamic>> songEnergy;
+  final bool energyLoading;
   final ValueChanged<String> onPickPreset;
   final VoidCallback onRun;
 
   String _sceneIcon(String scene) => {
     'battle': '🥊', 'cypher': '🌀', 'class': '🎓', 'showcase': '🎬',
   }[scene] ?? '🎵';
+
+  /// 把 v2 后端返回的 hex 颜色字符串（如 "#F59E0B"）转成 Flutter Color。
+  Color _parseHex(String? hex, {Color fallback = const Color(0xFFE85A2A)}) {
+    if (hex == null || hex.isEmpty) return fallback;
+    final clean = hex.startsWith('#') ? hex.substring(1) : hex;
+    final v = int.tryParse(clean, radix: 16);
+    if (v == null) return fallback;
+    if (clean.length == 6) return Color(0xFF000000 | v);
+    if (clean.length == 8) return Color(v);
+    return fallback;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1537,7 +2002,7 @@ class _Step2Sequence extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       children: [
         const Text(
-          '按街舞场景能量曲线贪心分配每一首歌位置。混音方案保持 7+11 不变。',
+          '按街舞场景能量曲线贪心分配每一首歌位置；每行能量条按 v2 五档桶着色。混音方案仍走 7+11。',
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
         const SizedBox(height: 6),
@@ -1555,7 +2020,7 @@ class _Step2Sequence extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: active ? Colors.amber : Colors.white10,
+                  color: active ? const Color(0xFFE85A2A) : const Color(0x0A000000),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Column(
@@ -1588,58 +2053,165 @@ class _Step2Sequence extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: loading || picked.length < 2 ? null : onRun,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE85A2A), foregroundColor: Colors.black),
               child: Text(loading ? '排序中...' : '按曲线排序 ${picked.length} 首'),
             ),
+            if (energyLoading) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 12, height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.6, color: const Color(0xFFE85A2A)),
+              ),
+              const SizedBox(width: 4),
+              const Text('能量分析中…', style: TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
           ],
         ),
         if (error != null) Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Text(error!, style: const TextStyle(color: Colors.red, fontSize: 11)),
         ),
+        if (buckets.isNotEmpty && sequence.isNotEmpty) Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            spacing: 6, runSpacing: 4,
+            children: buckets.map((b) {
+              final c = _parseHex(b['color'] as String?);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.18),
+                  border: Border.all(color: c, width: 0.8),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${b['label_zh'] ?? b['key']}',
+                  style: TextStyle(fontSize: 10, color: c),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
         if (sequence.isNotEmpty) Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Card(
-            color: Colors.white10,
+            color: const Color(0x0A000000),
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('排序结果 — 目标/实际能量', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('排序结果 — 目标曲线 vs 实际能量', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   ...sequence.map((entry) {
                     final id = entry['song_id'].toString();
                     final song = byId[id];
                     final act = ((entry['actual_energy'] as num).toDouble() * 100).round();
                     final tgt = ((entry['target_energy'] as num).toDouble() * 100).round();
+                    final v2 = songEnergy[id] ?? const <String, dynamic>{};
+                    final hasV2 = v2.isNotEmpty;
+                    final v2Total = ((v2['total'] as num?)?.toDouble() ?? 0.0);
+                    final v2Pct = (v2Total * 100).round();
+                    final bucket = (v2['bucket'] as String? ?? 'cold');
+                    final bucketLabel = (v2['bucket_label_zh'] as String? ?? '');
+                    final bucketColor = _parseHex(
+                      v2['bucket_color'] as String?,
+                      fallback: const Color(0xFFE85A2A),
+                    );
+                    final bpm = ((v2['bpm'] as num?)?.toDouble() ?? 0.0);
+                    final styleUsed = (v2['style_used'] as String? ?? '');
+                    final explain = (v2['explain_zh'] as String? ?? '');
+                    final factors = (v2['factors'] is Map)
+                        ? (v2['factors'] as Map).cast<String, dynamic>()
+                        : const <String, dynamic>{};
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Row(
                             children: [
+                              Container(
+                                width: 6, height: 22,
+                                decoration: BoxDecoration(
+                                  color: bucketColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
                               Expanded(child: Text(
                                 '#${(entry['position'] as int) + 1} ${song?.title ?? id}',
                                 style: const TextStyle(fontSize: 11),
                                 maxLines: 1, overflow: TextOverflow.ellipsis,
                               )),
-                              Text('tgt $tgt·act $act', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                              if (hasV2) Container(
+                                margin: const EdgeInsets.only(left: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: bucketColor.withValues(alpha: 0.22),
+                                  border: Border.all(color: bucketColor, width: 0.7),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  bucketLabel.isNotEmpty ? bucketLabel : bucket,
+                                  style: TextStyle(fontSize: 9, color: bucketColor),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Stack(children: [
-                            Container(height: 5, color: Colors.black26),
-                            FractionallySizedBox(
-                              widthFactor: act / 100.0,
-                              child: Container(height: 5, color: Colors.amber),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Text(
+                                hasV2
+                                    ? 'tgt $tgt · v1 $act · v2 $v2Pct  BPM ${bpm > 0 ? bpm.toStringAsFixed(0) : "—"}'
+                                    : 'tgt $tgt · v1 $act  (v2 待加载)',
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                              if (styleUsed.isNotEmpty && styleUsed != 'no_dj') ...[
+                                const SizedBox(width: 6),
+                                Text('· $styleUsed', style: const TextStyle(fontSize: 10, color: Color(0x61000000))),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          LayoutBuilder(builder: (ctx, c) {
+                            final w = c.maxWidth;
+                            final fillW = (hasV2 ? v2Total : act / 100.0).clamp(0.0, 1.0) * w;
+                            final tgtX = (tgt / 100.0).clamp(0.0, 1.0) * w;
+                            return SizedBox(
+                              height: 8,
+                              child: Stack(children: [
+                                Container(height: 6, color: Colors.black26),
+                                Container(
+                                  height: 6,
+                                  width: fillW,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [bucketColor.withValues(alpha: 0.65), bucketColor],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: (tgtX - 1).clamp(0.0, w - 2),
+                                  child: Container(width: 2, height: 8, color: Color(0xFF1A1A1A)),
+                                ),
+                              ]),
+                            );
+                          }),
+                          if (explain.isNotEmpty) Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              explain,
+                              style: const TextStyle(fontSize: 10, color: Color(0x99000000)),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
                             ),
-                            Positioned(
-                              left: (tgt / 100.0) * MediaQuery.of(context).size.width * 0.8,
-                              child: Container(width: 2, height: 8, color: Colors.white),
-                            ),
-                          ]),
+                          ),
+                          if (factors.isNotEmpty) Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: _FactorRibbon(factors: factors, color: bucketColor),
+                          ),
                         ],
                       ),
                     );
@@ -1650,6 +2222,62 @@ class _Step2Sequence extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 7 perceptual factors mini-bar — bass_punch / drum_drive / groove_intensity
+/// / tempo_drive / attack_brightness / density_pulse / dynamic_thrust.
+/// Renders as a horizontal strip of 7 short bars so the user can eyeball why
+/// two songs at the same total energy "feel" different.
+class _FactorRibbon extends StatelessWidget {
+  const _FactorRibbon({required this.factors, required this.color});
+  final Map<String, dynamic> factors;
+  final Color color;
+
+  static const List<({String key, String label})> _slots = [
+    (key: 'bass_punch',        label: '低'),
+    (key: 'drum_drive',        label: '鼓'),
+    (key: 'groove_intensity',  label: '切'),
+    (key: 'tempo_drive',       label: '速'),
+    (key: 'attack_brightness', label: '亮'),
+    (key: 'density_pulse',     label: '密'),
+    (key: 'dynamic_thrust',    label: '冲'),
+  ];
+
+  double _v(String k) {
+    final raw = factors[k];
+    if (raw is num) return raw.toDouble().clamp(0.0, 1.0);
+    return 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _slots.map((s) {
+        final v = _v(s.key);
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 14,
+                  child: Stack(alignment: Alignment.bottomCenter, children: [
+                    Container(color: Colors.black26),
+                    FractionallySizedBox(
+                      heightFactor: v,
+                      widthFactor: 1.0,
+                      child: Container(color: color),
+                    ),
+                  ]),
+                ),
+                Text(s.label, style: const TextStyle(fontSize: 8, color: Color(0x8A000000))),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -1687,7 +2315,7 @@ class _Step3Mix extends StatelessWidget {
             icon: const Icon(Icons.play_arrow),
             label: Text(canStart ? '▶ 开始混音播放（${sequence.length} 首）' : '需要先在 Step 2 排序'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber, foregroundColor: Colors.black,
+              backgroundColor: const Color(0xFFE85A2A), foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
@@ -1696,7 +2324,7 @@ class _Step3Mix extends StatelessWidget {
         if (sequence.length >= 2) ...[
           const SizedBox(height: 10),
           Card(
-            color: Colors.white10,
+            color: const Color(0x0A000000),
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
@@ -1721,7 +2349,7 @@ class _Step3Mix extends StatelessWidget {
                               style: const TextStyle(fontSize: 11),
                               maxLines: 1, overflow: TextOverflow.ellipsis)),
                           Text('Δ${diff?.toStringAsFixed(1) ?? '?'} · $tag',
-                              style: const TextStyle(fontSize: 10, color: Colors.amberAccent)),
+                              style: const TextStyle(fontSize: 10, color: const Color(0xFFE85A2A))),
                         ],
                       ),
                     );
@@ -1773,21 +2401,19 @@ class _Step4Live extends StatelessWidget {
   final Future<void> Function(String strategy) onCut;
   final Future<void> Function(String key) onPlayFx;
 
-  static const _groupOrder = ['hype', 'drop', 'drum', 'accent'];
+  static const _groupOrder = ['hype', 'drop', 'drum'];
   static const _groupTitle = {
-    'hype': '🚨 喊场 / 起势',
-    'drop': '💥 Drop / Build',
-    'drum': '🥁 鼓点 Stab',
-    'accent': '⚡ 单点强调',
+    'hype': '🚨 喊场',
+    'drop': '💥 Drop',
+    'drum': '🥁 节奏',
   };
 
   String _iconFor(String key) => const {
     'air_horn': '📯',
-    'air_horn_burst': '📯',
-    'snare_crack': '🥁',
-    'beat_juggle_stutter': '🎛️',
     'bass_drop': '💣',
     'vinyl_stop': '🛑',
+    'snare_crack': '🥁',
+    'beat_juggle_stutter': '🎛️',
   }[key] ?? '🔊';
 
   @override
@@ -1803,17 +2429,11 @@ class _Step4Live extends StatelessWidget {
     final current = idx < ordered.length ? ordered[idx] : null;
     final next = idx + 1 < ordered.length ? ordered[idx + 1] : null;
 
-    final groups = <String, List<Map<String, dynamic>>>{};
-    for (final it in fxItems) {
-      final g = (it['category'] as String?) ?? 'accent';
-      groups.putIfAbsent(g, () => []).add(it);
-    }
-
     return ListView(
       padding: const EdgeInsets.all(10),
       children: [
         Card(
-          color: Colors.white10,
+          color: const Color(0x0A000000),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -1827,7 +2447,7 @@ class _Step4Live extends StatelessWidget {
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 4),
                 const Text('每首结束前 10 秒自动按 7/11 衔接方案 xfade。',
-                    style: TextStyle(fontSize: 10, color: Colors.lightGreenAccent)),
+                    style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32))),
               ],
             ),
           ),
@@ -1839,54 +2459,44 @@ class _Step4Live extends StatelessWidget {
         _cutBtn('🔥 升能量切 energy_up_cut', '从已选池挑能量更高的歌替换后切。冲峰 / 喊大招用。', 'energy_up_cut'),
         _cutBtn('❄️ 降能量切 energy_down_cut', '挑能量更低的歌，让 cypher 喘口气。', 'energy_down_cut'),
         const SizedBox(height: 14),
-        const Text('🎛️ 加花 FX Pad', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const Text('🎛️ 加花 FX Pad（数字键 1-5）', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 4),
-        ..._groupOrder.where((k) => groups[k]?.isNotEmpty == true).map((g) {
-          final list = groups[g]!;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_groupTitle[g]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(height: 4),
-                GridView.count(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
-                  childAspectRatio: 1.4,
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  children: list.map((fx) {
-                    final k = fx['key'] as String;
-                    return GestureDetector(
-                      onTap: () => onPlayFx(k),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white10,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_iconFor(k), style: const TextStyle(fontSize: 20)),
-                            const SizedBox(height: 2),
-                            Text(fx['label_zh'] as String? ?? k,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            Text('${(fx['default_duration'] as num).toStringAsFixed(2)}s',
-                                style: const TextStyle(fontSize: 9, color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+        GridView.count(
+          crossAxisCount: 5,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: 0.9,
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          children: fxItems.asMap().entries.map((entry) {
+            final i = entry.key;
+            final fx = entry.value;
+            final k = fx['key'] as String;
+            final rkKey = fx['rk_key'] as int? ?? (i + 1);
+            return GestureDetector(
+              onTap: () => onPlayFx(k),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0x0A000000),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE85A2A).withOpacity(0.4)),
                 ),
-              ],
-            ),
-          );
-        }),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('$rkKey', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFFE85A2A))),
+                    Text(_iconFor(k), style: const TextStyle(fontSize: 18)),
+                    const SizedBox(height: 2),
+                    Text(fx['label_zh'] as String? ?? k,
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ],
     );
   }
@@ -1897,7 +2507,7 @@ class _Step4Live extends StatelessWidget {
       child: ElevatedButton(
         onPressed: () => onCut(strategy),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white10,
+          backgroundColor: const Color(0x0A000000),
           foregroundColor: Colors.white,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.all(10),

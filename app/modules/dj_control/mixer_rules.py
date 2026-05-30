@@ -220,18 +220,223 @@ def list_transition_rules() -> dict:
 
 
 def pick_rule(prev_song, next_song, rule_key: str | None = None) -> dict:
-    """Find a rule by key, or pick a sensible default."""
-    catalog = ANALYZED_TRANSITIONS if _is_analyzed(prev_song) and _is_analyzed(next_song) else RAW_TRANSITIONS
+    """Find a rule by key, or pick the best-fit rule via fitness scoring.
+
+    Returns a dict with optional `_fit_score` and `_fit_top3` keys for debug.
+    """
+    both_analyzed = _is_analyzed(prev_song) and _is_analyzed(next_song)
+    catalog = ANALYZED_TRANSITIONS if both_analyzed else RAW_TRANSITIONS
+
+    # Caller forced a specific rule.
     if rule_key:
         for r in catalog:
             if r["key"] == rule_key:
                 return r
-    # Default: harmonic_blend if both analyzed, otherwise 6-second xfade.
-    return catalog[0]
+        # Try the other catalog as a fallback (e.g. UI sent an analyzed key
+        # but one song lacks analysis — degrade gracefully).
+        for r in (RAW_TRANSITIONS if both_analyzed else ANALYZED_TRANSITIONS):
+            if r["key"] == rule_key:
+                return r
+
+    scored = [(r, _score_rule(r["key"], prev_song, next_song)) for r in catalog]
+    scored.sort(key=lambda kv: kv[1], reverse=True)
+    best = dict(scored[0][0])  # shallow copy so we don't mutate the catalog
+    best["_fit_score"] = round(scored[0][1], 3)
+    best["_fit_top3"] = [(r["key"], round(s, 3)) for r, s in scored[:3]]
+    return best
 
 
 def _is_analyzed(song) -> bool:
     return bool(getattr(song, "bpm", None)) and bool(getattr(song, "beat_points", None))
+
+
+# --------------------------------------------------------------------------- #
+# Fitness scoring — chooses the most musically appropriate transition based on
+# observable features of the two songs.
+#
+# Inputs (best-effort, all optional):
+#   bpm, camelot_key, energy (0..1), duration, stems (presence)
+# Heuristics:
+#   * BPM-close + key-compatible            -> harmonic_blend / eq_swap_4bar
+#   * BPM medium-diff                        -> filter_sweep_high / key_lift
+#   * BPM far apart                          -> drop_swap / spin_back / b2b_drop
+#   * Energy step-down                       -> echo_tail / reverb_throw
+#   * Energy step-up                         -> drop_swap / back_to_back_drop / key_lift
+#   * Both have stems                        -> drum_only_bridge / drop_swap allowed
+#   * Same BPM (≤1.0 diff) and short next   -> loop_roll
+# --------------------------------------------------------------------------- #
+def _f(song, attr, default=0.0):
+    v = getattr(song, attr, None)
+    try:
+        return float(v) if v is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _has_stems(song) -> bool:
+    s = getattr(song, "stems", None)
+    if isinstance(s, dict):
+        return all(k in s for k in ("vocals", "drums", "bass", "other"))
+    return False
+
+
+def _camelot_distance(a: str | None, b: str | None) -> int | None:
+    """Camelot wheel distance: 0 = identical, 1 = adjacent (energy boost or
+    relative minor/major switch), 2 = two steps away. Returns None if either
+    key is missing/malformed."""
+    if not a or not b:
+        return None
+    try:
+        an, al = int(a[:-1]), a[-1].upper()
+        bn, bl = int(b[:-1]), b[-1].upper()
+    except (ValueError, IndexError):
+        return None
+    if al not in "AB" or bl not in "AB":
+        return None
+    # circular distance on the 1..12 wheel
+    num_diff = min((an - bn) % 12, (bn - an) % 12)
+    letter_diff = 0 if al == bl else 1
+    return num_diff + letter_diff
+
+
+def _score_rule(key: str, prev, nxt) -> float:
+    """Return a fitness score in [0, 1.5] (slightly >1 lets clear winners surface)."""
+    prev_bpm = _f(prev, "bpm", 0.0)
+    next_bpm = _f(nxt, "bpm", 0.0)
+    bpm_diff = abs(prev_bpm - next_bpm) if prev_bpm and next_bpm else 0.0
+    bpm_close = bpm_diff <= 2.0
+    bpm_medium = 2.0 < bpm_diff <= 8.0
+    bpm_far = bpm_diff > 12.0
+
+    prev_e = _f(prev, "energy", 0.5)
+    next_e = _f(nxt, "energy", 0.5)
+    e_delta = next_e - prev_e
+    big_step_up = e_delta > 0.18
+    big_step_down = e_delta < -0.18
+    flat_e = abs(e_delta) <= 0.05
+
+    cam = _camelot_distance(getattr(prev, "camelot_key", None),
+                            getattr(nxt, "camelot_key", None))
+    key_compat = cam is not None and cam <= 1
+    key_unrelated = cam is not None and cam >= 4
+
+    next_dur = _f(nxt, "duration", 0.0)
+    next_short = 0 < next_dur < 150
+
+    stems_ok = _has_stems(prev) and _has_stems(nxt)
+
+    # Base score per rule. Each rule starts ~0.3 baseline; we add/subtract by
+    # how well the situation matches its musical intent.
+    base = 0.30
+    s = base
+
+    if key == "harmonic_blend":
+        # 16-bar phrase blend: shines on tight BPM + compatible key.
+        if bpm_close: s += 0.45
+        elif bpm_medium: s += 0.10
+        if key_compat: s += 0.30
+        if flat_e: s += 0.10
+        if bpm_far: s -= 0.40
+        if key_unrelated: s -= 0.20
+
+    elif key == "eq_swap_4bar":
+        # Tight-medium BPM, energy similar, key compatible. Slightly snappier
+        # than harmonic_blend.
+        if bpm_diff <= 6.0: s += 0.35
+        if not key_unrelated: s += 0.15
+        if 0.0 <= e_delta <= 0.15: s += 0.15
+        if bpm_far: s -= 0.30
+
+    elif key == "filter_sweep_high":
+        # Medium BPM diff or key clash → filter masks the inharmony.
+        if bpm_medium: s += 0.40
+        if key_unrelated: s += 0.20
+        if abs(e_delta) > 0.10: s += 0.10
+        if bpm_close and key_compat: s -= 0.15  # harmonic_blend would do better
+
+    elif key == "drop_swap":
+        # Bass-pivoting smash: needs energy step-up and ideally stems.
+        if big_step_up: s += 0.40
+        if next_e > 0.65: s += 0.20
+        if stems_ok: s += 0.20
+        if not stems_ok: s -= 0.15
+        if bpm_far: s += 0.10  # masks tempo discontinuity
+        if big_step_down: s -= 0.35
+
+    elif key == "echo_tail":
+        # Soft outro echo; perfect for energy step-down.
+        if big_step_down: s += 0.45
+        if next_e < 0.55: s += 0.15
+        if bpm_far: s += 0.10
+        if big_step_up: s -= 0.30
+
+    elif key == "loop_roll":
+        # 8th-note beat roll over 2 bars; works when next track is short or
+        # tempo identical (the roll buys time before the new song's downbeat).
+        if bpm_close: s += 0.30
+        if next_short: s += 0.20
+        if abs(e_delta) <= 0.10: s += 0.10
+        if bpm_far: s -= 0.20
+
+    elif key == "spin_back":
+        # Hip-hop spinback: bold genre/tempo break.
+        if bpm_far: s += 0.45
+        if key_unrelated: s += 0.15
+        if bpm_close and key_compat: s -= 0.30
+
+    elif key == "drum_only_bridge":
+        # Drums bridge requires stems on both sides.
+        if stems_ok: s += 0.35
+        else: s -= 0.50  # cannot execute without stems
+        if bpm_diff <= 8.0: s += 0.20
+        if abs(e_delta) <= 0.15: s += 0.10
+
+    elif key == "key_lift":
+        # +1 semitone lift: best for energy-up with similar BPM.
+        if e_delta > 0.05: s += 0.30
+        if bpm_diff <= 6.0: s += 0.25
+        if cam is not None and cam <= 2: s += 0.15
+        if bpm_far: s -= 0.25
+
+    elif key == "reverb_throw":
+        # Wet reverb tail to soften energy descent.
+        if big_step_down: s += 0.35
+        if next_e < 0.50: s += 0.15
+        if flat_e: s -= 0.10
+
+    elif key == "back_to_back_drop":
+        # Smash cut on a downbeat — heavy energy boost moment.
+        if big_step_up and next_e > 0.70: s += 0.50
+        if bpm_close: s += 0.15
+        if bpm_far: s += 0.10  # smash can also rescue mismatched BPM
+        if big_step_down: s -= 0.40
+
+    # ---- RAW catalog ---- #
+    elif key == "raw_xfade_3s":
+        if abs(e_delta) <= 0.10: s += 0.10
+        if next_short: s += 0.15
+    elif key == "raw_xfade_6s":
+        s += 0.10  # versatile default
+    elif key == "raw_xfade_10s":
+        if flat_e: s += 0.20
+    elif key == "raw_hard_cut":
+        if big_step_up or big_step_down: s += 0.20
+    elif key == "raw_fade_out_in":
+        if big_step_down: s += 0.25
+    elif key == "raw_echo_drop":
+        if big_step_down: s += 0.20
+    elif key == "raw_lp_swap":
+        if big_step_down or key_unrelated: s += 0.20
+
+    # Tiny deterministic variation (-0.05..+0.05) so back-to-back identical
+    # transitions don't always pick the same rule when scores tie. We want
+    # variety in a 3-song mix but the bias must be tiny so a clear winner
+    # still wins.
+    seed_input = f"{key}|{prev_bpm:.1f}|{next_bpm:.1f}|{prev_e:.2f}|{next_e:.2f}"
+    h = sum(ord(c) for c in seed_input) % 100
+    s += (h - 50) / 1000.0  # ±0.05
+
+    return max(0.0, s)
 
 
 def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str | None = None) -> dict:
@@ -239,4 +444,29 @@ def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str
     spec = rule["apply"](prev_song, next_song, cursor_sec)
     spec["rule_key"] = rule["key"]
     spec["rule_label_zh"] = rule["label_zh"]
+    if "_fit_score" in rule:
+        spec["fit_score"] = rule["_fit_score"]
+    if "_fit_top3" in rule:
+        spec["fit_top3"] = rule["_fit_top3"]
+    # Lift minimum duration for FX-bound rules. Their original spec is short
+    # because the original FX (reverse, kick-roll, smash) was supposed to
+    # cover the cut. RK's audio-engine has only volume/EQ envelopes, so a
+    # 1-1.5s window is heard as a hard splice. The rule's musical intent
+    # (which preset to dial in) is still correct — only the duration needs
+    # widening so the envelope can actually breathe.
+    min_dur = _MIN_DURATION_FOR_RULE.get(rule["key"])
+    if min_dur is not None:
+        spec["duration_sec"] = max(float(spec.get("duration_sec", 0.0)), min_dur)
     return spec
+
+
+# Minimum transition length on RK basic playback tier (envelope-only, no FX).
+# Keep this in sync with mobile/lib/src/dj_control_page.dart `_minFadeForRule`.
+_MIN_DURATION_FOR_RULE: dict[str, float] = {
+    "spin_back":         5.0,
+    "loop_roll":         4.0,
+    "drop_swap":         4.0,
+    "back_to_back_drop": 4.0,
+    "echo_tail":         5.0,
+    "reverb_throw":      5.0,
+}

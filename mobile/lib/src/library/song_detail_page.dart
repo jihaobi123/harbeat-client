@@ -298,7 +298,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
   // ── UI 行为 ────────────────────────────────────────────────────────
 
   /// 切音轨：如果 RK 还没加载本曲，先 _ensureLoaded；之后只发 /stem_solo。
-  /// 关键：调用 /stem_solo 之前必须保证目标 stem 的 .wav 已经落盘到 RK，
+  /// 关键：调用 /stem_solo 之前必须保证目标 stem 的 .mp3 已经落盘到 RK，
   /// 否则 audio-engine 会抛 409（stem 未加载）。
   Future<void> _switchSource(String which) async {
     if (which == _activeSource && _loaded) return;
@@ -347,7 +347,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
                 songId: _song.id,
                 stemName: stem,
               ),
-              'format': 'wav',
+              'format': 'mp3',
             },
           },
         },

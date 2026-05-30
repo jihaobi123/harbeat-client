@@ -393,18 +393,13 @@ def mc_hype(duration: float = 0.55, sr: int = SR_DEFAULT) -> np.ndarray:
 # Catalog & encoding
 # --------------------------------------------------------------------------- #
 FX_CATALOG: dict[str, dict] = {
-    # build-ups & accents — rk_key maps to RK audio-engine sample slots
-    # (~/cypher/samples/*.wav). Mobile prefers calling /trigger with rk_key so
-    # the FX plays on the RK speaker (mixed onto the live bus) rather than the
-    # phone speaker. Backend audio fallback is still rendered on demand.
-    "air_horn":            {"label_zh": "喇叭 长鸣",         "fn": air_horn,            "default_duration": 1.4,  "category": "hype",  "rk_key": 1},
-    "air_horn_burst":      {"label_zh": "喇叭 三连",         "fn": air_horn_burst,      "default_duration": 1.5,  "category": "hype",  "rk_key": 2},
-    # rhythmic stabs
-    "snare_crack":         {"label_zh": "嚓声 Snare",        "fn": snare_crack,         "default_duration": 0.20, "category": "drum",  "rk_key": 3},
-    "beat_juggle_stutter": {"label_zh": "Beat Juggle",      "fn": beat_juggle_stutter, "default_duration": 1.0,  "category": "drum",  "rk_key": 4},
-    # drops & build-ups
-    "bass_drop":           {"label_zh": "Bass Drop",        "fn": bass_drop,           "default_duration": 1.6,  "category": "drop",  "rk_key": 5},
-    "vinyl_stop":          {"label_zh": "黑胶刹停",          "fn": vinyl_stop,          "default_duration": 0.6,  "category": "drop",  "rk_key": 6},
+    # 5 core FX — rk_key 1-5 maps to numpad keys on the 9-key controller.
+    # Volume is boosted 1.5x over music level (gain applied in render()).
+    "air_horn":            {"label_zh": "喇叭长鸣",         "fn": air_horn,            "default_duration": 1.4,  "category": "hype",  "rk_key": 1},
+    "bass_drop":           {"label_zh": "Bass Drop",        "fn": bass_drop,           "default_duration": 1.6,  "category": "drop",  "rk_key": 2},
+    "vinyl_stop":          {"label_zh": "黑胶刹停",          "fn": vinyl_stop,          "default_duration": 0.6,  "category": "drop",  "rk_key": 3},
+    "snare_crack":         {"label_zh": "嚓声",             "fn": snare_crack,         "default_duration": 0.20, "category": "drum",  "rk_key": 4},
+    "beat_juggle_stutter": {"label_zh": "Beat Juggle",      "fn": beat_juggle_stutter, "default_duration": 1.0,  "category": "drum",  "rk_key": 5},
 }
 
 
@@ -426,7 +421,9 @@ def render(fx_key: str, duration: float | None = None, sr: int = SR_DEFAULT, **k
     if spec is None:
         raise KeyError(f"unknown fx: {fx_key}")
     dur = duration if (duration is not None and duration > 0) else spec["default_duration"]
-    return spec["fn"](duration=dur, sr=sr, **kwargs)
+    samples = spec["fn"](duration=dur, sr=sr, **kwargs)
+    # Boost FX volume 1.5x over music level
+    return samples * 1.5
 
 
 def render_to_wav_bytes(fx_key: str, duration: float | None = None, sr: int = SR_DEFAULT, **kwargs) -> bytes:
