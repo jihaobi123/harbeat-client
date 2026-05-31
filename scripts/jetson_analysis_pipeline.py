@@ -15,6 +15,17 @@ import sys
 import time
 import numpy as np
 import librosa
+import soundfile as sf
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.modules.library.analysis import (
+    MAX_ANALYSIS_DURATION,
+    _attach_phrase_energy,
+    _build_bpm_curve,
+    _build_energy_curve,
+    _build_transition_windows,
+)
 
 # ── Camelot wheel ────────────────────────────────────────────────
 
@@ -27,18 +38,24 @@ def analyze_track(filepath, track_id):
     """Full audio analysis. Returns TrackContext-compatible dict."""
 
     t0 = time.time()
-    y, sr = librosa.load(filepath, sr=None, mono=False)
+    try:
+        real_duration = float(sf.info(filepath).duration)
+    except Exception:
+        real_duration = None
+    y, sr = librosa.load(filepath, sr=None, mono=False, duration=MAX_ANALYSIS_DURATION)
     if y.ndim == 2:
         y_mono = np.mean(y, axis=0)
     else:
         y_mono = y
-    duration = float(len(y_mono) / sr)
+    analysis_duration = float(len(y_mono) / sr)
+    duration = real_duration if real_duration is not None else analysis_duration
 
     # ── BPM + Beats ──
     onset_env = librosa.onset.onset_strength(y=y_mono, sr=sr)
     bpm_raw, beats_frames = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
     bpm = float(bpm_raw[0]) if isinstance(bpm_raw, np.ndarray) else float(bpm_raw)
     beat_times = librosa.frames_to_time(beats_frames, sr=sr).tolist()
+    bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
 
     # ── Downbeats ──
     onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, units='frames')
@@ -64,25 +81,29 @@ def analyze_track(filepath, track_id):
     rms_norm = rms / (np.max(rms) + 1e-8)
     mean_energy = float(np.mean(rms_norm))
     energy_label = "low" if mean_energy < 0.12 else ("medium" if mean_energy < 0.22 else "high")
+    energy_curve = _build_energy_curve(y_mono, sr)
 
     # ── Vocal density ──
     mfcc = librosa.feature.mfcc(y=y_mono, sr=sr, n_mfcc=13)
     ve = float(np.mean(np.abs(mfcc[1:4, :])))
     te = float(np.mean(np.abs(mfcc[1:, :])))
-    vocal_density = min(1.0, ve / (te + 1e-8) * 2.0)
+    vocal_ratio = ve / (te + 1e-8)
+    vocal_density = float(np.clip((vocal_ratio - 1.8) / 1.2, 0.0, 1.0))
 
     # ── Bass energy ──
     S = np.abs(librosa.stft(y_mono))
     freqs = librosa.fft_frequencies(sr=sr)
     bass_mask = freqs < 150
     bass_e = float(np.mean(S[bass_mask, :]) / (np.mean(S) + 1e-8))
-    bass_energy = min(1.0, bass_e * 3.0)
+    bass_energy = float(np.clip(bass_e / (bass_e + 15.0), 0.0, 1.0))
 
     # ── Spectral centroid ──
     centroid = float(np.mean(librosa.feature.spectral_centroid(y=y_mono, sr=sr)))
 
     # ── Phrase map ──
-    phrase_map = _segment_phrases(y_mono, sr, duration)
+    phrase_map = _segment_phrases(y_mono, sr, analysis_duration)
+    phrase_map = _attach_phrase_energy(phrase_map, energy_curve)
+    transition_windows = _build_transition_windows(phrase_map)
 
     elapsed = time.time() - t0
     print(f"  [{track_id}] BPM={bpm:.1f} Key={camelot} Energy={energy_label} "
@@ -99,16 +120,21 @@ def analyze_track(filepath, track_id):
         "energy": energy_label,
         "energy_rms": round(mean_energy, 4),
         "duration_sec": round(duration, 1),
+        "analysis_duration_sec": round(analysis_duration, 1),
         "beat_points": [round(t, 3) for t in beat_times[:2000]],
+        "bpm_curve": bpm_curve,
+        "tempo_stability": tempo_stability,
+        "energy_curve": energy_curve,
+        "transition_windows": transition_windows,
         "downbeats": [round(d, 3) for d in downbeats[:1000]],
         "phrase_map": phrase_map,
-        "has_stems": True,
-        "stem_quality_score": 0.85,
+        "has_stems": False,
+        "stem_quality_score": 0.0,
         "vocal_density": round(vocal_density, 2),
         "bass_energy": round(bass_energy, 2),
-        "intro_is_clean": True,
-        "outro_is_clean": True,
-        "has_drum_loop": True,
+        "intro_is_clean": bool(transition_windows and transition_windows[0]["clean_candidate"]),
+        "outro_is_clean": bool(transition_windows and transition_windows[-1]["clean_candidate"]),
+        "has_drum_loop": tempo_stability >= 0.85,
         "spectral_centroid": round(centroid, 0),
     }
 

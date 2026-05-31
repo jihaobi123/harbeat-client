@@ -29,7 +29,20 @@ class LibrarySongBase(BaseModel):
     energy: float | None = None
     analysis_status: str = "none"
     beat_points: list[float] = Field(default_factory=list)
+    bpm_curve: list[dict] = Field(default_factory=list)
+    tempo_stability: float | None = None
+    energy_curve: list[dict] = Field(default_factory=list)
+    transition_windows: list[dict] = Field(default_factory=list)
+    stem_activity: dict = Field(default_factory=dict)
+    stem_activity_windows: list[dict] = Field(default_factory=list)
+    stem_quality_score: float | None = None
+    intro_is_clean: bool = False
+    outro_is_clean: bool = False
+    has_drum_loop: bool = False
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
+    downbeats: list[float] = Field(default_factory=list)
+    phrase_map: list[dict] = Field(default_factory=list)
+    key_confidence: float | None = None
     stems: dict | None = None
     song_id: int | None = None
     created_at: datetime
@@ -55,7 +68,20 @@ class LibrarySongUpdateRequest(BaseModel):
     energy: float | None = None
     analysis_status: str | None = None
     beat_points: list[float] | None = None
+    bpm_curve: list[dict] | None = None
+    tempo_stability: float | None = None
+    energy_curve: list[dict] | None = None
+    transition_windows: list[dict] | None = None
+    stem_activity: dict | None = None
+    stem_activity_windows: list[dict] | None = None
+    stem_quality_score: float | None = None
+    intro_is_clean: bool | None = None
+    outro_is_clean: bool | None = None
+    has_drum_loop: bool | None = None
     cue_points: list[LibraryCuePoint] | None = None
+    downbeats: list[float] | None = None
+    phrase_map: list[dict] | None = None
+    key_confidence: float | None = None
     stems: dict | None = None
 
 

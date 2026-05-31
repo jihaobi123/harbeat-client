@@ -24,6 +24,153 @@ CAMELOT_NUMBER = {v: (int(v[:-1]), v[-1]) for v in NOTE_MODE_TO_CAMELOT.values()
 CUE_COLORS = ["#22c55e", "#3b82f6", "#ef4444", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"]
 
 
+def _build_bpm_curve(
+    beat_times: list[float] | np.ndarray,
+    *,
+    window_beats: int = 16,
+    hop_beats: int = 8,
+) -> tuple[list[dict], float]:
+    """Summarize local tempo and report how stable the beat grid is."""
+    beats = np.asarray(beat_times, dtype=float)
+    if len(beats) < 3:
+        return [], 0.0
+
+    intervals = np.diff(beats)
+    intervals = intervals[(intervals > 0.15) & (intervals < 2.5)]
+    if len(intervals) < 2:
+        return [], 0.0
+
+    window = max(2, min(int(window_beats), len(intervals)))
+    hop = max(1, int(hop_beats))
+    starts = list(range(0, max(len(intervals) - window + 1, 1), hop))
+    last_start = max(0, len(intervals) - window)
+    if not starts or starts[-1] != last_start:
+        starts.append(last_start)
+
+    curve: list[dict] = []
+    for start in starts:
+        chunk = intervals[start:start + window]
+        median_interval = float(np.median(chunk))
+        mean_interval = float(np.mean(chunk))
+        if median_interval <= 1e-9 or mean_interval <= 1e-9:
+            continue
+        local_stability = float(np.clip(1.0 - np.std(chunk) / mean_interval, 0.0, 1.0))
+        curve.append({
+            "start": round(float(beats[start]), 3),
+            "end": round(float(beats[min(start + window, len(beats) - 1)]), 3),
+            "bpm": round(60.0 / median_interval, 2),
+            "stability": round(local_stability, 4),
+        })
+
+    if not curve:
+        return [], 0.0
+
+    local_mean = float(np.mean([item["stability"] for item in curve]))
+    local_bpms = np.asarray([item["bpm"] for item in curve], dtype=float)
+    median_bpm = float(np.median(local_bpms))
+    tempo_consistency = (
+        float(np.clip(1.0 - np.std(local_bpms) / median_bpm, 0.0, 1.0))
+        if median_bpm > 1e-9 else 0.0
+    )
+    stability = float(np.clip(local_mean * 0.6 + tempo_consistency * 0.4, 0.0, 1.0))
+    return curve, round(stability, 4)
+
+
+def _build_energy_curve(
+    y: np.ndarray,
+    sr: int,
+    *,
+    window_sec: float = 2.0,
+    hop_sec: float = 1.0,
+) -> list[dict]:
+    """Build a compact loudness contour for energy-aware phrase selection."""
+    if sr <= 0 or len(y) == 0:
+        return []
+
+    mono = np.asarray(y, dtype=float)
+    if mono.ndim > 1:
+        mono = np.mean(mono, axis=0)
+    frame_length = max(1, int(sr * window_sec))
+    hop_length = max(1, int(sr * hop_sec))
+    if len(mono) < frame_length:
+        frame_length = len(mono)
+
+    rms_values: list[tuple[int, int, float]] = []
+    for start in range(0, max(len(mono) - frame_length + 1, 1), hop_length):
+        end = min(start + frame_length, len(mono))
+        chunk = mono[start:end]
+        rms = float(np.sqrt(np.mean(np.square(chunk)))) if len(chunk) else 0.0
+        rms_values.append((start, end, rms))
+
+    if not rms_values:
+        return []
+    peak_rms = max(item[2] for item in rms_values) or 1.0
+    return [{
+        "start": round(start / sr, 3),
+        "end": round(end / sr, 3),
+        "energy": round(float(np.clip(np.tanh(rms * 8.0), 0.0, 1.0)), 4),
+        "relative_energy": round(float(np.clip(rms / peak_rms, 0.0, 1.0)), 4),
+    } for start, end, rms in rms_values]
+
+
+def _attach_phrase_energy(phrase_map: list[dict], energy_curve: list[dict]) -> list[dict]:
+    """Attach average relative energy to phrase windows without mutating input."""
+    enriched: list[dict] = []
+    for phrase in phrase_map:
+        item = dict(phrase)
+        start = float(item.get("start", 0.0))
+        end = float(item.get("end", start))
+        values = [
+            float(window.get("relative_energy", window.get("energy", 0.0)))
+            for window in energy_curve
+            if float(window.get("start", 0.0)) < end
+            and float(window.get("end", window.get("start", 0.0))) > start
+        ]
+        if values:
+            item["energy"] = round(float(np.mean(values)), 4)
+        enriched.append(item)
+    return enriched
+
+
+def _build_transition_windows(phrase_map: list[dict]) -> list[dict]:
+    """Score phrase-sized windows for safe mix-in and mix-out decisions."""
+    role_scores = {
+        "intro": (0.92, 0.35),
+        "verse": (0.68, 0.58),
+        "buildup": (0.45, 0.72),
+        "drop": (0.52, 0.48),
+        "breakdown": (0.74, 0.80),
+        "outro": (0.30, 0.94),
+    }
+    windows: list[dict] = []
+    for phrase in phrase_map:
+        label = str(phrase.get("label", "verse")).lower()
+        mix_in, mix_out = role_scores.get(label, (0.55, 0.55))
+        energy = float(phrase.get("energy", 0.5))
+        bars = int(phrase.get("bars", 0) or 0)
+        if energy < 0.45:
+            mix_in += 0.06
+            mix_out += 0.04
+        if energy > 0.82:
+            mix_in -= 0.08
+            mix_out -= 0.06
+        if bars and bars < 4:
+            mix_in -= 0.08
+            mix_out -= 0.08
+        clean_candidate = label in {"intro", "breakdown", "outro"} and energy <= 0.55
+        windows.append({
+            "start": round(float(phrase.get("start", 0.0)), 3),
+            "end": round(float(phrase.get("end", phrase.get("start", 0.0))), 3),
+            "label": label,
+            "bars": bars,
+            "energy": round(energy, 4),
+            "mix_in_score": round(float(np.clip(mix_in, 0.0, 1.0)), 4),
+            "mix_out_score": round(float(np.clip(mix_out, 0.0, 1.0)), 4),
+            "clean_candidate": clean_candidate,
+        })
+    return windows
+
+
 def camelot_distance(key_a: str, key_b: str) -> int:
     """
     Compute the Camelot Wheel distance between two keys.
@@ -225,7 +372,7 @@ def _detect_phrase_structure(
         else:
             p["label"] = "verse"
 
-        del p["energy"]  # don't store raw energy in structure
+        p["energy"] = round(float(ne), 4)
 
     return phrases
 
@@ -259,6 +406,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
     beat_times = librosa.frames_to_time(beat_frames, sr=sr)
     beat_points = [round(float(t), 3) for t in beat_times]
+    bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
 
     # Downbeats (bar boundaries, 4/4 time)
     downbeats = _detect_downbeats(y, sr, beat_times)
@@ -266,6 +414,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     # Energy
     rms = librosa.feature.rms(y=y)[0]
     energy = float(np.clip(np.tanh(float(np.mean(rms)) * 8.0), 0.0, 1.0))
+    energy_curve = _build_energy_curve(y, sr)
 
     # Key detection (Krumhansl-Schmuckler)
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
@@ -294,6 +443,8 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
 
     # Phrase structure (8-bar segments with labels)
     phrase_map = _detect_phrase_structure(y, sr, analysis_duration, downbeats)
+    phrase_map = _attach_phrase_energy(phrase_map, energy_curve)
+    transition_windows = _build_transition_windows(phrase_map)
 
     return {
         "bpm": round(bpm, 1),
@@ -303,7 +454,11 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "camelot_key": camelot_key,
         "key_confidence": key_confidence,
         "beat_points": beat_points,
+        "bpm_curve": bpm_curve,
+        "tempo_stability": tempo_stability,
         "downbeats": downbeats,
         "cue_points": cue_points,
         "phrase_map": phrase_map,
+        "energy_curve": energy_curve,
+        "transition_windows": transition_windows,
     }

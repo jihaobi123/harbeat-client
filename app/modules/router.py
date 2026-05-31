@@ -5,6 +5,7 @@ from app.modules.dj_control.router import router as dj_control_router
 from app.modules.fangpi.router import router as fangpi_router
 from app.modules.health.router import router as health_router
 from app.modules.library.router import router as library_router
+from app.modules.manifest.router import router as manifest_router
 from app.modules.music.router import router as music_router
 from app.modules.playlists.router import router as playlists_router
 from app.modules.profiles.router import router as profiles_router
@@ -18,6 +19,7 @@ api_router.include_router(health_router, tags=["health"])
 api_router.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 api_router.include_router(stream_router, prefix="/api/stream", tags=["stream"])
 api_router.include_router(library_router, prefix="/api/library", tags=["library"])
+api_router.include_router(manifest_router, prefix="/api", tags=["manifest"])
 api_router.include_router(music_router, prefix="/api/music", tags=["music"])
 api_router.include_router(users_router, prefix="/api/users", tags=["users"])
 api_router.include_router(playlists_router, prefix="/api/playlists", tags=["playlists"])
@@ -30,4 +32,3 @@ api_router.include_router(
 api_router.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
 api_router.include_router(fangpi_router, prefix="/api/fangpi", tags=["fangpi"])
 api_router.include_router(dj_control_router, prefix="/api/dj", tags=["dj-control"])
-

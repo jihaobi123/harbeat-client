@@ -24,6 +24,19 @@ from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
+
+def apply_stem_analysis(song) -> None:
+    """Persist planner-ready analysis for already separated stem files."""
+    from app.modules.library.stem_analysis import analyze_stem_files
+
+    result = analyze_stem_files(song.stems, original_path=song.source_path)
+    song.stem_activity = result["stem_activity"]
+    song.stem_activity_windows = result["stem_activity_windows"]
+    song.stem_quality_score = result["stem_quality_score"]
+    song.intro_is_clean = result["intro_is_clean"]
+    song.outro_is_clean = result["outro_is_clean"]
+    song.has_drum_loop = result["has_drum_loop"]
+
 # ── Redis lock: cross-process mutex for analysis pipeline ─────────────────
 
 ANALYSIS_LOCK_KEY = "harbeat:analysis_lock"
@@ -242,6 +255,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
+                apply_stem_analysis(song)
                 song.analysis_stage = "stems_done"
                 db.commit()
                 logger.info("[bg-analysis] stems separated for %s", song_id)
@@ -354,7 +368,10 @@ def _do_analysis_and_separation(song_id: str) -> None:
 def copy_analysis_from(source: object, target: object) -> None:
     """Copy analysis results from an existing LibrarySong to a new one."""
     for field in ("bpm", "duration", "key", "camelot_key", "energy",
-                  "beat_points", "downbeats", "phrase_map", "key_confidence",
+                  "beat_points", "bpm_curve", "tempo_stability", "energy_curve",
+                  "transition_windows", "downbeats", "phrase_map", "key_confidence",
+                  "stem_activity", "stem_activity_windows", "stem_quality_score",
+                  "intro_is_clean", "outro_is_clean", "has_drum_loop",
                   "cue_points", "stems", "analysis_status"):
         val = getattr(source, field, None)
         if val is not None:

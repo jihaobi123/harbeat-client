@@ -207,6 +207,13 @@ def analyze_library_song_endpoint(
     song.camelot_key = result.get("camelot_key")
     song.energy = result.get("energy")
     song.beat_points = result.get("beat_points", [])
+    song.bpm_curve = result.get("bpm_curve", [])
+    song.tempo_stability = result.get("tempo_stability")
+    song.energy_curve = result.get("energy_curve", [])
+    song.transition_windows = result.get("transition_windows", [])
+    song.downbeats = result.get("downbeats", [])
+    song.phrase_map = result.get("phrase_map", [])
+    song.key_confidence = result.get("key_confidence")
     # Add IDs to cue points for frontend
     raw_cues = result.get("cue_points", [])
     song.cue_points = [
@@ -250,8 +257,10 @@ def separate_stems_endpoint(
     if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
         stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
         song.stems = stems
+        from app.modules.library.background_tasks import apply_stem_analysis
+        apply_stem_analysis(song)
         db.commit()
-        return APIResponse(data={"stems": stems})
+        return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
 
     # Run demucs
     python_exe = sys.executable
@@ -282,5 +291,7 @@ def separate_stems_endpoint(
 
     stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
     song.stems = stems
+    from app.modules.library.background_tasks import apply_stem_analysis
+    apply_stem_analysis(song)
     db.commit()
-    return APIResponse(data={"stems": stems})
+    return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
