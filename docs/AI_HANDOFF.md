@@ -6,15 +6,22 @@
 
 ## 1. 项目概述
 
-HarBeat 是一个面向无 DJ 场景（街舞 cypher、练习局、party）的轻量 DJ-like 控乐系统。三层架构：
+HarBeat 是一个面向无 DJ 场景（街舞 cypher、练习局、party）的轻量 DJ-like 控乐系统。完整产品、软硬件和部署规格以 [`docs/DEVELOPMENT_SPEC.md`](DEVELOPMENT_SPEC.md) 为准。
+
+目标架构：
 
 ```
-手机 App (Flutter) ──HTTP──> RK3588 edge-agent ──Unix socket──> audio-engine
+实体意图控制器 ──USB HID──> RK3588 input-daemon
+手机 App (Flutter) ──HTTP──> RK3588 edge-agent ──Unix socket──> audio-engine ──> 音响
      │                              │
-     └──HTTPS──> harbeat.com 后端    └── song_analysis.json cache
+     └──HTTPS──> 云端网关            └── 本地 cache
+                       ▲
+                       └── Jetson：歌曲分析、stems、manifest、MixPlan
 ```
 
-核心原则：**人做判断，系统做执行**。MC/组织者通过按钮表达意图（炸一点/稳一下/下一首），系统自动完成选歌、对齐、转场和兜底。
+核心原则：**人做判断，系统做执行**。MC / 组织者通过 App 或桌面控制器表达意图，系统自动完成选歌、对齐、转场和兜底。RK3588 是 P0 现场音频主机；手机直出只保留为无 RK 场景的降级模式。
+
+P0 控制器不是缩水 DJ 台。它只保留 `下一首`、`现场能量`、`延长`、`Talk`、`撤销`、`总音量` 六个控件，不暴露 EQ、gain、pitch、crossfader 或 stem mixer。
 
 ---
 
@@ -340,18 +347,26 @@ intro_is_clean, outro_is_clean, intro_clean_score, outro_clean_score, has_drum_l
 
 ## 8. 后端 API 端点
 
-### 8.1 现有端点
+### 8.1 RK 已有端点
 
 | 方法 | 路径 | 作用 | 位置 |
 |------|------|------|------|
-| GET | `/state` | RK 播放状态（含 current_section, current_energy, next_transition） | RK main.py |
-| POST | `/live/override` | 强制覆盖过渡参数 | `rk_deploy/live_api.py` |
-| POST | `/live/intent` | 意图式控制（11种 intent） | `rk_deploy/live_api.py` |
-| POST | `/play`, `/pause`, `/resume`, `/xfade`, `/trigger` | 基础播放控制 | RK main.py |
+| GET | `/health`, `/state`, `/api/edge/status` | RK 健康和真实播放状态，包含 `playback_tier` | RK `edge-agent/main.py` |
+| POST | `/load_plan`, `/play`, `/pause`, `/resume`, `/seek`, `/xfade`, `/prefetch`, `/trigger` | 计划同步和基础播放控制 | RK `edge-agent/main.py` |
+| POST | `/stem_solo`, `/eq` | 工程与高级入口，不进入普通 UI | RK `edge-agent/main.py` |
+| POST | `/transition/plan` | 批量歌曲转场规划 | RK `edge_agent/transition_api.py` |
+| WS | `:9001/ws` | `playback_state`、`device_info`、`key_event` | RK `edge_agent/ws_server.py` |
 
-### 8.2 C6 Session API（尚未部署）
+### 8.2 C6 意图 API（尚未部署）
 
-需要在 main.py 注册 session_router，端点设计在 `app/modules/session/` 中。
+Flutter 客户端已经预留 `/live/override` 和 `/live/intent` 调用，但 RK `edge-agent` 还没有注册对应 router。下一步需要把 `app/modules/session/` 的 Coordinator 接入 RK，并新增：
+
+| 方法 | 路径 | 作用 |
+|------|------|------|
+| POST | `/live/intent` | `next`、`energy_up/down`、`hold`、`talk`、`undo` |
+| GET | `/live/session` | 返回状态机、候选、待执行动作 |
+| POST | `/live/session/start` `/live/session/stop` | 创建和结束现场 session |
+| POST | `/controller/event` | 接收控制器语义事件 |
 
 ---
 
@@ -394,18 +409,19 @@ intro_is_clean, outro_is_clean, intro_clean_score, outro_clean_score, has_drum_l
 
 ### P0 — 核心体验
 - [ ] **C4 真机验收**：RK3588 audio-engine 已有本地实时 MVP，需部署后完成四首连续试听、stems FX 和降级路线验收
-- [ ] **C6 Session API**：将 session coordinator 注册为 FastAPI router
+- [ ] **C6 Session API**：将 session coordinator 注册为 RK `edge-agent` router，接收 App 和控制器意图
 - [ ] **C3 接入真实曲库**：CandidateSelector 目前用 dict registry，需接 DB query
+- [ ] **控制器样机协议**：先做 USB HID 桌面小控台，六控件发送语义事件，不发送 DJ 参数
 
 ### P1 — 完善
 - [ ] 场景歌单自动生成（30-60min playlist）
 - [ ] Time-stretch 分级策略（0-3/3-6/6-12/12+%）
 - [ ] Loop/延长 实时控制
 - [ ] Ducking/Talkover
+- [ ] 控制器 BLE、灯光、震动和断连恢复
 
 ### P2 — 增强
 - [ ] 街舞标签体系 + 人工审核后台
-- [ ] 硬件按钮协议
 - [ ] 反馈学习闭环
 - [ ] 实时 stem 分离
 - [ ] ML 个性化推荐
@@ -421,6 +437,7 @@ intro_is_clean, outro_is_clean, intro_clean_score, outro_clean_score, has_drum_l
 5. **所有新分析函数返回 JSON-serializable** 的 Python 原生类型（float 不 numpy）
 6. **每个 preset 必须有 non-stem fallback** — stems 是增强不是前置条件
 7. **Git 仓库**：`github.com/jihaobi123/harbeat-client`，分支 `codex/dev-flutter-native-mobile`
+8. **控制器只发送语义意图** — 不在普通硬件表面增加 EQ、gain、pitch、crossfader 或 stem mixer
 
 ---
 
