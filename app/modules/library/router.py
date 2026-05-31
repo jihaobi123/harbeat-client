@@ -217,18 +217,28 @@ def analyze_library_song_endpoint(
     song.beat_needs_review = int(result.get("beat_needs_review", False))
     song.energy_curve = result.get("energy_curve", [])
     song.loudness_profile = result.get("loudness_profile", {})
+    song.time_signature = result.get("time_signature", {})
+    groove = result.get("groove", {})
+    song.groove_score = groove.get("score") if groove else None
+    song.groove_profile = groove if groove else {}
+    song.danceability_score = result.get("danceability_score")
+    song.dancefloor_profile = result.get("dancefloor_profile", {})
+    song.dj_hot_cues = result.get("dj_hot_cues", [])
     song.transition_windows = result.get("transition_windows", [])
+    song.transition_recommendations = result.get("transition_recommendations", [])
     song.downbeats = result.get("downbeats", [])
     song.phrase_map = result.get("phrase_map", [])
     song.key_confidence = result.get("key_confidence")
+    song.key_profile = result.get("key_profile", {})
     # Add IDs to cue points for frontend
     raw_cues = result.get("cue_points", [])
     song.cue_points = [
         {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
         for i, c in enumerate(raw_cues)
     ]
-    from app.modules.library.background_tasks import apply_dj_fingerprint
+    from app.modules.library.background_tasks import _apply_genre_classification, apply_dj_fingerprint
     apply_dj_fingerprint(db, song)
+    _apply_genre_classification(db, song)
     song.analysis_status = "completed"
     db.commit()
     db.refresh(song)

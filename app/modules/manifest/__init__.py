@@ -84,7 +84,12 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "stem_quality_score": getattr(song, "stem_quality_score", None),
         "intro_is_clean": bool(getattr(song, "intro_is_clean", False)),
         "outro_is_clean": bool(getattr(song, "outro_is_clean", False)),
+        "intro_clean_score": getattr(song, "intro_clean_score", None),
+        "outro_clean_score": getattr(song, "outro_clean_score", None),
         "clipping_risk": bool((getattr(song, "loudness_profile", {}) or {}).get("clipping_risk", False)),
+        "time_signature_confidence": (getattr(song, "time_signature", {}) or {}).get("confidence"),
+        "groove_score": getattr(song, "groove_score", None),
+        "danceability_score": getattr(song, "danceability_score", None),
     }
 
     # Analysis data
@@ -95,6 +100,10 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["key"] = song.key
     if song.camelot_key:
         analysis["camelot_key"] = song.camelot_key
+    if getattr(song, "key_confidence", None) is not None:
+        analysis["key_confidence"] = song.key_confidence
+    if getattr(song, "key_profile", None):
+        analysis["key_profile"] = song.key_profile
     if song.energy is not None:
         analysis["energy"] = song.energy
     if song.beat_points:
@@ -118,16 +127,38 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["energy_curve"] = song.energy_curve
     if getattr(song, "loudness_profile", None):
         analysis["loudness_profile"] = song.loudness_profile
+    if getattr(song, "time_signature", None):
+        analysis["time_signature"] = song.time_signature
+    if getattr(song, "groove_score", None) is not None:
+        analysis["groove_score"] = song.groove_score
+        analysis["groove_profile"] = getattr(song, "groove_profile", {})
+    if getattr(song, "danceability_score", None) is not None:
+        analysis["danceability_score"] = song.danceability_score
+        analysis["dancefloor_profile"] = getattr(song, "dancefloor_profile", {})
+    if getattr(song, "dj_hot_cues", None):
+        analysis["dj_hot_cues"] = song.dj_hot_cues
+    if getattr(song, "vocal_events", None):
+        analysis["vocal_events"] = song.vocal_events
+    if getattr(song, "bass_risk_windows", None):
+        analysis["bass_risk_windows"] = song.bass_risk_windows
     if getattr(song, "transition_windows", None):
         analysis["transition_windows"] = song.transition_windows
+    if getattr(song, "transition_recommendations", None):
+        analysis["transition_recommendations"] = song.transition_recommendations
     if getattr(song, "stem_activity", None):
         analysis["stem_activity"] = song.stem_activity
     if getattr(song, "stem_activity_windows", None):
         analysis["stem_activity_windows"] = song.stem_activity_windows
     if getattr(song, "stem_quality_score", None) is not None:
         analysis["stem_quality_score"] = song.stem_quality_score
+    if getattr(song, "stem_quality_profile", None):
+        analysis["stem_quality_profile"] = song.stem_quality_profile
     analysis["intro_is_clean"] = bool(getattr(song, "intro_is_clean", False))
     analysis["outro_is_clean"] = bool(getattr(song, "outro_is_clean", False))
+    if getattr(song, "intro_clean_score", None) is not None:
+        analysis["intro_clean_score"] = song.intro_clean_score
+    if getattr(song, "outro_clean_score", None) is not None:
+        analysis["outro_clean_score"] = song.outro_clean_score
     analysis["has_drum_loop"] = bool(getattr(song, "has_drum_loop", False))
     if getattr(song, "music_features", None):
         analysis["music_features"] = song.music_features
@@ -135,6 +166,10 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["dance_styles"] = song.dance_styles
     if getattr(song, "dance_style_scores", None):
         analysis["dance_style_scores"] = song.dance_style_scores
+    if getattr(song, "genre_profile", None):
+        analysis["genre_profile"] = song.genre_profile
+        quality_flags["primary_genre"] = song.genre_profile.get("primary_genre")
+        quality_flags["genre_confidence"] = song.genre_profile.get("primary_confidence")
     if song.downbeats:
         analysis["downbeats"] = song.downbeats
     if song.phrase_map:

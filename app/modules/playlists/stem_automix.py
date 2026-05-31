@@ -28,16 +28,35 @@ class TransitionMode(str, Enum):
 
 
 class TransitionPreset(str, Enum):
-    bass_swap = "bass_swap"
-    vocal_handoff = "vocal_handoff"
-    drum_bridge = "drum_bridge"
-    acapella_overlay = "acapella_overlay"
-    instrumental_under_vocal = "instrumental_under_vocal"
-    breakdown_drop = "breakdown_drop"
-    loop_bridge = "loop_bridge"
-    echo_freeze = "echo_freeze"
-    hard_cut = "hard_cut"
-    fallback_crossfade = "fallback_crossfade"
+    # ── djay Basic ──
+    fade = "fade"                         # → Fade (simple A↓ B↑)
+    filter_sweep = "filter_sweep"         # → Filter (HPF/LPF sweep)
+    eq_bass_swap = "eq_bass_swap"         # → EQ (bass swap focus)
+    echo_freeze = "echo_freeze"           # → Echo (echo-out A, B enters)
+    # ── djay Creative ──
+    dissolve = "dissolve"                 # → Dissolve (granular/gating fragments)
+    melt = "melt"                         # → Melt (Spotify: ultra-smooth blend + reverb)
+    wave = "wave"                         # → Wave (Spotify: rhythmic LFO filter pulse)
+    tremolo = "tremolo"                   # → Tremolo (volume modulation)
+    lunar_echo = "lunar_echo"             # → Lunar Echo (spatial echo + reverb)
+    riser = "riser"                       # → Riser (build-up → drop)
+    sweep = "sweep"                       # → Sweep (filter/noise sweep)
+    hydrant = "hydrant"                   # → Hydrant (combo: echo+reverb+flanger)
+    # ── djay Neural Mix (stem-aware) ──→
+    neural_fade = "neural_fade"           # → Neural Mix Fade (per-stem fade)
+    neural_echo_out = "neural_echo_out"   # → Neural Mix Echo Out (stem-specific)
+    harmonic_sustain = "harmonic_sustain" # → Harmonic Sustain (hold A harmony)
+    # ── Structural ──
+    hard_cut = "hard_cut"                 # → direct cut
+    breakdown_drop = "breakdown_drop"     # → structural break entry
+    loop_bridge = "loop_bridge"           # → loop-based bridge
+    # ── Legacy (kept as aliases) ──
+    bass_swap = "bass_swap"               # → alias: eq_bass_swap
+    vocal_handoff = "vocal_handoff"       # → alias: neural_fade
+    drum_bridge = "drum_bridge"           # → part of neural_fade
+    acapella_overlay = "acapella_overlay" # → part of harmonic_sustain
+    instrumental_under_vocal = "instrumental_under_vocal"  # → part of harmonic_sustain
+    fallback_crossfade = "fallback_crossfade"  # → alias: fade
 
 
 class TempoStrategy(str, Enum):
@@ -731,25 +750,11 @@ def _fallback_crossfade_curves(duration_bars: int, bpm_from: float, bpm_to: floa
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Maps each preset to (stem_aware_curves_fn, fallback_curves_fn, stem_required_bool)
-PRESET_REGISTRY: dict[
-    TransitionPreset,
-    tuple[
-        callable,  # stem-aware curves fn(duration_bars, bpm_from, bpm_to)
-        callable,  # fallback curves fn(duration_bars, bpm_from, bpm_to)
-        bool,      # True = requires stems for stem-aware mode
-    ],
-] = {
-    TransitionPreset.bass_swap:              (_bass_swap_curves,              _bass_swap_fallback,              True),
-    TransitionPreset.vocal_handoff:          (_vocal_handoff_curves,          _vocal_handoff_fallback,          True),
-    TransitionPreset.drum_bridge:            (_drum_bridge_curves,            _drum_bridge_fallback,            True),
-    TransitionPreset.acapella_overlay:       (_acapella_overlay_curves,       _acapella_overlay_fallback,       True),
-    TransitionPreset.instrumental_under_vocal: (_instrumental_under_vocal_curves, _instrumental_under_vocal_fallback, True),
-    TransitionPreset.breakdown_drop:         (_breakdown_drop_curves,         _breakdown_drop_fallback,         True),
-    TransitionPreset.loop_bridge:            (_loop_bridge_curves,            _loop_bridge_fallback,            True),
-    TransitionPreset.echo_freeze:            (_echo_freeze_curves,            _echo_freeze_fallback,            True),
-    TransitionPreset.hard_cut:               (_hard_cut_curves,               _hard_cut_fallback,               True),
-    TransitionPreset.fallback_crossfade:     (_fallback_crossfade_curves,     _fallback_crossfade_curves,       False),
-}
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5c. UPDATED Preset Registry — all 18+ presets (new + legacy aliases)
+# PRESET_REGISTRY moved to end of file (after all curve function definitions)
+# See section 7 at the bottom.
+
 def _compute_vocal_handoff_timing(
     from_ctx: TrackContext,
     to_ctx: TrackContext,
@@ -874,7 +879,628 @@ def _non_stem_curves(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 6. Scoring System
+# 5b. NEW PRESETS — djay-aligned transition library
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Fade (djay: Fade) ────────────────────────────────────────────────────────
+
+def _fade_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Simple A↓ B↑ crossfade — djay Fade equivalent."""
+    return [
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.7), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.5, 0.5), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.35, 0.55), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.A_other, CurveParam.gain,
+                        [(0.0, 1.0), (0.45, 0.6), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.4), (0.7, 0.85), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.25, 0.35), (0.6, 0.9), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.35, 0.3), (0.7, 0.85), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_other, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.45), (0.65, 0.9), (1.0, 1.0)], CurveShape.equal_power),
+    ]
+
+
+def _fade_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem fade: master crossfade."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.35, 0.65), (0.7, 0.25), (1.0, 0.0)], CurveShape.equal_power),
+    ]
+
+
+# ── Filter Sweep (djay: Filter) ──────────────────────────────────────────────
+
+def _filter_sweep_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """HPF sweep on A → LPF release on B — classic DJ filter transition."""
+    return [
+        # A: gradually high-pass out (lose bass → lose mids → gone)
+        AutomationCurve(CurveTarget.A_drums, CurveParam.highpass,
+                        [(0.0, 25.0), (0.3, 80.0), (0.55, 300.0), (0.8, 2000.0), (1.0, 8000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.highpass,
+                        [(0.0, 25.0), (0.25, 100.0), (0.5, 400.0), (1.0, 2000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.highpass,
+                        [(0.0, 80.0), (0.5, 250.0), (0.75, 1000.0), (1.0, 4000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.A_other, CurveParam.highpass,
+                        [(0.0, 40.0), (0.4, 200.0), (0.7, 1500.0), (1.0, 6000.0)],
+                        CurveShape.exponential),
+        # B: enter with lowpass opening up (bass first → full spectrum)
+        AutomationCurve(CurveTarget.B_drums, CurveParam.lowpass,
+                        [(0.0, 120.0), (0.3, 250.0), (0.6, 2000.0), (0.85, 12000.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.lowpass,
+                        [(0.0, 90.0), (0.2, 180.0), (0.5, 800.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.lowpass,
+                        [(0.0, 200.0), (0.4, 600.0), (0.7, 4000.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.B_other, CurveParam.lowpass,
+                        [(0.0, 150.0), (0.35, 500.0), (0.65, 3000.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        # Gain curves
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.6, 0.55), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.2, 0.5), (0.5, 0.95), (1.0, 1.0)], CurveShape.equal_power),
+    ]
+
+
+def _filter_sweep_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem filter: master HPF sweep → B enters."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.highpass,
+                        [(0.0, 30.0), (0.3, 100.0), (0.6, 600.0), (1.0, 4000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.5, 0.55), (1.0, 0.0)], CurveShape.s_curve),
+    ]
+
+
+# ── Dissolve (djay: Dissolve) ────────────────────────────────────────────────
+# Simulates granular/gating fragmentation via rapid gain tremolo + reverb wash.
+
+def _dissolve_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """A fragments into sparse slices; B fades in. Uses rapid gain + reverb."""
+    beat_sec = 60.0 / max(bpm_from, 1.0)
+    return [
+        # A: rapid tremolo-like gating (simulated via stepped gain points)
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.15, 0.8), (0.16, 0.2), (0.3, 0.6), (0.31, 0.1),
+                         (0.45, 0.4), (0.46, 0.05), (0.55, 0.2), (0.56, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.2, 0.7), (0.21, 0.15), (0.35, 0.5), (0.36, 0.1),
+                         (0.5, 0.25), (0.51, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.25, 0.05), (1.0, 0.0)], CurveShape.s_curve),
+        # Wash with reverb
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.2, 0.3), (0.5, 0.65), (0.7, 0.3), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B enters smoothly
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.4, 0.3), (0.65, 0.8), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.5, 0.25), (0.75, 0.8), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.55, 0.3), (0.8, 0.9), (1.0, 1.0)], CurveShape.s_curve),
+    ]
+
+
+def _dissolve_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem dissolve: fast tremolo fade + reverb on master."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.15, 0.7), (0.16, 0.15), (0.3, 0.5), (0.31, 0.1),
+                         (0.45, 0.3), (0.46, 0.05), (0.55, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        AutomationCurve(CurveTarget.master, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.25, 0.4), (0.55, 0.55), (0.75, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Melt (Spotify: ultra-smooth blend) ──────────────────────────────────────
+# Extremely gradual 16-24 bar transition where A "melts" into reverb while
+# B enters almost imperceptibly. Designed for same-genre, close-BPM tracks.
+
+def _melt_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Ultra-smooth melt: A slowly dissolves into reverb, B fades in underneath."""
+    return [
+        # A: very slow gain decay with reverb wash
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 0.95), (0.5, 0.8), (0.7, 0.45), (0.85, 0.15), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.25, 0.95), (0.5, 0.75), (0.75, 0.35), (0.9, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.35, 0.85), (0.6, 0.4), (0.8, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_other, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.9), (0.65, 0.55), (0.85, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # Reverb: slowly build then fade — the "melt" effect
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.15, 0.15), (0.4, 0.45), (0.6, 0.55), (0.8, 0.35), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.2, 0.2), (0.45, 0.5), (0.65, 0.5), (0.85, 0.25), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B: enters very gradually, almost imperceptibly
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.2, 0.1), (0.4, 0.35), (0.6, 0.65), (0.8, 0.9), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.05), (0.5, 0.3), (0.7, 0.6), (0.85, 0.85), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.25, 0.08), (0.45, 0.35), (0.65, 0.7), (0.85, 0.95), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_other, CurveParam.gain,
+                        [(0.0, 0.0), (0.2, 0.12), (0.45, 0.4), (0.7, 0.75), (0.9, 0.95), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _melt_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem melt: ultra-slow master crossfade with heavy reverb wash."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 0.9), (0.55, 0.65), (0.8, 0.25), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.15, 0.25), (0.4, 0.5), (0.65, 0.5), (0.85, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Wave (Spotify: rhythmic flowing transition) ──────────────────────────────
+# LFO-like filter modulation synced to beat, creating a "breathing" pulse
+# during the transition. Feels like the energy is surging rhythmically.
+
+def _wave_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Wave: rhythmic LFO-modulated filter sweep with volume pulses."""
+    beat_sec = 60.0 / max(bpm_from, 1.0)
+    # Create 8 rhythmic pulses over the transition (synced to 2-bar intervals)
+    return [
+        # A: lowpass filter pulses — rhythmic "breathing out"
+        AutomationCurve(CurveTarget.A_drums, CurveParam.lowpass,
+                        [(0.0, 18000.0),
+                         (0.08, 3000.0), (0.12, 12000.0),  # pulse 1
+                         (0.2, 2000.0), (0.24, 9000.0),     # pulse 2
+                         (0.32, 1500.0), (0.36, 6000.0),    # pulse 3
+                         (0.44, 800.0), (0.48, 3500.0),     # pulse 4
+                         (0.56, 400.0), (0.6, 2000.0),      # pulse 5
+                         (0.68, 200.0), (0.72, 1000.0),     # pulse 6
+                         (0.8, 100.0), (0.84, 500.0),       # pulse 7
+                         (0.9, 50.0), (1.0, 50.0)],         # final close
+                        CurveShape.exponential),
+        # A: volume pulses synced with filter
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0),
+                         (0.08, 0.75), (0.12, 0.95),
+                         (0.2, 0.6), (0.24, 0.85),
+                         (0.32, 0.45), (0.36, 0.7),
+                         (0.44, 0.3), (0.48, 0.55),
+                         (0.56, 0.15), (0.6, 0.35),
+                         (0.68, 0.05), (0.72, 0.2),
+                         (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        # A vocals: more aggressive pulsing out
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0),
+                         (0.1, 0.6), (0.14, 0.85),
+                         (0.24, 0.35), (0.28, 0.6),
+                         (0.38, 0.15), (0.42, 0.35),
+                         (0.52, 0.05), (0.56, 0.15),
+                         (0.65, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        # B: inverse filter pulse — "breathing in"
+        AutomationCurve(CurveTarget.B_drums, CurveParam.highpass,
+                        [(0.0, 8000.0),
+                         (0.08, 5000.0), (0.12, 800.0),
+                         (0.2, 4000.0), (0.24, 400.0),
+                         (0.32, 2500.0), (0.36, 200.0),
+                         (0.44, 1500.0), (0.48, 100.0),
+                         (0.56, 800.0), (0.6, 50.0),
+                         (0.68, 300.0), (0.72, 30.0),
+                         (0.8, 100.0), (0.9, 25.0), (1.0, 25.0)],
+                        CurveShape.exponential),
+        # B: volume pulses in
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0),
+                         (0.08, 0.15), (0.12, 0.35),
+                         (0.2, 0.25), (0.24, 0.5),
+                         (0.32, 0.35), (0.36, 0.6),
+                         (0.44, 0.5), (0.48, 0.75),
+                         (0.56, 0.65), (0.6, 0.85),
+                         (0.68, 0.8), (0.72, 0.95),
+                         (0.8, 0.9), (0.9, 1.0), (1.0, 1.0)],
+                        CurveShape.linear),
+        # B bass: smooth entry under the wave pulses
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.0), (0.45, 0.3), (0.6, 0.55), (0.8, 0.85), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _wave_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem wave: master-level rhythmic filter pulses + volume modulation."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.lowpass,
+                        [(0.0, 18000.0),
+                         (0.08, 3000.0), (0.12, 10000.0),
+                         (0.2, 2000.0), (0.24, 7000.0),
+                         (0.32, 1200.0), (0.36, 4500.0),
+                         (0.44, 600.0), (0.48, 2500.0),
+                         (0.56, 250.0), (0.6, 1200.0),
+                         (0.68, 100.0), (0.72, 500.0),
+                         (0.8, 50.0), (1.0, 50.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0),
+                         (0.08, 0.75), (0.12, 0.9),
+                         (0.2, 0.55), (0.24, 0.8),
+                         (0.32, 0.35), (0.36, 0.6),
+                         (0.44, 0.2), (0.48, 0.45),
+                         (0.56, 0.08), (0.6, 0.25),
+                         (0.68, 0.02), (0.72, 0.12),
+                         (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+    ]
+
+
+# ── Tremolo (djay: Tremolo) ──────────────────────────────────────────────────
+
+def _tremolo_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Periodic volume modulation on A's outgoing stems."""
+    beat_sec = 60.0 / max(bpm_from, 1.0)
+    return [
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.1, 0.7), (0.11, 0.95), (0.2, 0.55), (0.21, 0.85),
+                         (0.3, 0.35), (0.31, 0.7), (0.4, 0.15), (0.41, 0.5),
+                         (0.5, 0.05), (0.51, 0.25), (0.6, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.12, 0.6), (0.13, 0.9), (0.25, 0.4), (0.26, 0.75),
+                         (0.38, 0.2), (0.39, 0.55), (0.5, 0.05), (0.51, 0.25), (0.6, 0.0), (1.0, 0.0)],
+                        CurveShape.linear),
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.15), (0.55, 0.6), (0.8, 1.0), (1.0, 1.0)],
+                        CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.4, 0.2), (0.65, 0.7), (0.85, 1.0), (1.0, 1.0)],
+                        CurveShape.equal_power),
+    ]
+
+
+def _tremolo_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem tremolo: periodic master gain modulation."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.1, 0.65), (0.11, 0.9), (0.2, 0.45), (0.21, 0.75),
+                         (0.3, 0.25), (0.31, 0.55), (0.4, 0.1), (0.41, 0.35),
+                         (0.5, 0.0), (1.0, 0.0)], CurveShape.linear),
+    ]
+
+
+# ── Lunar Echo (djay: Lunar Echo) ────────────────────────────────────────────
+
+def _lunar_echo_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Spatial echo with long reverb tail — djay Lunar Echo."""
+    return [
+        # A: long echo send with spatial character
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.1, 0.0), (0.15, 0.45), (0.4, 0.65), (0.6, 0.45), (0.85, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.2, 0.35), (0.45, 0.5), (0.65, 0.3), (0.85, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # Reverb for spatial depth
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.1, 0.25), (0.35, 0.55), (0.6, 0.4), (0.8, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # A gain fades after echo peak
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.2, 0.85), (0.35, 0.45), (0.55, 0.1), (0.7, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.25, 0.7), (0.4, 0.3), (0.6, 0.0), (1.0, 0.0)],
+                        CurveShape.equal_power),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.15, 0.5), (0.3, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B enters under the echo tail
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.15), (0.5, 0.6), (0.75, 0.95), (1.0, 1.0)],
+                        CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.45, 0.15), (0.65, 0.55), (0.85, 0.95), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _lunar_echo_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem lunar echo: echo + reverb on master → B crossfade."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.12, 0.4), (0.35, 0.6), (0.55, 0.4), (0.8, 0.15), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.15, 0.35), (0.4, 0.5), (0.65, 0.3), (0.85, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 0.85), (0.5, 0.35), (0.7, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Riser (djay: Riser) ──────────────────────────────────────────────────────
+
+def _riser_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Energy build-up: A pitch/energy rises → B drop."""
+    return [
+        # A: rising highpass (frequency sweep up → tension build)
+        AutomationCurve(CurveTarget.A_drums, CurveParam.highpass,
+                        [(0.0, 30.0), (0.3, 100.0), (0.6, 400.0), (0.85, 2000.0), (1.0, 8000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.A_bass, CurveParam.highpass,
+                        [(0.0, 25.0), (0.35, 150.0), (0.7, 600.0), (1.0, 3000.0)],
+                        CurveShape.exponential),
+        # A: gain pushed up slightly then cut
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 1.15), (0.7, 1.1), (0.85, 0.5), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # A: reverb swell for tension
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.3, 0.2), (0.6, 0.5), (0.8, 0.7), (0.9, 0.4), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B: full impact entry at the drop point
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.8, 0.0), (0.85, 0.7), (0.95, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.8, 0.0), (0.85, 0.6), (0.95, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.82, 0.0), (0.88, 0.5), (0.95, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _riser_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem riser: HPF sweep on master → hard cut → B enter."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.highpass,
+                        [(0.0, 30.0), (0.25, 120.0), (0.55, 500.0), (0.8, 3000.0), (1.0, 10000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.7, 1.1), (0.85, 0.4), (1.0, 0.0)], CurveShape.s_curve),
+    ]
+
+
+# ── Sweep (djay: Sweep) ──────────────────────────────────────────────────────
+
+def _sweep_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Sweeping filter across full spectrum — A pushed out, B pulled in."""
+    return [
+        # A: sweeping band-reject → full kill
+        AutomationCurve(CurveTarget.A_drums, CurveParam.lowpass,
+                        [(0.0, 18000.0), (0.2, 8000.0), (0.5, 1500.0), (0.7, 200.0), (1.0, 50.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.lowpass,
+                        [(0.0, 18000.0), (0.15, 10000.0), (0.4, 2500.0), (0.65, 500.0), (1.0, 80.0)],
+                        CurveShape.exponential),
+        # B: sweeping lowpass opening
+        AutomationCurve(CurveTarget.B_drums, CurveParam.lowpass,
+                        [(0.0, 80.0), (0.3, 300.0), (0.55, 2500.0), (0.8, 12000.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.lowpass,
+                        [(0.0, 100.0), (0.25, 400.0), (0.5, 3000.0), (0.75, 10000.0), (1.0, 18000.0)],
+                        CurveShape.exponential),
+        # Gain crossfade synced with sweep
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.7), (0.7, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.3), (0.6, 0.85), (1.0, 1.0)], CurveShape.s_curve),
+    ]
+
+
+def _sweep_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem sweep: master lowpass sweep → crossfade."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.lowpass,
+                        [(0.0, 18000.0), (0.25, 5000.0), (0.55, 800.0), (0.75, 120.0), (1.0, 40.0)],
+                        CurveShape.exponential),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.5, 0.55), (1.0, 0.0)], CurveShape.s_curve),
+    ]
+
+
+# ── Hydrant (djay: Hydrant) ──────────────────────────────────────────────────
+
+def _hydrant_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Combo macro: echo + reverb + flanger wash → dramatic landing → B takeover."""
+    return [
+        # A: echo swell
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.1, 0.3), (0.3, 0.6), (0.5, 0.75), (0.65, 0.45), (0.8, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.15, 0.25), (0.35, 0.5), (0.55, 0.6), (0.7, 0.35), (0.85, 0.15), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # A: reverb wash
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.1, 0.35), (0.3, 0.6), (0.5, 0.7), (0.7, 0.45), (0.85, 0.2), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # A: highpass sweep out
+        AutomationCurve(CurveTarget.A_bass, CurveParam.highpass,
+                        [(0.0, 25.0), (0.2, 80.0), (0.45, 250.0), (0.7, 800.0), (1.0, 3000.0)],
+                        CurveShape.exponential),
+        # A gain: pushed then dropped
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 1.1), (0.5, 1.0), (0.65, 0.5), (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.2, 1.05), (0.4, 0.85), (0.6, 0.3), (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B: dramatic entry
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.75, 0.0), (0.82, 0.7), (0.92, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.75, 0.0), (0.85, 0.8), (0.95, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _hydrant_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem hydrant: echo + reverb on master → hard cut → B enter."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.1, 0.4), (0.3, 0.65), (0.5, 0.7), (0.7, 0.35), (0.85, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.15, 0.45), (0.35, 0.6), (0.55, 0.55), (0.75, 0.25), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 1.1), (0.6, 0.65), (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Neural Mix Fade (djay: Neural Mix Fade) ──────────────────────────────────
+
+def _neural_fade_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Per-stem staggered fade: avoid vocal+low overlap. djay Neural Mix Fade."""
+    return [
+        # Phase 1 (0-30%): A bass out, B drums in (rhythm anchor)
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.2, 0.3), (0.35, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.05, 0.25), (0.25, 0.7), (0.5, 1.0), (1.0, 1.0)], CurveShape.equal_power),
+        # Phase 2 (25-55%): A vocals out, B bass in
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 0.7), (0.5, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.35, 0.0), (0.45, 0.5), (0.65, 1.0), (1.0, 1.0)], CurveShape.s_curve),
+        # Phase 3 (45-100%): A drums out, B vocals + other in
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.5, 0.6), (0.75, 0.0), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.55, 0.0), (0.65, 0.4), (0.85, 1.0), (1.0, 1.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_other, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.5), (0.7, 0.0), (1.0, 0.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_other, CurveParam.gain,
+                        [(0.0, 0.0), (0.3, 0.2), (0.6, 0.7), (0.85, 1.0), (1.0, 1.0)], CurveShape.equal_power),
+    ]
+
+
+def _neural_fade_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem neural fade: extended crossfade with EQ mid-low swap."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.7), (0.7, 0.25), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.low_eq,
+                        [(0.0, 0.0), (0.2, -3.0), (0.45, -6.0), (0.65, -3.0), (0.85, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Neural Mix Echo Out (djay: Neural Mix Echo Out) ──────────────────────────
+
+def _neural_echo_out_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Stem-specific echo out: vocals/melody echo, rhythm stays → then exits."""
+    return [
+        # Vocals: echo out (the main effect)
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.15, 0.3), (0.35, 0.6), (0.55, 0.5), (0.75, 0.25), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.2, 0.65), (0.4, 0.15), (0.55, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # Other (harmony/melody): lighter echo
+        AutomationCurve(CurveTarget.A_other, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.2, 0.25), (0.4, 0.4), (0.6, 0.3), (0.8, 0.1), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # Drums: hold rhythm longer, then exit
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.9), (0.6, 0.4), (0.8, 0.0), (1.0, 0.0)],
+                        CurveShape.equal_power),
+        # Bass: quick exit to make room
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.15, 0.5), (0.35, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+        # B: drums anchor early, vocals enter after A vocal echo fades
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.2, 0.35), (0.45, 0.8), (0.7, 1.0), (1.0, 1.0)], CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.5, 0.0), (0.6, 0.3), (0.8, 0.85), (1.0, 1.0)], CurveShape.s_curve),
+    ]
+
+
+def _neural_echo_out_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem neural echo: master echo out + fast crossfade."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.echo_send,
+                        [(0.0, 0.0), (0.15, 0.4), (0.35, 0.55), (0.55, 0.4), (0.75, 0.15), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.25, 0.65), (0.5, 0.15), (0.65, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+# ── Harmonic Sustain (djay: Harmonic Sustain / 和声持续) ─────────────────────
+
+def _harmonic_sustain_curves(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Hold A's harmony/melody while B's rhythm enters. djay Harmonic Sustain."""
+    return [
+        # A: keep other (harmony/pads) and vocals, drop bass + drums early
+        AutomationCurve(CurveTarget.A_bass, CurveParam.gain,
+                        [(0.0, 1.0), (0.15, 0.3), (0.3, 0.0), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_drums, CurveParam.gain,
+                        [(0.0, 1.0), (0.3, 0.6), (0.55, 0.0), (1.0, 0.0)], CurveShape.equal_power),
+        # A: harmony + vocals sustain with slight reverb
+        AutomationCurve(CurveTarget.A_other, CurveParam.gain,
+                        [(0.0, 1.0), (0.5, 0.7), (0.75, 0.2), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_other, CurveParam.reverb_send,
+                        [(0.0, 0.0), (0.3, 0.2), (0.55, 0.45), (0.75, 0.3), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.A_vocals, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.8), (0.65, 0.3), (0.85, 0.0), (1.0, 0.0)],
+                        CurveShape.s_curve),
+        # B: rhythm enters under the sustained harmony
+        AutomationCurve(CurveTarget.B_drums, CurveParam.gain,
+                        [(0.0, 0.0), (0.1, 0.4), (0.35, 0.85), (0.6, 1.0), (1.0, 1.0)],
+                        CurveShape.equal_power),
+        AutomationCurve(CurveTarget.B_bass, CurveParam.gain,
+                        [(0.0, 0.0), (0.25, 0.3), (0.5, 0.8), (0.75, 1.0), (1.0, 1.0)],
+                        CurveShape.s_curve),
+        AutomationCurve(CurveTarget.B_vocals, CurveParam.gain,
+                        [(0.0, 0.0), (0.55, 0.0), (0.7, 0.35), (0.9, 0.85), (1.0, 1.0)],
+                        CurveShape.s_curve),
+    ]
+
+
+def _harmonic_sustain_fallback(duration_bars: int, bpm_from: float, bpm_to: float) -> list[AutomationCurve]:
+    """Non-stem harmonic sustain: B enters under A with EQ shaping."""
+    return [
+        AutomationCurve(CurveTarget.master, CurveParam.gain,
+                        [(0.0, 1.0), (0.4, 0.8), (0.7, 0.35), (1.0, 0.0)], CurveShape.s_curve),
+        AutomationCurve(CurveTarget.master, CurveParam.highpass,
+                        [(0.0, 30.0), (0.35, 100.0), (0.65, 250.0), (1.0, 500.0)],
+                        CurveShape.exponential),
+    ]
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _camelot_distance(a: str | None, b: str | None) -> int:
@@ -1357,3 +1983,171 @@ def build_automix_transition(
         tempo_strategy=tempo_strategy,
         curves=curves,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 7. AUTO SELECTOR — djay "自动" mode
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def auto_select_preset(
+    from_ctx: TrackContext,
+    to_ctx: TrackContext,
+    *,
+    intent: str | None = None,
+) -> TransitionPreset:
+    """Automatically select the best transition preset for a track pair."""
+    has_stems_a = bool(from_ctx.stem_activity.get("vocals", 0) > 0 if from_ctx.stem_activity else False)
+    has_stems_b = bool(to_ctx.stem_activity.get("vocals", 0) > 0 if to_ctx.stem_activity else False)
+    stems_ok = has_stems_a and has_stems_b
+
+    bpm_a = from_ctx.bpm or 120.0
+    bpm_b = to_ctx.bpm or 120.0
+    ratio = max(bpm_a, bpm_b) / min(bpm_a, bpm_b)
+
+    key_dist = _camelot_distance(from_ctx.camelot_key, to_ctx.camelot_key)
+    e_diff = (to_ctx.energy or 0.5) - (from_ctx.energy or 0.5)
+
+    v_a = float(from_ctx.stem_activity.get("vocals", 0)) if from_ctx.stem_activity else 0
+    v_b = float(to_ctx.stem_activity.get("vocals", 0)) if to_ctx.stem_activity else 0
+    b_a = float(from_ctx.stem_activity.get("bass", 0)) if from_ctx.stem_activity else 0
+    b_b = float(to_ctx.stem_activity.get("bass", 0)) if to_ctx.stem_activity else 0
+
+    if ratio > 1.12:
+        return TransitionPreset.neural_echo_out if stems_ok else TransitionPreset.hydrant
+    if ratio > 1.06:
+        return TransitionPreset.lunar_echo if stems_ok else TransitionPreset.echo_freeze
+    if intent == "energy_up" and e_diff > 0.15 and bpm_b > 120:
+        return TransitionPreset.riser
+    if key_dist <= 1 and stems_ok and abs(e_diff) < 0.25:
+        return TransitionPreset.harmonic_sustain
+    if v_a > 0.5 and v_b > 0.5:
+        return TransitionPreset.neural_fade if stems_ok else TransitionPreset.echo_freeze
+    if b_a > 0.5 and b_b > 0.5:
+        return TransitionPreset.eq_bass_swap if stems_ok else TransitionPreset.filter_sweep
+    if e_diff > 0.3 and bpm_b > 125:
+        return TransitionPreset.riser
+    if (from_ctx.energy or 0.5) < 0.35 and (to_ctx.energy or 0.5) < 0.35:
+        return TransitionPreset.dissolve
+    return TransitionPreset.neural_fade if stems_ok else TransitionPreset.fade
+
+
+DJAY_MENU: dict[str, TransitionPreset | None] = {
+    "auto": None, "fade": TransitionPreset.fade, "filter": TransitionPreset.filter_sweep,
+    "eq": TransitionPreset.eq_bass_swap, "echo": TransitionPreset.echo_freeze,
+    "dissolve": TransitionPreset.dissolve, "melt": TransitionPreset.melt,
+    "wave": TransitionPreset.wave, "tremolo": TransitionPreset.tremolo,
+    "lunar_echo": TransitionPreset.lunar_echo, "riser": TransitionPreset.riser,
+    "sweep": TransitionPreset.sweep, "hydrant": TransitionPreset.hydrant,
+    "neural_fade": TransitionPreset.neural_fade,
+    "neural_echo_out": TransitionPreset.neural_echo_out,
+    "harmonic_sustain": TransitionPreset.harmonic_sustain,
+    "hard_cut": TransitionPreset.hard_cut,
+    "breakdown_drop": TransitionPreset.breakdown_drop,
+    "loop_bridge": TransitionPreset.loop_bridge,
+}
+
+PRESET_CATEGORIES = {
+    "basic": {"label_zh": "基础过渡", "keys": ["auto","fade","filter","eq","echo"]},
+    "creative": {"label_zh": "创意效果", "keys": ["dissolve","melt","wave","tremolo","lunar_echo","riser","sweep","hydrant"]},
+    "neural_mix": {"label_zh": "Neural Mix", "keys": ["neural_fade","neural_echo_out","harmonic_sustain"], "needs_stems": True},
+    "structural": {"label_zh": "结构型", "keys": ["hard_cut","breakdown_drop","loop_bridge"]},
+}
+
+PRESET_META = {
+    "auto": {"zh": "自动", "desc": "分析A、B后自动选择最佳效果和过渡点"},
+    "fade": {"zh": "淡入淡出", "desc": "A音量渐降B渐升，最自然"},
+    "filter": {"zh": "过滤器", "desc": "HPF/LPF扫频，经典DJ过渡感"},
+    "eq": {"zh": "EQ低频交换", "desc": "先退A bass再入B bass"},
+    "echo": {"zh": "回声淡出", "desc": "A加echo尾部，B快速进入"},
+    "dissolve": {"zh": "碎片消散", "desc": "A被切碎消散，B进入"},
+    "melt":     {"zh": "融合渐变", "desc": "极慢reverb融合，两首歌融化在一起"},
+    "wave":     {"zh": "波浪脉动", "desc": "LFO节奏型滤波脉冲，呼吸感过渡"},
+    "tremolo": {"zh": "颤音衰减", "desc": "A音量周期性起伏后切换到B"},
+    "lunar_echo": {"zh": "太空回声", "desc": "空间感echo+reverb，尾巴更长更飘"},
+    "riser": {"zh": "能量爬升", "desc": "逐步提升能量，类似drop前build-up"},
+    "sweep": {"zh": "频谱扫过", "desc": "扫频滤过频谱，推走A带出B"},
+    "hydrant": {"zh": "消防栓", "desc": "强组合：echo+reverb+flanger"},
+    "neural_fade": {"zh": "Neural淡入淡出", "desc": "分轨独立控制，避免人声和低频叠加"},
+    "neural_echo_out": {"zh": "Neural回声", "desc": "人声/旋律加echo退出"},
+    "harmonic_sustain": {"zh": "和声持续", "desc": "保留A旋律/和声，引入B节奏"},
+    "hard_cut": {"zh": "硬切", "desc": "直接切到B"},
+    "breakdown_drop": {"zh": "断点切入", "desc": "A breakdown时切入B drop"},
+    "loop_bridge": {"zh": "Loop桥接", "desc": "Loop A鼓组过渡到B"},
+}
+
+
+def select_transition(
+    from_ctx: TrackContext,
+    to_ctx: TrackContext,
+    *,
+    user_preset: str = "auto",
+    intent: str | None = None,
+) -> tuple[TransitionPreset, list[AutomationCurve], dict]:
+    """C6→C4 bridge: pick preset + generate automation curves."""
+    if user_preset and user_preset != "auto":
+        preset = DJAY_MENU.get(user_preset, TransitionPreset.fade)
+    else:
+        preset = auto_select_preset(from_ctx, to_ctx, intent=intent)
+
+    stem_fn, fallback_fn, stem_req = PRESET_REGISTRY[preset]
+    has_stems = bool(
+        from_ctx.stem_activity and to_ctx.stem_activity and
+        from_ctx.stem_activity.get("vocals", 0) > 0
+    )
+    mode = "stem_aware" if (stem_req and has_stems) else "non_stem"
+
+    bpm_f = from_ctx.bpm or 120.0
+    bpm_t = to_ctx.bpm or 120.0
+    ratio = max(bpm_f, bpm_t) / min(bpm_f, bpm_t)
+    if ratio > 1.12:   dur = 2
+    elif ratio > 1.06: dur = 4
+    elif preset in (TransitionPreset.riser, TransitionPreset.hydrant): dur = 16
+    elif preset in (TransitionPreset.lunar_echo, TransitionPreset.dissolve): dur = 12
+    else:               dur = 8
+
+    curves = stem_fn(dur, bpm_f, bpm_t) if mode == "stem_aware" else fallback_fn(dur, bpm_f, bpm_t)
+
+    meta = {
+        "mode": mode, "duration_bars": dur,
+        "tempo_strategy": "sync_to_from" if ratio < 1.06 else "none",
+        "stems_required": stem_req, "stems_available": has_stems,
+        "preset_meta": PRESET_META.get(preset.value, {}),
+    }
+    return preset, curves, meta
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PRESET_REGISTRY — all presets with stem + fallback curve functions
+# (Must be after ALL curve function definitions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+PRESET_REGISTRY: dict[
+    TransitionPreset,
+    tuple[callable, callable, bool],  # (stem_fn, fallback_fn, needs_stems)
+] = {
+    TransitionPreset.fade:                (_fade_curves,                _fade_fallback,                False),
+    TransitionPreset.filter_sweep:        (_filter_sweep_curves,        _filter_sweep_fallback,        False),
+    TransitionPreset.eq_bass_swap:        (_bass_swap_curves,           _bass_swap_fallback,           True),
+    TransitionPreset.echo_freeze:         (_echo_freeze_curves,         _echo_freeze_fallback,         True),
+    TransitionPreset.dissolve:            (_dissolve_curves,            _dissolve_fallback,            False),
+    TransitionPreset.melt:                (_melt_curves,                _melt_fallback,                False),
+    TransitionPreset.wave:                (_wave_curves,                _wave_fallback,                False),
+    TransitionPreset.tremolo:             (_tremolo_curves,             _tremolo_fallback,             False),
+    TransitionPreset.lunar_echo:          (_lunar_echo_curves,          _lunar_echo_fallback,          True),
+    TransitionPreset.riser:               (_riser_curves,               _riser_fallback,               False),
+    TransitionPreset.sweep:               (_sweep_curves,               _sweep_fallback,               False),
+    TransitionPreset.hydrant:             (_hydrant_curves,             _hydrant_fallback,             True),
+    TransitionPreset.neural_fade:         (_neural_fade_curves,         _neural_fade_fallback,         True),
+    TransitionPreset.neural_echo_out:     (_neural_echo_out_curves,     _neural_echo_out_fallback,     True),
+    TransitionPreset.harmonic_sustain:    (_harmonic_sustain_curves,    _harmonic_sustain_fallback,    True),
+    TransitionPreset.hard_cut:            (_hard_cut_curves,            _hard_cut_fallback,            True),
+    TransitionPreset.breakdown_drop:      (_breakdown_drop_curves,      _breakdown_drop_fallback,      True),
+    TransitionPreset.loop_bridge:         (_loop_bridge_curves,         _loop_bridge_fallback,         True),
+    # Legacy aliases
+    TransitionPreset.bass_swap:           (_bass_swap_curves,           _bass_swap_fallback,           True),
+    TransitionPreset.vocal_handoff:       (_vocal_handoff_curves,       _vocal_handoff_fallback,       True),
+    TransitionPreset.drum_bridge:         (_drum_bridge_curves,         _drum_bridge_fallback,         True),
+    TransitionPreset.acapella_overlay:    (_acapella_overlay_curves,    _acapella_overlay_fallback,    True),
+    TransitionPreset.instrumental_under_vocal: (_instrumental_under_vocal_curves, _instrumental_under_vocal_fallback, True),
+    TransitionPreset.fallback_crossfade:  (_fallback_crossfade_curves,  _fallback_crossfade_curves,    False),
+}

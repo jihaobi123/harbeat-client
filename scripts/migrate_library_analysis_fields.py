@@ -22,9 +22,15 @@ JSON_COLUMNS = {
     "beat_engines_used": "[]",
     "energy_curve": "[]",
     "loudness_profile": "{}",
+    "key_profile": "{}",
+    "genre_profile": "{}",
+    "dancefloor_profile": "{}",
+    "dj_hot_cues": "[]",
     "transition_windows": "[]",
+    "transition_recommendations": "[]",
     "stem_activity": "{}",
     "stem_activity_windows": "[]",
+    "stem_quality_profile": "{}",
     "music_features": "{}",
     "dance_styles": "[]",
     "dance_style_scores": "{}",
@@ -61,11 +67,36 @@ def migrate() -> None:
         statements.append(
             "ALTER TABLE library_songs ADD COLUMN stem_quality_score FLOAT"
         )
+    for column in ("intro_clean_score", "outro_clean_score"):
+        if column not in existing:
+            statements.append(
+                f"ALTER TABLE library_songs ADD COLUMN {column} FLOAT"
+            )
     for column in ("intro_is_clean", "outro_is_clean", "has_drum_loop"):
         if column not in existing:
             statements.append(
                 f"ALTER TABLE library_songs ADD COLUMN {column} INTEGER DEFAULT 0"
             )
+    # ── Extended analysis (v2) ──
+    EXTENDED_JSON_COLUMNS = {
+        "time_signature": "{}",
+        "groove_profile": "{}",
+        "vocal_events": "[]",
+        "bass_risk_windows": "[]",
+    }
+    for column, default in EXTENDED_JSON_COLUMNS.items():
+        if column not in existing:
+            statements.append(
+                f"ALTER TABLE library_songs ADD COLUMN {column} JSON DEFAULT '{default}'"
+            )
+    if "groove_score" not in existing:
+        statements.append(
+            "ALTER TABLE library_songs ADD COLUMN groove_score FLOAT"
+        )
+    if "danceability_score" not in existing:
+        statements.append(
+            "ALTER TABLE library_songs ADD COLUMN danceability_score FLOAT"
+        )
     if "dance_style_status" not in existing:
         statements.append(
             "ALTER TABLE library_songs ADD COLUMN dance_style_status VARCHAR(50) DEFAULT 'none'"

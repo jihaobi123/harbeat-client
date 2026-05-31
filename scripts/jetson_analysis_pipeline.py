@@ -21,13 +21,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.modules.library.analysis import (
     MAX_ANALYSIS_DURATION,
+    _analyze_key,
+    _analyze_dancefloor_profile,
+    _analyze_loudness,
     _attach_phrase_energy,
     _build_bpm_curve,
     _build_energy_curve,
     _build_transition_windows,
-    _analyze_loudness,
+    _compute_groove_score,
+    _detect_downbeats_with_meter,
+    _detect_time_signature,
+    _generate_dj_hot_cues,
+    _recommend_transition_techniques,
+    _score_section_intensity,
     _summarize_beatgrid,
 )
+from app.modules.library.genre_classifier import classify_genre
 
 # ── Camelot wheel ────────────────────────────────────────────────
 
@@ -61,23 +70,16 @@ def analyze_track(filepath, track_id):
     beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
 
     # ── Downbeats ──
-    onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, units='frames')
-    downbeats = []
-    for b in beats_frames:
-        if len(onset_frames[(np.abs(onset_frames - b) <= 3)]) > 0:
-            downbeats.append(float(librosa.frames_to_time(b, sr=sr)))
+    downbeats, time_signature = _detect_downbeats_with_meter(
+        y_mono,
+        sr,
+        np.asarray(beat_times),
+    )
 
     # ── Key / Camelot ──
-    chroma = librosa.feature.chroma_cqt(y=y_mono, sr=sr)
-    chroma_mean = np.mean(chroma, axis=1)
-    key_idx = int(np.argmax(chroma_mean))
-    key_name = KEY_NAMES[key_idx]
-    major_p = np.array([1,0,1,0,1,1,0,1,0,1,0,1], dtype=float)
-    minor_p = np.array([1,0,1,1,0,1,0,1,1,0,1,0], dtype=float)
-    mc = np.corrcoef(chroma_mean, major_p)[0,1]
-    mic = np.corrcoef(chroma_mean, minor_p)[0,1]
-    mode = "minor" if mic > mc else "major"
-    camelot = CAMELOT_MINOR[key_idx] if mode == "minor" else CAMELOT_MAJOR[key_idx]
+    key_result = _analyze_key(y_mono, sr)
+    key_name, mode = key_result["key"].split(" ", 1)
+    camelot = key_result["camelot_key"]
 
     # ── Energy ──
     rms = librosa.feature.rms(y=y_mono)[0]
@@ -107,20 +109,45 @@ def analyze_track(filepath, track_id):
     # ── Phrase map ──
     phrase_map = _segment_phrases(y_mono, sr, analysis_duration)
     phrase_map = _attach_phrase_energy(phrase_map, energy_curve)
+    # ── Extended analysis ──────────────────────────────────────────
+    phrase_map = _score_section_intensity(phrase_map, energy_curve, y_mono, sr)
+    groove = _compute_groove_score(beat_times, downbeats, bpm_curve, tempo_stability)
     transition_windows = _build_transition_windows(phrase_map)
+    dancefloor_profile = _analyze_dancefloor_profile(
+        bpm=bpm,
+        energy=mean_energy,
+        groove=groove,
+        spectral_centroid=centroid,
+        phrase_map=phrase_map,
+    )
+    dj_hot_cues = _generate_dj_hot_cues(phrase_map, transition_windows, energy_curve, duration)
+    transition_recommendations = _recommend_transition_techniques(phrase_map, transition_windows)
+    genre_profile = classify_genre(
+        bpm=bpm,
+        groove_profile=groove,
+        dj_features={"spectral_centroid": centroid},
+        energy=mean_energy,
+    )
 
     elapsed = time.time() - t0
     print(f"  [{track_id}] BPM={bpm:.1f} Key={camelot} Energy={energy_label} "
           f"Dur={duration:.0f}s Beats={len(beat_times)} Phrases={len(phrase_map)} "
+          f"Groove={groove['score']:.2f}({groove['label']}) "
           f"({elapsed:.1f}s)")
 
     return {
         "song_id": f"rk{track_id}",
         "title": f"Track {track_id}",
         "bpm": round(bpm, 1),
-        "key": key_name,
+        "key": key_result["key"],
         "camelot_key": camelot,
         "mode": mode,
+        "key_profile": {
+            "tonal_clarity": key_result["tonal_clarity"],
+            "relative_ambiguity": key_result["relative_ambiguity"],
+            "candidates": key_result["candidates"],
+            "method": key_result["method"],
+        },
         "energy": energy_label,
         "energy_rms": round(mean_energy, 4),
         "duration_sec": round(duration, 1),
@@ -131,15 +158,25 @@ def analyze_track(filepath, track_id):
         **beatgrid_summary,
         "energy_curve": energy_curve,
         "loudness_profile": loudness_profile,
+        "time_signature": time_signature,
+        "groove": groove,
+        "danceability_score": dancefloor_profile["danceability_score"],
+        "dancefloor_profile": dancefloor_profile,
+        "genre_profile": genre_profile,
+        "dj_hot_cues": dj_hot_cues,
         "transition_windows": transition_windows,
+        "transition_recommendations": transition_recommendations,
         "downbeats": [round(d, 3) for d in downbeats[:1000]],
         "phrase_map": phrase_map,
         "has_stems": False,
         "stem_quality_score": 0.0,
+        "stem_quality_profile": {"method": "not_available", "completeness": 0.0},
         "vocal_density": round(vocal_density, 2),
         "bass_energy": round(bass_energy, 2),
         "intro_is_clean": bool(transition_windows and transition_windows[0]["clean_candidate"]),
         "outro_is_clean": bool(transition_windows and transition_windows[-1]["clean_candidate"]),
+        "intro_clean_score": 0.0,
+        "outro_clean_score": 0.0,
         "has_drum_loop": tempo_stability >= 0.85,
         "spectral_centroid": round(centroid, 0),
     }
@@ -211,13 +248,17 @@ def run_pipeline(tracks_dir="data/tracks", output_path="data/jetson_analysis.jso
     print(f"\n  Total: {len(results)} tracks in {elapsed:.1f}s → {output_path}")
 
     # ── Summary Table ──
-    print(f"\n{'─'*72}")
-    print(f"  {'Track':>6}  {'BPM':>6}  {'Key':>8}  {'Energy':>8}  {'Dur':>5}  {'Vocal':>5}  {'Bass':>5}  {'Phrases':>8}")
-    print(f"  {'─'*72}")
+    print(f"\n{'─'*80}")
+    print(f"  {'Track':>6}  {'BPM':>6}  {'Key':>8}  {'Energy':>8}  {'Dur':>5}  {'Groove':>7}  {'TimeSig':>8}  {'Phrases':>8}")
+    print(f"  {'─'*80}")
     for tid in track_ids:
         t = results.get(tid)
         if t:
-            print(f"  {tid:>6}  {t['bpm']:>5.1f}   {t['camelot_key']:>8}  {t['energy']:>8}  {t['duration_sec']:>4.0f}s  {t['vocal_density']:>4.2f}  {t['bass_energy']:>4.2f}  {len(t['phrase_map']):>8}")
+            groove = t.get("groove", {})
+            groove_label = groove.get("label", "?") if groove else "?"
+            ts = t.get("time_signature", {})
+            ts_str = f"{ts.get('numerator',4)}/{ts.get('denominator',4)}" if ts else "4/4"
+            print(f"  {tid:>6}  {t['bpm']:>5.1f}   {t['camelot_key']:>8}  {t['energy']:>8}  {t['duration_sec']:>4.0f}s  {groove_label:>7}  {ts_str:>8}  {len(t['phrase_map']):>8}")
     print()
 
     return results

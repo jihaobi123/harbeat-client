@@ -80,10 +80,17 @@ def analyze_stem_files(
             "has_complete_stems": False,
             "stem_quality_score": 0.0,
             "stem_quality_method": "completeness_reconstruction_proxy",
+            "stem_quality_profile": {
+                "method": "completeness_reconstruction_proxy",
+                "completeness": 0.0,
+                "reconstruction_score": 0.0,
+            },
             "stem_activity": {name: 0.0 for name in STEM_NAMES},
             "stem_activity_windows": [],
             "intro_is_clean": False,
             "outro_is_clean": False,
+            "intro_clean_score": 0.0,
+            "outro_clean_score": 0.0,
             "has_drum_loop": False,
         }
 
@@ -111,15 +118,33 @@ def analyze_stem_files(
     quality = completeness * (0.75 + 0.25 * reconstruction)
     vocals = curves["vocals"]
     drums = curves["drums"]
+    bass = curves["bass"]
+    intro_clean_score = float(np.clip(
+        1.0 - (0.8 * vocals[0]) - (0.2 * bass[0]),
+        0.0,
+        1.0,
+    )) if completeness == 1.0 and vocals and bass else 0.0
+    outro_clean_score = float(np.clip(
+        1.0 - (0.8 * vocals[-1]) - (0.2 * bass[-1]),
+        0.0,
+        1.0,
+    )) if completeness == 1.0 and vocals and bass else 0.0
 
     return {
         "has_complete_stems": completeness == 1.0,
         "stem_quality_score": round(float(np.clip(quality, 0.0, 1.0)), 4),
         "stem_quality_method": "completeness_reconstruction_proxy",
+        "stem_quality_profile": {
+            "method": "completeness_reconstruction_proxy",
+            "completeness": round(completeness, 4),
+            "reconstruction_score": round(reconstruction, 4),
+        },
         "stem_activity": activity,
         "stem_activity_windows": windows,
-        "intro_is_clean": bool(vocals and vocals[0] < 0.25),
-        "outro_is_clean": bool(vocals and vocals[-1] < 0.25),
+        "intro_is_clean": bool(completeness == 1.0 and vocals and vocals[0] < 0.25),
+        "outro_is_clean": bool(completeness == 1.0 and vocals and vocals[-1] < 0.25),
+        "intro_clean_score": round(intro_clean_score, 4),
+        "outro_clean_score": round(outro_clean_score, 4),
         "has_drum_loop": bool(
             drums and activity["drums"] >= 0.35
             and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6

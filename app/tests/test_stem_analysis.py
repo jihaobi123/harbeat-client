@@ -43,8 +43,12 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertGreater(result["stem_activity_windows"][-1]["vocals"], 0.8)
         self.assertTrue(result["intro_is_clean"])
         self.assertFalse(result["outro_is_clean"])
+        self.assertGreater(result["intro_clean_score"], 0.7)
+        self.assertLess(result["outro_clean_score"], 0.3)
         self.assertTrue(result["has_drum_loop"])
         self.assertGreater(result["stem_quality_score"], 0.9)
+        self.assertEqual(result["stem_quality_profile"]["completeness"], 1.0)
+        self.assertGreater(result["stem_quality_profile"]["reconstruction_score"], 0.9)
 
     def test_stem_analysis_degrades_when_required_stem_is_missing(self):
         with tempfile.TemporaryDirectory() as td:
@@ -55,6 +59,9 @@ class StemAnalysisTests(unittest.TestCase):
 
         self.assertFalse(result["has_complete_stems"])
         self.assertLess(result["stem_quality_score"], 0.4)
+        self.assertEqual(result["intro_clean_score"], 0.0)
+        self.assertEqual(result["outro_clean_score"], 0.0)
+        self.assertEqual(result["stem_quality_profile"]["completeness"], 0.25)
         self.assertFalse(result["has_drum_loop"])
 
 
