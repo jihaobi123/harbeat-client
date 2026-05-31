@@ -1,0 +1,7 @@
+[Unit]
+Description=Cypher RK3588 Edge Box (audio + agent + input + sync)
+Documentation=file:///home/cat/cypher/deploy/README.md
+Wants=cypher-audio-engine.service cypher-edge-agent.service cypher-input-daemon.service cypher-sync-worker.service
+
+[Install]
+WantedBy=multi-user.target

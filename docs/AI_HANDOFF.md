@@ -265,11 +265,11 @@ def select_transition(from_ctx, to_ctx, *, user_preset="auto", intent=None):
     # Returns (TransitionPreset, curves: list[AutomationCurve], meta)
 ```
 
-### 5.7 尚未实现
+### 5.7 RK 执行层现状
 
-- C4 执行层：RK3588 audio-engine 侧实际应用 curves 到实时音频
-- Time-stretch 分级执行
-- Loop/延长 实时控制
+- RK3588 `audio-engine` 已有本地实时执行 MVP：双 deck、自动 crossfade、stem-aware / non-stem 降级和 `playback_tier`。
+- 已修复 `slam` 中段静音洞，并放缓 `vocal_handoff` 的 B bass 进入，避免双 bass 叠满。
+- 待补：Time-stretch 分级执行、Loop/延长实时控制，以及 RK 真机四首连续试听验收。
 
 ---
 
@@ -393,7 +393,7 @@ intro_is_clean, outro_is_clean, intro_clean_score, outro_clean_score, has_drum_l
 ## 11. 剩余关键缺口（按优先级）
 
 ### P0 — 核心体验
-- [ ] **C4 执行层**：RK3588 audio-engine 侧实际应用 automation curves 到实时音频
+- [ ] **C4 真机验收**：RK3588 audio-engine 已有本地实时 MVP，需部署后完成四首连续试听、stems FX 和降级路线验收
 - [ ] **C6 Session API**：将 session coordinator 注册为 FastAPI router
 - [ ] **C3 接入真实曲库**：CandidateSelector 目前用 dict registry，需接 DB query
 

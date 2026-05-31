@@ -13,7 +13,7 @@
 |------|--------------|------------|
 | C1 音乐分析 | BPM 曲线、beatgrid 质量、downbeat、弱证据拍号回退、key/Camelot、LUFS、energy、groove、真实 stems 活跃度、stem 质量 profile、vocal events、bass risk、clean intro/outro 分数、danceability、mood、genre、hot cues、transition windows | 多引擎 BPM 交叉验证、训练后的 genre/mood 模型、DJ 人工校准工具 |
 | C3 推荐 | `CandidateSelector` 规则引擎、best/safe/diverse 候选、显式 danceability 消费、安全池 clean score 门槛 | 真实曲库 DB adapter、完整 30-60 分钟场景排歌、个性化学习 |
-| C4 转场 | `stem_automix.py` 已有 stem-aware 与 non-stem preset 库、自动 preset 选择原型 | RK3588 实时 audio-engine 完整执行 curves、time-stretch、loop |
+| C4 转场 | `stem_automix.py` 已有 preset 库；RK3588 已有双 deck、实时 crossfade、stem-aware / non-stem 降级 MVP | RK 真机四首连续试听、time-stretch 分级、loop |
 | C6 Session | 状态机、队列、SafetyPool、UndoStack、Coordinator 原型 | 注册到边缘端 API、接真实播放器、断电恢复和连续播放真机验收 |
 | C5/C7/C8 | Flutter Live Deck 和部分 RK live API 已有草稿 | 现场控制体验、日志闭环、硬件按钮协议和设备状态完整联调 |
 
@@ -287,10 +287,10 @@ Setup → Warmup → Build → Peak → Recover → Hold → Emergency → Close
 
 ## 6. 下一步执行计划
 
-**C1 规则版已经收口，下一轮重点是把原型接到 RK3588 实时链路。**
+**C1 规则版已经收口，RK3588 实时链路已有 MVP。下一轮重点是真机四首连续试听，并继续收敛现场控制。**
 
 ```
-Step 1: RK audio-engine 应用 automation curves，先解决真实播放不断气
+Step 1: 部署 RK audio-engine，完成四首连续试听，确认真实播放不断气
 Step 2: 将 C6 Coordinator 注册为 RK API，接入真实状态、队列和安全歌池
 Step 3: 给 CandidateSelector 接真实曲库 adapter，跑 7 首及更大曲库连续播放
 Step 4: 实现 time-stretch 分级、loop 延长和 button quantization
