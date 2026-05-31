@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.shared.database import get_db
@@ -22,6 +25,12 @@ from app.modules.sessions.service import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+class RkSessionEventsRequest(BaseModel):
+    rk_id: str | None = None
+    events: list[dict] = Field(default_factory=list)
 
 
 @router.post("/start", response_model=APIResponse[SessionStartData])
@@ -40,6 +49,24 @@ def create_session_event_endpoint(payload: SessionEventRequest, db: Session = De
         timestamp=payload.timestamp,
     )
     return APIResponse(data=SuccessData())
+
+
+@router.post("/rk/{session_id}/events", response_model=APIResponse[dict])
+def ingest_rk_session_events_endpoint(session_id: str, payload: RkSessionEventsRequest):
+    """Compatibility endpoint for RK edge-agent event flushes.
+
+    RK session IDs are device-generated strings, while the legacy practice
+    session table uses integer IDs. Accept the flush so edge-agent does not
+    repeatedly retry and flood logs; structured persistence can be added when
+    the cloud session schema is widened to string IDs.
+    """
+    logger.info(
+        "[RK_SESSION_EVENTS] session_id=%s rk_id=%s count=%d",
+        session_id,
+        payload.rk_id,
+        len(payload.events),
+    )
+    return APIResponse(data={"success": True, "accepted": len(payload.events)})
 
 
 @router.post("/end", response_model=APIResponse[SuccessData])

@@ -39,6 +39,41 @@ JSON_COLUMNS = {
 
 def migrate() -> None:
     inspector = inspect(engine)
+    if "users" in inspector.get_table_names():
+        existing_user_columns = {
+            column["name"] for column in inspector.get_columns("users")
+        }
+        if "is_active" not in existing_user_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE NOT NULL")
+                )
+                if {"is_deleted", "status"}.issubset(existing_user_columns):
+                    connection.execute(
+                        text(
+                            "UPDATE users SET is_active = "
+                            "(COALESCE(is_deleted, false) = false "
+                            "AND COALESCE(status, 'active') NOT IN "
+                            "('inactive', 'deactivated', 'disabled'))"
+                        )
+                    )
+                elif "is_deleted" in existing_user_columns:
+                    connection.execute(
+                        text(
+                            "UPDATE users SET is_active = "
+                            "(COALESCE(is_deleted, false) = false)"
+                        )
+                    )
+                elif "status" in existing_user_columns:
+                    connection.execute(
+                        text(
+                            "UPDATE users SET is_active = "
+                            "(COALESCE(status, 'active') NOT IN "
+                            "('inactive', 'deactivated', 'disabled'))"
+                        )
+                    )
+            print("added users.is_active")
+
     if "library_songs" not in inspector.get_table_names():
         print("library_songs does not exist; create_all() will create the new columns")
         return

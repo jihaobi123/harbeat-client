@@ -26,7 +26,8 @@ JETSON_BASE_URL = os.environ.get("JETSON_BASE_URL", "http://127.0.0.1:8000")
 JWT_TOKEN = os.environ.get("JWT_TOKEN", "")
 RK_TOKEN = os.environ.get("HARBEAT_RK_TOKEN") or os.environ.get("RKTOKEN", "")
 MAX_CONCURRENCY = int(os.environ.get("SYNC_MAX_CONCURRENCY", "4"))
-REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=30.0, pool=5.0)
+REQUEST_TIMEOUT = httpx.Timeout(connect=10.0, read=180.0, write=60.0, pool=10.0)
+CURL_MAX_TIME_SEC = int(os.environ.get("SYNC_CURL_MAX_TIME_SEC", "240"))
 
 app = FastAPI(title="Cypher Sync Worker", version="0.1.0")
 
@@ -216,9 +217,12 @@ def _convert_to_wav(src: Path, dst: Path) -> None:
 
 
 def _choose_ext(kind: str, info: dict, url: str) -> str:
-    """Pick storage extension. Stems always wav; original keeps server format."""
-    if kind != "original":
-        return "wav"
+    """Pick storage extension.
+
+    Keep the server format for both originals and stems. Jetson usually serves
+    mp3, and audio-engine can locate/decode mp3 directly; forcing stems to wav
+    here can create mp3 bytes with a .wav suffix and break stem-aware playback.
+    """
     fmt = str(info.get("format") or "").lower().lstrip(".")
     if fmt in ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac"):
         return fmt
@@ -236,6 +240,31 @@ def _find_existing_original(out_dir: Path) -> Path | None:
         if cand.is_file():
             return cand
     return None
+
+
+def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) -> None:
+    curl = shutil.which("curl")
+    if not curl:
+        raise RuntimeError("curl not found")
+    cmd = [
+        curl,
+        "-L",
+        "--fail",
+        "--connect-timeout",
+        "10",
+        "--max-time",
+        str(CURL_MAX_TIME_SEC),
+        "--speed-time",
+        "45",
+        "--speed-limit",
+        "1",
+        "-o",
+        str(path),
+    ]
+    for key, value in (headers or {}).items():
+        cmd.extend(["-H", f"{key}: {value}"])
+    cmd.append(url)
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
 async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: asyncio.Semaphore) -> None:
@@ -267,18 +296,35 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
         req_headers = None if url_has_token else (_headers() or None)
         for attempt in range(1, 4):
             try:
-                async with client.stream("GET", url, headers=req_headers) as resp:
-                    resp.raise_for_status()
-                    with tmp_path.open("wb") as f:
-                        async for chunk in resp.aiter_bytes():
-                            if chunk:
-                                f.write(chunk)
+                try:
+                    await asyncio.to_thread(_download_with_curl, url, tmp_path, req_headers)
+                except Exception as curl_exc:
+                    logger.warning("%s/%s curl download failed, fallback to httpx: %r", song_id, kind, curl_exc)
+                    async with client.stream("GET", url, headers=req_headers) as resp:
+                        resp.raise_for_status()
+                        with tmp_path.open("wb") as f:
+                            async for chunk in resp.aiter_bytes():
+                                if chunk:
+                                    f.write(chunk)
                 if expected_size is not None and tmp_path.stat().st_size != expected_size:
                     raise ValueError(f"size mismatch {song_id}/{kind}: got {tmp_path.stat().st_size}, want {expected_size}")
                 if expected_sha and _sha256(tmp_path) != expected_sha:
                     raise ValueError(f"sha256 mismatch {song_id}/{kind}")
-                # Phase A: store bytes as-is; audio-engine decodes via soundfile/ffmpeg
-                tmp_path.replace(final_path)
+                head = b""
+                try:
+                    with tmp_path.open("rb") as fh:
+                        head = fh.read(3)
+                except Exception:
+                    head = b""
+                is_mp3 = head[:3] == b"ID3" or (
+                    len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
+                )
+                if final_path.suffix.lower() == ".wav" and is_mp3:
+                    mp3_path = final_path.with_suffix(".mp3")
+                    tmp_path.replace(mp3_path)
+                    final_path = mp3_path
+                else:
+                    tmp_path.replace(final_path)
                 if expected_sha:
                     _sidecar(final_path).write_text(expected_sha + "\n", encoding="utf-8")
                 await state.mark_done()
@@ -286,7 +332,7 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
             except Exception as exc:
                 tmp_path.unlink(missing_ok=True)
                 if attempt == 3:
-                    message = f"{song_id}/{kind}: {exc}"
+                    message = f"{song_id}/{kind}: {exc!r}"
                     logger.error(message)
                     await state.add_error(message)
                     return
@@ -319,3 +365,24 @@ async def sync(body: dict[str, Any]) -> dict[str, Any]:
 @app.get("/status")
 async def status() -> dict[str, Any]:
     return await state.snapshot()
+
+
+@app.get("/cache/check")
+async def cache_check(song_id: str) -> dict[str, Any]:
+    out_dir = CACHE_DIR / song_id
+    if not out_dir.is_dir():
+        return {"ok": True, "exists": False}
+    found = _find_existing_original(out_dir)
+    if not found:
+        return {"ok": True, "exists": False}
+    try:
+        size = found.stat().st_size
+    except OSError:
+        size = 0
+    return {
+        "ok": True,
+        "exists": True,
+        "path": str(found),
+        "size": size,
+        "ext": found.suffix.lstrip("."),
+    }
