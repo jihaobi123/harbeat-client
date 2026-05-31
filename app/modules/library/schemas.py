@@ -35,6 +35,12 @@ class LibrarySongBase(BaseModel):
     beat_points: list[float] = Field(default_factory=list)
     bpm_curve: list[dict] = Field(default_factory=list)
     tempo_stability: float | None = None
+    beat_confidence: float | None = None
+    beat_confidence_details: dict = Field(default_factory=dict)
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] = Field(default_factory=list)
+    beat_needs_review: bool = False
     energy_curve: list[dict] = Field(default_factory=list)
     loudness_profile: dict = Field(default_factory=dict)
     transition_windows: list[dict] = Field(default_factory=list)
@@ -79,6 +85,12 @@ class LibrarySongUpdateRequest(BaseModel):
     beat_points: list[float] | None = None
     bpm_curve: list[dict] | None = None
     tempo_stability: float | None = None
+    beat_confidence: float | None = None
+    beat_confidence_details: dict | None = None
+    beat_grid_offset: float | None = None
+    beat_grid_interval: float | None = None
+    beat_engines_used: list[str] | None = None
+    beat_needs_review: bool | None = None
     energy_curve: list[dict] | None = None
     loudness_profile: dict | None = None
     transition_windows: list[dict] | None = None

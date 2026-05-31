@@ -18,6 +18,8 @@ from app.shared.database import engine
 
 JSON_COLUMNS = {
     "bpm_curve": "[]",
+    "beat_confidence_details": "{}",
+    "beat_engines_used": "[]",
     "energy_curve": "[]",
     "loudness_profile": "{}",
     "transition_windows": "[]",
@@ -45,6 +47,15 @@ def migrate() -> None:
     if "tempo_stability" not in existing:
         statements.append(
             "ALTER TABLE library_songs ADD COLUMN tempo_stability FLOAT"
+        )
+    for column in ("beat_confidence", "beat_grid_offset", "beat_grid_interval"):
+        if column not in existing:
+            statements.append(
+                f"ALTER TABLE library_songs ADD COLUMN {column} FLOAT"
+            )
+    if "beat_needs_review" not in existing:
+        statements.append(
+            "ALTER TABLE library_songs ADD COLUMN beat_needs_review INTEGER DEFAULT 0"
         )
     if "stem_quality_score" not in existing:
         statements.append(

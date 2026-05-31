@@ -79,6 +79,8 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "has_beatgrid": bool(song.beat_points),
         "has_phrase_map": bool(song.phrase_map),
         "tempo_stability": getattr(song, "tempo_stability", None),
+        "beat_confidence": getattr(song, "beat_confidence", None),
+        "beat_needs_review": bool(getattr(song, "beat_needs_review", False)),
         "stem_quality_score": getattr(song, "stem_quality_score", None),
         "intro_is_clean": bool(getattr(song, "intro_is_clean", False)),
         "outro_is_clean": bool(getattr(song, "outro_is_clean", False)),
@@ -101,6 +103,17 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["bpm_curve"] = song.bpm_curve
     if getattr(song, "tempo_stability", None) is not None:
         analysis["tempo_stability"] = song.tempo_stability
+    if getattr(song, "beat_confidence", None) is not None:
+        analysis["beat_confidence"] = song.beat_confidence
+    if getattr(song, "beat_confidence_details", None):
+        analysis["beat_confidence_details"] = song.beat_confidence_details
+    if getattr(song, "beat_grid_offset", None) is not None:
+        analysis["beat_grid_offset"] = song.beat_grid_offset
+    if getattr(song, "beat_grid_interval", None) is not None:
+        analysis["beat_grid_interval"] = song.beat_grid_interval
+    if getattr(song, "beat_engines_used", None):
+        analysis["beat_engines_used"] = song.beat_engines_used
+    analysis["beat_needs_review"] = bool(getattr(song, "beat_needs_review", False))
     if getattr(song, "energy_curve", None):
         analysis["energy_curve"] = song.energy_curve
     if getattr(song, "loudness_profile", None):

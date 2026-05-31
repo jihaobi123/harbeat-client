@@ -76,6 +76,51 @@ def _build_bpm_curve(
     return curve, round(stability, 4)
 
 
+def _summarize_beatgrid(
+    beat_times: list[float] | np.ndarray,
+    bpm_curve: list[dict],
+    tempo_stability: float,
+) -> dict:
+    """Describe whether a beat grid is reliable enough for phrase-aligned mixing."""
+    beats = np.asarray(beat_times, dtype=float)
+    valid_intervals = np.diff(beats)
+    valid_intervals = valid_intervals[(valid_intervals > 0.15) & (valid_intervals < 2.5)]
+    if len(valid_intervals) == 0:
+        interval = 0.0
+        offset = float(beats[0]) if len(beats) else 0.0
+        phase_consistency = 0.0
+    else:
+        interval = float(np.median(valid_intervals))
+        offset = float(beats[0] % interval) if interval > 1e-9 else 0.0
+        local_deviation = float(np.mean(np.abs(valid_intervals - interval)))
+        phase_consistency = float(np.clip(1.0 - local_deviation / interval * 4.0, 0.0, 1.0))
+
+    count_confidence = float(np.clip(len(beats) / 64.0, 0.0, 1.0))
+    curve_confidence = float(np.clip(len(bpm_curve) / 4.0, 0.0, 1.0))
+    confidence = float(np.clip(
+        float(tempo_stability) * 0.50
+        + phase_consistency * 0.30
+        + count_confidence * 0.15
+        + curve_confidence * 0.05,
+        0.0,
+        1.0,
+    ))
+    needs_review = confidence < 0.72 or len(beats) < 16 or interval <= 1e-9
+    return {
+        "beat_confidence": round(confidence, 4),
+        "beat_confidence_details": {
+            "tempo_stability": round(float(tempo_stability), 4),
+            "phase_consistency": round(phase_consistency, 4),
+            "beat_count_confidence": round(count_confidence, 4),
+            "curve_confidence": round(curve_confidence, 4),
+        },
+        "beat_grid_offset": round(offset, 4),
+        "beat_grid_interval": round(interval, 4),
+        "beat_engines_used": ["librosa"],
+        "beat_needs_review": bool(needs_review),
+    }
+
+
 def _build_energy_curve(
     y: np.ndarray,
     sr: int,
@@ -471,6 +516,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     beat_times = librosa.frames_to_time(beat_frames, sr=sr)
     beat_points = [round(float(t), 3) for t in beat_times]
     bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
+    beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
 
     # Downbeats (bar boundaries, 4/4 time)
     downbeats = _detect_downbeats(y, sr, beat_times)
@@ -521,6 +567,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "beat_points": beat_points,
         "bpm_curve": bpm_curve,
         "tempo_stability": tempo_stability,
+        **beatgrid_summary,
         "downbeats": downbeats,
         "cue_points": cue_points,
         "phrase_map": phrase_map,

@@ -26,6 +26,7 @@ from app.modules.library.analysis import (
     _build_energy_curve,
     _build_transition_windows,
     _analyze_loudness,
+    _summarize_beatgrid,
 )
 
 # ── Camelot wheel ────────────────────────────────────────────────
@@ -57,6 +58,7 @@ def analyze_track(filepath, track_id):
     bpm = float(bpm_raw[0]) if isinstance(bpm_raw, np.ndarray) else float(bpm_raw)
     beat_times = librosa.frames_to_time(beats_frames, sr=sr).tolist()
     bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
+    beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
 
     # ── Downbeats ──
     onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, units='frames')
@@ -126,6 +128,7 @@ def analyze_track(filepath, track_id):
         "beat_points": [round(t, 3) for t in beat_times[:2000]],
         "bpm_curve": bpm_curve,
         "tempo_stability": tempo_stability,
+        **beatgrid_summary,
         "energy_curve": energy_curve,
         "loudness_profile": loudness_profile,
         "transition_windows": transition_windows,

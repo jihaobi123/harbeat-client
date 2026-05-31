@@ -224,6 +224,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.phrase_map = result.get("phrase_map", [])
                 song.key_confidence = result.get("key_confidence")
                 song.beat_confidence = result.get("beat_confidence")
+                song.beat_confidence_details = result.get("beat_confidence_details", {})
                 song.beat_grid_offset = result.get("beat_grid_offset")
                 song.beat_grid_interval = result.get("beat_grid_interval")
                 song.beat_engines_used = result.get("beat_engines_used", [])
@@ -398,7 +399,9 @@ def _do_analysis_and_separation(song_id: str) -> None:
 def copy_analysis_from(source: object, target: object) -> None:
     """Copy analysis results from an existing LibrarySong to a new one."""
     for field in ("bpm", "duration", "key", "camelot_key", "energy",
-                  "beat_points", "bpm_curve", "tempo_stability", "energy_curve", "loudness_profile",
+                  "beat_points", "bpm_curve", "tempo_stability", "beat_confidence",
+                  "beat_confidence_details", "beat_grid_offset", "beat_grid_interval",
+                  "beat_engines_used", "beat_needs_review", "energy_curve", "loudness_profile",
                   "transition_windows", "downbeats", "phrase_map", "key_confidence",
                   "stem_activity", "stem_activity_windows", "stem_quality_score",
                   "intro_is_clean", "outro_is_clean", "has_drum_loop",

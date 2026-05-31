@@ -6,6 +6,7 @@ from app.modules.library.analysis import (
     _build_bpm_curve,
     _build_energy_curve,
     _build_transition_windows,
+    _summarize_beatgrid,
     _attach_phrase_energy,
 )
 
@@ -31,6 +32,30 @@ class AnalysisFeatureTests(unittest.TestCase):
         self.assertGreater(max(bpms), 115.0)
         self.assertLess(min(bpms), 105.0)
         self.assertLess(stability, 0.98)
+
+    def test_beatgrid_summary_accepts_stable_grid(self):
+        beats = [i * 0.5 for i in range(96)]
+        curve, stability = _build_bpm_curve(beats)
+
+        summary = _summarize_beatgrid(beats, curve, stability)
+
+        self.assertGreater(summary["beat_confidence"], 0.95)
+        self.assertAlmostEqual(summary["beat_grid_interval"], 0.5, places=3)
+        self.assertFalse(summary["beat_needs_review"])
+        self.assertEqual(summary["beat_engines_used"], ["librosa"])
+
+    def test_beatgrid_summary_flags_sparse_or_unstable_grid(self):
+        sparse = _summarize_beatgrid([0.1, 1.0, 1.7], [], 0.2)
+
+        self.assertLess(sparse["beat_confidence"], 0.5)
+        self.assertTrue(sparse["beat_needs_review"])
+
+        jittery = np.cumsum([0.4, 0.7] * 48).tolist()
+        curve, stability = _build_bpm_curve(jittery)
+        unstable = _summarize_beatgrid(jittery, curve, stability)
+
+        self.assertLess(unstable["beat_confidence"], 0.72)
+        self.assertTrue(unstable["beat_needs_review"])
 
     def test_energy_curve_preserves_quiet_and_loud_sections(self):
         sr = 100

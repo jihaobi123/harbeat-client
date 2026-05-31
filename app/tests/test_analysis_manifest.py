@@ -14,6 +14,12 @@ class AnalysisManifestTests(unittest.TestCase):
         return {
             "bpm_curve": [{"start": 0.0, "end": 8.0, "bpm": 120.0, "stability": 0.99}],
             "tempo_stability": 0.99,
+            "beat_confidence": 0.98,
+            "beat_confidence_details": {"tempo_stability": 0.99, "phase_consistency": 0.98},
+            "beat_grid_offset": 0.1,
+            "beat_grid_interval": 0.5,
+            "beat_engines_used": ["librosa"],
+            "beat_needs_review": False,
             "loudness_profile": {
                 "integrated_lufs": -14.5,
                 "peak_dbfs": -1.0,
@@ -48,6 +54,7 @@ class AnalysisManifestTests(unittest.TestCase):
         copy_analysis_from(source, target)
 
         self.assertEqual(target.tempo_stability, 0.99)
+        self.assertEqual(target.beat_grid_interval, 0.5)
         self.assertEqual(target.loudness_profile["replay_gain_db"], 0.5)
         self.assertTrue(target.transition_windows[0]["clean_candidate"])
         self.assertEqual(target.stem_quality_score, 0.95)
@@ -82,6 +89,7 @@ class AnalysisManifestTests(unittest.TestCase):
             analysis = manifest["analysis"]
 
             self.assertEqual(analysis["tempo_stability"], 0.99)
+            self.assertEqual(analysis["beat_confidence"], 0.98)
             self.assertEqual(analysis["loudness_profile"]["integrated_lufs"], -14.5)
             self.assertEqual(analysis["bpm_curve"][0]["bpm"], 120.0)
             self.assertEqual(analysis["transition_windows"][0]["label"], "intro")
@@ -90,6 +98,7 @@ class AnalysisManifestTests(unittest.TestCase):
             self.assertEqual(analysis["dance_style_scores"]["house"], 0.9)
             self.assertEqual(manifest["replayGainDb"], 0.5)
             self.assertFalse(manifest["qualityFlags"]["clipping_risk"])
+            self.assertFalse(manifest["qualityFlags"]["beat_needs_review"])
         finally:
             os.remove(path)
 
