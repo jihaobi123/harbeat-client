@@ -126,6 +126,7 @@ async def edge_info() -> HealthResponse:
     return await health()
 
 
+@app.get("/api/edge/pair/start")
 @app.post("/api/edge/pair/start")
 async def edge_pair_start():
     """Start device pairing — returns a 6-digit code."""

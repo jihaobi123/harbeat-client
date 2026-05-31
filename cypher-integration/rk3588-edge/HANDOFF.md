@@ -262,7 +262,7 @@ Authorization: Bearer <device_token>
 | POST | `/play` | `{"song_id":102,"start_at_sec":0}` |
 | POST | `/pause` `/resume` `/next` `/seek` | 播放控制 |
 | POST | `/trigger` | `{"key":1}`，返回 `latency_ms` |
-| POST | `/energy` `/style` `/mix` `/loop` | 现场 UI（RK 侧多为记录/stub） |
+| 规划中 | `/energy` `/style` `/mix` `/loop` | 现场 UI 控制，当前尚未暴露 |
 | POST | `/load_plan` | **赛前必用**，见下节 |
 
 播放类接口成功格式：`{"success":true,"message":"...","ok":true,...}`。
