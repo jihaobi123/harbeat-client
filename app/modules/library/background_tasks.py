@@ -24,6 +24,35 @@ def apply_stem_analysis(song) -> None:
     song.has_drum_loop = result["has_drum_loop"]
 
 
+def apply_dj_fingerprint(db, song) -> None:
+    """Persist explainable DJ fingerprint features and ranked dance styles."""
+    from app.modules.dj_control.dance_style import STYLE_PROFILES, score_song_combined
+    from app.modules.library.dj_feature_extractor import extract_dj_features
+
+    features = extract_dj_features(song)
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    music_features["dj"] = features
+    song.music_features = music_features
+
+    ranked = []
+    scores = {}
+    for style_key in STYLE_PROFILES:
+        score, source, breakdown = score_song_combined(song, style_key)
+        scores[style_key] = round(score, 4)
+        ranked.append({
+            "style": style_key,
+            "score": round(score, 4),
+            "source": source,
+            "breakdown": breakdown,
+        })
+    ranked.sort(key=lambda item: item["score"], reverse=True)
+    song.dance_styles = ranked
+    song.dance_style_scores = scores
+    song.dance_style_status = "ready"
+    db.add(song)
+    db.commit()
+
+
 def run_analysis_and_separation(song_id: str) -> None:
     """Run BPM/key analysis + demucs stem separation in background.
 
@@ -114,6 +143,12 @@ def run_analysis_and_separation(song_id: str) -> None:
         except Exception:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
 
+        try:
+            apply_dj_fingerprint(db, song)
+            logger.info("[bg-analysis] DJ fingerprint ready for %s", song_id)
+        except Exception:
+            logger.exception("[bg-analysis] DJ fingerprint failed for %s (non-fatal)", song_id)
+
         # Mark completed regardless of stem separation outcome
         song.analysis_status = "completed"
         db.commit()
@@ -130,6 +165,7 @@ def copy_analysis_from(source: object, target: object) -> None:
                   "transition_windows", "downbeats", "phrase_map", "key_confidence",
                   "stem_activity", "stem_activity_windows", "stem_quality_score",
                   "intro_is_clean", "outro_is_clean", "has_drum_loop",
+                  "music_features", "dance_styles", "dance_style_scores", "dance_style_status",
                   "cue_points", "stems", "analysis_status"):
         val = getattr(source, field, None)
         if val is not None:

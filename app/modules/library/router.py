@@ -220,6 +220,8 @@ def analyze_library_song_endpoint(
         {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
         for i, c in enumerate(raw_cues)
     ]
+    from app.modules.library.background_tasks import apply_dj_fingerprint
+    apply_dj_fingerprint(db, song)
     song.analysis_status = "completed"
     db.commit()
     db.refresh(song)
@@ -259,6 +261,8 @@ def separate_stems_endpoint(
         song.stems = stems
         from app.modules.library.background_tasks import apply_stem_analysis
         apply_stem_analysis(song)
+        from app.modules.library.background_tasks import apply_dj_fingerprint
+        apply_dj_fingerprint(db, song)
         db.commit()
         return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
 
@@ -293,5 +297,7 @@ def separate_stems_endpoint(
     song.stems = stems
     from app.modules.library.background_tasks import apply_stem_analysis
     apply_stem_analysis(song)
+    from app.modules.library.background_tasks import apply_dj_fingerprint
+    apply_dj_fingerprint(db, song)
     db.commit()
     return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})

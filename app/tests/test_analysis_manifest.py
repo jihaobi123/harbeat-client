@@ -29,6 +29,10 @@ class AnalysisManifestTests(unittest.TestCase):
             "intro_is_clean": True,
             "outro_is_clean": False,
             "has_drum_loop": True,
+            "music_features": {"dj": {"bpm": 120.0}},
+            "dance_styles": [{"style": "house", "score": 0.9}],
+            "dance_style_scores": {"house": 0.9},
+            "dance_style_status": "ready",
         }
 
     def test_copy_analysis_preserves_dj_analysis_fields(self):
@@ -40,6 +44,7 @@ class AnalysisManifestTests(unittest.TestCase):
         self.assertEqual(target.tempo_stability, 0.99)
         self.assertTrue(target.transition_windows[0]["clean_candidate"])
         self.assertEqual(target.stem_quality_score, 0.95)
+        self.assertEqual(target.dance_styles[0]["style"], "house")
 
     def test_manifest_includes_dj_analysis_fields(self):
         fd, path = tempfile.mkstemp(suffix=".wav")
@@ -73,6 +78,7 @@ class AnalysisManifestTests(unittest.TestCase):
             self.assertEqual(analysis["transition_windows"][0]["label"], "intro")
             self.assertEqual(analysis["stem_quality_score"], 0.95)
             self.assertTrue(analysis["intro_is_clean"])
+            self.assertEqual(analysis["dance_style_scores"]["house"], 0.9)
         finally:
             os.remove(path)
 

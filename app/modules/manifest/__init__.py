@@ -113,6 +113,12 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
     analysis["intro_is_clean"] = bool(getattr(song, "intro_is_clean", False))
     analysis["outro_is_clean"] = bool(getattr(song, "outro_is_clean", False))
     analysis["has_drum_loop"] = bool(getattr(song, "has_drum_loop", False))
+    if getattr(song, "music_features", None):
+        analysis["music_features"] = song.music_features
+    if getattr(song, "dance_styles", None):
+        analysis["dance_styles"] = song.dance_styles
+    if getattr(song, "dance_style_scores", None):
+        analysis["dance_style_scores"] = song.dance_style_scores
     if song.downbeats:
         analysis["downbeats"] = song.downbeats
     if song.phrase_map:

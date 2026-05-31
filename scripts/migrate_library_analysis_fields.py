@@ -22,6 +22,9 @@ JSON_COLUMNS = {
     "transition_windows": "[]",
     "stem_activity": "{}",
     "stem_activity_windows": "[]",
+    "music_features": "{}",
+    "dance_styles": "[]",
+    "dance_style_scores": "{}",
 }
 
 
@@ -51,6 +54,10 @@ def migrate() -> None:
             statements.append(
                 f"ALTER TABLE library_songs ADD COLUMN {column} INTEGER DEFAULT 0"
             )
+    if "dance_style_status" not in existing:
+        statements.append(
+            "ALTER TABLE library_songs ADD COLUMN dance_style_status VARCHAR(50) DEFAULT 'none'"
+        )
 
     if not statements:
         print("library_songs DJ analysis columns already exist")

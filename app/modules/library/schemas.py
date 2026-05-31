@@ -27,6 +27,10 @@ class LibrarySongBase(BaseModel):
     key: str | None = None
     camelot_key: str | None = None
     energy: float | None = None
+    music_features: dict = Field(default_factory=dict)
+    dance_styles: list[dict] = Field(default_factory=list)
+    dance_style_scores: dict = Field(default_factory=dict)
+    dance_style_status: str = "none"
     analysis_status: str = "none"
     beat_points: list[float] = Field(default_factory=list)
     bpm_curve: list[dict] = Field(default_factory=list)
@@ -66,6 +70,10 @@ class LibrarySongUpdateRequest(BaseModel):
     key: str | None = None
     camelot_key: str | None = None
     energy: float | None = None
+    music_features: dict | None = None
+    dance_styles: list[dict] | None = None
+    dance_style_scores: dict | None = None
+    dance_style_status: str | None = None
     analysis_status: str | None = None
     beat_points: list[float] | None = None
     bpm_curve: list[dict] | None = None
