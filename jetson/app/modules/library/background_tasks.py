@@ -24,6 +24,91 @@ from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
+
+def apply_dancefloor_profile(song) -> None:
+    """Refresh danceability and mood metadata from the best available features."""
+    from app.modules.library.analysis import _analyze_dancefloor_profile
+
+    features = (getattr(song, "music_features", {}) or {}).get("dj", {})
+    profile = _analyze_dancefloor_profile(
+        bpm=float(getattr(song, "bpm", 0.0) or 0.0),
+        energy=float(getattr(song, "energy", 0.0) or 0.0),
+        groove=getattr(song, "groove_profile", {}) or {},
+        stem_activity=getattr(song, "stem_activity", {}) or {},
+        spectral_centroid=features.get("spectral_centroid"),
+        phrase_map=getattr(song, "phrase_map", []) or [],
+    )
+    song.danceability_score = profile["danceability_score"]
+    song.dancefloor_profile = profile
+
+
+def apply_stem_analysis(song) -> None:
+    """Persist planner-ready analysis for already separated stem files."""
+    from app.modules.library.analysis import (
+        _compute_bass_risk_windows,
+        _detect_vocal_events,
+        _enhance_transition_windows,
+    )
+    from app.modules.library.stem_analysis import analyze_stem_files
+
+    result = analyze_stem_files(song.stems, original_path=song.source_path)
+    song.stem_activity = result["stem_activity"]
+    song.stem_activity_windows = result["stem_activity_windows"]
+    song.stem_quality_score = result["stem_quality_score"]
+    song.stem_quality_profile = result["stem_quality_profile"]
+    song.intro_is_clean = result["intro_is_clean"]
+    song.outro_is_clean = result["outro_is_clean"]
+    song.intro_clean_score = result["intro_clean_score"]
+    song.outro_clean_score = result["outro_clean_score"]
+    song.has_drum_loop = result["has_drum_loop"]
+    windows = result.get("stem_activity_windows", [])
+    try:
+        song.vocal_events = _detect_vocal_events(windows)
+    except Exception:
+        song.vocal_events = []
+    try:
+        song.bass_risk_windows = _compute_bass_risk_windows(windows)
+    except Exception:
+        song.bass_risk_windows = []
+    try:
+        song.transition_windows = _enhance_transition_windows(
+            list(getattr(song, "transition_windows", None) or []),
+            windows,
+        )
+    except Exception:
+        pass
+    apply_dancefloor_profile(song)
+
+
+def apply_dj_fingerprint(db, song) -> None:
+    """Persist explainable DJ fingerprint features and ranked dance styles."""
+    from app.modules.dj_control.dance_style import STYLE_PROFILES, score_song_combined
+    from app.modules.library.dj_feature_extractor import extract_dj_features
+
+    features = extract_dj_features(song)
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    music_features["dj"] = features
+    song.music_features = music_features
+    apply_dancefloor_profile(song)
+
+    ranked = []
+    scores = {}
+    for style_key in STYLE_PROFILES:
+        score, source, breakdown = score_song_combined(song, style_key)
+        scores[style_key] = round(score, 4)
+        ranked.append({
+            "style": style_key,
+            "score": round(score, 4),
+            "source": source,
+            "breakdown": breakdown,
+        })
+    ranked.sort(key=lambda item: item["score"], reverse=True)
+    song.dance_styles = ranked
+    song.dance_style_scores = scores
+    song.dance_style_status = "ready"
+    db.add(song)
+    db.commit()
+
 # ── Redis lock: cross-process mutex for analysis pipeline ─────────────────
 
 ANALYSIS_LOCK_KEY = "harbeat:analysis_lock"
@@ -173,10 +258,25 @@ def _do_analysis_and_separation(song_id: str) -> None:
                 song.camelot_key = result.get("camelot_key")
                 song.energy = result.get("energy")
                 song.beat_points = result.get("beat_points", [])
+                song.bpm_curve = result.get("bpm_curve", [])
+                song.tempo_stability = result.get("tempo_stability")
+                song.energy_curve = result.get("energy_curve", [])
+                song.loudness_profile = result.get("loudness_profile", {})
+                song.time_signature = result.get("time_signature", {})
+                groove = result.get("groove", {})
+                song.groove_score = groove.get("score") if groove else None
+                song.groove_profile = groove if groove else {}
+                song.danceability_score = result.get("danceability_score")
+                song.dancefloor_profile = result.get("dancefloor_profile", {})
+                song.dj_hot_cues = result.get("dj_hot_cues", [])
+                song.transition_windows = result.get("transition_windows", [])
+                song.transition_recommendations = result.get("transition_recommendations", [])
                 song.downbeats = result.get("downbeats", [])
                 song.phrase_map = result.get("phrase_map", [])
                 song.key_confidence = result.get("key_confidence")
+                song.key_profile = result.get("key_profile", {})
                 song.beat_confidence = result.get("beat_confidence")
+                song.beat_confidence_details = result.get("beat_confidence_details", {})
                 song.beat_grid_offset = result.get("beat_grid_offset")
                 song.beat_grid_interval = result.get("beat_grid_interval")
                 song.beat_engines_used = result.get("beat_engines_used", [])
@@ -242,6 +342,7 @@ def _do_analysis_and_separation(song_id: str) -> None:
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
+                apply_stem_analysis(song)
                 song.analysis_stage = "stems_done"
                 db.commit()
                 logger.info("[bg-analysis] stems separated for %s", song_id)
@@ -325,16 +426,25 @@ def _do_analysis_and_separation(song_id: str) -> None:
 
         # --- Phase 4: DJ-style fingerprint features (cheap, no GPU) ---
         try:
-            from app.modules.library.dj_feature_extractor import (
-                extract_dj_features, update_library_song_dj_features,
-            )
-            feats = extract_dj_features(song)
-            update_library_song_dj_features(db, song, feats)
+            apply_dj_fingerprint(db, song)
             logger.info("[bg-analysis] Phase 4: dj fingerprint computed for %s", song_id)
         except Exception as _e:
             logger.exception("[bg-analysis] Phase 4 dj fingerprint failed for %s (non-fatal)", song_id)
             try:
                 song.analysis_error = (song.analysis_error or "") + f" | dj: {_e}"
+                song.analysis_error = song.analysis_error[:2000]
+                db.commit()
+            except Exception:
+                pass
+
+        # --- Phase 5: Genre classification ---
+        try:
+            _apply_genre_classification(db, song)
+            logger.info("[bg-analysis] Phase 5: genre classification ready for %s", song_id)
+        except Exception as _e:
+            logger.exception("[bg-analysis] Phase 5 genre classification failed for %s (non-fatal)", song_id)
+            try:
+                song.analysis_error = (song.analysis_error or "") + f" | genre: {_e}"
                 song.analysis_error = song.analysis_error[:2000]
                 db.commit()
             except Exception:
@@ -351,11 +461,49 @@ def _do_analysis_and_separation(song_id: str) -> None:
         db.close()
 
 
+def _apply_genre_classification(db, song) -> None:
+    """Classify genre from audio features plus optional metadata."""
+    from app.modules.library.genre_classifier import classify_genre
+
+    manual_style = None
+    try:
+        from app.modules.playlists.models import SongTag
+        tag = db.query(SongTag).filter(SongTag.song_id == song.song_id).first()
+        if tag and tag.style:
+            manual_style = tag.style
+    except Exception:
+        pass
+
+    song.genre_profile = classify_genre(
+        bpm=song.bpm,
+        stem_activity=getattr(song, "stem_activity", None),
+        groove_profile=getattr(song, "groove_profile", None),
+        dj_features=(getattr(song, "music_features", {}) or {}).get("dj"),
+        energy=song.energy,
+        title=song.title,
+        artist=song.artist,
+        manual_style=manual_style,
+    )
+    db.add(song)
+    db.commit()
+
+
 def copy_analysis_from(source: object, target: object) -> None:
     """Copy analysis results from an existing LibrarySong to a new one."""
     for field in ("bpm", "duration", "key", "camelot_key", "energy",
-                  "beat_points", "downbeats", "phrase_map", "key_confidence",
-                  "cue_points", "stems", "analysis_status"):
+                  "beat_points", "bpm_curve", "tempo_stability", "beat_confidence",
+                  "beat_confidence_details", "beat_grid_offset", "beat_grid_interval",
+                  "beat_engines_used", "beat_needs_review", "energy_curve", "loudness_profile",
+                  "key_profile", "time_signature", "groove_score", "groove_profile",
+                  "danceability_score", "dancefloor_profile", "dj_hot_cues",
+                  "vocal_events", "bass_risk_windows",
+                  "transition_windows", "transition_recommendations",
+                  "downbeats", "phrase_map", "key_confidence",
+                  "stem_activity", "stem_activity_windows", "stem_quality_score", "stem_quality_profile",
+                  "intro_is_clean", "outro_is_clean", "intro_clean_score", "outro_clean_score",
+                  "has_drum_loop",
+                  "music_features", "dance_styles", "dance_style_scores", "dance_style_status",
+                  "genre_profile", "cue_points", "stems", "analysis_status"):
         val = getattr(source, field, None)
         if val is not None:
             setattr(target, field, val)

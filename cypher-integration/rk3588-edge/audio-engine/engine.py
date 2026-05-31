@@ -18,11 +18,6 @@ from config import BLOCK_SIZE, CACHE_DIR, CYPHER_HOME, REQUIRE_STEMS_FOR_PLAY, S
 from dsp import Biquad
 from mix_plan import NormalizedPlan, Transition, normalize_mix_plan
 
-# Import professional DJ transition engine
-import sys
-sys.path.insert(0, '/tmp')
-from dj_transition_engine import get_transition_envelopes, BUILDERS
-
 logger = logging.getLogger(__name__)
 
 SAMPLES_DIR = CYPHER_HOME / "samples"
@@ -1029,7 +1024,7 @@ class AudioEngineMVP:
         - smooth/power: 整轨等功率 cos/sin
         - bass_swap/filter/echo_out: 包络 + _apply_style_effects 里的 biquad/echo
         - cut: 0.05 比例点硬切
-        - slam: 前段保留 A，短暂静默后 B 硬进（不依赖 stems）
+        - slam: 前段保留 A，随后快速但连续地让 B 接管（不依赖 stems）
         - fade/blend/rise/wave/melt: Spotify Mix 风格 preset 映射
         """
         x = min(1.0, max(0.0, progress))
@@ -1054,9 +1049,8 @@ class AudioEngineMVP:
         if style == "slam":
             if x < 0.68:
                 return {"full": 1.0 - 0.25 * (x / 0.68)}, {"full": 0.0}
-            if x < 0.78:
-                return {"full": 0.0}, {"full": 0.0}
-            return {"full": 0.0}, {"full": 1.0}
+            slam_x = min(1.0, max(0.0, (x - 0.68) / 0.18))
+            return {"full": 0.75 * (1.0 - slam_x)}, {"full": slam_x}
         if style == "echo_freeze":
             if x < 0.36:
                 a_g = 1.0
@@ -1093,7 +1087,7 @@ class AudioEngineMVP:
             # Key improvements:
             # 1. A non-vocals fade out gradually across the FULL transition (not just 40%)
             # 2. B instrumental bed starts earlier and builds smoothly
-            # 3. Vocal crossfade is tight (3% window) but happens over a continuous bed
+            # 3. Vocal crossfade stays short but happens over a continuous bed
             # 4. No energy holes or sudden silence
             #
             # Timeline:
@@ -1104,7 +1098,7 @@ class AudioEngineMVP:
 
             xn = min(1.0, max(0.0, x))
             handoff = min(0.58, max(0.38, float(vocal_handoff_ratio)))
-            cross = 0.03  # micro-crossfade window for vocals
+            cross = 0.12  # short vocal crossfade; avoids a hard handoff edge
 
             # ── A side ──
             # Non-vocals: slow fade across FULL transition (not just 40%)
@@ -1126,7 +1120,7 @@ class AudioEngineMVP:
             b_d = AudioEngineMVP._sin_ramp(xn, 0.12, 0.30)  # Start at 12%, ramp over 30%
 
             # Bass: enter after drums are established
-            b_b = AudioEngineMVP._sin_ramp(xn, 0.22, 0.28)  # Start at 22%, ramp over 28%
+            b_b = AudioEngineMVP._sin_ramp(xn, 0.30, 0.55)  # Delay bass ownership to avoid overlap
 
             # Other: texture bed, start early
             b_o = AudioEngineMVP._sin_ramp(xn, 0.15, 0.30)  # Start at 15%, ramp over 30%

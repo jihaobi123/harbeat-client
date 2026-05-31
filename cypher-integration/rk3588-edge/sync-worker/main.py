@@ -33,7 +33,7 @@ app = FastAPI(title="Cypher Sync Worker", version="0.1.0")
 
 class SyncState:
     def __init__(self) -> None:
-        self.lock = asyncio.Lock()
+        self.lock: asyncio.Lock | None = None
         self.running = False
         self.total = 0
         self.completed = 0
@@ -44,7 +44,7 @@ class SyncState:
         self.plan_id: str | None = None
 
     async def reset(self, total: int, plan_id: str | None) -> None:
-        async with self.lock:
+        async with self._lock():
             self.running = True
             self.total = total
             self.completed = 0
@@ -55,28 +55,28 @@ class SyncState:
             self.plan_id = plan_id
 
     async def mark_current(self, name: str) -> None:
-        async with self.lock:
+        async with self._lock():
             self.current_file = name
 
     async def mark_done(self) -> None:
-        async with self.lock:
+        async with self._lock():
             self.completed += 1
             self.downloaded = self.completed
             self.percent = round((self.completed / self.total) * 100, 2) if self.total else 100.0
 
     async def add_error(self, message: str) -> None:
-        async with self.lock:
+        async with self._lock():
             self.errors.append(message)
 
     async def finish(self) -> None:
-        async with self.lock:
+        async with self._lock():
             self.running = False
             self.current_file = None
             if self.total and not self.errors:
                 self.percent = 100.0
 
     async def snapshot(self) -> dict[str, Any]:
-        async with self.lock:
+        async with self._lock():
             return {
                 "running": self.running,
                 "plan_id": self.plan_id,
@@ -87,6 +87,11 @@ class SyncState:
                 "percent": self.percent,
                 "errors": list(self.errors),
             }
+
+    def _lock(self) -> asyncio.Lock:
+        if self.lock is None:
+            self.lock = asyncio.Lock()
+        return self.lock
 
 
 state = SyncState()

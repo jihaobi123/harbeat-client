@@ -1,0 +1,23 @@
+[Unit]
+Description=Cypher Sync Worker (Jetson manifest downloader)
+Documentation=file:///home/cat/cypher/README.md
+After=network-online.target
+Wants=network-online.target
+PartOf=cypher.target
+
+[Service]
+Type=simple
+User=cat
+Group=cat
+WorkingDirectory=/home/cat/cypher/sync-worker
+EnvironmentFile=-/home/cat/cypher/deploy/cypher.env
+Environment=PATH=/home/cat/venvs/edge/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/cat/venvs/edge/bin/uvicorn main:app --host 127.0.0.1 --port 9100
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cypher-sync
+
+[Install]
+WantedBy=multi-user.target cypher.target

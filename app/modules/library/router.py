@@ -207,12 +207,38 @@ def analyze_library_song_endpoint(
     song.camelot_key = result.get("camelot_key")
     song.energy = result.get("energy")
     song.beat_points = result.get("beat_points", [])
+    song.bpm_curve = result.get("bpm_curve", [])
+    song.tempo_stability = result.get("tempo_stability")
+    song.beat_confidence = result.get("beat_confidence")
+    song.beat_confidence_details = result.get("beat_confidence_details", {})
+    song.beat_grid_offset = result.get("beat_grid_offset")
+    song.beat_grid_interval = result.get("beat_grid_interval")
+    song.beat_engines_used = result.get("beat_engines_used", [])
+    song.beat_needs_review = int(result.get("beat_needs_review", False))
+    song.energy_curve = result.get("energy_curve", [])
+    song.loudness_profile = result.get("loudness_profile", {})
+    song.time_signature = result.get("time_signature", {})
+    groove = result.get("groove", {})
+    song.groove_score = groove.get("score") if groove else None
+    song.groove_profile = groove if groove else {}
+    song.danceability_score = result.get("danceability_score")
+    song.dancefloor_profile = result.get("dancefloor_profile", {})
+    song.dj_hot_cues = result.get("dj_hot_cues", [])
+    song.transition_windows = result.get("transition_windows", [])
+    song.transition_recommendations = result.get("transition_recommendations", [])
+    song.downbeats = result.get("downbeats", [])
+    song.phrase_map = result.get("phrase_map", [])
+    song.key_confidence = result.get("key_confidence")
+    song.key_profile = result.get("key_profile", {})
     # Add IDs to cue points for frontend
     raw_cues = result.get("cue_points", [])
     song.cue_points = [
         {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
         for i, c in enumerate(raw_cues)
     ]
+    from app.modules.library.background_tasks import _apply_genre_classification, apply_dj_fingerprint
+    apply_dj_fingerprint(db, song)
+    _apply_genre_classification(db, song)
     song.analysis_status = "completed"
     db.commit()
     db.refresh(song)
@@ -250,8 +276,12 @@ def separate_stems_endpoint(
     if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
         stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
         song.stems = stems
+        from app.modules.library.background_tasks import apply_stem_analysis
+        apply_stem_analysis(song)
+        from app.modules.library.background_tasks import apply_dj_fingerprint
+        apply_dj_fingerprint(db, song)
         db.commit()
-        return APIResponse(data={"stems": stems})
+        return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
 
     # Run demucs
     python_exe = sys.executable
@@ -282,5 +312,9 @@ def separate_stems_endpoint(
 
     stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
     song.stems = stems
+    from app.modules.library.background_tasks import apply_stem_analysis
+    apply_stem_analysis(song)
+    from app.modules.library.background_tasks import apply_dj_fingerprint
+    apply_dj_fingerprint(db, song)
     db.commit()
-    return APIResponse(data={"stems": stems})
+    return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
