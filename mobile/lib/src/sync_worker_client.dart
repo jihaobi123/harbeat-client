@@ -15,7 +15,15 @@ class SyncWorkerClient {
   /// 推导出 sync-worker URL（替换/追加 :9100）。
   static String deriveFromRkBaseUrl(String rkBaseUrl) {
     var s = rkBaseUrl.trim();
-    if (!s.startsWith('http')) s = 'http://$s';
+    while (s.startsWith('http://http://')) {
+      s = s.substring('http://'.length);
+    }
+    while (s.startsWith('https://https://')) {
+      s = s.substring('https://'.length);
+    }
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://').hasMatch(s)) {
+      s = 'http://$s';
+    }
     final uri = Uri.parse(s);
     final host = uri.host.isNotEmpty ? uri.host : rkBaseUrl;
     return 'http://$host:9100';

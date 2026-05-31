@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api_client.dart';
 import '../edge_agent_client.dart';
@@ -31,6 +32,9 @@ class SongDetailPage extends StatefulWidget {
 }
 
 class _SongDetailPageState extends State<SongDetailPage> {
+  static const _rkBaseUrlStorageKey = 'harbeat_rk_base_url';
+  static const _defaultRkBaseUrl = 'http://192.168.43.7:9000';
+
   late LibrarySong _song;
   late EdgeAgentClient _edge;
   late SyncWorkerClient _sync;
@@ -58,12 +62,27 @@ class _SongDetailPageState extends State<SongDetailPage> {
   void initState() {
     super.initState();
     _song = widget.song;
-    // 复用 main.dart 注入的服务地址；这里用环境默认值 + 局域网 IP，跟 home_page 保持一致。
-    // 上层页面已经在 widget.session 里传了 token，但 RK base url 由用户在主页设置里改，
-    // 这里直接用代码里默认 192.168.43.7:9000，并支持后续从 inheritedWidget/参数覆盖。
-    _edge = EdgeAgentClient(baseUrl: 'http://192.168.43.7:9000');
-    _sync = SyncWorkerClient(baseUrl: 'http://192.168.43.7:9100');
+    _edge = EdgeAgentClient(baseUrl: _defaultRkBaseUrl);
+    _sync = SyncWorkerClient(
+      baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edge.baseUrl),
+    );
+    _loadRkClients();
     _refreshDetail();
+  }
+
+  Future<void> _loadRkClients() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_rkBaseUrlStorageKey);
+    if (saved == null || saved.isEmpty) return;
+    final edge = EdgeAgentClient(baseUrl: saved);
+    final sync = SyncWorkerClient(
+      baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(edge.baseUrl),
+    );
+    if (!mounted) return;
+    setState(() {
+      _edge = edge;
+      _sync = sync;
+    });
   }
 
   @override

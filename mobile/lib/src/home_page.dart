@@ -84,10 +84,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _edgeClient = EdgeAgentClient(
-      baseUrl: 'http://${widget.rkBaseUrl}',
+      baseUrl: widget.rkBaseUrl,
     );
     _syncWorker = SyncWorkerClient(
-      baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(widget.rkBaseUrl),
+      baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edgeClient.baseUrl),
     );
     _syncFromWidget();
     _positionSub = _player.positionStream.listen((value) {
@@ -132,10 +132,10 @@ class _HomePageState extends State<HomePage> {
     }
     if (oldWidget.rkBaseUrl != widget.rkBaseUrl) {
       _edgeClient = EdgeAgentClient(
-        baseUrl: 'http://${widget.rkBaseUrl}',
+        baseUrl: widget.rkBaseUrl,
       );
       _syncWorker = SyncWorkerClient(
-        baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(widget.rkBaseUrl),
+        baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edgeClient.baseUrl),
       );
     }
   }
@@ -207,12 +207,18 @@ class _HomePageState extends State<HomePage> {
     if (result == true) {
       final api = apiCtrl.text.trim();
       final rk = rkCtrl.text.trim();
+      final normalizedRk =
+          rk.isEmpty ? '' : EdgeAgentClient.normalizeBaseUrl(rk);
       if (api.isNotEmpty && api != widget.apiBaseUrl) {
         await widget.onApiBaseUrlChanged(api);
       }
-      if (rk.isNotEmpty && rk != widget.rkBaseUrl) {
-        await widget.onRkBaseUrlChanged(rk);
-        _edgeClient = EdgeAgentClient(baseUrl: 'http://$rk');
+      if (normalizedRk.isNotEmpty &&
+          normalizedRk != EdgeAgentClient.normalizeBaseUrl(widget.rkBaseUrl)) {
+        await widget.onRkBaseUrlChanged(normalizedRk);
+        _edgeClient = EdgeAgentClient(baseUrl: normalizedRk);
+        _syncWorker = SyncWorkerClient(
+          baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edgeClient.baseUrl),
+        );
       }
     }
   }

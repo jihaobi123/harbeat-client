@@ -52,6 +52,87 @@ def _next_downbeat(song, t: float) -> float | None:
 
 
 # --------------------------------------------------------------------------- #
+# Phase 3.1 — stem_curves dispatch
+#
+# Each rule attaches a `stem_curves` dict the audio-engine consults when both
+# prev and next decks have all 4 stems loaded. Format:
+#
+#   {"prev": {<stem>: <curve>, ...},
+#    "next": {<stem>: <curve>, ...}}
+#
+# Curve names the engine will implement in Phase 3.2 / 3.3:
+#   hold           — full level the whole crossfade (no fade)
+#   linear_out     — 1.0 → 0.0 linear over [0, 1]
+#   linear_in      — 0.0 → 1.0 linear over [0, 1]
+#   out_at_break   — 1.0 hold to 0.5, then 0.0 (hard low cut at midpoint)
+#   in_at_break    — 0.0 hold to 0.5, then 1.0 (hard low rise at midpoint)
+#
+# Curves only used in 3.3 (defined here for forward compatibility — engine
+# falls back to linear_in/out if not yet implemented):
+#   in_late, hold_then_out, swell_then_out, kick_then_in, duck_then_in, pump
+#
+# When stems are not loaded, audio-engine ignores stem_curves and follows the
+# original style/eq path. This makes 3.1 a zero-risk metadata-only change.
+# --------------------------------------------------------------------------- #
+_STEM_CURVES: dict[str, dict] = {
+    "harmonic_blend": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out", "bass": "linear_out", "other": "linear_out"},
+        "next": {"vocals": "in_late",    "drums": "linear_in",  "bass": "linear_in",  "other": "linear_in"},
+    },
+    # bass swap is the headline behaviour: low frequencies switch instantly
+    # at the bar midpoint instead of summing two basslines = mud.
+    "eq_swap_4bar": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out", "bass": "out_at_break", "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",  "bass": "in_at_break",  "other": "linear_in"},
+    },
+    "filter_sweep_high": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out", "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",  "bass": "linear_in",    "other": "linear_in"},
+    },
+    "drop_swap": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out", "bass": "out_at_break", "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",  "bass": "in_at_break",  "other": "linear_in"},
+    },
+    "echo_tail": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out",    "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    "loop_roll": {
+        "prev": {"vocals": "linear_out", "drums": "hold_then_out", "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    "spin_back": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out",    "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    # drum_only_bridge is the second stem-aware highlight: prev's drums hold
+    # a bar while everything else exits, then next's drums + bass come in
+    # underneath while next's vocal waits.
+    "drum_only_bridge": {
+        "prev": {"vocals": "linear_out", "drums": "hold",          "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "in_late",    "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    "key_lift": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out",    "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    "reverb_throw": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out",    "bass": "linear_out",   "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "linear_in",    "other": "linear_in"},
+    },
+    # smash cut — hard swap, no real stem fades but populated for completeness.
+    "back_to_back_drop": {
+        "prev": {"vocals": "linear_out", "drums": "linear_out",    "bass": "out_at_break", "other": "linear_out"},
+        "next": {"vocals": "linear_in",  "drums": "linear_in",     "bass": "in_at_break",  "other": "linear_in"},
+    },
+}
+
+
+def _stem_curves_for(rule_key: str) -> dict | None:
+    return _STEM_CURVES.get(rule_key)
+
+
+# --------------------------------------------------------------------------- #
 # ANALYZED — 11 rules
 # --------------------------------------------------------------------------- #
 def _harmonic_blend(prev, nxt, cursor):
@@ -439,6 +520,402 @@ def _score_rule(key: str, prev, nxt) -> float:
     return max(0.0, s)
 
 
+def _smart_exit_entry(prev_song, next_song, cursor_sec: float, crossfade_sec: float) -> dict:
+    """Phase-1 smart points: pick a phrase-aligned exit on prev (preferring
+    outro/break/bridge cue points), and an entry on next that skips intro
+    silence/build-up and lands on the first downbeat (or first beat).
+
+    Phase-2 beatmatch: also decide a target tempo for the next track so it
+    plays at (or near) prev's BPM during the crossfade. RK uses this hint to
+    swap in a pre-rendered rubberband-stretched wav.
+
+    Returns:
+        {
+          "exit_at_sec":    float,  # where to start the xfade in prev
+          "entry_at_sec":   float,  # where the next track should begin playing
+          "snapped_dur":    float,  # duration snapped to bar boundary at prev bpm
+          "exit_section":   str | None,  # cue label at exit_at_sec, if any
+          "skipped_intro_sec": float,    # how much head silence/build was skipped
+          "target_bpm":     float | None,  # target tempo we want next at
+          "tempo_ratio":    float | None,  # prev_bpm / next_bpm, clamped to safe range
+          "align_strategy": str,    # "match" | "blend" | "skip"
+        }
+    """
+    try:
+        from app.modules.playlists.transition_planner import (
+            TrackFeature,
+            plan_phrase_transition,
+        )
+    except Exception:
+        return {
+            "exit_at_sec": float(cursor_sec),
+            "entry_at_sec": 0.0,
+            "snapped_dur": float(crossfade_sec),
+            "exit_section": None,
+            "skipped_intro_sec": 0.0,
+            "target_bpm": None,
+            "tempo_ratio": None,
+            "align_strategy": "skip",
+        }
+
+    prev_dur = float(getattr(prev_song, "duration", 0) or 0)
+    next_dur = float(getattr(next_song, "duration", 0) or 0)
+    prev_bpm = _safe(getattr(prev_song, "bpm", None), 120.0)
+    next_bpm = _safe(getattr(next_song, "bpm", None), prev_bpm)
+    prev_beats = list(getattr(prev_song, "beat_points", []) or [])
+    next_beats = list(getattr(next_song, "beat_points", []) or [])
+    next_dbs = list(getattr(next_song, "downbeats", []) or [])
+    prev_cues = list(getattr(prev_song, "cue_points", []) or [])
+    next_cues = list(getattr(next_song, "cue_points", []) or [])
+
+    plan = plan_phrase_transition(
+        from_track=TrackFeature(song_id=0, bpm=prev_bpm, camelot_key=None, duration=prev_dur),
+        to_track=TrackFeature(song_id=0, bpm=next_bpm, camelot_key=None, duration=next_dur),
+        crossfade_sec=float(crossfade_sec),
+        from_beat_points=prev_beats,
+        to_beat_points=next_beats,
+        from_cue_points=prev_cues,
+    )
+
+    exit_at = float(plan.exit_time_sec)
+    if exit_at < cursor_sec - 0.5:
+        bar = 4 * 60.0 / prev_bpm if prev_bpm > 0 else 2.0
+        exit_at = float(min(prev_dur - 0.25, max(cursor_sec, exit_at + bar)))
+
+    # Hard ceiling: exit_at must leave room for the full fade BEFORE the file
+    # ends. Many tracks have a quiet outro (fade-out tail or silence padding)
+    # that lasts 5-15s — if we let exit_at sit at duration-1, the crossfade
+    # plays into dead air and listeners hear silence instead of a transition.
+    # Pull exit_at back by (fade + 3s safety margin) — enough to let the tail
+    # of the fade finish before the silence kicks in.
+    bar_for_safety = 4 * 60.0 / prev_bpm if prev_bpm > 0 else 2.0
+    safety_margin = float(crossfade_sec) + 3.0
+    if prev_dur > safety_margin + 5.0:  # only apply when track is long enough
+        max_exit = prev_dur - safety_margin
+        if exit_at > max_exit:
+            # Snap the new exit back to a downbeat near max_exit so the fade
+            # still lands on a musical boundary.
+            new_exit = max_exit
+            for db in (getattr(prev_song, "downbeats", []) or []):
+                t = float(db)
+                if max_exit - bar_for_safety <= t <= max_exit:
+                    new_exit = t
+            exit_at = float(max(cursor_sec + 0.5, new_exit))
+
+    entry_at = 0.0
+    next_intro_skip = _next_intro_skip(next_cues, next_dbs, next_beats)
+    if next_intro_skip is not None:
+        entry_at = float(next_intro_skip)
+    elif plan.entry_time_sec > 0.0:
+        entry_at = float(plan.entry_time_sec)
+
+    bar = 4 * 60.0 / prev_bpm if prev_bpm > 0 else 2.0
+    bars = max(1, round(crossfade_sec / bar))
+    snapped_dur = float(min(30.0, max(2.0, bars * bar)))
+
+    exit_section = _section_at(prev_cues, exit_at)
+
+    # ---- Phase 2 tempo align ----
+    # tempo_ratio = prev_bpm / next_bpm. RK applies it to the next track so its
+    # tempo matches prev. Clamp to ±6% (rubberband sweet spot, no audible
+    # artifacts). 6-12% drifts to "blend" mode (still try, but accept drift).
+    # >12% gives up entirely — DJ should pick a dramatic rule (spin_back etc.).
+    target_bpm: float | None = None
+    tempo_ratio: float | None = None
+    align_strategy = "skip"
+    if prev_bpm > 0 and next_bpm > 0:
+        ratio_raw = prev_bpm / next_bpm
+        diff_pct = abs(ratio_raw - 1.0) * 100.0
+        if diff_pct < 0.5:
+            # Already same tempo — nothing to do.
+            align_strategy = "match"
+        elif diff_pct <= 6.0:
+            # Pull next track all the way to prev's tempo.
+            target_bpm = float(prev_bpm)
+            tempo_ratio = float(ratio_raw)
+            align_strategy = "match"
+        elif diff_pct <= 12.0:
+            # Meet in the middle so neither track is stretched beyond the
+            # safe range. ratio applied to next is sqrt(prev/next).
+            mid_bpm = (prev_bpm + next_bpm) / 2.0
+            target_bpm = float(mid_bpm)
+            tempo_ratio = float(mid_bpm / next_bpm)
+            align_strategy = "blend"
+        else:
+            align_strategy = "skip"
+
+    return {
+        "exit_at_sec": exit_at,
+        "entry_at_sec": entry_at,
+        "snapped_dur": snapped_dur,
+        "exit_section": exit_section,
+        "skipped_intro_sec": entry_at,
+        "target_bpm": target_bpm,
+        "tempo_ratio": tempo_ratio,
+        "align_strategy": align_strategy,
+    }
+
+
+def _next_intro_skip(cue_points, downbeats, beat_points) -> float | None:
+    """Find the first 'real start' of next track: prefer first verse/chorus/drop
+    cue, fall back to first downbeat > 1.5s, fall back to first beat > 1.5s."""
+    if cue_points:
+        for cue in cue_points:
+            label = str(cue.get("label") or "").lower()
+            if label in {"verse", "chorus", "drop", "hook", "main"}:
+                t = float(cue.get("time") or 0.0)
+                if t > 0.5:
+                    return t
+    if downbeats:
+        for db in downbeats:
+            if float(db) >= 1.5:
+                return float(db)
+    if beat_points:
+        for bp in beat_points:
+            if float(bp) >= 1.5:
+                return float(bp)
+    return None
+
+
+def _section_at(cue_points, t: float) -> str | None:
+    """Return the cue label that contains time t (last cue with time <= t)."""
+    if not cue_points:
+        return None
+    label = None
+    for cue in cue_points:
+        ct = float(cue.get("time") or 0.0)
+        if ct <= t:
+            label = str(cue.get("label") or "").lower() or None
+        else:
+            break
+    return label
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2.5 — Beat Reinforcement
+#
+# Some songs have weak / muddy drums that make every transition sound flat
+# even when the rule + tempo align are perfect. A real DJ would either layer
+# a backbeat sample on top, or duck the drums and let another track's groove
+# carry the bar. We do the simpler version: when one side of a transition
+# scores low on beat-strength, schedule snare/kick samples on its beats inside
+# the transition window. mobile dispatches /beat_reinforce just before /xfade.
+# --------------------------------------------------------------------------- #
+_STRONG_GENRE_HINTS = (
+    "edm", "house", "techno", "trance", "dnb", "drum", "dance", "funk",
+    "disco", "hardstyle", "trap", "future", "electro", "garage", "breaks",
+)
+_WEAK_GENRE_HINTS = (
+    "ballad", "chill", "lofi", "ambient", "acoustic", "jazz", "rnb", "r&b",
+    "soul", "indie", "folk", "blues", "country",
+)
+
+
+def compute_beat_strength(song) -> float:
+    """Return rhythmic-strength score in [0, 1]. 1 = punchy 4-on-the-floor.
+
+    Heuristic only — no audio analysis. We score on:
+      - energy (already estimated upstream; weight 0.45)
+      - bpm    (closer to 120-140 = stronger; weight 0.30)
+      - genre  (if available, ±0.20 swing on keyword match)
+      - beat density (beats per second; weight 0.05)
+    """
+    energy = _f(song, "energy", 0.5)
+    energy_score = max(0.0, min(1.0, energy))
+
+    bpm = _f(song, "bpm", 0.0)
+    if bpm <= 0:
+        bpm_score = 0.5
+    elif 110.0 <= bpm <= 140.0:
+        bpm_score = 1.0
+    elif 95.0 <= bpm < 110.0:
+        bpm_score = 0.7
+    elif 140.0 < bpm <= 160.0:
+        bpm_score = 0.85
+    elif bpm < 95.0:
+        bpm_score = max(0.2, bpm / 95.0 * 0.6)
+    else:  # >160
+        bpm_score = 0.6
+
+    genre = (getattr(song, "genre", None) or "").lower()
+    style = (getattr(song, "style", None) or "").lower()
+    haystack = f"{genre} {style}"
+    genre_swing = 0.0
+    if any(k in haystack for k in _STRONG_GENRE_HINTS):
+        genre_swing = 0.15
+    elif any(k in haystack for k in _WEAK_GENRE_HINTS):
+        genre_swing = -0.15
+
+    beats = list(getattr(song, "beat_points", []) or [])
+    duration = _f(song, "duration", 0.0)
+    if beats and duration > 0:
+        bps = len(beats) / duration
+        # Typical pop is ~2 bps; below 1.6 reads as sparse.
+        density_score = max(0.0, min(1.0, (bps - 1.0) / 1.5))
+    else:
+        density_score = 0.5
+
+    raw = (
+        0.45 * energy_score
+        + 0.30 * bpm_score
+        + 0.05 * density_score
+        + genre_swing
+    )
+    # Renormalize to [0, 1]: max base contribution is 0.80, plus ±0.15 swing.
+    return max(0.0, min(1.0, raw / 0.80))
+
+
+def _section_drum_energies(song, at_window_sec: float | None) -> tuple[float, float, float] | None:
+    """Compute (kick_punch, snare_crack, groove_confidence) for the section that
+    contains `at_window_sec`. Returns None if section data unavailable.
+    """
+    if at_window_sec is None:
+        return None
+    try:
+        from app.modules.dj_set.section_energy import compute_section_energy_map
+    except Exception:
+        return None
+    try:
+        sections = compute_section_energy_map(song)
+    except Exception:
+        return None
+    if not sections:
+        return None
+    sec = None
+    for s in sections:
+        if s.start <= at_window_sec < s.end:
+            sec = s
+            break
+    if sec is None:
+        sec = min(sections, key=lambda s: abs((s.start + s.end) / 2 - at_window_sec))
+    groove_conf = float(min(1.0, 0.6 * sec.section_groove_energy + 0.4 * sec.section_impact_energy))
+    return float(sec.section_kick_punch), float(sec.section_snare_crack), groove_conf
+
+
+def beat_reinforcement_need(
+    song,
+    *,
+    at_window_sec: float | None = None,
+    transition_context_weight: float = 0.5,
+) -> float:
+    """Section-aware reinforcement need ∈ [0, 1].
+
+    Formula:
+        0.35 * (1 - section_kick_punch)
+      + 0.30 * (1 - section_snare_crack)
+      + 0.20 * groove_confidence
+      + 0.15 * transition_context_weight
+
+    Higher = more help needed (weak drums + groove signal).
+    Falls back to whole-track compute_beat_strength when section data missing.
+    """
+    triple = _section_drum_energies(song, at_window_sec)
+    if triple is None:
+        # Legacy path — invert beat_strength as a proxy for need.
+        return float(min(1.0, max(0.0, (1.0 - compute_beat_strength(song)) * 0.85
+                                      + 0.15 * transition_context_weight)))
+    kp, sc, groove_conf = triple
+    need = (
+        0.35 * (1.0 - kp)
+        + 0.30 * (1.0 - sc)
+        + 0.20 * groove_conf
+        + 0.15 * float(max(0.0, min(1.0, transition_context_weight)))
+    )
+    return float(max(0.0, min(1.0, need)))
+
+
+def _beats_in_window(beats: list[float], start: float, end: float) -> list[float]:
+    return [float(b) for b in beats if start - 0.05 <= float(b) <= end + 0.05]
+
+
+def _plan_beat_reinforce(
+    prev_song,
+    next_song,
+    exit_at_sec: float,
+    entry_at_sec: float,
+    duration_sec: float,
+) -> dict | None:
+    """Return {prev: {...}, next: {...}} or None when no reinforcement helps.
+
+    Decision matrix (prev_s, next_s = beat strength):
+      both >= 0.60 → None (groove already obvious on both sides)
+      both <  0.35 → reinforce both with backbeat (4 hits per bar feels weak)
+      diff >= 0.20 → reinforce only the weaker side
+      else         → reinforce the weaker side at low gain
+    """
+    if duration_sec < 1.0:
+        return None
+    # Section-aware need (Step 9): each side scored at the seam window.
+    # Falls back to whole-track strength when section data missing.
+    prev_need = beat_reinforcement_need(prev_song, at_window_sec=float(exit_at_sec),
+                                        transition_context_weight=0.6)
+    next_need = beat_reinforcement_need(next_song, at_window_sec=float(entry_at_sec),
+                                        transition_context_weight=0.6)
+    # Convert "need" back to "strength" so the existing thresholds keep meaning:
+    #   need 0.0 -> strength 1.0   (no help needed)
+    #   need 1.0 -> strength 0.0   (full help needed)
+    prev_s = float(max(0.0, min(1.0, 1.0 - prev_need)))
+    next_s = float(max(0.0, min(1.0, 1.0 - next_need)))
+    sides: dict[str, dict] = {}
+
+    def _entry(song, start: float, end: float, gain: float, pattern: str, key: int) -> dict | None:
+        beats = _beats_in_window(list(getattr(song, "beat_points", []) or []), start, end)
+        if len(beats) < 2:
+            return None
+        return {
+            "start_sec": round(start, 3),
+            "end_sec": round(end, 3),
+            "beats": [round(b, 4) for b in beats],
+            "sample_key": int(key),
+            "gain": round(gain, 3),
+            "pattern": pattern,
+        }
+
+    prev_window = (float(exit_at_sec), float(exit_at_sec) + float(duration_sec))
+    next_window = (float(entry_at_sec), float(entry_at_sec) + float(duration_sec))
+
+    # Phase 2.5 v2 — louder, denser reinforcement so the "drum push" actually
+    # carries the transition. Tuning rationale:
+    #   gain 1.4              — engine multiplies by SAMPLE_GAIN[4]=3.0 → real ~4.2x,
+    #                          headroom against the limiter so snares stay punchy
+    #                          without overwhelming the song
+    #   pattern "all"         — every beat, not every other (was 'backbeat')
+    #   sample_key 4          — snare_crack stays the rhythm anchor
+    if prev_s >= 0.65 and next_s >= 0.65:
+        return None
+    if prev_s < 0.40 and next_s < 0.40:
+        p = _entry(prev_song, *prev_window, gain=1.4, pattern="all", key=4)
+        n = _entry(next_song, *next_window, gain=1.4, pattern="all", key=4)
+        if p:
+            sides["prev"] = p
+        if n:
+            sides["next"] = n
+    elif prev_s + 0.18 <= next_s:
+        p = _entry(prev_song, *prev_window, gain=1.4, pattern="all", key=4)
+        if p:
+            sides["prev"] = p
+    elif next_s + 0.18 <= prev_s:
+        n = _entry(next_song, *next_window, gain=1.4, pattern="all", key=4)
+        if n:
+            sides["next"] = n
+    else:
+        weaker = "prev" if prev_s <= next_s else "next"
+        if weaker == "prev":
+            p = _entry(prev_song, *prev_window, gain=1.0, pattern="backbeat", key=4)
+            if p:
+                sides["prev"] = p
+        else:
+            n = _entry(next_song, *next_window, gain=1.0, pattern="backbeat", key=4)
+            if n:
+                sides["next"] = n
+
+    if not sides:
+        return None
+    sides["prev_strength"] = round(prev_s, 3)
+    sides["next_strength"] = round(next_s, 3)
+    return sides
+
+
 def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str | None = None) -> dict:
     rule = pick_rule(prev_song, next_song, rule_key)
     spec = rule["apply"](prev_song, next_song, cursor_sec)
@@ -457,6 +934,40 @@ def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str
     min_dur = _MIN_DURATION_FOR_RULE.get(rule["key"])
     if min_dur is not None:
         spec["duration_sec"] = max(float(spec.get("duration_sec", 0.0)), min_dur)
+
+    # Phase-1 smart exit/entry: enrich the spec with phrase-aligned points so
+    # mobile can xfade from outro→intro instead of end→start. Mobile reads
+    # from_at_sec / to_at_sec when present and falls back to the legacy
+    # cursor / 0 if either is missing.
+    smart = _smart_exit_entry(prev_song, next_song, cursor_sec, float(spec.get("duration_sec", 6.0)))
+    spec["from_at_sec"] = round(smart["exit_at_sec"], 3)
+    spec["to_at_sec"] = round(smart["entry_at_sec"], 3)
+    spec["duration_sec"] = round(smart["snapped_dur"], 3)
+    if smart["exit_section"]:
+        spec["exit_section"] = smart["exit_section"]
+    spec["skipped_intro_sec"] = round(smart["skipped_intro_sec"], 3)
+    if smart.get("target_bpm") is not None:
+        spec["target_bpm"] = round(float(smart["target_bpm"]), 2)
+    if smart.get("tempo_ratio") is not None:
+        spec["tempo_ratio"] = round(float(smart["tempo_ratio"]), 5)
+    spec["align_strategy"] = smart.get("align_strategy") or "skip"
+
+    # Phase 2.5 — beat reinforcement
+    reinforce = _plan_beat_reinforce(
+        prev_song,
+        next_song,
+        exit_at_sec=float(spec["from_at_sec"]),
+        entry_at_sec=float(spec["to_at_sec"]),
+        duration_sec=float(spec["duration_sec"]),
+    )
+    if reinforce:
+        spec["beat_reinforce"] = reinforce
+
+    # Phase 3.1 — stem curves dispatch (engine respects only when both decks
+    # have all 4 stems; otherwise stem_curves is metadata for cutInfo display).
+    stem_curves = _stem_curves_for(rule["key"])
+    if stem_curves:
+        spec["stem_curves"] = stem_curves
     return spec
 
 

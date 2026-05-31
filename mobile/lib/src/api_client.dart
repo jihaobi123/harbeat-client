@@ -199,6 +199,8 @@ class HarBeatApiClient {
       path: '/api/fangpi/parse-playlist',
       token: token,
       body: {'url': url},
+      // NetEase API can be slow under load; default 15s isn't enough for cold path.
+      timeout: const Duration(seconds: 45),
     );
     return ParsedExternalPlaylist.fromJson(data);
   }
@@ -216,6 +218,9 @@ class HarBeatApiClient {
             .map((t) => {'title': t.title, 'artist': t.artist})
             .toList(),
       },
+      // Backend now runs concurrent (8-way) with 18s per-song cap. Worst case
+      // for 30+ song playlists is ~30s; allow plenty of headroom.
+      timeout: const Duration(seconds: 90),
     );
     return (data['results'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>()
@@ -237,6 +242,8 @@ class HarBeatApiClient {
         'artist': candidate.artist,
         'source': candidate.source ?? 'fangpi',
       },
+      // Single-song download fetches audio + writes file; can run 30-60s.
+      timeout: const Duration(seconds: 90),
     );
     return LibrarySong.fromJson(data);
   }
@@ -717,6 +724,31 @@ class HarBeatApiClient {
       body: {'song_ids': songIds, 'preset': preset},
     );
     return (data['sequence'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Auto-generate up to N candidate DJ sets from the picked songs.
+  /// Each set is a full {tracks, narrative_arc, energy_curve, transitions,
+  /// purposes, plans, quality, score, adjusted_score, template, set_id}.
+  /// User picks one of the returned sets — no manual preset choice needed.
+  Future<Map<String, dynamic>> djSetGenerate({
+    required String token,
+    required List<String> songIds,
+    List<String>? templateNames,
+    bool dropFailed = false,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/set/generate',
+      token: token,
+      body: {
+        'song_ids': songIds,
+        if (templateNames != null) 'template_names': templateNames,
+        'drop_failed': dropFailed,
+      },
+      // Pipeline does pairwise edge analysis + beam search across 5 templates;
+      // for 30 songs this can take 20-40s on Jetson.
+      timeout: const Duration(seconds: 90),
+    );
   }
 
   /// 5-bucket schema for energy chips/colors (cold/warm/mid/high/peak).

@@ -10,6 +10,8 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
 from app.modules.dj_control import cut_strategy, dance_style, fx_synth, mixer_rules, sequencer, vibe_search
 from app.modules.dj_control.energy_hiphop import compute_dance_energy
+from app.modules.dj_set import service as dj_set_service
+from app.modules.dj_set.set_templates import ALL_TEMPLATES, get_template
 from app.modules.dj_control.schemas import (
     CutPlanRequest,
     FxItem,
@@ -251,3 +253,127 @@ def render_fx_endpoint(fx_key: str, duration: float | None = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"render failed: {e}")
     return Response(content=wav_bytes, media_type="audio/wav")
+
+
+# --------------------------------------------------------------------------- #
+# Step 11 — DJ Set generation pipeline
+#
+#   POST /set/generate         5 candidate sets from selected songs
+#   GET  /set/{set_id}         retrieve a previously generated set
+#   POST /transition/preview   pairwise edge + plan preview (no full set)
+#   POST /set/{set_id}/preview render single-transition WAV stub (placeholder)
+# --------------------------------------------------------------------------- #
+import secrets as _secrets
+import time as _time
+
+_SET_CACHE: dict[str, dict] = {}
+_SET_CACHE_MAX = 32
+
+
+class SetGenerateRequest(BaseModel):
+    song_ids: list[str]
+    template_names: list[str] | None = None
+    beam_width: int = 12
+    drop_failed: bool = True
+
+
+class TransitionPreviewRequest(BaseModel):
+    prev_song_id: str
+    next_song_id: str
+
+
+def _cache_set(payload: dict) -> str:
+    set_id = _secrets.token_urlsafe(8)
+    payload = {**payload, "set_id": set_id, "created_at": _time.time()}
+    _SET_CACHE[set_id] = payload
+    if len(_SET_CACHE) > _SET_CACHE_MAX:
+        oldest = min(_SET_CACHE.items(), key=lambda kv: kv[1]["created_at"])[0]
+        _SET_CACHE.pop(oldest, None)
+    return set_id
+
+
+@router.post("/set/generate")
+def set_generate_endpoint(
+    payload: SetGenerateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not payload.song_ids:
+        raise HTTPException(status_code=400, detail="song_ids required")
+    songs_by_id = {
+        s.id: s
+        for s in db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id)
+        .filter(LibrarySong.id.in_(payload.song_ids))
+        .all()
+    }
+    ordered = [songs_by_id[sid] for sid in payload.song_ids if sid in songs_by_id]
+    if len(ordered) < 2:
+        raise HTTPException(status_code=400, detail="need ≥2 songs to build a set")
+
+    templates = None
+    if payload.template_names:
+        templates = []
+        for name in payload.template_names:
+            tpl = get_template(name)
+            if tpl is None:
+                raise HTTPException(status_code=400, detail=f"unknown template: {name}")
+            templates.append(tpl)
+
+    result = dj_set_service.generate_dj_sets(
+        ordered,
+        templates=templates,
+        beam_width=payload.beam_width,
+        drop_failed=payload.drop_failed,
+    )
+    set_ids: list[str] = []
+    for s in result.get("sets", []):
+        sid = _cache_set({"set": s, "user_id": current_user.id})
+        s["set_id"] = sid
+        set_ids.append(sid)
+    return APIResponse(data={
+        **result,
+        "set_ids": set_ids,
+        "count": len(result.get("sets", [])),
+    })
+
+
+@router.get("/set/{set_id}")
+def set_get_endpoint(
+    set_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    entry = _SET_CACHE.get(set_id)
+    if not entry or entry.get("user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail="set not found")
+    return APIResponse(data=entry["set"])
+
+
+@router.post("/transition/preview")
+def transition_preview_endpoint(
+    payload: TransitionPreviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    prev = db.get(LibrarySong, payload.prev_song_id)
+    nxt = db.get(LibrarySong, payload.next_song_id)
+    if not prev or not nxt or prev.user_id != current_user.id or nxt.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="song(s) not found")
+    return APIResponse(data=dj_set_service.preview_transition(prev, nxt))
+
+
+@router.post("/set/{set_id}/preview")
+def set_preview_endpoint(
+    set_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Stub — returns the cached plan; real-time render is mobile/RK's job."""
+    entry = _SET_CACHE.get(set_id)
+    if not entry or entry.get("user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail="set not found")
+    return APIResponse(data={
+        "set_id": set_id,
+        "render_supported": False,
+        "set": entry["set"],
+        "hint": "前端 / RK 端按 plan.actions 自行 render",
+    })

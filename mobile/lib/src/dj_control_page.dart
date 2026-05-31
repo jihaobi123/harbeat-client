@@ -50,6 +50,14 @@ class _DjControlPageState extends State<DjControlPage> {
   bool _seqLoading = false;
   String? _seqError;
 
+  // Auto DJ-Set state — backend picks 5 candidate sets, user二次选择.
+  // `_autoSets` is the full backend response's `sets` list (each item has
+  // tracks/narrative_arc/energy_curve/transitions/purposes/plans/quality).
+  List<Map<String, dynamic>> _autoSets = const [];
+  int _selectedSetIdx = -1;            // -1 = none chosen yet
+  bool _autoSetsLoading = false;
+  String? _autoSetsError;
+
   // v2 energy state — populated after排序，每首歌补一份 StreetEnergy 数据。
   List<Map<String, dynamic>> _energyBuckets = const [];
   // song_id -> v2 energy map: {total, bucket, bucket_color, factors, bpm,
@@ -85,6 +93,14 @@ class _DjControlPageState extends State<DjControlPage> {
   /// queue index has already advanced and any further trigger would be
   /// a cascading mistake.
   String? _lastXfadeToSongId;
+  /// Smart plan pre-fetched while the current track is within 30s of its
+  /// phrase-aligned exit. Lets us trigger the xfade exactly at the planned
+  /// outro/break boundary instead of guessing from "remaining ≤ Ns".
+  /// Keyed by the prev song id; cleared after the xfade fires or the queue
+  /// advances.
+  String? _smartPlanForSongId;
+  Map<String, dynamic>? _smartPlan;
+  bool _smartPlanInFlight = false;
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
@@ -154,6 +170,8 @@ class _DjControlPageState extends State<DjControlPage> {
     setState(() {
       _picked.addAll(added);
       _sequence = const [];
+      _autoSets = const [];
+      _selectedSetIdx = -1;
     });
   }
 
@@ -161,6 +179,8 @@ class _DjControlPageState extends State<DjControlPage> {
     setState(() {
       _picked.removeWhere((s) => s.id == id);
       _sequence = const [];
+      _autoSets = const [];
+      _selectedSetIdx = -1;
     });
   }
 
@@ -192,6 +212,79 @@ class _DjControlPageState extends State<DjControlPage> {
     } finally {
       if (mounted) setState(() => _seqLoading = false);
     }
+  }
+
+  // ---------------- Auto DJ Sets (new pipeline) ----------------
+  // Calls /api/dj/set/generate which runs the full pipeline (Profiler →
+  // Section Energy → Roles → Edges → 5 Templates → Optimizer → Purposes →
+  // Plans → Quality) and returns 5 candidate sets. User picks one — no manual
+  // preset choice needed.
+  Future<void> _runAutoSets() async {
+    if (_picked.length < 2) {
+      setState(() => _autoSetsError = '至少选 2 首才能生成');
+      return;
+    }
+    setState(() {
+      _autoSetsLoading = true;
+      _autoSetsError = null;
+      _autoSets = const [];
+      _selectedSetIdx = -1;
+      _sequence = const [];
+    });
+    try {
+      final resp = await widget.apiClient.djSetGenerate(
+        token: widget.token,
+        songIds: _picked.map((s) => s.id).toList(),
+      );
+      final raw = (resp['sets'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>();
+      if (raw.isEmpty) {
+        setState(() => _autoSetsError = '后端没有产出可用的 set，可能是歌曲数太少或元数据缺失');
+      } else {
+        // Auto-pick the highest-scored set so Step 3 unlocks; user can switch.
+        setState(() {
+          _autoSets = raw;
+          _selectedSetIdx = 0;
+        });
+        _applySetToSequence(raw[0]);
+      }
+    } catch (e) {
+      setState(() => _autoSetsError = 'AI 排歌失败: $e');
+    } finally {
+      if (mounted) setState(() => _autoSetsLoading = false);
+    }
+  }
+
+  /// Convert a backend `set` payload into the legacy `_sequence` shape so
+  /// downstream Steps 3 & 4 keep working without changes. Each entry needs
+  /// {position, song_id, target_energy, actual_energy} — `position` is what
+  /// the legacy UI casts via `as int`, so an int is required, not a num.
+  void _applySetToSequence(Map<String, dynamic> setPayload) {
+    final tracks = (setPayload['tracks'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString())
+        .toList();
+    final curve = (setPayload['energy_curve'] as List<dynamic>? ?? const [])
+        .map((e) => (e as num).toDouble())
+        .toList();
+    final seq = <Map<String, dynamic>>[];
+    for (var i = 0; i < tracks.length; i++) {
+      final e = i < curve.length ? curve[i] : 0.5;
+      seq.add({
+        'position': i,            // legacy UI does `entry['position'] as int`
+        'song_id': tracks[i],
+        'target_energy': e,
+        'actual_energy': e,
+      });
+    }
+    setState(() => _sequence = seq);
+    // ignore: discarded_futures
+    _loadEnergyForSequence();
+  }
+
+  void _pickSet(int idx) {
+    if (idx < 0 || idx >= _autoSets.length) return;
+    setState(() => _selectedSetIdx = idx);
+    _applySetToSequence(_autoSets[idx]);
   }
 
   /// Map a sequencer preset to a v2 street-style key. Falls back to 'generic'
@@ -399,6 +492,13 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   /// Background prefetch (fire-and-forget) for the next song so xfade is instant.
+  ///
+  /// Two layers:
+  ///   1. sync-worker pulls the wav from Jetson onto RK disk (file IO),
+  ///   2. edge-agent /prefetch decodes wav + 4 stems into audio-engine's
+  ///      in-memory cache so deck.load() during /xfade hits cache (no IO).
+  /// Without (2) every stem-aware rule (drop_swap / drum_only_bridge /
+  /// instrumental_bridge) blocks the xfade response 300ms-2s on file IO.
   void _kickPrefetchNext() {
     final ordered = _orderedSongs();
     final i = _liveIdx + 1;
@@ -409,7 +509,13 @@ class _DjControlPageState extends State<DjControlPage> {
       return;
     }
     // ignore: discarded_futures
-    _ensureRkCache(s, statusPrefix: '预取下一首').catchError((_) {});
+    _ensureRkCache(s, statusPrefix: '预取下一首').then((_) async {
+      // Now that the wav is on RK disk, ask audio-engine to decode it +
+      // stems into memory so the next xfade is instant.
+      try {
+        await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(s)]);
+      } catch (_) {/* best-effort */}
+    }).catchError((_) {});
   }
 
   Future<void> _startLiveMix() async {
@@ -430,6 +536,8 @@ class _DjControlPageState extends State<DjControlPage> {
       _lastXfadeAt = null;
       _lastXfadeSec = 0.0;
       _lastXfadeToSongId = null;
+      _smartPlan = null;
+      _smartPlanForSongId = null;
       _step = 3; // jump to 实时操作
       _cutInfo = '正在同步首曲到 RK…';
     });
@@ -498,9 +606,6 @@ class _DjControlPageState extends State<DjControlPage> {
     if (_lastXfadeToSongId != null &&
         _rkCurrentSongId != null &&
         _rkCurrentSongId == _lastXfadeToSongId) {
-      // Only release the lock once RK has played meaningfully into the new
-      // song (position > fade_sec + 4s safety) — by then the deck swap is
-      // settled and we're firmly on the new track.
       final settled = _position.inMilliseconds / 1000.0 > _lastXfadeSec + 4.0;
       if (!settled) return;
     }
@@ -514,29 +619,98 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     }
 
-    // Trigger condition: prefer remaining ≤ 10s when duration is known.
+    final prev = ordered[_liveIdx];
+    final next = ordered[_liveIdx + 1];
+    final positionSec = _position.inMilliseconds / 1000.0;
+    final durationSec = _duration.inMilliseconds / 1000.0;
+    final remainingSec = durationSec > 0 ? durationSec - positionSec : double.infinity;
+
+    // --- Smart plan pre-fetch ---
+    // When the track is within 30s of its end, fetch the phrase-aligned plan
+    // ahead of time so we know exactly when (from_at_sec) and how
+    // (to_at_sec / duration_sec / rule) to fire the xfade. Cached per song.
+    if (remainingSec <= 30.0 &&
+        _smartPlanForSongId != prev.id &&
+        !_smartPlanInFlight) {
+      _smartPlanInFlight = true;
+      try {
+        // Prefetch the next song's wav into RK cache while we plan.
+        // Then immediately ask audio-engine to decode it + stems into memory
+        // so the xfade response isn't blocked on file IO when it fires.
+        // ignore: discarded_futures
+        _ensureRkCache(next, statusPrefix: '预取下一首').then((_) async {
+          try {
+            await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(next)]);
+          } catch (_) {/* best-effort */}
+        }).catchError((_) {});
+        final plan = await widget.apiClient.djPlanTransition(
+          token: widget.token,
+          prevSongId: prev.id,
+          nextSongId: next.id,
+          cursorSec: positionSec,
+        );
+        if (!mounted) return;
+        setState(() {
+          _smartPlan = plan;
+          _smartPlanForSongId = prev.id;
+        });
+        // Phase 2: if the plan asks for a tempo align, kick a background
+        // rubberband render so xfade isn't blocked on it later.
+        final ratio = (plan['tempo_ratio'] as num?)?.toDouble();
+        final nextRkId = _rkIdForXfade(next);
+        if (ratio != null && (ratio - 1.0).abs() >= 0.005 && (ratio - 1.0).abs() <= 0.06) {
+          // ignore: discarded_futures
+          widget.edgeClient
+              .prewarmBeatmatch(songId: nextRkId, tempoRatio: ratio)
+              .catchError((_) => <String, dynamic>{});
+        }
+      } catch (_) {
+        // ignore — fall back to legacy trigger below
+      } finally {
+        _smartPlanInFlight = false;
+      }
+    }
+
+    // --- Trigger decision ---
+    // If we have a smart plan and the cursor has reached its exit point, fire.
+    // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
+    // miss a transition when the planner produced no usable exit.
+    final smart = (_smartPlan != null && _smartPlanForSongId == prev.id)
+        ? _smartPlan
+        : null;
+    final smartExitAt = (smart?['from_at_sec'] as num?)?.toDouble();
     final bool shouldTrigger;
-    if (_duration.inMilliseconds > 0) {
-      final remaining = _duration - _position;
-      shouldTrigger = remaining.inMilliseconds <= 10000;
+    if (smartExitAt != null && smartExitAt > 0) {
+      // Belt-and-suspenders: even if the planner missed the moment (RK
+      // duration was reported wrong, polling missed a tick, etc.), force
+      // the trigger as soon as we're near the reported end.
+      shouldTrigger = positionSec >= smartExitAt
+          || (durationSec > 0 && remainingSec <= 1.0)
+          || (!_isPlaying && positionSec > 5.0);
+    } else if (durationSec > 0) {
+      shouldTrigger = remainingSec <= 5.0
+          || (!_isPlaying && positionSec > 5.0);
     } else {
-      shouldTrigger = !_isPlaying && _position.inMilliseconds > 30000;
+      shouldTrigger = !_isPlaying && positionSec > 30.0;
     }
     if (!shouldTrigger) return;
 
-    final prev = ordered[_liveIdx];
-    final next = ordered[_liveIdx + 1];
     final nextRkId = _rkIdForXfade(next);
 
     _xfadeInFlight = true;
     try {
       await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
-      final plan = await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: prev.id,
-        nextSongId: next.id,
-        cursorSec: _position.inMilliseconds / 1000.0,
-      );
+
+      // Use the cached smart plan if we have one; otherwise fetch on the spot
+      // (legacy path).
+      Map<String, dynamic> plan = smart ??
+          await widget.apiClient.djPlanTransition(
+            token: widget.token,
+            prevSongId: prev.id,
+            nextSongId: next.id,
+            cursorSec: positionSec,
+          );
+
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
       final ruleKey = _rkStyle(rawRuleKey, fallback: 'blend');
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
@@ -545,11 +719,80 @@ class _DjControlPageState extends State<DjControlPage> {
           ?? 6.0;
       final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
       final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+
+      // Phase-1: enter next song at the planned point (skips intro silence /
+      // build-up). Falls back to 0 when the backend didn't provide one.
+      final toAtSec = (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0;
+      final exitSection = plan['exit_section']?.toString();
+      final skippedIntro = (plan['skipped_intro_sec'] as num?)?.toDouble() ?? 0.0;
+      // Phase-2: tempo align hint.
+      final tempoRatio = (plan['tempo_ratio'] as num?)?.toDouble();
+      final alignStrategy = plan['align_strategy']?.toString() ?? 'skip';
+
+      // Phase 3.1 — surface stem strategy on cutInfo so the operator sees
+      // when bass is actually being swapped vs faded. Highlight non-trivial
+      // curves only (skip the "all linear" trivial case).
+      final stemCurves = plan['stem_curves'];
+      String? stemHint;
+      if (stemCurves is Map) {
+        final prev = stemCurves['prev'];
+        final next = stemCurves['next'];
+        final highlights = <String>[];
+        if (prev is Map && next is Map) {
+          if (prev['bass'] == 'out_at_break' && next['bass'] == 'in_at_break') {
+            highlights.add('bass互换');
+          }
+          if (prev['drums'] == 'hold' || prev['drums'] == 'hold_then_out') {
+            highlights.add('鼓桥接');
+          }
+          if (next['vocals'] == 'in_late') {
+            highlights.add('人声后入');
+          }
+        }
+        if (highlights.isNotEmpty) stemHint = highlights.join('+');
+      }
+
+      // Phase 2.5 — beat reinforcement. Fire-and-forget BEFORE xfade so the
+      // schedule is anchored against active_deck.pos_sec at the moment of
+      // crossfade start. RK drops events that slip >100ms past the clock.
+      final reinforceTags = <String>[];
+      final reinforce = plan['beat_reinforce'];
+      if (reinforce is Map) {
+        Future<void> _fireSide(String side) async {
+          final cfg = reinforce[side];
+          if (cfg is! Map) return;
+          final beatsRaw = cfg['beats'];
+          if (beatsRaw is! List || beatsRaw.isEmpty) return;
+          final beats = beatsRaw
+              .whereType<num>()
+              .map((n) => n.toDouble())
+              .toList(growable: false);
+          try {
+            await widget.edgeClient.beatReinforce(
+              startSec: (cfg['start_sec'] as num?)?.toDouble() ?? 0.0,
+              endSec: (cfg['end_sec'] as num?)?.toDouble() ?? 0.0,
+              beats: beats,
+              sampleKey: (cfg['sample_key'] as num?)?.toInt() ?? 4,
+              gain: (cfg['gain'] as num?)?.toDouble() ?? 1.0,
+              pattern: cfg['pattern']?.toString() ?? 'all',
+            );
+            reinforceTags.add('${side == "prev" ? "出" : "入"}加鼓×${beats.length}');
+          } catch (_) {/* swallow — reinforcement is best-effort */}
+        }
+        // Run sequentially so the second call sees up-to-date scheduler state.
+        await _fireSide('prev');
+        await _fireSide('next');
+      }
+
       Future<void> doXfade() => widget.edgeClient.xfade(
             toSongId: nextRkId,
             fadeSec: fadeSec,
-            toAtSec: 0.0,
+            toAtSec: toAtSec,
             style: ruleKey,
+            tempoRatio: tempoRatio,
+            stemCurves: stemCurves is Map<String, dynamic>
+                ? stemCurves
+                : (stemCurves is Map ? Map<String, dynamic>.from(stemCurves) : null),
           );
       try {
         await doXfade();
@@ -566,14 +809,39 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeFromIdx = _liveIdx;
         _liveIdx += 1;
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
-        _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel';
+        final tail = <String>[];
+        if (exitSection != null && exitSection.isNotEmpty) tail.add('出@$exitSection');
+        if (skippedIntro >= 0.5) tail.add('入+${skippedIntro.toStringAsFixed(1)}s');
+        if (tempoRatio != null && alignStrategy != 'skip') {
+          tail.add('对速${alignStrategy == "match" ? "" : "(${alignStrategy})"} ×${tempoRatio.toStringAsFixed(3)}');
+        }
+        if (reinforceTags.isNotEmpty) {
+          tail.add(reinforceTags.join('+'));
+        }
+        if (stemHint != null) {
+          tail.add('stem:$stemHint');
+        }
+        final tailStr = tail.isEmpty ? '' : '（${tail.join(' · ')}）';
+        _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel$tailStr';
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
+        _smartPlan = null;
+        _smartPlanForSongId = null;
       });
       _kickPrefetchNext();
     } catch (e) {
-      if (mounted) setState(() => _cutInfo = '自动衔接失败: $e');
+      // Failure cooldown: even if xfade failed (409 because the song finished
+      // and active deck went away, or 503, etc.), don't hammer at every poll.
+      // Hold off for 4s before another attempt; if the failure is transient,
+      // RK will recover by then.
+      if (mounted) {
+        setState(() {
+          _cutInfo = '自动衔接失败: $e';
+          _lastXfadeAt = DateTime.now();
+          _lastXfadeSec = 0.0;
+        });
+      }
     } finally {
       _xfadeInFlight = false;
     }
@@ -687,8 +955,9 @@ class _DjControlPageState extends State<DjControlPage> {
       Future<void> doXfade() => widget.edgeClient.xfade(
             toSongId: targetRk,
             fadeSec: fadeSec,
-            toAtSec: 0.0,
+            toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
             style: ruleKey,
+            tempoRatio: (transition['tempo_ratio'] as num?)?.toDouble(),
           );
       try {
         await doXfade();
@@ -838,6 +1107,12 @@ class _DjControlPageState extends State<DjControlPage> {
           energyLoading: _energyLoading,
           onPickPreset: (k) => setState(() => _preset = k),
           onRun: _runSequence,
+          autoSets: _autoSets,
+          selectedSetIdx: _selectedSetIdx,
+          autoSetsLoading: _autoSetsLoading,
+          autoSetsError: _autoSetsError,
+          onRunAutoSets: _runAutoSets,
+          onPickSet: _pickSet,
         );
       case 2:
         return _Step3Mix(
@@ -1967,6 +2242,9 @@ class _Step2Sequence extends StatelessWidget {
     required this.picked, required this.sequence,
     required this.buckets, required this.songEnergy, required this.energyLoading,
     required this.onPickPreset, required this.onRun,
+    required this.autoSets, required this.selectedSetIdx,
+    required this.autoSetsLoading, required this.autoSetsError,
+    required this.onRunAutoSets, required this.onPickSet,
   });
   final List<Map<String, dynamic>> presets;
   final String selected;
@@ -1979,6 +2257,14 @@ class _Step2Sequence extends StatelessWidget {
   final bool energyLoading;
   final ValueChanged<String> onPickPreset;
   final VoidCallback onRun;
+
+  // Auto DJ-Set props (new pipeline)
+  final List<Map<String, dynamic>> autoSets;
+  final int selectedSetIdx;
+  final bool autoSetsLoading;
+  final String? autoSetsError;
+  final VoidCallback onRunAutoSets;
+  final ValueChanged<int> onPickSet;
 
   String _sceneIcon(String scene) => {
     'battle': '🥊', 'cypher': '🌀', 'class': '🎓', 'showcase': '🎬',
@@ -2001,7 +2287,274 @@ class _Step2Sequence extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(10),
       children: [
+        // ── AI 排歌（主路径） ────────────────────────────────────────────
+        _buildAutoSetsSection(byId),
+        const SizedBox(height: 14),
+        // ── 高级：手动按曲线（旧 preset 入口） ─────────────────────────
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text(
+            '高级：手动选择能量曲线',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          children: [_buildLegacyPresetSection(byId)],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAutoSetsSection(Map<String, LibrarySong> byId) {
+    final hasResults = autoSets.isNotEmpty;
+    final btnLabel = autoSetsLoading
+        ? 'AI 排歌中…'
+        : (hasResults ? '重新生成' : 'AI 自动排歌（${picked.length} 首）');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         const Text(
+          '系统按角色 / 能量 / 衔接风险自动产出 5 个候选 set，你只需挑一个。',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: autoSetsLoading || picked.length < 2 ? null : onRunAutoSets,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE85A2A),
+                  foregroundColor: Colors.black,
+                ),
+                icon: autoSetsLoading
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 1.6, color: Colors.black),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 16),
+                label: Text(btnLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+        if (autoSetsError != null) Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(autoSetsError!, style: const TextStyle(color: Colors.red, fontSize: 11)),
+        ),
+        if (hasResults) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 168,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: autoSets.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (ctx, i) => _buildSetCard(ctx, i, byId),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (selectedSetIdx >= 0 && selectedSetIdx < autoSets.length)
+            _buildSelectedSetDetail(autoSets[selectedSetIdx], byId),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSetCard(BuildContext ctx, int idx, Map<String, LibrarySong> byId) {
+    final s = autoSets[idx];
+    final active = idx == selectedSetIdx;
+    final tpl = (s['template'] as String? ?? '');
+    final score = ((s['adjusted_score'] as num?) ?? (s['score'] as num? ?? 0)).toDouble();
+    final tracks = (s['tracks'] as List<dynamic>? ?? const []).length;
+    final trans = (s['transitions'] as List<dynamic>? ?? const []);
+    final risks = trans.map((t) => (t as Map)['risk_level']?.toString() ?? '?').toList();
+    final hasD = risks.contains('D');
+    final hasC = risks.contains('C');
+    final tplLabel = const {
+      'smooth': '🌊 稳态 groove', 'build': '🔥 渐进爆发',
+      'cypher_wave': '🌀 波浪 cypher', 'battle_peak': '🥊 高能 battle',
+      'clean_vocal': '🎙️ 人声主导',
+    }[tpl] ?? tpl;
+    return GestureDetector(
+      onTap: () => onPickSet(idx),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 200,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFE85A2A) : const Color(0x14000000),
+          border: Border.all(
+            color: active ? const Color(0xFFE85A2A) : const Color(0x22000000),
+            width: 1.4,
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tplLabel, style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.bold,
+              color: active ? Colors.black : Colors.white,
+            )),
+            const SizedBox(height: 4),
+            Text('$tracks 首 · 评分 ${(score * 100).round()}',
+                style: TextStyle(fontSize: 11, color: active ? Colors.black87 : Colors.grey)),
+            const SizedBox(height: 6),
+            // mini energy curve sparkline
+            SizedBox(
+              height: 36,
+              child: CustomPaint(
+                size: const Size(double.infinity, 36),
+                painter: _CurvePainter(
+                  curve: ((s['energy_curve'] as List<dynamic>? ?? const []))
+                      .map((e) => (e as num).toDouble())
+                      .toList(),
+                  color: active ? Colors.black : const Color(0xFFE85A2A),
+                ),
+              ),
+            ),
+            const Spacer(),
+            Wrap(
+              spacing: 4, runSpacing: 4,
+              children: [
+                _riskChip('A', risks.where((r) => r == 'A').length, active),
+                _riskChip('B', risks.where((r) => r == 'B').length, active),
+                if (hasC) _riskChip('C', risks.where((r) => r == 'C').length, active),
+                if (hasD) _riskChip('D', risks.where((r) => r == 'D').length, active),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _riskChip(String level, int n, bool active) {
+    if (n <= 0) return const SizedBox.shrink();
+    final colors = const {
+      'A': Color(0xFF22C55E), 'B': Color(0xFF3B82F6),
+      'C': Color(0xFFF59E0B), 'D': Color(0xFFEF4444),
+    };
+    final c = colors[level] ?? Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: active ? c.withOpacity(0.85) : c.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Text('$level×$n',
+          style: TextStyle(fontSize: 10, color: active ? Colors.white : c, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildSelectedSetDetail(Map<String, dynamic> s, Map<String, LibrarySong> byId) {
+    final tracks = (s['tracks'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
+    final arc = (s['narrative_arc'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
+    final transitions = (s['transitions'] as List<dynamic>? ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+    final purposes = (s['purposes'] as List<dynamic>? ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+    final plans = (s['plans'] as List<dynamic>? ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+    return Card(
+      color: const Color(0x0A000000),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('已选 set — 顺序与每段衔接方案',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            for (var i = 0; i < tracks.length; i++) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 22, height: 22,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE85A2A),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('${i + 1}',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(byId[tracks[i]]?.title ?? tracks[i],
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        if (i < arc.length)
+                          Text(arc[i], style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (i < transitions.length) Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 28),
+                child: _buildTransitionRow(transitions[i],
+                    i < purposes.length ? purposes[i] : null,
+                    i < plans.length ? plans[i] : null),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransitionRow(Map<String, dynamic> edge, Map<String, dynamic>? purpose, Map<String, dynamic>? plan) {
+    final risk = edge['risk_level']?.toString() ?? '?';
+    final score = ((edge['score'] as num?) ?? 0).toDouble();
+    final purposeText = purpose?['purpose']?.toString() ?? '';
+    final rule = (plan?['rule'] ?? edge['best_rule'] ?? '').toString();
+    final spec = plan?['spec'] is Map ? (plan!['spec'] as Map).cast<String, dynamic>() : const <String, dynamic>{};
+    final dur = (spec['duration_sec'] as num?)?.toDouble();
+    final ruleLabelZh = (spec['rule_label_zh'] ?? '').toString();
+    final riskColor = const {
+      'A': Color(0xFF22C55E), 'B': Color(0xFF3B82F6),
+      'C': Color(0xFFF59E0B), 'D': Color(0xFFEF4444),
+    }[risk] ?? Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: riskColor.withOpacity(0.06),
+        border: Border(left: BorderSide(color: riskColor, width: 2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(color: riskColor, borderRadius: BorderRadius.circular(4)),
+            child: Text(risk,
+                style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '${ruleLabelZh.isNotEmpty ? ruleLabelZh : rule}'
+              '${purposeText.isNotEmpty ? " · $purposeText" : ""}'
+              '${dur != null ? " · ${dur.toStringAsFixed(1)}s" : ""}'
+              ' · ${(score * 100).round()}/100',
+              style: const TextStyle(fontSize: 10),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegacyPresetSection(Map<String, LibrarySong> byId) {
+    return Column(
+      children: [        const Text(
           '按街舞场景能量曲线贪心分配每一首歌位置；每行能量条按 v2 五档桶着色。混音方案仍走 7+11。',
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
@@ -2446,7 +2999,7 @@ class _Step4Live extends StatelessWidget {
                 Text('下一首：${next?.title ?? '— 队尾 —'}',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 4),
-                const Text('每首结束前 10 秒自动按 7/11 衔接方案 xfade。',
+                const Text('Phase-2 节奏对齐：outro 出歌、跳过 intro、按 7+11 衔接、BPM 接近时拉速对拍。',
                     style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32))),
               ],
             ),
@@ -2523,4 +3076,47 @@ class _Step4Live extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// Tiny sparkline painter for the auto-set card energy curve preview.
+class _CurvePainter extends CustomPainter {
+  _CurvePainter({required this.curve, required this.color});
+  final List<double> curve;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (curve.length < 2) return;
+    final fill = Paint()
+      ..color = color.withOpacity(0.18)
+      ..style = PaintingStyle.fill;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final path = Path();
+    final fillPath = Path();
+    final n = curve.length;
+    for (var i = 0; i < n; i++) {
+      final x = (i / (n - 1)) * size.width;
+      final y = size.height - curve[i].clamp(0.0, 1.0) * size.height;
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, size.height);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+    fillPath.lineTo(size.width, size.height);
+    fillPath.close();
+    canvas.drawPath(fillPath, fill);
+    canvas.drawPath(path, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurvePainter old) =>
+      old.curve != curve || old.color != color;
 }

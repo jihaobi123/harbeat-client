@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'edge_agent_client.dart';
 import 'home_page.dart';
 import 'models.dart';
 
@@ -13,7 +14,7 @@ const String defaultBaseUrl = String.fromEnvironment(
 const String tokenStorageKey = 'harbeat_token';
 const String rkBaseUrlStorageKey = 'harbeat_rk_base_url';
 const String apiBaseUrlStorageKey = 'harbeat_api_base_url';
-const String defaultRkBaseUrl = '192.168.43.7:9000';
+const String defaultRkBaseUrl = 'http://192.168.43.7:9000';
 
 class HarBeatApp extends StatelessWidget {
   const HarBeatApp({super.key});
@@ -100,7 +101,11 @@ class _RootPageState extends State<RootPage> {
       _apiClient = HarBeatApiClient(baseUrl: apiUrl);
     }
     if (rkUrl != null && rkUrl.isNotEmpty) {
-      _rkBaseUrl = rkUrl;
+      final normalizedRk = EdgeAgentClient.normalizeBaseUrl(rkUrl);
+      _rkBaseUrl = normalizedRk;
+      if (normalizedRk != rkUrl) {
+        await prefs.setString(rkBaseUrlStorageKey, normalizedRk);
+      }
     }
     if (token == null || token.isEmpty) {
       setState(() {
@@ -207,8 +212,9 @@ class _RootPageState extends State<RootPage> {
       },
       onRkBaseUrlChanged: (url) async {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(rkBaseUrlStorageKey, url);
-        setState(() => _rkBaseUrl = url);
+        final normalized = EdgeAgentClient.normalizeBaseUrl(url);
+        await prefs.setString(rkBaseUrlStorageKey, normalized);
+        setState(() => _rkBaseUrl = normalized);
       },
       data: _dashboard,
       loading: _loadingDashboard,
