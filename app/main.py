@@ -16,9 +16,10 @@ from app.shared.database import Base, engine
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    if os.getenv("ENABLE_DB_CREATE_ALL", "0") == "1":
+        Base.metadata.create_all(bind=engine)
     # Auto-analyze songs that have files but were never analyzed
-    if os.getenv("ENABLE_STARTUP_ANALYSIS", "1") == "1":
+    if os.getenv("ENABLE_STARTUP_ANALYSIS", "0") == "1":
         _schedule_pending_analyses()
     yield
 
