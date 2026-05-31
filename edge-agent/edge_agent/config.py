@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     event_flush_interval_sec: float = 5.0
     event_flush_batch_size: int = 50
 
+    # Network URLs for client connection
+    tailscale_url: str = ""
+    gateway_url: str = "http://8.136.120.255"
+
     rest_host: str = "0.0.0.0"
     rest_port: int = 9000
     ws_host: str = "0.0.0.0"

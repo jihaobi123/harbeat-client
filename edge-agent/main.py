@@ -16,6 +16,9 @@ from edge_agent.models import (
   HealthResponse,
   LoadPlanRequest,
   PlayRequest,
+  PrefetchRequest,
+  PrewarmBeatmatchRequest,
+  BeatReinforceRequest,
   RKPlaybackState,
   SeekRequest,
   TriggerRequest,
@@ -225,13 +228,17 @@ async def seek(req: SeekRequest) -> dict[str, Any]:
 
 @app.post("/xfade", dependencies=[Depends(_optional_auth)])
 async def xfade(req: XfadeRequest) -> dict[str, Any]:
-  result = await _forward(
-    "xfade",
-    to_song_id=req.to_song_id,
-    fade_sec=req.fade_sec,
-    to_at_sec=req.to_at_sec,
-    style=req.style,
-  )
+  payload: dict[str, Any] = {
+    "to_song_id": req.to_song_id,
+    "fade_sec": req.fade_sec,
+    "to_at_sec": req.to_at_sec,
+    "style": req.style,
+  }
+  if req.tempo_ratio is not None:
+    payload["tempo_ratio"] = req.tempo_ratio
+  if req.stem_curves is not None:
+    payload["stem_curves"] = req.stem_curves
+  result = await _forward("xfade", **payload)
   await edge_state.update_playback(
     playing=True,
     paused=False,
@@ -243,7 +250,60 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
     "to_song_id": req.to_song_id,
     "fade_sec": req.fade_sec,
     "style": req.style,
+    "tempo_ratio": req.tempo_ratio,
+    "stem_path": bool(result.get("stem_path")),
   })
+  return {"ok": True, "result": result}
+
+
+@app.post("/prewarm_beatmatch", dependencies=[Depends(_optional_auth)])
+async def prewarm_beatmatch(req: PrewarmBeatmatchRequest) -> dict[str, Any]:
+  """Kick a background rubberband render so xfade doesn't block on it later.
+
+  Mobile calls this when remaining ≤30s in the current track. Idempotent:
+  cached ratios return immediately, in-flight ones are no-ops.
+  """
+  result = await _forward(
+    "prewarm_beatmatch",
+    song_id=req.song_id,
+    tempo_ratio=req.tempo_ratio,
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/prefetch", dependencies=[Depends(_optional_auth)])
+async def prefetch(req: PrefetchRequest) -> dict[str, Any]:
+  """Decode wav + 4 stems into audio-engine's in-memory _PREFETCH_CACHE so
+  the next /xfade lands instantly. Without this, deck.load() blocks the
+  xfade response 300ms-2s on file IO every time a stem-aware rule (drop_swap
+  / drum_only_bridge / instrumental_bridge) fires.
+
+  Mobile calls this once we know which song is next (after smart-plan or
+  after queue moves), well before the actual transition window.
+  """
+  result = await _forward(
+    "prefetch",
+    song_ids=list(req.song_ids),
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/beat_reinforce", dependencies=[Depends(_optional_auth)])
+async def beat_reinforce(req: BeatReinforceRequest) -> dict[str, Any]:
+  """Phase 2.5 — schedule per-beat sample triggers across [start_sec, end_sec].
+
+  Mobile calls this just before /xfade when the planner flagged the prev
+  and/or next track as rhythmically weak. Beats are absolute song-time anchors.
+  """
+  result = await _forward(
+    "beat_reinforce",
+    start_sec=req.start_sec,
+    end_sec=req.end_sec,
+    beats=req.beats,
+    sample_key=req.sample_key,
+    gain=req.gain,
+    pattern=req.pattern,
+  )
   return {"ok": True, "result": result}
 
 

@@ -13,6 +13,25 @@ class Transition:
     to_at_sec: float
     fade_sec: float
     fade_curve: str = "equal_power"
+    style: str = "smooth"
+    # Phase 2: optional beatmatch hints. tempo_ratio = tempo_A / tempo_B,
+    # i.e. multiply B's playback rate by ratio so its beat clock matches A's.
+    # If both intervals are provided, ratio is computed from them.
+    tempo_ratio: float | None = None
+    from_beat_interval_sec: float | None = None
+    to_beat_interval_sec: float | None = None
+    phase_anchor_sec: float | None = None
+    # Phase 3.1+: per-stem mix-curve names. dict shape:
+    #   {"prev": {"vocals": "linear_out", ...},
+    #    "next": {"vocals": "in_late",    ...}}
+    # When set AND both decks have all 4 stems loaded, audio-engine evaluates
+    # each curve per callback to drive a per-stem mix instead of the legacy
+    # single-buffer fade. None = legacy path.
+    stem_curves: dict | None = None
+    # Phase 3.3: where in the fade vocal of next track is loud-handed-off.
+    # Used by `vocal_handoff` style; None lets the engine pick a beat-aligned
+    # value via _transition_handoff_ratio.
+    vocal_handoff_ratio: float | None = None
 
 
 @dataclass

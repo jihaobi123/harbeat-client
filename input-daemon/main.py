@@ -26,6 +26,22 @@ logging.basicConfig(
 logger = logging.getLogger("input-daemon")
 
 # 数字行 KEY_1..KEY_0 (codes 2-11) + 小键盘 KEY_KP1..KEY_KP0（九键盒常用）
+# 语义（2026-05）：
+#   1~5 → audio-engine trigger（DJ 加花音效，对应 sample_key 1-5）
+#   6   → audio-engine trigger（key=3 黑胶刹停 — 物理键 6 是 DJ 习惯位）
+#   7~9 → 仅作为 key_event 上报 edge-agent（手机 APP 在客户端映射为下一首/能量切歌/风格切歌）
+#   0   → audio-engine trigger（key=0 暂停/恢复）
+#   100/101 → 旋钮 KEY_VOLUMEUP / KEY_VOLUMEDOWN，本地直接 amixer 调主音量
+#            （也上报 edge-agent，方便手机界面同步显示音量）。
+SFX_KEYS = {1, 2, 3, 4, 5}
+PAUSE_KEY = 0
+VINYL_STOP_PHYSICAL_KEY = 6      # 物理键 6（DJ 黑胶刹停）
+VINYL_STOP_SAMPLE_KEY = 3        # 实际触发的 audio-engine sample_key
+VOL_UP_KEY = 100
+VOL_DOWN_KEY = 101
+VOL_STEP = "5%"                   # 每次旋钮一格调多少
+VOL_CARD = "2"                    # ES8388 codec on RK3588
+
 KEY_MAP = {
     ecodes.KEY_1: 1,
     ecodes.KEY_2: 2,
@@ -47,6 +63,33 @@ KEY_MAP = {
     ecodes.KEY_KP8: 8,
     ecodes.KEY_KP9: 9,
     ecodes.KEY_KP0: 0,
+    ecodes.KEY_VOLUMEUP: VOL_UP_KEY,
+    ecodes.KEY_VOLUMEDOWN: VOL_DOWN_KEY,
+}
+
+KEY_MAP = {
+    ecodes.KEY_1: 1,
+    ecodes.KEY_2: 2,
+    ecodes.KEY_3: 3,
+    ecodes.KEY_4: 4,
+    ecodes.KEY_5: 5,
+    ecodes.KEY_6: 6,
+    ecodes.KEY_7: 7,
+    ecodes.KEY_8: 8,
+    ecodes.KEY_9: 9,
+    ecodes.KEY_0: 0,
+    ecodes.KEY_KP1: 1,
+    ecodes.KEY_KP2: 2,
+    ecodes.KEY_KP3: 3,
+    ecodes.KEY_KP4: 4,
+    ecodes.KEY_KP5: 5,
+    ecodes.KEY_KP6: 6,
+    ecodes.KEY_KP7: 7,
+    ecodes.KEY_KP8: 8,
+    ecodes.KEY_KP9: 9,
+    ecodes.KEY_KP0: 0,
+    ecodes.KEY_VOLUMEUP: VOL_UP_KEY,
+    ecodes.KEY_VOLUMEDOWN: VOL_DOWN_KEY,
 }
 
 
@@ -86,7 +129,9 @@ def find_devices() -> list[InputDevice]:
             name = (dev.name or "").lower()
             if INPUT_DEVICE_NAME.lower() not in name:
                 continue
-            if "mouse" in name or "consumer" in name or "system control" in name:
+            # 跳过纯鼠标 + system control。Consumer Control 节点上有
+            # KEY_VOLUMEUP/DOWN，**必须保留**，否则旋钮永远收不到事件。
+            if "mouse" in name or "system control" in name:
                 continue
             if ecodes.EV_KEY not in dev.capabilities():
                 continue
@@ -112,6 +157,30 @@ def notify_edge_agent(key: int, ts_ms: int) -> None:
         logger.debug("edge-agent notify failed: %s", exc)
 
 
+def adjust_volume(direction: str) -> None:
+    """旋钮调主音量。direction = '+' or '-'。
+
+    RK3588 上 ES8388 codec 在 card 2。要点：
+      - **PCM** 是 0-192 的真音量 control（有 'volume' capability）。
+      - **Headphone / Speaker** 是 pswitch（开关），不是音量；amixer sset 5%- 在
+        switch 上等同 toggle，会把整路输出关掉，导致"没声音"。
+    所以这里只动 PCM。
+    """
+    import subprocess
+    arg = f"{VOL_STEP}{'+' if direction == '+' else '-'}"
+    try:
+        r = subprocess.run(
+            ["amixer", "-q", "-c", VOL_CARD, "sset", "PCM", arg],
+            capture_output=True, timeout=0.5,
+        )
+        if r.returncode == 0:
+            logger.info("volume %s %s on card %s/PCM", direction, VOL_STEP, VOL_CARD)
+            return
+        logger.warning("amixer PCM stderr: %s", (r.stderr or b"").decode("utf-8", "replace")[:120])
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        logger.warning("amixer PCM failed: %s", exc)
+
+
 def run_loop(dev: InputDevice) -> None:
     logger.info("listening on %s (%s)", dev.path, dev.name)
     try:
@@ -132,14 +201,40 @@ def run_loop(dev: InputDevice) -> None:
             continue
         ts_ms = int(time.time() * 1000)
         t0 = time.perf_counter()
-        try:
-            send_trigger(key, time.time())
-        except OSError as exc:
-            logger.warning("audio socket failed: %s", exc)
-            continue
-        elapsed_ms = (time.perf_counter() - t0) * 1000
-        notify_edge_agent(key, ts_ms)
-        logger.info("key %s -> trigger (%.1fms)", key, elapsed_ms)
+        if key in SFX_KEYS:
+            try:
+                send_trigger(key, time.time())
+            except OSError as exc:
+                logger.warning("audio socket failed: %s", exc)
+                continue
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            notify_edge_agent(key, ts_ms)
+            logger.info("key %s -> SFX trigger (%.1fms)", key, elapsed_ms)
+        elif key == VINYL_STOP_PHYSICAL_KEY:
+            # 物理 6 → 黑胶刹停（audio-engine sample_key 3）
+            try:
+                send_trigger(VINYL_STOP_SAMPLE_KEY, time.time())
+            except OSError as exc:
+                logger.warning("audio socket failed: %s", exc)
+                continue
+            notify_edge_agent(key, ts_ms)
+            logger.info("key 6 -> vinyl_stop (sample_key=%d)", VINYL_STOP_SAMPLE_KEY)
+        elif key == PAUSE_KEY:
+            try:
+                send_trigger(PAUSE_KEY, time.time())
+            except OSError as exc:
+                logger.warning("audio socket failed: %s", exc)
+                continue
+            notify_edge_agent(key, ts_ms)
+            logger.info("key 0 -> pause/resume")
+        elif key in (VOL_UP_KEY, VOL_DOWN_KEY):
+            direction = "+" if key == VOL_UP_KEY else "-"
+            adjust_volume(direction)
+            notify_edge_agent(key, ts_ms)
+        else:
+            # 7~9：不走 trigger，只上报 edge-agent，交手机处理切歌逻辑
+            notify_edge_agent(key, ts_ms)
+            logger.info("key %s -> nav (no SFX, forwarded to edge-agent)", key)
 
 
 def main() -> None:

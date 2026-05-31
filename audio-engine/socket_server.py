@@ -65,6 +65,37 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **engine.next_track()}
     if cmd == "trigger":
         return {"ok": True, **engine.trigger(int(msg["key"]))}
+    if cmd == "xfade":
+        return {"ok": True, **engine.manual_transition(
+            to_song_id=msg["to_song_id"],
+            fade_sec=float(msg.get("fade_sec", 8.0)),
+            to_at_sec=float(msg.get("to_at_sec", 0.0)),
+            style=str(msg.get("style", "smooth")),
+            tempo_ratio=(float(msg["tempo_ratio"]) if msg.get("tempo_ratio") else None),
+            stem_curves=msg.get("stem_curves") if isinstance(msg.get("stem_curves"), dict) else None,
+        )}
+    if cmd == "prewarm_beatmatch":
+        return {"ok": True, **engine.prewarm_beatmatch(
+            song_id=msg["song_id"],
+            tempo_ratio=float(msg["tempo_ratio"]),
+        )}
+    if cmd == "prefetch":
+        # Decode wav + 4 stems into in-memory cache so the next /xfade lands
+        # instantly (no 300ms-2s file IO inside the deck.load critical path).
+        ids_raw = msg.get("song_ids")
+        if ids_raw is None and "song_id" in msg:
+            ids_raw = [msg["song_id"]]
+        ids = list(ids_raw or [])
+        return {"ok": True, **engine.prefetch(ids)}
+    if cmd == "beat_reinforce":
+        return {"ok": True, **engine.beat_reinforce(
+            start_sec=float(msg["start_sec"]),
+            end_sec=float(msg["end_sec"]),
+            beats=list(msg.get("beats") or []),
+            sample_key=int(msg.get("sample_key", 4)),
+            gain=float(msg.get("gain", 1.0)),
+            pattern=str(msg.get("pattern", "all")),
+        )}
     if cmd == "load_plan":
         engine.load_plan(msg.get("mix_plan") or {})
         return {"ok": True, "plan_id": (msg.get("mix_plan") or {}).get("plan_id")}

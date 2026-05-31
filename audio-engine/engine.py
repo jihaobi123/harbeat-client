@@ -142,6 +142,9 @@ class Deck:
         # 3-band EQ：80Hz low-shelf / 1kHz peak / 8kHz high-shelf
         "eq_low_db", "eq_mid_db", "eq_hi_db",
         "_eq_lo", "_eq_mid", "_eq_hi",
+        # Where the song "musically ends" — beyond this, audio is fade-out
+        # tail or silence padding. None = play to end-of-buffer.
+        "effective_end_sec",
     )
 
     def __init__(self) -> None:
@@ -158,6 +161,7 @@ class Deck:
         self._eq_lo: Biquad = Biquad()
         self._eq_mid: Biquad = Biquad()
         self._eq_hi: Biquad = Biquad()
+        self.effective_end_sec: float | None = None
 
     @property
     def pos_sec(self) -> float:
@@ -169,6 +173,7 @@ class Deck:
         self.song_id = None
         self.stems = {}
         self.gain = 1.0
+        self.effective_end_sec = None
         # EQ 参数 + 状态都重置，给下一首一个干净起点
         self.eq_low_db = 0.0
         self.eq_mid_db = 0.0
@@ -220,8 +225,8 @@ class Deck:
         if db is None:
             self.gain = 1.0
             return
-        # 限幅 ±8dB
-        db = max(-8.0, min(8.0, float(db)))
+        # 限幅 ±12dB（响度归一最大幅度，限制器在末端兜底防爆）
+        db = max(-12.0, min(12.0, float(db)))
         self.gain = float(10.0 ** (db / 20.0))
 
     def load(
@@ -283,8 +288,24 @@ class AudioEngineMVP:
         self._paused = False
         self._stream: sd.OutputStream | None = None
         self.samples: dict[int, np.ndarray] = {}
-        self._one_shot_keys: list[tuple[int, list]] = []  # (key, [buf, pos])
+        # layer is [buf, pos] or [buf, pos, extra_gain]; extra_gain stacks on
+        # SAMPLE_GAIN so beat-reinforce hits sit below FX air-horns.
+        self._one_shot_keys: list[tuple[int, list]] = []
+        # Phase 2.5 beat-reinforce: queue of (trigger_frame, sample_key,
+        # extra_gain). _reinforce_clock_frame ticks every callback so we don't
+        # depend on Deck.pos (which jumps during xfade). Events whose
+        # trigger_frame has slipped >100 ms past the clock are dropped.
+        self._reinforce_events: list[tuple[int, int, float]] = []
+        self._reinforce_clock_frame: int = 0
         self.loops: dict[int, list] = {}
+        # Phase 3.2+: in-flight loudness measurements (song_id strings).
+        self._loudness_in_flight: set[str] = set()
+        self._loudness_lock = threading.Lock()
+        # Outro silence watchdog: count consecutive callback blocks where
+        # active deck output was effectively silent. After ~1.5s of silence
+        # past the 75% mark of the song we treat the track as ended and let
+        # mobile/scheduler advance.
+        self._silence_block_count: int = 0
         self.stem_fx: tuple | None = None
         # 持久 stem solo（None = 关闭，取值 'vocals'/'drums'/'bass'/'other'）
         # 与 stem_fx 不同：stem_fx 是 2 秒短效，stem_solo 一直生效直到关闭。
@@ -410,11 +431,22 @@ class AudioEngineMVP:
 
     def get_state(self) -> dict:
         with self._lock:
+            audio = self.active_deck.audio
+            raw_duration = (len(audio) / SAMPLE_RATE) if audio is not None else 0.0
+            # If we know where the song musically ends (loudness probe found
+            # a quiet outro tail or padding silence), report THAT as duration
+            # so mobile triggers xfade on the music end, not the file end.
+            effective = self.active_deck.effective_end_sec
+            if effective is not None and 0 < effective < raw_duration:
+                duration_sec = effective
+            else:
+                duration_sec = raw_duration
             return {
                 "playing": self._playing and not self._paused,
                 "paused": self._paused,
                 "current_song_id": self.active_deck.song_id,
                 "position_sec": round(self.active_deck.pos_sec, 3),
+                "duration_sec": round(duration_sec, 3),
                 "next_song_id": self._next_song_id(),
                 "next_transition_in_sec": self._next_transition_in_sec(),
                 "in_transition": self._in_transition,
@@ -462,10 +494,14 @@ class AudioEngineMVP:
                 "vocal_solo_intro": "echo_out",
             }
             fallback = fallback_map.get(requested_style, "smooth")
-            logger.info(
-                "style downgrade: %s -> %s (stems unavailable)",
-                requested_style, fallback,
-            )
+            # Log only on transition to avoid 20+ entries per second from
+            # the audio callback. _last_downgrade_log = (style, fallback).
+            if getattr(self, "_last_downgrade_log", None) != (requested_style, fallback):
+                logger.info(
+                    "style downgrade: %s -> %s (stems unavailable)",
+                    requested_style, fallback,
+                )
+                self._last_downgrade_log = (requested_style, fallback)
             return fallback
         return requested_style
 
@@ -536,6 +572,7 @@ class AudioEngineMVP:
             self._next_preloaded = False
             self._preload_requested = None
             self._one_shot_keys.clear()
+            self._reinforce_events.clear()
             self.stem_fx = None
             # /play 是“硬切”，重置持久 stem_solo 避免上一首的供菜多到下一首。
             self._stem_solo = None
@@ -605,14 +642,50 @@ class AudioEngineMVP:
         fade_sec: float = 4.0,
         to_at_sec: float = 0.0,
         style: str = "smooth",
+        tempo_ratio: float | None = None,
+        stem_curves: dict | None = None,
     ) -> dict:
         """越过 plan 调度直接对任意歌曲做 crossfade。
 
-        用于 App 端“能量切歌 / 风格切歌 / 手动下一首”，复刻网页版
+        用于 App 端"能量切歌 / 风格切歌 / 手动下一首"，复刻网页版
         SeamlessPlayer 的无缝衰接效果。调用前需确保目标歌的 wav 已在
         ~/cypher/cache/{song_id}/original.wav，否则会抛 SongCacheError。
         style: 7 种 DJ 切歌风格，默认 smooth。
+        tempo_ratio: tempo_A / tempo_B; 若提供且 ±BEATMATCH_MAX_SHIFT 内，
+        会优先加载预渲染的 .rb.{ratio}.wav，让 B 的拍速贴近 A。
+
+        Fallback: 若 active_deck 已耗尽（pos >= len(audio)），或 audio is None
+        （/play 后又自然结束），则直接降级为 self.play() 对下一首做硬切，
+        避免 mobile 在歌结束时被反复 409。
         """
+        # Detect "no live source" early so we can downgrade to /play instead
+        # of crashing with 409. This covers two cases:
+        #   1) active_deck.audio is None — engine never started or stop() ran
+        #   2) active_deck has audio but pos has slid past the end (song
+        #      finished playing and callback hasn't been told to stop yet)
+        with self._lock:
+            audio = self.active_deck.audio
+            ended = (
+                audio is None
+                or not self._playing
+                or self.active_deck.pos >= len(audio) - int(0.05 * SAMPLE_RATE)
+            )
+        if ended:
+            logger.info(
+                "manual_transition fallback to /play (no live source) -> %s",
+                to_song_id,
+            )
+            result = self.play(to_song_id, start_at_sec=float(max(0.0, to_at_sec)))
+            return {
+                "action": "play",
+                "to_song_id": to_song_id,
+                "fade_sec": 0.0,
+                "to_at_sec": float(max(0.0, to_at_sec)),
+                "style": "cut",
+                "fallback": "no_live_source",
+                **result,
+            }
+
         with self._lock:
             if self.active_deck.audio is None:
                 raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
@@ -631,12 +704,16 @@ class AudioEngineMVP:
                 to_at_sec=float(max(0.0, to_at_sec)),
                 fade_sec=float(max(0.05, fade_sec)),
                 style=str(style or "smooth"),
+                tempo_ratio=tempo_ratio,
+                stem_curves=stem_curves if isinstance(stem_curves, dict) else None,
             )
             inactive_eq = self.inactive_deck.eq_values()
 
         deck = Deck()
         deck.set_eq(*inactive_eq)
-        want_stems = style in STEM_AWARE_STYLES
+        # Phase 3.2: stem_curves implies we'll mix per-stem in callback, which
+        # requires the next deck to also have stems loaded.
+        want_stems = (style in STEM_AWARE_STYLES) or (stem_curves is not None)
         # Beatmatched original renders cannot carry stems. Until we render
         # beatmatched stems as a bundle, stem-aware styles must load source
         # stems and leave tempo handling to cue selection.
@@ -662,6 +739,8 @@ class AudioEngineMVP:
                 to_at_sec=float(max(0.0, to_at_sec)),
                 fade_sec=float(max(0.05, fade_sec)),
                 style=str(style or "smooth"),
+                tempo_ratio=tempo_ratio,
+                stem_curves=stem_curves if isinstance(stem_curves, dict) else None,
             )
             # 跳出 plan 调度，避免 crossfade 结束后又被 plan transition 覆盖
             self._plan_enabled = False
@@ -673,6 +752,100 @@ class AudioEngineMVP:
             "fade_sec": tr.fade_sec,
             "to_at_sec": tr.to_at_sec,
             "style": tr.style,
+            "stem_path": bool(stem_curves and self._stems_available(deck)),
+        }
+
+    def prewarm_beatmatch(self, song_id: int | str, tempo_ratio: float) -> dict:
+        """后台预渲染目标歌的 rubberband 拉速版，避免 xfade 时阻塞 5-15s。
+
+        被 mobile 在 remaining ≤ 30s 时调用。命中 cache 时立即返回；
+        否则在守护线程里 fork 一次 rubberband 渲染，落盘到
+        ~/cypher/cache/{song_id}/original.rb.{ratio}.wav。
+        重复调用同一个 (song_id, ratio) 是幂等的。
+        """
+        ratio = float(tempo_ratio or 1.0)
+        if abs(ratio - 1.0) < BEATMATCH_MIN_SHIFT:
+            return {"action": "prewarm_skip_no_shift", "ratio": ratio}
+        if abs(ratio - 1.0) > BEATMATCH_MAX_SHIFT:
+            return {"action": "prewarm_skip_out_of_range", "ratio": ratio}
+        # Reuse the same path-resolution + rendering as Transition flow.
+        tr = Transition(
+            from_song_id=0,
+            to_song_id=song_id,
+            from_at_sec=0.0,
+            to_at_sec=0.0,
+            fade_sec=8.0,
+            tempo_ratio=ratio,
+        )
+        # Cheap path check first: cached?
+        if self._beatmatched_audio_path(tr, render=False) is not None:
+            return {"action": "prewarm_cached", "ratio": ratio}
+        # Fire-and-forget background render.
+        threading.Thread(
+            target=self._beatmatched_audio_path,
+            args=(tr,),
+            kwargs={"render": True},
+            daemon=True,
+            name=f"beatmatch-prewarm-{song_id}-{ratio:.4f}",
+        ).start()
+        return {"action": "prewarm_started", "ratio": ratio}
+
+    def beat_reinforce(
+        self,
+        start_sec: float,
+        end_sec: float,
+        beats: list[float],
+        sample_key: int = 4,
+        gain: float = 1.0,
+        pattern: str = "all",
+    ) -> dict:
+        """Phase 2.5: schedule per-beat sample triggers across [start_sec, end_sec].
+
+        Beats are absolute song-time anchors from mixer_rules. We translate
+        them into wall-clock frame offsets relative to the engine's reinforce
+        clock (advanced once per callback), so xfade / seek don't drag the
+        schedule. Pattern downsamples beats:
+          all    — every beat
+          half   — every other (downbeats only when DJ wants 1/2/3/4 → 1, 3)
+          backbeat — beats 2 & 4 of each 4-beat group
+        Idempotent within a session: calling again with overlapping windows
+        appends; clearing is automatic when the buffer empties.
+        """
+        if sample_key not in self.samples:
+            return {"action": "reinforce_skip_no_sample", "key": sample_key}
+        if not beats or end_sec <= start_sec:
+            return {"action": "reinforce_skip_empty"}
+        # Filter beats inside the window first.
+        filtered: list[float] = []
+        for i, b in enumerate(beats):
+            t = float(b)
+            if t < start_sec - 0.05 or t > end_sec + 0.05:
+                continue
+            if pattern == "half" and i % 2 != 0:
+                continue
+            if pattern == "backbeat" and i % 4 not in (1, 3):
+                continue
+            filtered.append(t)
+        if not filtered:
+            return {"action": "reinforce_skip_no_beats_in_window"}
+
+        gain = float(max(0.0, min(3.0, gain)))
+        with self._lock:
+            base = self._reinforce_clock_frame
+            ref_sec = self.active_deck.pos_sec if self.active_deck.audio is not None else start_sec
+            for t in filtered:
+                offset_sec = t - ref_sec
+                if offset_sec < -0.1:
+                    continue
+                trigger_frame = base + int(max(0.0, offset_sec) * SAMPLE_RATE)
+                self._reinforce_events.append((trigger_frame, sample_key, gain))
+            self._reinforce_events.sort(key=lambda e: e[0])
+        return {
+            "action": "reinforce_scheduled",
+            "count": len(filtered),
+            "key": sample_key,
+            "gain": gain,
+            "pattern": pattern,
         }
 
     def _install_inactive_deck(self, deck: Deck) -> None:
@@ -775,15 +948,210 @@ class AudioEngineMVP:
             logger.warning("prefetch failed for %s: %s", song_id, e)
 
     def _apply_loudness_gain(self, deck: Deck, song_id: int | str) -> None:
-        """从 plan.track_meta 取 replay_gain_db 并套到 deck 上。"""
-        if not self._plan:
-            deck.set_gain_db(None)
+        """套响度归一 gain 到 deck，避免两首歌音量差。
+
+        优先级：
+          1. plan.track_meta.replay_gain_db（plan-driven 模式）
+          2. <cache>/<song_id>/loudness.json 上次测过的 integrated LUFS（毫秒级）
+          3. 没有 cache → 当下用 gain=1.0 立即返回，后台线程测 + 写 loudness.json，
+             下次 /play 或 /xfade 命中第 2 步直接套上
+          4. ffmpeg 缺失或测量失败 → gain=1.0
+
+        target = -14 LUFS（与 audio_processor 后端处理保持一致）。
+        """
+        # 1. plan-driven 路径
+        if self._plan:
+            meta = self._plan.track_meta.get(str(song_id)) if self._plan else None
+            if meta and meta.get("replay_gain_db") is not None:
+                deck.set_gain_db(meta.get("replay_gain_db"))
+                return
+        # 2. cache 命中：毫秒级（同时套上 effective_end）
+        cached = self._loudness_cache_read(song_id)
+        if cached is not None:
+            gain_db, effective_end = cached
+            if gain_db is not None:
+                deck.set_gain_db(gain_db)
+            else:
+                deck.set_gain_db(None)
+            if effective_end is not None:
+                deck.effective_end_sec = float(effective_end)
             return
-        meta = self._plan.track_meta.get(str(song_id))
-        if not meta:
-            deck.set_gain_db(None)
-            return
-        deck.set_gain_db(meta.get("replay_gain_db"))
+        # 3. 没 cache：当下 gain=1.0，后台测
+        deck.set_gain_db(None)
+        self._kick_loudness_measure(song_id)
+
+    _LOUDNESS_TARGET_LUFS = -12.0
+    _LOUDNESS_GAIN_LIMIT_DB = 12.0
+
+    def _loudness_cache_read(
+        self, song_id: int | str
+    ) -> "tuple[float | None, float | None] | None":
+        """毫秒级查 cache 上的 loudness.json。返回 (gain_db, effective_end_sec) 或 None。"""
+        import json as _json
+        loud_path = _song_dir(song_id) / "loudness.json"
+        if not loud_path.is_file():
+            return None
+        try:
+            data = _json.loads(loud_path.read_text(encoding="utf-8"))
+            lufs = float(data["lufs"])
+            if not math.isfinite(lufs):
+                return None
+            target = data.get("target")
+            if target is not None and abs(float(target) - self._LOUDNESS_TARGET_LUFS) > 0.05:
+                logger.info("loudness.json stale (target %.1f != %.1f) — remeasure %s",
+                            float(target), self._LOUDNESS_TARGET_LUFS, song_id)
+                return None
+            gain = self._LOUDNESS_TARGET_LUFS - lufs
+            limit = self._LOUDNESS_GAIN_LIMIT_DB
+            gain_db = float(max(-limit, min(limit, gain)))
+            eff_raw = data.get("effective_end_sec")
+            effective_end = (
+                float(eff_raw) if isinstance(eff_raw, (int, float)) and math.isfinite(float(eff_raw)) else None
+            )
+            return gain_db, effective_end
+        except Exception as exc:
+            logger.warning("loudness.json invalid for %s: %s", song_id, exc)
+            return None
+
+    def _loudness_gain_db_cached(self, song_id: int | str) -> float | None:
+        """Backwards-compat alias used by older callers."""
+        cached = self._loudness_cache_read(song_id)
+        return cached[0] if cached else None
+
+    def _kick_loudness_measure(self, song_id: int | str) -> None:
+        """后台线程测一首歌的 integrated LUFS 并写 loudness.json。
+
+        幂等：同一 song_id 已在测量中的直接跳过。下一次 /play 或 /xfade 进同首
+        歌时，cached 路径会读到 json 套 gain。
+        """
+        key = str(song_id)
+        with self._loudness_lock:
+            if key in self._loudness_in_flight:
+                return
+            self._loudness_in_flight.add(key)
+        threading.Thread(
+            target=self._measure_loudness_job,
+            args=(song_id,),
+            daemon=True,
+            name=f"loudness-{key[:8]}",
+        ).start()
+
+    def _measure_loudness_job(self, song_id: int | str) -> None:
+        import json as _json
+        key = str(song_id)
+        try:
+            song_dir = _song_dir(song_id)
+            original = _find_original_path(song_dir)
+            if original is None:
+                return
+            measurement = self._measure_lufs(original)
+            if measurement is None:
+                return
+            lufs, effective_end = measurement
+            loud_path = song_dir / "loudness.json"
+            payload: dict = {
+                "lufs": round(lufs, 2),
+                "target": self._LOUDNESS_TARGET_LUFS,
+            }
+            if effective_end is not None:
+                payload["effective_end_sec"] = round(effective_end, 2)
+            try:
+                loud_path.write_text(_json.dumps(payload), encoding="utf-8")
+            except OSError as exc:
+                logger.warning("loudness.json write failed for %s: %s", song_id, exc)
+            gain = self._LOUDNESS_TARGET_LUFS - lufs
+            limit = self._LOUDNESS_GAIN_LIMIT_DB
+            gain = float(max(-limit, min(limit, gain)))
+            logger.info(
+                "loudness measured %s: %.2f LUFS -> gain %.2f dB%s (will apply on next load)",
+                song_id, lufs, gain,
+                f", effective_end={effective_end:.1f}s" if effective_end else "",
+            )
+            # Hot-apply gain to currently-loaded decks; record effective_end
+            # on the deck so get_state can shorten reported duration.
+            with self._lock:
+                for deck in (self.deck_a, self.deck_b):
+                    if str(deck.song_id) == key and deck.audio is not None:
+                        deck.set_gain_db(gain)
+                        if effective_end is not None:
+                            deck.effective_end_sec = float(effective_end)
+                        logger.info("loudness gain hot-applied to live deck for %s", song_id)
+        finally:
+            with self._loudness_lock:
+                self._loudness_in_flight.discard(key)
+
+    @staticmethod
+    def _measure_lufs(path: Path) -> "tuple[float, float | None] | None":
+        """Measure perceptually-meaningful loudness + detect outro silence.
+
+        Returns (lufs, effective_end_sec) or None on failure.
+
+        - lufs: 75th percentile of momentary LUFS readings (loudness of loud parts)
+        - effective_end_sec: timestamp where the song "musically ends" — the last
+          M reading above -40 LUFS (anything quieter is fade-out tail or
+          padding silence). None means no quiet tail detected; play to end.
+          We add a 0.5s grace so we don't cut off the natural decay.
+        """
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            return None
+        try:
+            proc = subprocess.run(
+                [
+                    ffmpeg, "-nostats", "-hide_banner",
+                    "-i", str(path),
+                    "-af", "ebur128=peak=true:metadata=1",
+                    "-f", "null", "-",
+                ],
+                capture_output=True, timeout=30.0,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.warning("ebur128 failed for %s: %s", path, exc)
+            return None
+        stderr = (proc.stderr or b"").decode("utf-8", errors="replace")
+
+        m_values: list[float] = []
+        # (timestamp, M) pairs to find the last loud moment
+        timed: list[tuple[float, float]] = []
+        integrated: float | None = None
+        for line in stderr.splitlines():
+            line = line.strip()
+            if "M:" in line and "S:" in line and "t:" in line:
+                try:
+                    t_part = line.split("t:", 1)[1].split()[0]
+                    m_part = line.split("M:", 1)[1].split()[0]
+                    t = float(t_part)
+                    m = float(m_part)
+                    if math.isfinite(m) and m > -50.0:
+                        m_values.append(m)
+                        timed.append((t, m))
+                except (ValueError, IndexError):
+                    continue
+            elif line.startswith("I:") and "LUFS" in line:
+                try:
+                    integrated = float(line.split("I:")[1].strip().split()[0])
+                except (ValueError, IndexError):
+                    continue
+
+        # Effective-end detection: walk timed[] from the end backwards, find
+        # the LAST timestamp where M >= -40 LUFS. That's the last moment a
+        # listener would consider "music playing".
+        effective_end: float | None = None
+        if timed:
+            # Skip from the end while M is below the "musical" threshold.
+            for t, m in reversed(timed):
+                if m >= -40.0:
+                    effective_end = t + 0.5  # 0.5s grace for natural decay
+                    break
+
+        if len(m_values) >= 8:
+            m_values.sort()
+            idx = int(len(m_values) * 0.75)
+            p75 = m_values[min(idx, len(m_values) - 1)]
+            return float(p75), effective_end
+        if integrated is not None and math.isfinite(integrated) and integrated > -70.0:
+            return float(integrated), effective_end
+        return None
 
     @staticmethod
     def _beatmatch_time_ratio(tr: Transition) -> float | None:
@@ -1291,6 +1659,7 @@ class AudioEngineMVP:
             self._in_transition = False
             self._plan_enabled = False
             self._one_shot_keys.clear()
+            self._reinforce_events.clear()
             self.loops.clear()
             self.stem_fx = None
             self._stem_solo = None
@@ -1308,16 +1677,40 @@ class AudioEngineMVP:
         mix = np.zeros((frames, 2), dtype=np.float32)
         still: list[tuple[int, list]] = []
         for key, layer in self._one_shot_keys:
-            buf, pos = layer
+            buf = layer[0]
+            pos = layer[1]
+            extra = layer[2] if len(layer) >= 3 else 1.0
             if pos >= len(buf):
                 continue
             chunk, new_pos = _read_segment(buf, pos, frames)
             layer[1] = new_pos
-            mix += chunk * SAMPLE_GAIN.get(key, 1.0)
+            mix += chunk * (SAMPLE_GAIN.get(key, 1.0) * extra)
             if new_pos < len(buf):
                 still.append((key, layer))
         self._one_shot_keys = still
         return mix
+
+    def _drain_reinforce(self, frames: int) -> None:
+        """Promote scheduled reinforce events whose trigger frame falls in this
+        callback into _one_shot_keys, then advance the reinforce clock."""
+        if not self._reinforce_events:
+            self._reinforce_clock_frame += frames
+            return
+        end_frame = self._reinforce_clock_frame + frames
+        kept: list[tuple[int, int, float]] = []
+        for trig, key, gain in self._reinforce_events:
+            if trig < self._reinforce_clock_frame - int(0.1 * SAMPLE_RATE):
+                # Slipped >100 ms past — drop.
+                continue
+            if trig >= end_frame:
+                kept.append((trig, key, gain))
+                continue
+            buf = self.samples.get(key)
+            if buf is None:
+                continue
+            self._one_shot_keys.append((key, [buf, 0, gain]))
+        self._reinforce_events = kept
+        self._reinforce_clock_frame = end_frame
 
     def _apply_stem_fx(self, main: np.ndarray, deck: Deck, frames: int) -> np.ndarray:
         if not self.stem_fx:
@@ -1353,6 +1746,70 @@ class AudioEngineMVP:
             chunk = chunk * deck.gain
         return chunk
 
+    def _read_stems_block(self, deck: Deck, frames: int) -> dict[str, np.ndarray]:
+        """Read one block from each of the 4 stems on `deck` starting at deck.pos.
+        Returns {stem_name: ndarray}. Caller advances deck.pos exactly once
+        (do NOT slice through deck.audio in parallel — pos lives once)."""
+        out: dict[str, np.ndarray] = {}
+        pos = deck.pos
+        for name in REQUIRED_STEMS:
+            buf = deck.stems.get(name)
+            if buf is None:
+                out[name] = np.zeros((frames, 2), dtype=np.float32)
+                continue
+            chunk, _ = _read_segment(buf, pos, frames)
+            out[name] = chunk
+        deck.pos = pos + frames
+        return out
+
+    def _mix_stem_curves(self, tr: "Transition", progress: float, frames: int) -> np.ndarray:
+        """Phase 3.2 — mix prev + next using per-stem envelope curves from tr.stem_curves.
+
+        Each deck contributes 4 stems, each scaled by its named envelope evaluated
+        at `progress`. We read one block per deck, slice 4 stems out of it, sum
+        the weighted result. Both decks then get apply_eq() so existing EQ
+        automation still works.
+        """
+        from envelopes import evaluate as _ev
+
+        prev_curves: dict = (tr.stem_curves or {}).get("prev") or {}
+        next_curves: dict = (tr.stem_curves or {}).get("next") or {}
+
+        prev_stems = self._read_stems_block(self.active_deck, frames)
+        next_stems = self._read_stems_block(self.inactive_deck, frames)
+
+        # Pre-compute scalar gains once per callback (envelopes are pure
+        # python; no per-sample work).
+        prev_g = {n: _ev(prev_curves.get(n, ""), progress, fallback_in=False)
+                  for n in REQUIRED_STEMS}
+        next_g = {n: _ev(next_curves.get(n, ""), progress, fallback_in=True)
+                  for n in REQUIRED_STEMS}
+
+        a = np.zeros((frames, 2), dtype=np.float32)
+        b = np.zeros((frames, 2), dtype=np.float32)
+        for n in REQUIRED_STEMS:
+            ga = prev_g[n]
+            if ga > 1e-4:
+                a += prev_stems[n] * ga
+            gb = next_g[n]
+            if gb > 1e-4:
+                b += next_stems[n] * gb
+
+        # No pre-scale here. Stems sum to ~= original audio (vocals + drums +
+        # bass + other ≈ full track), so {all stems × g} per side ≈ g × original.
+        # An earlier version summed the per-stem gain coefficients and treated
+        # the sum as loudness — that mistakenly scaled all stems × 0.375 at
+        # mid-fade, dropping perceived volume by ~60%. The end-of-callback
+        # _apply_limiter handles real peak overflow if it ever happens.
+
+        # Per-stem mix already balances loudness; let deck.gain (loudness
+        # normalization) and EQ still apply on top.
+        a = a * self.active_deck.gain
+        b = b * self.inactive_deck.gain
+        a = self.active_deck.apply_eq(a)
+        b = self.inactive_deck.apply_eq(b)
+        return a + b
+
     def _callback(self, outdata, frames, time_info, status) -> None:
         if status:
             self._xrun_count += 1
@@ -1366,7 +1823,18 @@ class AudioEngineMVP:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
                 style = self._resolve_style(tr.style or "smooth")
-                if style in ("smooth", "blend"):
+                # Phase 3.2 — when the planner sent stem_curves AND both decks
+                # have all 4 stems loaded, evaluate per-stem envelopes and mix
+                # them directly. This skips the legacy single-buffer fade and
+                # gives clean bass-swap / drum-bridge handoff.
+                use_stem_path = (
+                    tr.stem_curves is not None
+                    and self._stems_available(self.active_deck)
+                    and self._stems_available(self.inactive_deck)
+                )
+                if use_stem_path:
+                    main = self._mix_stem_curves(tr, progress, frames)
+                elif style in ("smooth", "blend"):
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
                     b = self._read_with_solo(self.inactive_deck, frames)
@@ -1414,8 +1882,45 @@ class AudioEngineMVP:
 
             deck_for_fx = self.active_deck
             main = self._apply_stem_fx(main, deck_for_fx, frames)
+            self._drain_reinforce(frames)
             main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
             outdata[:] = self._apply_limiter(main, frames)
+
+            # Outro silence watchdog. Some tracks have padding silence or a
+            # quiet fade-out that lasts 5-15s after the music actually ends.
+            # If we just wait for deck.pos to hit len(audio), mobile gets
+            # silence with playing=true for many seconds. Detect 1.5s of
+            # near-silence past 75% playback and let the engine end the track
+            # so mobile's "!_isPlaying && positionSec > 5" branch fires.
+            if (
+                not self._in_transition
+                and self._playing
+                and not self._paused
+                and self.active_deck.audio is not None
+            ):
+                # frames at SAMPLE_RATE 44100 ≈ 46 ms per block; 32 blocks ≈ 1.5 s
+                pos_sec = self.active_deck.pos_sec
+                total_sec = len(self.active_deck.audio) / SAMPLE_RATE
+                past_75pct = total_sec > 0 and pos_sec >= total_sec * 0.75
+                # Use raw deck output peak (pre-limiter) as silence proxy.
+                # We don't want sample/loop layers fooling the detector.
+                if past_75pct:
+                    block_peak = float(np.max(np.abs(main))) if main.size else 0.0
+                    if block_peak < 0.005:  # ~ -46 dB
+                        self._silence_block_count += 1
+                    else:
+                        self._silence_block_count = 0
+                    if self._silence_block_count >= 32:
+                        logger.info(
+                            "outro silence watchdog: ending playback at %.2fs/%.2fs (song=%s)",
+                            pos_sec, total_sec, self.active_deck.song_id,
+                        )
+                        self._playing = False
+                        self._silence_block_count = 0
+                else:
+                    self._silence_block_count = 0
+            else:
+                self._silence_block_count = 0
 
     def _apply_style_effects(self, style: str, progress: float,
                              a: np.ndarray, b: np.ndarray,
