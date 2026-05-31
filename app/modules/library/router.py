@@ -210,6 +210,7 @@ def analyze_library_song_endpoint(
     song.bpm_curve = result.get("bpm_curve", [])
     song.tempo_stability = result.get("tempo_stability")
     song.energy_curve = result.get("energy_curve", [])
+    song.loudness_profile = result.get("loudness_profile", {})
     song.transition_windows = result.get("transition_windows", [])
     song.downbeats = result.get("downbeats", [])
     song.phrase_map = result.get("phrase_map", [])

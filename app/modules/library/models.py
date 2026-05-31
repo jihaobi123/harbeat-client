@@ -39,6 +39,7 @@ class LibrarySong(Base):
     bpm_curve: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     tempo_stability: Mapped[float | None] = mapped_column(Float)
     energy_curve: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    loudness_profile: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     transition_windows: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     stem_activity: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     stem_activity_windows: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)

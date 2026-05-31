@@ -36,6 +36,7 @@ class LibrarySongBase(BaseModel):
     bpm_curve: list[dict] = Field(default_factory=list)
     tempo_stability: float | None = None
     energy_curve: list[dict] = Field(default_factory=list)
+    loudness_profile: dict = Field(default_factory=dict)
     transition_windows: list[dict] = Field(default_factory=list)
     stem_activity: dict = Field(default_factory=dict)
     stem_activity_windows: list[dict] = Field(default_factory=list)
@@ -79,6 +80,7 @@ class LibrarySongUpdateRequest(BaseModel):
     bpm_curve: list[dict] | None = None
     tempo_stability: float | None = None
     energy_curve: list[dict] | None = None
+    loudness_profile: dict | None = None
     transition_windows: list[dict] | None = None
     stem_activity: dict | None = None
     stem_activity_windows: list[dict] | None = None

@@ -113,6 +113,70 @@ def _build_energy_curve(
     } for start, end, rms in rms_values]
 
 
+def _analyze_loudness(
+    y: np.ndarray,
+    sr: int,
+    *,
+    target_lufs: float = -14.0,
+    peak_headroom_db: float = 1.0,
+) -> dict:
+    """Measure playback loudness and derive a conservative replay gain."""
+    audio = np.asarray(y, dtype=float)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=0)
+    audio = audio.reshape(-1)
+
+    if sr <= 0 or len(audio) == 0:
+        audio = np.zeros(1, dtype=float)
+
+    abs_audio = np.abs(audio)
+    peak = float(np.max(abs_audio))
+    rms = float(np.sqrt(np.mean(np.square(audio))))
+    if peak <= 1e-9 or rms <= 1e-9:
+        return {
+            "integrated_lufs": None,
+            "loudness_method": "silence",
+            "peak_dbfs": None,
+            "rms_dbfs": None,
+            "crest_factor_db": 0.0,
+            "clip_ratio": 0.0,
+            "replay_gain_db": 0.0,
+            "clipping_risk": False,
+        }
+
+    peak_dbfs = 20.0 * np.log10(peak)
+    rms_dbfs = 20.0 * np.log10(rms)
+    loudness_method = "rms_dbfs_fallback"
+    integrated_lufs = rms_dbfs
+    try:
+        import pyloudnorm as pyln
+
+        measured = float(pyln.Meter(sr).integrated_loudness(audio))
+        if np.isfinite(measured):
+            integrated_lufs = measured
+            loudness_method = "ebu_r128"
+    except Exception:
+        pass
+
+    clip_ratio = float(np.mean(abs_audio >= 0.999))
+    target_gain = float(target_lufs - integrated_lufs)
+    max_gain_with_headroom = float(-peak_headroom_db - peak_dbfs)
+    replay_gain = min(target_gain, max_gain_with_headroom)
+    replay_gain = float(np.clip(replay_gain, -12.0, 12.0))
+    clipping_risk = clip_ratio > 0.00001 or peak_dbfs >= -0.1
+
+    return {
+        "integrated_lufs": round(float(integrated_lufs), 3),
+        "loudness_method": loudness_method,
+        "peak_dbfs": round(float(peak_dbfs), 3),
+        "rms_dbfs": round(float(rms_dbfs), 3),
+        "crest_factor_db": round(float(peak_dbfs - rms_dbfs), 3),
+        "clip_ratio": round(clip_ratio, 6),
+        "replay_gain_db": round(replay_gain, 3),
+        "clipping_risk": bool(clipping_risk),
+    }
+
+
 def _attach_phrase_energy(phrase_map: list[dict], energy_curve: list[dict]) -> list[dict]:
     """Attach average relative energy to phrase windows without mutating input."""
     enriched: list[dict] = []
@@ -415,6 +479,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     rms = librosa.feature.rms(y=y)[0]
     energy = float(np.clip(np.tanh(float(np.mean(rms)) * 8.0), 0.0, 1.0))
     energy_curve = _build_energy_curve(y, sr)
+    loudness_profile = _analyze_loudness(y, sr)
 
     # Key detection (Krumhansl-Schmuckler)
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
@@ -460,5 +525,6 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "cue_points": cue_points,
         "phrase_map": phrase_map,
         "energy_curve": energy_curve,
+        "loudness_profile": loudness_profile,
         "transition_windows": transition_windows,
     }

@@ -19,6 +19,7 @@ from app.shared.database import engine
 JSON_COLUMNS = {
     "bpm_curve": "[]",
     "energy_curve": "[]",
+    "loudness_profile": "{}",
     "transition_windows": "[]",
     "stem_activity": "{}",
     "stem_activity_windows": "[]",

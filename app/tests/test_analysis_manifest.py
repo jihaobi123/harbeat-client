@@ -14,6 +14,12 @@ class AnalysisManifestTests(unittest.TestCase):
         return {
             "bpm_curve": [{"start": 0.0, "end": 8.0, "bpm": 120.0, "stability": 0.99}],
             "tempo_stability": 0.99,
+            "loudness_profile": {
+                "integrated_lufs": -14.5,
+                "peak_dbfs": -1.0,
+                "replay_gain_db": 0.5,
+                "clipping_risk": False,
+            },
             "energy_curve": [{"start": 0.0, "end": 2.0, "energy": 0.5, "relative_energy": 1.0}],
             "transition_windows": [{
                 "start": 0.0, "end": 16.0, "label": "intro", "bars": 8,
@@ -42,6 +48,7 @@ class AnalysisManifestTests(unittest.TestCase):
         copy_analysis_from(source, target)
 
         self.assertEqual(target.tempo_stability, 0.99)
+        self.assertEqual(target.loudness_profile["replay_gain_db"], 0.5)
         self.assertTrue(target.transition_windows[0]["clean_candidate"])
         self.assertEqual(target.stem_quality_score, 0.95)
         self.assertEqual(target.dance_styles[0]["style"], "house")
@@ -71,14 +78,18 @@ class AnalysisManifestTests(unittest.TestCase):
                 **self._analysis_fields(),
             )
 
-            analysis = build_song_manifest(song)["analysis"]
+            manifest = build_song_manifest(song)
+            analysis = manifest["analysis"]
 
             self.assertEqual(analysis["tempo_stability"], 0.99)
+            self.assertEqual(analysis["loudness_profile"]["integrated_lufs"], -14.5)
             self.assertEqual(analysis["bpm_curve"][0]["bpm"], 120.0)
             self.assertEqual(analysis["transition_windows"][0]["label"], "intro")
             self.assertEqual(analysis["stem_quality_score"], 0.95)
             self.assertTrue(analysis["intro_is_clean"])
             self.assertEqual(analysis["dance_style_scores"]["house"], 0.9)
+            self.assertEqual(manifest["replayGainDb"], 0.5)
+            self.assertFalse(manifest["qualityFlags"]["clipping_risk"])
         finally:
             os.remove(path)
 

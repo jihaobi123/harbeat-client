@@ -25,6 +25,7 @@ from app.modules.library.analysis import (
     _build_bpm_curve,
     _build_energy_curve,
     _build_transition_windows,
+    _analyze_loudness,
 )
 
 # ── Camelot wheel ────────────────────────────────────────────────
@@ -82,6 +83,7 @@ def analyze_track(filepath, track_id):
     mean_energy = float(np.mean(rms_norm))
     energy_label = "low" if mean_energy < 0.12 else ("medium" if mean_energy < 0.22 else "high")
     energy_curve = _build_energy_curve(y_mono, sr)
+    loudness_profile = _analyze_loudness(y_mono, sr)
 
     # ── Vocal density ──
     mfcc = librosa.feature.mfcc(y=y_mono, sr=sr, n_mfcc=13)
@@ -125,6 +127,7 @@ def analyze_track(filepath, track_id):
         "bpm_curve": bpm_curve,
         "tempo_stability": tempo_stability,
         "energy_curve": energy_curve,
+        "loudness_profile": loudness_profile,
         "transition_windows": transition_windows,
         "downbeats": [round(d, 3) for d in downbeats[:1000]],
         "phrase_map": phrase_map,

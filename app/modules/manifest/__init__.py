@@ -82,6 +82,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "stem_quality_score": getattr(song, "stem_quality_score", None),
         "intro_is_clean": bool(getattr(song, "intro_is_clean", False)),
         "outro_is_clean": bool(getattr(song, "outro_is_clean", False)),
+        "clipping_risk": bool((getattr(song, "loudness_profile", {}) or {}).get("clipping_risk", False)),
     }
 
     # Analysis data
@@ -102,6 +103,8 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["tempo_stability"] = song.tempo_stability
     if getattr(song, "energy_curve", None):
         analysis["energy_curve"] = song.energy_curve
+    if getattr(song, "loudness_profile", None):
+        analysis["loudness_profile"] = song.loudness_profile
     if getattr(song, "transition_windows", None):
         analysis["transition_windows"] = song.transition_windows
     if getattr(song, "stem_activity", None):
@@ -137,6 +140,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "camelotKey": song.camelot_key,
         "files": files,
         "analysis": analysis,
+        "replayGainDb": (getattr(song, "loudness_profile", {}) or {}).get("replay_gain_db"),
         "qualityFlags": quality_flags,
         "analysisStatus": song.analysis_status,
         "stemStatus": song.stem_status,
