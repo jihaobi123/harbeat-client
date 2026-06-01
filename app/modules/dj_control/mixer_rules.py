@@ -30,6 +30,8 @@ from __future__ import annotations
 
 from typing import Callable
 
+from app.modules.dj_control import transition_strategy
+
 
 def _safe(val, default):
     return val if val is not None else default
@@ -297,6 +299,10 @@ def list_transition_rules() -> dict:
     return {
         "analyzed": [{"key": r["key"], "label_zh": r["label_zh"]} for r in ANALYZED_TRANSITIONS],
         "raw":      [{"key": r["key"], "label_zh": r["label_zh"]} for r in RAW_TRANSITIONS],
+        "cross_style": [
+            {"key": r["key"], "label_zh": r["label_zh"], "rk_style": r["rk_style"]}
+            for r in transition_strategy.list_cross_style_strategies()
+        ],
     }
 
 
@@ -916,7 +922,17 @@ def _plan_beat_reinforce(
     return sides
 
 
-def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str | None = None) -> dict:
+def build_transition_spec(
+    prev_song,
+    next_song,
+    cursor_sec: float,
+    rule_key: str | None = None,
+    *,
+    forced_from_at_sec: float | None = None,
+    forced_to_at_sec: float | None = None,
+    forced_fade_sec: float | None = None,
+    enable_cross_style: bool = True,
+) -> dict:
     rule = pick_rule(prev_song, next_song, rule_key)
     spec = rule["apply"](prev_song, next_song, cursor_sec)
     spec["rule_key"] = rule["key"]
@@ -940,9 +956,18 @@ def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str
     # from_at_sec / to_at_sec when present and falls back to the legacy
     # cursor / 0 if either is missing.
     smart = _smart_exit_entry(prev_song, next_song, cursor_sec, float(spec.get("duration_sec", 6.0)))
+    if forced_from_at_sec is not None:
+        smart["exit_at_sec"] = float(forced_from_at_sec)
+    if forced_to_at_sec is not None:
+        smart["entry_at_sec"] = float(forced_to_at_sec)
+        smart["skipped_intro_sec"] = float(forced_to_at_sec)
+    if forced_fade_sec is not None:
+        smart["snapped_dur"] = float(forced_fade_sec)
     spec["from_at_sec"] = round(smart["exit_at_sec"], 3)
     spec["to_at_sec"] = round(smart["entry_at_sec"], 3)
     spec["duration_sec"] = round(smart["snapped_dur"], 3)
+    spec["start_in_prev"] = spec["from_at_sec"]
+    spec["start_in_next"] = spec["to_at_sec"]
     if smart["exit_section"]:
         spec["exit_section"] = smart["exit_section"]
     spec["skipped_intro_sec"] = round(smart["skipped_intro_sec"], 3)
@@ -968,6 +993,8 @@ def build_transition_spec(prev_song, next_song, cursor_sec: float, rule_key: str
     stem_curves = _stem_curves_for(rule["key"])
     if stem_curves:
         spec["stem_curves"] = stem_curves
+    if enable_cross_style:
+        return transition_strategy.apply_cross_style_strategy(prev_song, next_song, cursor_sec, spec)
     return spec
 
 

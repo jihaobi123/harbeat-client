@@ -77,6 +77,7 @@ class TransitionEdge:
 
     exit_time: float               # chosen exit point on A
     entry_time: float              # chosen entry point on B
+    fade_sec: float = 8.0          # candidate fade length scored with the window
 
     def as_dict(self) -> dict:
         return {
@@ -99,6 +100,7 @@ class TransitionEdge:
             "key_compatible": self.key_compatible,
             "exit_time": round(self.exit_time, 3),
             "entry_time": round(self.entry_time, 3),
+            "fade_sec": round(self.fade_sec, 3),
         }
 
 
@@ -484,6 +486,29 @@ def _pick_best_rule(allowed: list[str], a: TrackProfile, b: TrackProfile,
     return allowed[0] if allowed else "raw_hard_cut", "fallback"
 
 
+def _candidate_fade_sec(rule_key: str) -> float:
+    """Small DJ-set side duration hint for canonical candidate windows.
+
+    mixer_rules still owns the exact envelope/preset details; this just makes
+    edge candidates explicit enough for downstream code and smoke tests.
+    """
+    if rule_key == "harmonic_blend":
+        return 16.0
+    if rule_key in {"eq_swap_4bar", "drum_only_bridge", "key_lift", "filter_sweep_high"}:
+        return 8.0
+    if rule_key in {"echo_tail", "reverb_throw", "spin_back", "loop_roll", "drop_swap", "back_to_back_drop"}:
+        return 5.0
+    if rule_key == "raw_xfade_3s":
+        return 3.0
+    if rule_key == "raw_xfade_10s":
+        return 10.0
+    if rule_key in {"raw_hard_cut"}:
+        return 0.05
+    if rule_key in {"raw_fade_out_in", "raw_echo_drop", "raw_lp_swap"}:
+        return 5.0
+    return 6.0
+
+
 # ----- Main entry ---------------------------------------------------------
 
 def analyze_edge(a: TrackProfile, b: TrackProfile) -> TransitionEdge:
@@ -513,6 +538,7 @@ def analyze_edge(a: TrackProfile, b: TrackProfile) -> TransitionEdge:
                                            bpm_delta_pct, key_compatible)
     best_rule, reason = _pick_best_rule(allowed, a, b, a_exit, b_entry,
                                         energy_delta, vocal_conflict, low_end_conflict)
+    fade_sec = _candidate_fade_sec(best_rule)
 
     return TransitionEdge(
         from_track_id=a.track_id,
@@ -534,6 +560,7 @@ def analyze_edge(a: TrackProfile, b: TrackProfile) -> TransitionEdge:
         key_compatible=key_compatible,
         exit_time=exit_t,
         entry_time=entry_t,
+        fade_sec=fade_sec,
     )
 
 

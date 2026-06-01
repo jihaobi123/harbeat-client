@@ -36,6 +36,7 @@ class DeckEqRequest(BaseModel):
 
 
 class XfadeRequest(BaseModel):
+    transition_id: Optional[str] = None
     to_song_id: Union[int, str]
     fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)
     to_at_sec: float = Field(default=0.0, ge=0.0)
@@ -45,6 +46,11 @@ class XfadeRequest(BaseModel):
         "fade", "rise", "blend", "wave", "melt", "vocal_handoff", "vocal_ducking",
         "drum_swap", "instrumental_only", "vocal_solo_intro", "echo_freeze",
     ] = "smooth"
+    fallback_style: Optional[str] = None
+    tempo_ratio: Optional[float] = None
+    stem_curves: Optional[dict[str, Any]] = None
+    eq_curves: Optional[dict[str, Any]] = None
+    phase_anchor_sec: Optional[float] = None
 
 
 class PrefetchRequest(BaseModel):

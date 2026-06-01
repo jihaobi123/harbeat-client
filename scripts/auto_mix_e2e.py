@@ -18,16 +18,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from urllib import request, error, parse
 
 
-JETSON = "http://8.136.120.255"  # cloud gateway (mobile default)
-RK_EDGE = "http://192.168.43.7:9000"
-RK_SYNC = "http://192.168.43.7:9100"
-USER = "qqq"
-PWD = "12345678"
+JETSON = ""
+RK_EDGE = ""
+RK_SYNC = ""
+USER = ""
+AUTH_SECRET = ""
 
 XFADE_TRIGGER_SEC = 12.0  # start xfade this many seconds before track end
 
@@ -79,8 +80,13 @@ def http_json(method, url, body=None, token=None, timeout=15.0):
 
 
 def login():
+    if not JETSON or not USER or not AUTH_SECRET:
+        raise RuntimeError(
+            "missing login config: set HARBEAT_GATEWAY_URL, "
+            "HARBEAT_USERNAME, and HARBEAT_PASSWORD"
+        )
     r = http_json("POST", f"{JETSON}/api/auth/login",
-                  {"username": USER, "password": PWD})
+                  {"username": USER, "password": AUTH_SECRET})
     return r["data"]["access_token"]
 
 
@@ -185,13 +191,32 @@ def xfade(to_id, fade_sec, style):
 
 
 def main():
+    global JETSON, RK_EDGE, RK_SYNC, USER, AUTH_SECRET
     ap = argparse.ArgumentParser()
+    ap.add_argument("--gateway-url", default=os.getenv("HARBEAT_GATEWAY_URL", ""),
+                    help="Jetson/cloud gateway base URL, or HARBEAT_GATEWAY_URL")
+    ap.add_argument("--rk-url", default=os.getenv("HARBEAT_RK_URL", ""),
+                    help="RK edge-agent base URL, or HARBEAT_RK_URL")
+    ap.add_argument("--rk-sync-url", default=os.getenv("HARBEAT_RK_SYNC_URL", ""),
+                    help="RK sync-worker base URL, or HARBEAT_RK_SYNC_URL")
+    ap.add_argument("--username", default=os.getenv("HARBEAT_USERNAME", ""),
+                    help="HarBeat username, or HARBEAT_USERNAME")
     ap.add_argument("--songs", nargs="+", help="override song IDs")
     ap.add_argument("--preset", default="battle_4rounds")
     ap.add_argument("--seek-near-end", type=float, default=0.0,
                     help="if >0, seek every song to (duration - this) seconds "
                          "to make xfades trigger fast (smoke-test mode)")
     args = ap.parse_args()
+
+    JETSON = args.gateway_url.rstrip("/")
+    RK_EDGE = args.rk_url.rstrip("/")
+    RK_SYNC = args.rk_sync_url.rstrip("/")
+    USER = args.username
+    AUTH_SECRET = os.getenv("HARBEAT_PASSWORD", "")
+    if not RK_SYNC and RK_EDGE:
+        parsed = parse.urlparse(RK_EDGE)
+        if parsed.scheme and parsed.hostname:
+            RK_SYNC = parse.urlunparse((parsed.scheme, f"{parsed.hostname}:9100", "", "", "", ""))
 
     print("== auto-mix e2e ==", flush=True)
     print("[1] login...", flush=True)

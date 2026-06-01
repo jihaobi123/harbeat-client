@@ -21,6 +21,7 @@ from app.modules.dj_set.section_energy import (
     SectionEnergy,
     compute_section_energy_map,
 )
+from app.modules.dj_set.track_analysis_adapter import build_track_analysis_v2
 
 
 @dataclass(frozen=True)
@@ -223,15 +224,16 @@ def build_track_profile(song) -> TrackProfile:
     Pure function — no DB writes. Caller is responsible for caching the
     result if many calls are expected.
     """
-    duration = float(getattr(song, "duration", 0) or 0)
-    bpm = float(getattr(song, "bpm", 0) or 0)
+    analysis = build_track_analysis_v2(song)
+    duration = float(analysis.get("duration_sec") or 0)
+    bpm = float(analysis.get("bpm") or 0)
     breakdown = compute_dance_energy(song)
     sections = compute_section_energy_map(song)
 
-    phrase_map = list(getattr(song, "phrase_map", []) or [])
-    cue_points = list(getattr(song, "cue_points", []) or [])
-    downbeats = list(getattr(song, "downbeats", []) or [])
-    beat_points = list(getattr(song, "beat_points", []) or [])
+    phrase_map = list(analysis.get("phrase_map") or [])
+    cue_points = list(analysis.get("cue_points") or [])
+    downbeats = list(analysis.get("downbeats") or [])
+    beat_points = list(analysis.get("beat_points") or [])
 
     vocal_density = _vocal_density_from_phrase(phrase_map, duration)
     composite = _composite_energies(breakdown, sections, vocal_density)

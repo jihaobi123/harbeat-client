@@ -79,11 +79,22 @@ def main() -> int:
             print(f"       plan: {p['from']}->{p['to']} rule={p['rule']} purpose={p['purpose']}")
             print(f"             from={spec.get('from_at_sec')} to={spec.get('to_at_sec')} dur={spec.get('duration_sec')}s")
             print(f"             stems={'yes' if spec.get('stem_curves') else 'no'} reinforce={'yes' if spec.get('beat_reinforce') else 'no'}")
+        for edge, plan in zip(s["transitions"], s["plans"]):
+            spec = plan.get("spec", {})
+            assert abs(float(edge["entry_time"]) - float(spec["to_at_sec"])) < 0.001
+            assert abs(float(edge["exit_time"]) - float(spec["from_at_sec"])) < 0.001
+            assert plan.get("transition_id") == spec.get("transition_id")
 
     print("\n== preview_transition s1->s4 ==")
     pv = dj_set_service.preview_transition(songs[0], songs[3])
     print(json.dumps({k: v for k, v in pv.items() if k != "edge"}, indent=2, ensure_ascii=False))
     print("edge:", json.dumps(pv["edge"], indent=2, ensure_ascii=False))
+    plan = pv["plan"]
+    spec = plan["spec"]
+    edge = pv["edge"]
+    assert abs(float(edge["entry_time"]) - float(spec["to_at_sec"])) < 0.001
+    assert abs(float(edge["exit_time"]) - float(spec["from_at_sec"])) < 0.001
+    assert plan.get("transition_id") == spec.get("transition_id")
     return 0
 
 

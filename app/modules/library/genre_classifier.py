@@ -1,4 +1,4 @@
-"""Multi-source genre classifier: audio-feature inference + Spotify metadata enrichment.
+"""Multi-source genre classifier: audio-feature inference + external metadata.
 
 Architecture:
   1. Audio-feature inference (always available, no API dependency)
@@ -8,7 +8,10 @@ Architecture:
   2. Spotify metadata enrichment (optional, if SPOTIPY_CLIENT_ID is configured)
      Searches by title+artist ISRC, fetches artist genres, album genres.
 
-  3. Manual override via SongTag.style (always highest priority).
+  3. Discogs metadata enrichment (optional, if DISCOGS_USER_TOKEN is configured)
+     Searches release/master genre and style labels.
+
+  4. Manual override via SongTag.style (always highest priority).
 
 Genre taxonomy follows DJ-relevant categories:
   house, techno, hip-hop, drum-and-bass, pop, r-and-b, latin, rock, funk, disco,
@@ -17,6 +20,7 @@ Genre taxonomy follows DJ-relevant categories:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import numpy as np
@@ -355,6 +359,221 @@ def _map_spotify_genres_to_dj(spotify_genres: list[str]) -> list[dict]:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
+_DISCOGS_TO_DJ: dict[str, str] = {
+    "electronic": "electronic",
+    "hip hop": "hip-hop",
+    "funk / soul": "funk",
+    "funk": "funk",
+    "soul": "r-and-b",
+    "pop": "pop",
+    "rock": "rock",
+    "reggae": "reggae",
+    "latin": "latin",
+    "jazz": "funk",
+    "house": "house",
+    "deep house": "house",
+    "tech house": "house",
+    "progressive house": "house",
+    "acid house": "house",
+    "techno": "techno",
+    "minimal techno": "techno",
+    "detroit techno": "techno",
+    "trance": "trance",
+    "progressive trance": "trance",
+    "psy-trance": "trance",
+    "breakbeat": "breaks",
+    "breaks": "breaks",
+    "drum n bass": "drum-and-bass",
+    "drum and bass": "drum-and-bass",
+    "jungle": "drum-and-bass",
+    "liquid funk": "drum-and-bass",
+    "dubstep": "dubstep",
+    "grime": "dubstep",
+    "uk garage": "breaks",
+    "2-step": "breaks",
+    "downtempo": "downtempo",
+    "trip hop": "downtempo",
+    "ambient": "ambient",
+    "idm": "electronic",
+    "electro": "electronic",
+    "disco": "disco",
+    "nu-disco": "disco",
+    "boogie": "funk",
+    "conscious": "hip-hop",
+    "gangsta": "hip-hop",
+    "boom bap": "hip-hop",
+    "trap": "hip-hop",
+    "drill": "hip-hop",
+    "rnb/swing": "r-and-b",
+    "contemporary r&b": "r-and-b",
+    "dancehall": "reggae",
+    "dub": "reggae",
+    "reggaeton": "latin",
+    "salsa": "latin",
+    "afrobeat": "afrobeats",
+    "afrobeats": "afrobeats",
+    "afro house": "afrobeats",
+    "amapiano": "amapiano",
+    "lo-fi": "lo-fi",
+}
+
+
+def _map_discogs_labels_to_dj(labels: list[str]) -> list[dict]:
+    """Map Discogs release genre/style labels into our broad DJ taxonomy."""
+    mapped: dict[str, float] = {}
+    raw_count = 0
+    for label in labels:
+        key = str(label or "").lower().strip()
+        if not key:
+            continue
+        raw_count += 1
+        dj_genre = _DISCOGS_TO_DJ.get(key)
+        if not dj_genre:
+            for discogs_k, dj_v in _DISCOGS_TO_DJ.items():
+                if discogs_k in key or key in discogs_k:
+                    dj_genre = dj_v
+                    break
+        if dj_genre:
+            mapped[dj_genre] = mapped.get(dj_genre, 0.0) + 1.0
+
+    total = sum(mapped.values()) or 1.0
+    coverage = min(1.0, total / max(raw_count, 1))
+    return sorted(
+        [
+            {
+                "name": name,
+                "confidence": round((score / total) * (0.65 + 0.20 * coverage), 3),
+                "source": "discogs",
+            }
+            for name, score in mapped.items()
+        ],
+        key=lambda x: -x["confidence"],
+    )
+
+
+def _discogs_headers() -> dict[str, str]:
+    user_agent = os.getenv(
+        "DISCOGS_USER_AGENT",
+        "HarBeat/1.0 +https://github.com/jihaobi123/harbeat-client",
+    ).strip()
+    headers = {"User-Agent": user_agent}
+    token = os.getenv("DISCOGS_USER_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Discogs token={token}"
+    return headers
+
+
+def _enrich_from_discogs(title: str, artist: str) -> dict | None:
+    """Look up Discogs release/master metadata.
+
+    Discogs tags are broad and release-level, so this is used as enrichment
+    instead of a replacement for audio analysis.
+    """
+    if not title:
+        return None
+    token = os.getenv("DISCOGS_USER_TOKEN", "").strip()
+    if not token:
+        return None
+    try:
+        import httpx
+
+        params = {
+            "type": "release",
+            "track": title,
+            "per_page": "3",
+            "page": "1",
+        }
+        if artist:
+            params["artist"] = artist
+
+        raw_labels: list[str] = []
+        release_ids: list[int] = []
+        with httpx.Client(timeout=8.0, headers=_discogs_headers()) as client:
+            resp = client.get("https://api.discogs.com/database/search", params=params)
+            resp.raise_for_status()
+            results = resp.json().get("results") or []
+            if not results:
+                return None
+
+            for item in results[:3]:
+                release_id = item.get("id")
+                if isinstance(release_id, int):
+                    release_ids.append(release_id)
+                for key in ("genre", "style"):
+                    vals = item.get(key) or []
+                    if isinstance(vals, str):
+                        raw_labels.append(vals)
+                    elif isinstance(vals, list):
+                        raw_labels.extend(str(v) for v in vals if v)
+
+            if release_ids:
+                detail = client.get(f"https://api.discogs.com/releases/{release_ids[0]}")
+                if detail.status_code == 200:
+                    release = detail.json()
+                    for key in ("genres", "styles"):
+                        vals = release.get(key) or []
+                        if isinstance(vals, str):
+                            raw_labels.append(vals)
+                        elif isinstance(vals, list):
+                            raw_labels.extend(str(v) for v in vals if v)
+
+        raw_labels = list(dict.fromkeys(raw_labels))
+        mapped = _map_discogs_labels_to_dj(raw_labels)
+        if not mapped:
+            return None
+        return {
+            "genres": mapped,
+            "discogs_id": release_ids[0] if release_ids else None,
+            "discogs_labels_raw": raw_labels[:16],
+            "source": "discogs",
+        }
+    except Exception as e:
+        logger.debug("[genre] Discogs enrichment failed: %s", e)
+        return None
+
+
+def _merge_external_and_audio(audio_result: dict, external_results: list[dict]) -> dict | None:
+    external_genres: list[dict] = []
+    seen: set[str] = set()
+    metadata: dict[str, Any] = {}
+    sources: list[str] = []
+
+    for result in external_results:
+        source = result.get("source")
+        if source:
+            sources.append(str(source))
+        for genre in result.get("genres") or []:
+            name = genre.get("name")
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            external_genres.append(dict(genre))
+        if source == "spotify":
+            metadata["spotify_id"] = result.get("spotify_id")
+            metadata["spotify_genres_raw"] = result.get("spotify_genres_raw", [])
+        elif source == "discogs":
+            metadata["discogs_id"] = result.get("discogs_id")
+            metadata["discogs_labels_raw"] = result.get("discogs_labels_raw", [])
+
+    if not external_genres:
+        return None
+
+    merged = list(external_genres)
+    external_names = {g["name"] for g in external_genres}
+    for genre in audio_result.get("genres", []):
+        if genre["name"] not in external_names:
+            merged.append({**genre, "confidence": round(genre["confidence"] * 0.7, 4)})
+    merged.sort(key=lambda g: -g["confidence"])
+    primary = merged[0]
+    return {
+        "genres": merged[:5],
+        "primary_genre": primary["name"],
+        "primary_confidence": primary["confidence"],
+        "method": "_".join(sources + ["audio", "merged"]),
+        **{k: v for k, v in metadata.items() if v not in (None, [], {})},
+    }
+
+
 def classify_genre(
     *,
     bpm: float | None = None,
@@ -368,7 +587,7 @@ def classify_genre(
 ) -> dict:
     """Multi-source genre classification.
 
-    Priority: manual_style > Spotify metadata > audio features.
+    Priority: manual_style > external metadata > audio features.
     """
     # ── 0. Manual override ──
     if manual_style and manual_style.strip():
@@ -390,11 +609,21 @@ def classify_genre(
     )
 
     # ── 2. Spotify enrichment ──
+    external_results = []
     spotify_result = None
     if title:
         spotify_result = _enrich_from_spotify(title, artist)
+        if spotify_result and spotify_result.get("genres"):
+            external_results.append(spotify_result)
+        discogs_result = _enrich_from_discogs(title, artist)
+        if discogs_result and discogs_result.get("genres"):
+            external_results.append(discogs_result)
 
     # ── 3. Merge ──
+    merged = _merge_external_and_audio(audio_result, external_results)
+    if merged:
+        return merged
+
     if spotify_result and spotify_result.get("genres"):
         spotify_genres = spotify_result["genres"]
         # Merge: Spotify genres first, then audio genres that don't overlap

@@ -575,10 +575,18 @@ class HarBeatApiClient {
     required String token,
     required int userId,
   }) async {
-    final profile = await getMe(token);
-    final songs = await getLibrarySongs(token);
-    final playlists = await getPlaylists(token: token, userId: userId);
-    return DashboardData(profile: profile, songs: songs, playlists: playlists);
+    // 并发三段而不是串行，单段 stall 不会拖累整体；HarBeatApiClient._request
+    // 自带 1 次重试覆盖偶发链路抖动。
+    final results = await Future.wait([
+      getMe(token),
+      getLibrarySongs(token),
+      getPlaylists(token: token, userId: userId),
+    ]);
+    return DashboardData(
+      profile: results[0] as UserProfile,
+      songs: results[1] as List<LibrarySong>,
+      playlists: results[2] as List<PlaylistSummary>,
+    );
   }
 
   Future<T> _request<T>({

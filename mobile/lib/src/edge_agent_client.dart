@@ -5,10 +5,8 @@ import 'package:http/http.dart' as http;
 import 'live_models.dart';
 
 class EdgeAgentClient {
-  EdgeAgentClient({
-    required String baseUrl,
-    this.edgeToken,
-  }) : baseUrl = normalizeBaseUrl(baseUrl);
+  EdgeAgentClient({required String baseUrl, this.edgeToken})
+    : baseUrl = normalizeBaseUrl(baseUrl);
 
   final String baseUrl;
   final String? edgeToken;
@@ -33,8 +31,9 @@ class EdgeAgentClient {
 
   Uri _uri(String path, [Map<String, String>? queryParameters]) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$baseUrl$normalizedPath')
-        .replace(queryParameters: queryParameters);
+    return Uri.parse(
+      '$baseUrl$normalizedPath',
+    ).replace(queryParameters: queryParameters);
   }
 
   // ── State ────────────────────────────────────────────────────────
@@ -75,7 +74,10 @@ class EdgeAgentClient {
 
   // ── Transport ────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> play({String? songId, double? startAtSec}) async {
+  Future<Map<String, dynamic>> play({
+    String? songId,
+    double? startAtSec,
+  }) async {
     final body = <String, dynamic>{};
     if (songId != null) body['song_id'] = songId;
     if (startAtSec != null) body['start_at_sec'] = startAtSec;
@@ -114,8 +116,12 @@ class EdgeAgentClient {
     double fadeSec = 8.0,
     double toAtSec = 0.0,
     String style = 'blend',
+    String? transitionId,
+    String? fallbackStyle,
     double? tempoRatio,
     Map<String, dynamic>? stemCurves,
+    Map<String, dynamic>? eqCurves,
+    double? phaseAnchorSec,
   }) async {
     final body = <String, dynamic>{
       'to_song_id': toSongId,
@@ -123,8 +129,16 @@ class EdgeAgentClient {
       'to_at_sec': toAtSec,
       'style': style,
     };
+    if (transitionId != null && transitionId.isNotEmpty) {
+      body['transition_id'] = transitionId;
+    }
+    if (fallbackStyle != null && fallbackStyle.isNotEmpty) {
+      body['fallback_style'] = fallbackStyle;
+    }
     if (tempoRatio != null) body['tempo_ratio'] = tempoRatio;
     if (stemCurves != null) body['stem_curves'] = stemCurves;
+    if (eqCurves != null) body['eq_curves'] = eqCurves;
+    if (phaseAnchorSec != null) body['phase_anchor_sec'] = phaseAnchorSec;
     return _request(method: 'POST', path: '/xfade', body: body);
   }
 
@@ -134,22 +148,23 @@ class EdgeAgentClient {
     required Object songId,
     required double tempoRatio,
   }) async {
-    return _request(method: 'POST', path: '/prewarm_beatmatch', body: {
-      'song_id': songId,
-      'tempo_ratio': tempoRatio,
-    });
+    return _request(
+      method: 'POST',
+      path: '/prewarm_beatmatch',
+      body: {'song_id': songId, 'tempo_ratio': tempoRatio},
+    );
   }
 
   /// Decode wav + 4 stems for [songIds] into audio-engine's in-memory cache
   /// so the next /xfade lands instantly (no 300ms-2s file IO inside deck.load).
   /// Idempotent — songs already in cache are skipped. Best called once per
   /// upcoming song, well before the actual transition window.
-  Future<Map<String, dynamic>> prefetch({
-    required List<Object> songIds,
-  }) async {
-    return _request(method: 'POST', path: '/prefetch', body: {
-      'song_ids': songIds,
-    });
+  Future<Map<String, dynamic>> prefetch({required List<Object> songIds}) async {
+    return _request(
+      method: 'POST',
+      path: '/prefetch',
+      body: {'song_ids': songIds},
+    );
   }
 
   /// Phase 2.5 — schedule per-beat sample triggers across [startSec, endSec].
@@ -164,14 +179,18 @@ class EdgeAgentClient {
     double gain = 1.0,
     String pattern = 'all',
   }) async {
-    return _request(method: 'POST', path: '/beat_reinforce', body: {
-      'start_sec': startSec,
-      'end_sec': endSec,
-      'beats': beats,
-      'sample_key': sampleKey,
-      'gain': gain,
-      'pattern': pattern,
-    });
+    return _request(
+      method: 'POST',
+      path: '/beat_reinforce',
+      body: {
+        'start_sec': startSec,
+        'end_sec': endSec,
+        'beats': beats,
+        'sample_key': sampleKey,
+        'gain': gain,
+        'pattern': pattern,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> trigger(int key) async {
@@ -186,9 +205,7 @@ class EdgeAgentClient {
     Object? body,
     Map<String, String>? queryParameters,
   }) async {
-    final headers = <String, String>{
-      'Accept': 'application/json',
-    };
+    final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) {
       headers['Content-Type'] = 'application/json';
     }

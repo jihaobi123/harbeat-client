@@ -592,6 +592,12 @@ class AudioEngineMVP:
         fade_sec: float = 4.0,
         to_at_sec: float = 0.0,
         style: str = "smooth",
+        transition_id: str | None = None,
+        fallback_style: str | None = None,
+        tempo_ratio: float | None = None,
+        stem_curves: dict | None = None,
+        eq_curves: dict | None = None,
+        phase_anchor_sec: float | None = None,
     ) -> dict:
         """越过 plan 调度直接对任意歌曲做 crossfade。
 
@@ -617,7 +623,13 @@ class AudioEngineMVP:
                 from_at_sec=self.active_deck.pos_sec,
                 to_at_sec=float(max(0.0, to_at_sec)),
                 fade_sec=float(max(0.05, fade_sec)),
+                transition_id=transition_id,
                 style=str(style or "smooth"),
+                fallback_style=fallback_style,
+                tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
+                phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
+                stem_curves=stem_curves,
+                eq_curves=eq_curves,
             )
             inactive_eq = self.inactive_deck.eq_values()
 
@@ -648,7 +660,13 @@ class AudioEngineMVP:
                 from_at_sec=self.active_deck.pos_sec,
                 to_at_sec=float(max(0.0, to_at_sec)),
                 fade_sec=float(max(0.05, fade_sec)),
+                transition_id=transition_id,
                 style=str(style or "smooth"),
+                fallback_style=fallback_style,
+                tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
+                phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
+                stem_curves=stem_curves,
+                eq_curves=eq_curves,
             )
             # 跳出 plan 调度，避免 crossfade 结束后又被 plan transition 覆盖
             self._plan_enabled = False
@@ -656,10 +674,15 @@ class AudioEngineMVP:
             self._start_transition_locked(tr)
         return {
             "action": "crossfade",
+            "transition_id": transition_id,
             "to_song_id": to_song_id,
             "fade_sec": tr.fade_sec,
             "to_at_sec": tr.to_at_sec,
             "style": tr.style,
+            "fallback_style": tr.fallback_style,
+            "playback_tier": self._current_playback_tier(),
+            "degraded": False,
+            "degrade_reason": None,
         }
 
     def _install_inactive_deck(self, deck: Deck) -> None:

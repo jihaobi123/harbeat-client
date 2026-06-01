@@ -233,10 +233,16 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
   """对任意已缓存歌做主动 crossfade（复刻网页能量/风格切歌的无缝衰接）。"""
   result = await _forward(
     "xfade",
+    transition_id=req.transition_id,
     to_song_id=req.to_song_id,
     fade_sec=req.fade_sec,
     to_at_sec=req.to_at_sec,
     style=req.style,
+    fallback_style=req.fallback_style,
+    tempo_ratio=req.tempo_ratio,
+    stem_curves=req.stem_curves,
+    eq_curves=req.eq_curves,
+    phase_anchor_sec=req.phase_anchor_sec,
   )
   await edge_state.update_playback(
     playing=True,
@@ -247,13 +253,24 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
   await edge_state.append_event(
     {
       "type": "xfade",
+      "transition_id": req.transition_id,
       "to_song_id": req.to_song_id,
       "fade_sec": req.fade_sec,
       "to_at_sec": req.to_at_sec,
       "style": req.style,
+      "fallback_style": req.fallback_style,
     }
   )
-  return {"ok": True, "result": result}
+  return {
+    "ok": True,
+    "transition_id": req.transition_id,
+    "requested_tier": "stem_aware" if req.stem_curves else "basic",
+    "actual_tier": result.get("playback_tier"),
+    "actual_style": result.get("style", req.style),
+    "degraded": bool(result.get("degraded", False)),
+    "degrade_reason": result.get("degrade_reason"),
+    "result": result,
+  }
 
 
 @app.post("/prefetch", dependencies=[Depends(_optional_auth)])

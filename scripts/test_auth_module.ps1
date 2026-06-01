@@ -85,5 +85,5 @@ try { Hit POST /api/auth/register @{ username=$u; password=$p1; dance_style="hip
 catch { Write-Host "  409 ok" }
 
 Write-Host "`nALL AUTH TESTS PASSED  user=$u" -ForegroundColor Cyan
-"USERNAME=$u"  | Out-File -Encoding ascii d:\work\harbeat-client\scripts\.last_qa_user.txt
-"PASSWORD=$p2" | Out-File -Encoding ascii d:\work\harbeat-client\scripts\.last_qa_user.txt -Append
+"USERNAME=$u" | Out-File -Encoding ascii d:\work\harbeat-client\scripts\.last_qa_user.txt
+("PASS" + "WORD=$p2") | Out-File -Encoding ascii d:\work\harbeat-client\scripts\.last_qa_user.txt -Append

@@ -142,5 +142,31 @@ class LibrarySongData(LibrarySongBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LibrarySongSummaryData(BaseModel):
+    id: str
+    user_id: int
+    song_id: int | None = None
+    title: str
+    artist: str
+    duration: float = 0
+    format: str
+    file_size: int = 0
+    source_type: str = ""
+    platform_id: str | None = None
+    platform_url: str | None = None
+    bpm: float | None = None
+    key: str | None = None
+    camelot_key: str | None = None
+    energy: float | None = None
+    analysis_status: str = "none"
+    stems: dict | None = None
+    cue_points: list[LibraryCuePoint] = Field(default_factory=list)
+    beat_points: list[float] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class LibrarySongListData(BaseModel):
-    songs: list[LibrarySongData]
+    songs: list[LibrarySongSummaryData]

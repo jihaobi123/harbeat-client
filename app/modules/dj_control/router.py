@@ -83,6 +83,28 @@ def pick_by_style_endpoint(
 # --------------------------------------------------------------------------- #
 # Energy-based sequencing
 # --------------------------------------------------------------------------- #
+ENERGY_BUCKETS = [
+    {"key": "cold", "label_zh": "冷场", "color": "#3B82F6", "lo": 0.0, "hi": 0.35},
+    {"key": "warm", "label_zh": "热身", "color": "#22C55E", "lo": 0.35, "hi": 0.50},
+    {"key": "mid", "label_zh": "稳定", "color": "#F59E0B", "lo": 0.50, "hi": 0.68},
+    {"key": "high", "label_zh": "高能", "color": "#EF4444", "lo": 0.68, "hi": 0.84},
+    {"key": "peak", "label_zh": "爆点", "color": "#A855F7", "lo": 0.84, "hi": 1.01},
+]
+
+
+def _energy_bucket(total: float) -> dict:
+    value = max(0.0, min(1.0, float(total or 0.0)))
+    for bucket in ENERGY_BUCKETS:
+        if value >= bucket["lo"] and value < bucket["hi"]:
+            return bucket
+    return ENERGY_BUCKETS[-1]
+
+
+@router.get("/energy/buckets")
+def list_energy_buckets_endpoint():
+    return APIResponse(data={"buckets": ENERGY_BUCKETS})
+
+
 @router.get("/sequence/presets")
 def list_sequence_presets():
     return APIResponse(data={
@@ -119,6 +141,7 @@ def sequence_endpoint(
 @router.get("/songs/{song_id}/energy")
 def energy_breakdown_endpoint(
     song_id: str,
+    style: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -126,7 +149,25 @@ def energy_breakdown_endpoint(
     if not song or song.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="song not found")
     eb = compute_dance_energy(song)
-    return APIResponse(data=eb.as_dict())
+    data = eb.as_dict()
+    bucket = _energy_bucket(data["total"])
+    data.update({
+        "bucket": bucket["key"],
+        "bucket_label_zh": bucket["label_zh"],
+        "bucket_color": bucket["color"],
+        "bpm": song.bpm,
+        "style_used": style or "generic",
+        "factors": {
+            "kick": data["kick_punch"],
+            "snare": data["snare_crack"],
+            "groove": data["groove_tightness"],
+            "low_mid": data["low_mid_density"],
+            "vocal": data["vocal_urgency"],
+            "tempo": data["tempo_factor"],
+        },
+        "explain_zh": f"{bucket['label_zh']}能量，适合接在相邻能量段。",
+    })
+    return APIResponse(data=data)
 
 
 # --------------------------------------------------------------------------- #

@@ -12,9 +12,11 @@ class Transition:
     from_at_sec: float
     to_at_sec: float
     fade_sec: float
+    transition_id: str | None = None
     fade_curve: str = "equal_power"
     # DJ/Spotify Mix 风格 preset。默认 smooth = 原等功率 cos/sin。
     style: str = "smooth"
+    fallback_style: str | None = None
     # Sprint 4 beatmatch metadata. Intervals are seconds/beat. tempo_ratio is
     # kept as supplied by Jetson for diagnostics; RK derives the stretch from
     # intervals when available.
@@ -23,6 +25,8 @@ class Transition:
     to_beat_interval_sec: float | None = None
     phase_anchor_sec: float | None = None
     vocal_handoff_ratio: float | None = None
+    stem_curves: dict | None = None
+    eq_curves: dict | None = None
 
 
 @dataclass
@@ -109,13 +113,17 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 from_at_sec=float(tr.get("from_at_sec", 0)),
                 to_at_sec=float(tr.get("to_at_sec", 0)),
                 fade_sec=float(tr.get("fade_sec", 8)),
+                transition_id=tr.get("transition_id"),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
                 style=str(tr.get("style", tr.get("transition_type", "smooth"))),
+                fallback_style=tr.get("fallback_style"),
                 tempo_ratio=_f(tr.get("tempo_ratio")),
                 from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
                 to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
                 phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
                 vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
+                stem_curves=tr.get("stem_curves"),
+                eq_curves=tr.get("eq_curves"),
             )
         )
 
@@ -127,13 +135,17 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 from_at_sec=float(tr.get("from_out_sec", tr.get("from_at_sec", 0))),
                 to_at_sec=float(tr.get("to_in_sec", tr.get("to_at_sec", 0))),
                 fade_sec=float(tr.get("crossfade_sec", tr.get("fade_sec", 8))),
+                transition_id=tr.get("transition_id"),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
                 style=str(tr.get("transition_type", tr.get("style", "smooth"))),
+                fallback_style=tr.get("fallback_style"),
                 tempo_ratio=_f(tr.get("tempo_ratio")),
                 from_beat_interval_sec=_f(tr.get("from_beat_interval_sec")),
                 to_beat_interval_sec=_f(tr.get("to_beat_interval_sec")),
                 phase_anchor_sec=_f(tr.get("phase_anchor_sec")),
                 vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
+                stem_curves=tr.get("stem_curves"),
+                eq_curves=tr.get("eq_curves"),
             )
         )
 

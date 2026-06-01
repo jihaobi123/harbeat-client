@@ -56,7 +56,7 @@ cd harbeat-client
 
 # 2. 创建环境变量文件
 cat > .env << EOF
-DATABASE_URL=postgresql+psycopg2://harbeat:Hb12345678@postgres:5432/rhythm_prism
+DATABASE_URL=postgresql+psycopg2://harbeat:<password>@postgres:5432/rhythm_prism
 REDIS_URL=redis://redis:6379/0
 JWT_SECRET=your-production-secret-key-change-this
 UPLOAD_DIR=/app/data/music-files

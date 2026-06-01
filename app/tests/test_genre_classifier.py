@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from app.modules.library.genre_classifier import (
     _classify_from_features,
+    _map_discogs_labels_to_dj,
     _map_spotify_genres_to_dj,
     classify_genre,
 )
@@ -129,6 +130,38 @@ class SpotifyMappingTests(unittest.TestCase):
         """'deep house uk' should still map to 'house'."""
         mapped = _map_spotify_genres_to_dj(["deep house uk"])
         self.assertTrue(any(g["name"] == "house" for g in mapped))
+
+
+class DiscogsMappingTests(unittest.TestCase):
+    def test_discogs_styles_map_to_dj_taxonomy(self):
+        mapped = _map_discogs_labels_to_dj(["Electronic", "Deep House", "Drum n Bass"])
+        names = {g["name"] for g in mapped}
+        self.assertIn("house", names)
+        self.assertIn("drum-and-bass", names)
+
+    @patch("app.modules.library.genre_classifier._enrich_from_spotify", return_value=None)
+    @patch(
+        "app.modules.library.genre_classifier._enrich_from_discogs",
+        return_value={
+            "genres": [{"name": "funk", "confidence": 0.8, "source": "discogs"}],
+            "discogs_id": 123,
+            "discogs_labels_raw": ["Funk / Soul", "Boogie"],
+            "source": "discogs",
+        },
+    )
+    def test_discogs_enrichment_merges_with_audio(self, _discogs, _spotify):
+        result = classify_genre(
+            bpm=105.0,
+            stem_activity={"vocals": 0.2, "drums": 0.5, "bass": 0.4, "other": 0.4},
+            groove_profile={"score": 0.7, "label": "groovy"},
+            dj_features={"brass_likely": 0.5},
+            energy=0.7,
+            title="Test",
+            artist="Artist",
+        )
+        self.assertEqual(result["primary_genre"], "funk")
+        self.assertEqual(result["method"], "discogs_audio_merged")
+        self.assertEqual(result["discogs_id"], 123)
 
 
 if __name__ == "__main__":

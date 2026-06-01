@@ -72,6 +72,12 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
             fade_sec=float(msg.get("fade_sec", 4.0)),
             to_at_sec=float(msg.get("to_at_sec", 0.0)),
             style=str(msg.get("style", "smooth") or "smooth"),
+            transition_id=msg.get("transition_id"),
+            fallback_style=msg.get("fallback_style"),
+            tempo_ratio=msg.get("tempo_ratio"),
+            stem_curves=msg.get("stem_curves"),
+            eq_curves=msg.get("eq_curves"),
+            phase_anchor_sec=msg.get("phase_anchor_sec"),
         )
         return {"ok": True, **result}
     if cmd == "stem_solo":

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
-    database_url: str = "postgresql+psycopg2://harbeat:Hb12345678@pgm-wz99am1godb1u59s3o.pg.rds.aliyuncs.com:5432/rhythm_prism"
+    database_url: str = "postgresql+psycopg2://harbeat:harbeat@localhost:5432/rhythm_prism"
     redis_url: str = "redis://localhost:6379/0"
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"

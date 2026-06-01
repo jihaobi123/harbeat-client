@@ -7,7 +7,8 @@ This is the function the /set/generate router endpoint calls.
 """
 from __future__ import annotations
 
-from dataclasses import replace
+from datetime import datetime, timezone
+from uuid import uuid4
 
 from app.modules.dj_set.edge_analyzer import analyze_all_edges
 from app.modules.dj_set.purpose_planner import plan_purposes
@@ -65,12 +66,34 @@ def generate_dj_sets(songs: list,
         if drop_failed and not report.passed:
             continue
         adjusted_score = float(max(0.0, ds.score + report.score_delta))
+        plan_id = str(uuid4())
+        generated_at = datetime.now(timezone.utc).isoformat()
+        transitions_v2 = [
+            {
+                "selected": p.as_dict().get("selected", {}),
+                "fallback": p.as_dict().get("fallback", {}),
+            }
+            for p in plans
+        ]
         out_sets.append({
             **ds.as_dict(),
+            "schema_version": "mix-plan-v2",
+            "plan_id": plan_id,
             "adjusted_score": round(adjusted_score, 3),
             "quality": report.as_dict(),
             "purposes": [p.as_dict() for p in purposes],
             "plans": [p.as_dict() for p in plans],
+            "mix_plan": {
+                "schema_version": "mix-plan-v2",
+                "plan_id": plan_id,
+                "session_id": None,
+                "template": ds.template_name,
+                "tracks": list(ds.ordered_tracks),
+                "transitions": transitions_v2,
+                "fallback_tracks": [],
+                "generated_at": generated_at,
+                "planner_version": "2026-06-01.1",
+            },
         })
 
     out_sets.sort(key=lambda d: d.get("adjusted_score", 0.0), reverse=True)

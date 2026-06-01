@@ -9,6 +9,7 @@ from app.modules.library.schemas import (
     LibrarySongCreateRequest,
     LibrarySongData,
     LibrarySongListData,
+    LibrarySongSummaryData,
     LibrarySongUpdateRequest,
 )
 from app.modules.library.service import (
@@ -35,7 +36,7 @@ def list_library_songs_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     songs = list_library_songs(db, current_user.id)
-    return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
+    return APIResponse(data=LibrarySongListData(songs=[LibrarySongSummaryData.model_validate(song) for song in songs]))
 
 
 @router.get("/songs/search", response_model=APIResponse[LibrarySongListData])
@@ -45,7 +46,7 @@ def search_library_songs_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     songs = search_library_songs(db, current_user.id, q)
-    return APIResponse(data=LibrarySongListData(songs=[LibrarySongData.model_validate(song) for song in songs]))
+    return APIResponse(data=LibrarySongListData(songs=[LibrarySongSummaryData.model_validate(song) for song in songs]))
 
 
 @router.get("/songs/{song_id}", response_model=APIResponse[LibrarySongData])

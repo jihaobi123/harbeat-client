@@ -11,6 +11,11 @@ from app.shared.database import SessionLocal
 logger = logging.getLogger(__name__)
 
 
+def _int_bool(value: object) -> int:
+    """Normalize boolean-like values for legacy integer columns."""
+    return 1 if bool(value) else 0
+
+
 def apply_dancefloor_profile(song) -> None:
     """Refresh danceability and mood metadata from the best available features."""
     from app.modules.library.analysis import _analyze_dancefloor_profile
@@ -46,11 +51,11 @@ def apply_stem_analysis(song) -> None:
     song.stem_activity_windows = result["stem_activity_windows"]
     song.stem_quality_score = result["stem_quality_score"]
     song.stem_quality_profile = result["stem_quality_profile"]
-    song.intro_is_clean = result["intro_is_clean"]
-    song.outro_is_clean = result["outro_is_clean"]
+    song.intro_is_clean = _int_bool(result["intro_is_clean"])
+    song.outro_is_clean = _int_bool(result["outro_is_clean"])
     song.intro_clean_score = result["intro_clean_score"]
     song.outro_clean_score = result["outro_clean_score"]
-    song.has_drum_loop = result["has_drum_loop"]
+    song.has_drum_loop = _int_bool(result["has_drum_loop"])
 
     # ── Stem-dependent extended analysis ───────────────────────────
     windows = result.get("stem_activity_windows", [])
@@ -123,9 +128,17 @@ def run_analysis_and_separation(song_id: str) -> None:
             return
 
         # --- Phase 1: BPM / Key / Energy / Beat & Cue points ---
-        # Skip if already analyzed (e.g. retrying after interrupted stem separation)
-        if song.bpm is not None and song.key is not None:
-            logger.info("[bg-analysis] skipping Phase 1 for %s (already has BPM=%s Key=%s)", song_id, song.bpm, song.key)
+        # Skip only when the planner-facing core fields are present.
+        # Older imports may have BPM/key but miss cues, phrases, or transition windows.
+        core_ready = bool(
+            song.bpm is not None
+            and song.key
+            and song.beat_points
+            and song.cue_points
+            and song.transition_windows
+        )
+        if core_ready:
+            logger.info("[bg-analysis] skipping Phase 1 for %s (core analysis ready: BPM=%s Key=%s)", song_id, song.bpm, song.key)
         else:
             song.analysis_status = "analyzing"
             db.commit()
@@ -220,6 +233,7 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.info("[bg-analysis] DJ fingerprint ready for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] DJ fingerprint failed for %s (non-fatal)", song_id)
+            db.rollback()
 
         # --- Phase 5: Genre classification ---
         try:
@@ -227,12 +241,14 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.info("[bg-analysis] genre classification ready for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] genre classification failed for %s (non-fatal)", song_id)
+            db.rollback()
 
         # Mark completed regardless of stem separation outcome
         song.analysis_status = "completed"
         db.commit()
     except Exception:
         logger.exception("[bg-analysis] unexpected error for %s", song_id)
+        db.rollback()
     finally:
         db.close()
 
