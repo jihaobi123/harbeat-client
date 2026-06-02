@@ -84,7 +84,7 @@ def apply_stem_analysis(song) -> None:
 
 def apply_dj_fingerprint(db, song) -> None:
     """Persist explainable DJ fingerprint features and ranked dance styles."""
-    from app.modules.dj_control.dance_style import STYLE_PROFILES, score_song_combined
+    from app.modules.dj_control.dance_style import persist_multisource_style_evidence
     from app.modules.library.dj_feature_extractor import extract_dj_features
 
     features = extract_dj_features(song)
@@ -93,21 +93,7 @@ def apply_dj_fingerprint(db, song) -> None:
     song.music_features = music_features
     apply_dancefloor_profile(song)
 
-    ranked = []
-    scores = {}
-    for style_key in STYLE_PROFILES:
-        score, source, breakdown = score_song_combined(song, style_key)
-        scores[style_key] = round(score, 4)
-        ranked.append({
-            "style": style_key,
-            "score": round(score, 4),
-            "source": source,
-            "breakdown": breakdown,
-        })
-    ranked.sort(key=lambda item: item["score"], reverse=True)
-    song.dance_styles = ranked
-    song.dance_style_scores = scores
-    song.dance_style_status = "ready"
+    persist_multisource_style_evidence(song)
     db.add(song)
     db.commit()
 
@@ -241,6 +227,16 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.info("[bg-analysis] genre classification ready for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] genre classification failed for %s (non-fatal)", song_id)
+            db.rollback()
+
+        # --- Phase 6: External style evidence enrichment ---
+        try:
+            from app.modules.library.external_metadata import run_enrich_song_external_metadata
+
+            run_enrich_song_external_metadata(db, song, force=False)
+            logger.info("[bg-analysis] external style evidence ready for %s", song_id)
+        except Exception:
+            logger.exception("[bg-analysis] external style evidence failed for %s (non-fatal)", song_id)
             db.rollback()
 
         # Mark completed regardless of stem separation outcome

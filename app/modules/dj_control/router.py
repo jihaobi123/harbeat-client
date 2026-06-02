@@ -60,7 +60,7 @@ def pick_by_style_endpoint(
         target_seconds=payload.target_duration_sec,
         min_score=payload.min_score,
     )
-    achieved = sum(float(s.duration or 0) for s, _ in picks)
+    achieved = sum(float(s.duration or 0) for s, _score, _evidence in picks)
     return APIResponse(data=StylePickResponse(
         style=payload.style,
         target_duration_sec=payload.target_duration_sec,
@@ -74,8 +74,16 @@ def pick_by_style_endpoint(
                 duration=s.duration,
                 score=score,
                 energy=(s.energy if s.energy is not None else None),
+                score_breakdown=dance_style._component_score_breakdown(evidence),
+                confidence=evidence.get("confidence"),
+                matched_labels=evidence.get("matched_labels", []),
+                recommendation_reason=evidence.get("recommendation_reason", []),
+                final_pick_score=evidence.get("final_pick_score"),
+                style_evidence_status=evidence.get("style_evidence_status"),
+                external_sources=evidence.get("external_sources", {}),
+                reason=evidence.get("recommendation_reason", []),
             )
-            for s, score in picks
+            for s, score, evidence in picks
         ],
     ))
 

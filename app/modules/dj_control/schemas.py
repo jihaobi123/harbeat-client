@@ -30,6 +30,14 @@ class ScoredSong(BaseModel):
     duration: float | None = None
     score: float
     energy: float | None = None
+    score_breakdown: dict = Field(default_factory=dict)
+    confidence: float | None = None
+    matched_labels: list[str] = Field(default_factory=list)
+    recommendation_reason: list[str] = Field(default_factory=list)
+    final_pick_score: float | None = None
+    style_evidence_status: str | None = None
+    external_sources: dict = Field(default_factory=dict)
+    reason: list[str] = Field(default_factory=list)
 
 
 class StylePickResponse(BaseModel):

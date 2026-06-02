@@ -2774,7 +2774,7 @@ class _StyleSourceState extends State<_StyleSource> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              '按舞种 + 目标时长自动出歌（BPM/Phrase/Energy 匹配）。',
+              '多源舞种匹配：综合音频特征、曲风标签、参考曲库相似度和 DJ 可用性生成候选。',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
             DropdownButton<String>(
@@ -2851,35 +2851,118 @@ class _StyleSourceState extends State<_StyleSource> {
                         final i = entry.key, s = entry.value;
                         final score =
                             ((s['score'] as num).toDouble() * 100).toInt();
+                        final reasons =
+                            ((s['reason'] as List<dynamic>?) ??
+                                    (s['recommendation_reason'] as List<dynamic>?) ??
+                                    const [])
+                                .map((e) => e.toString())
+                                .where((e) => e.isNotEmpty)
+                                .toList();
+                        final labels =
+                            (s['matched_labels'] as List<dynamic>? ?? const [])
+                                .map((e) => e.toString())
+                                .where((e) => e.isNotEmpty)
+                                .toList();
+                        final breakdown =
+                            (s['score_breakdown'] as Map?)?.cast<String, dynamic>() ??
+                                const <String, dynamic>{};
+                        String fmtPart(String key) {
+                          final v = breakdown[key];
+                          if (v is num) return '${(v * 100).round()}';
+                          return '-';
+                        }
+                        final finalScore =
+                            ((s['final_pick_score'] as num?)?.toDouble() ??
+                                    (s['score'] as num?)?.toDouble() ??
+                                    0.0) *
+                                100;
+                        final status =
+                            s['style_evidence_status']?.toString() ??
+                                'local_only';
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SizedBox(
-                                width: 24,
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    child: Text(
+                                      '#${i + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      '${s['title']} · ${s['artist']}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM ·$score',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (labels.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 24, top: 1),
+                                  child: Text(
+                                    '标签 ${labels.take(3).join(' / ')}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 24, top: 1),
                                 child: Text(
-                                  '#${i + 1}',
+                                  '推荐指数 ${finalScore.round()}% · 多源状态 $status',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey,
+                                    fontSize: 9,
+                                    color: Color(0x99000000),
                                   ),
                                 ),
                               ),
-                              Expanded(
+                              Padding(
+                                padding: const EdgeInsets.only(left: 24, top: 1),
                                 child: Text(
-                                  '${s['title']} · ${s['artist']}',
+                                  '证据 外部${fmtPart('external_platform_score')} 本地${fmtPart('local_fingerprint_score')} 人工${fmtPart('manual_style_score')} 可调${fmtPart('tunable_adjustment_score')}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Color(0x99000000),
+                                  ),
                                 ),
                               ),
-                              Text(
-                                '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM ·$score',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey,
+                              if (reasons.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 24, top: 1),
+                                  child: Text(
+                                    reasons.first,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0x99000000),
+                                    ),
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         );

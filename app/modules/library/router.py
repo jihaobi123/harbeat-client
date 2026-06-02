@@ -2,6 +2,7 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
@@ -28,6 +29,10 @@ router = APIRouter()
 
 ALLOWED_FORMATS = {"mp3", "flac", "wav", "ogg", "aac", "m4a", "opus", "wma", "ncm"}
 MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
+
+
+class RefreshStyleEvidenceRequest(BaseModel):
+    force: bool = False
 
 
 @router.get("/songs", response_model=APIResponse[LibrarySongListData])
@@ -238,10 +243,38 @@ def analyze_library_song_endpoint(
         for i, c in enumerate(raw_cues)
     ]
     from app.modules.library.background_tasks import _apply_genre_classification, apply_dj_fingerprint
+    from app.modules.library.external_metadata import run_enrich_song_external_metadata
     apply_dj_fingerprint(db, song)
     _apply_genre_classification(db, song)
+    run_enrich_song_external_metadata(db, song, force=False)
     song.analysis_status = "completed"
     db.commit()
+    db.refresh(song)
+    return APIResponse(data=LibrarySongData.model_validate(song))
+
+
+@router.post("/songs/{song_id}/refresh-style-evidence", response_model=APIResponse[LibrarySongData])
+def refresh_style_evidence_endpoint(
+    song_id: str,
+    payload: RefreshStyleEvidenceRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.modules.library.external_metadata import run_enrich_song_external_metadata
+    from app.modules.library.models import LibrarySong
+
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    try:
+        run_enrich_song_external_metadata(db, song, force=payload.force)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"style evidence refresh failed: {e}",
+        )
     db.refresh(song)
     return APIResponse(data=LibrarySongData.model_validate(song))
 
