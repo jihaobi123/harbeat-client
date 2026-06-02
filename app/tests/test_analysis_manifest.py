@@ -102,6 +102,8 @@ class AnalysisManifestTests(unittest.TestCase):
             manifest = build_song_manifest(song)
             analysis = manifest["analysis"]
 
+            self.assertEqual(manifest["song_id"], "song-1")
+            self.assertEqual(manifest["library_song_id"], "song-1")
             self.assertEqual(analysis["tempo_stability"], 0.99)
             self.assertEqual(analysis["beat_confidence"], 0.98)
             self.assertEqual(analysis["loudness_profile"]["integrated_lufs"], -14.5)

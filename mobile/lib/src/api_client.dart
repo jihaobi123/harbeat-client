@@ -299,6 +299,18 @@ class HarBeatApiClient {
     return LibrarySong.fromJson(data);
   }
 
+  Future<Map<String, dynamic>> getSongManifest({
+    required String token,
+    required String songId,
+  }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/manifest/song/$songId',
+      token: token,
+    );
+    return Map<String, dynamic>.from(data['manifest'] as Map);
+  }
+
   Future<List<DiscoverSectionData>> discoverSongs({
     required int userId,
   }) async {

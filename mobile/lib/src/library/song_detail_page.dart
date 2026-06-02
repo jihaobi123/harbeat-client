@@ -189,20 +189,11 @@ class _SongDetailPageState extends State<SongDetailPage> {
       _prefetchPercent = 0;
       _prefetchMessage = '请求 RK 缓存…';
     });
-    final tracks = [
-      <String, dynamic>{
-        'song_id': _song.id,
-        'files': <String, dynamic>{
-          'original': <String, dynamic>{
-            'url': widget.apiClient.streamUrl(
-              token: widget.session.token,
-              songId: _song.id,
-            ),
-            'format': 'mp3',
-          },
-        },
-      }
-    ];
+    final manifest = await widget.apiClient.getSongManifest(
+      token: widget.session.token,
+      songId: _song.id,
+    );
+    final tracks = [manifest];
     unawaited(() async {
       try {
         await _sync.startSync(
