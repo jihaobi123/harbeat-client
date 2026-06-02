@@ -1,4 +1,7 @@
 import importlib.util
+import json
+import sys
+import types
 from pathlib import Path
 
 
@@ -7,6 +10,24 @@ SYNC_MAIN = ROOT / "sync-worker" / "main.py"
 
 
 def _load_sync_worker():
+    if "fastapi" not in sys.modules:
+        try:
+            __import__("fastapi")
+        except ModuleNotFoundError:
+            fastapi_stub = types.ModuleType("fastapi")
+
+            class FastAPI:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+                def post(self, *args, **kwargs):
+                    return lambda fn: fn
+
+                def get(self, *args, **kwargs):
+                    return lambda fn: fn
+
+            fastapi_stub.FastAPI = FastAPI
+            sys.modules["fastapi"] = fastapi_stub
     spec = importlib.util.spec_from_file_location("sync_worker_main", SYNC_MAIN)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
@@ -45,6 +66,23 @@ def test_manifest_file_items_expand_original_and_four_stems_in_order():
     ]
 
 
+def test_manifest_file_items_accept_backend_camel_case_ids():
+    sync_worker = _load_sync_worker()
+    manifest = {
+        "tracks": [
+            {
+                "songId": "song-c",
+                "librarySongId": "song-c",
+                "files": {"original": {"url": "/api/assets/song-c.mp3"}},
+            }
+        ]
+    }
+
+    items = sync_worker._file_items(manifest)
+
+    assert [(item["song_id"], item["kind"]) for item in items] == [("song-c", "original")]
+
+
 def test_status_reports_missing_required_stems_before_download():
     sync_worker = _load_sync_worker()
     manifest = {
@@ -65,3 +103,22 @@ def test_status_reports_missing_required_stems_before_download():
     assert report["asset_count"] == 2
     assert report["complete_tracks"] == 0
     assert report["missing"]["song-b"] == ["drums", "bass", "other"]
+
+
+def test_sidecar_does_not_hide_truncated_cache_file(tmp_path):
+    sync_worker = _load_sync_worker()
+    path = tmp_path / "original.mp3"
+    path.write_bytes(b"abc")
+    sidecar = sync_worker._sidecar(path)
+    sidecar.write_text(
+        json.dumps(
+            {
+                "sha256": "expected",
+                "size": 10,
+                "mtime_ns": path.stat().st_mtime_ns,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert not sync_worker._already_valid(path, "expected", 10)

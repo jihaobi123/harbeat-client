@@ -178,6 +178,8 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["cue_points"] = song.cue_points
 
     return {
+        "song_id": song.id,
+        "library_song_id": song.id,
         "songId": song.id,
         "librarySongId": song.id,
         "title": song.title,
@@ -203,39 +205,17 @@ def build_playlist_manifest(
 ) -> dict[str, Any]:
     """Generate full manifest for a playlist (or mix plan's tracks)."""
     from app.modules.library.models import LibrarySong
+    from app.modules.playlists.models import PlaylistSong
 
-    if plan_id:
-        # Look up tracks from the stored mix plan
-        from app.modules.music.models import SongCue  # noqa: F401
-        # For mix plans, we need to look up which songs are in the plan
-        # The plan is stored in playlists, so we use the playlist's songs
-        pass
-
-    tracks = []
-    # Query all LibrarySongs associated with this playlist
-    # This assumes playlist_songs join table exists; adapt as needed
-    songs = db.query(LibrarySong).filter(
-        LibrarySong.id.in_(
-            # Subquery depends on actual schema; use playlist_songs if available
-            db.query(LibrarySong.id).join(
-                LibrarySong.song
-            ).filter(
-                LibrarySong.song.has(playlist_id=playlist_id)
-            )
-        )
-    ).all() if False else []  # placeholder — actual join depends on schema
-
-    if not songs:
-        # Fallback: query all ready LibrarySongs
-        songs = db.query(LibrarySong).filter(
-            LibrarySong.analysis_status.in_(["ready", "completed"])
-        ).limit(20).all()
-
-    for song in songs:
-        tracks.append(build_song_manifest(song, base_url=base_url))
-
+    songs = (
+        db.query(LibrarySong)
+        .join(PlaylistSong, PlaylistSong.song_id == LibrarySong.song_id)
+        .filter(PlaylistSong.playlist_id == playlist_id)
+        .order_by(PlaylistSong.order_index.asc(), PlaylistSong.id.asc())
+        .all()
+    )
     return {
         "planId": plan_id,
         "playlistId": playlist_id,
-        "tracks": tracks,
+        "tracks": [build_song_manifest(song, base_url=base_url) for song in songs],
     }

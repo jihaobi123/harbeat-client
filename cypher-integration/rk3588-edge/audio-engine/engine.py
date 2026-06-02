@@ -437,9 +437,16 @@ class AudioEngineMVP:
             return "basic"
         return "non_stem"
 
-    def _resolve_style(self, requested_style: str) -> str:
+    def _resolve_style(self, requested_style: str, tr: Transition | None = None) -> str:
         """Auto-downgrade stem-aware styles when stems are unavailable."""
         if requested_style in STEM_AWARE_STYLES and not self._stems_available():
+            if tr and tr.fallback_style:
+                fallback = str(tr.fallback_style)
+                logger.info(
+                    "style downgrade: %s -> %s (planned fallback; stems unavailable)",
+                    requested_style, fallback,
+                )
+                return fallback
             fallback_map = {
                 "bass_swap": "filter",
                 "vocal_ducking": "blend",
@@ -455,6 +462,9 @@ class AudioEngineMVP:
             )
             return fallback
         return requested_style
+
+    def _current_playback_tier(self) -> str:
+        return self._playback_tier()
 
     def _transition_handoff_ratio(self, tr: Transition) -> float:
         """Return the beat-aligned vocal handoff point for vocal_handoff."""
@@ -635,7 +645,7 @@ class AudioEngineMVP:
 
         deck = Deck()
         deck.set_eq(*inactive_eq)
-        want_stems = style in STEM_AWARE_STYLES
+        want_stems = style in STEM_AWARE_STYLES or bool(stem_curves)
         # Beatmatched original renders cannot carry stems. Until we render
         # beatmatched stems as a bundle, stem-aware styles must load source
         # stems and leave tempo handling to cue selection.
@@ -678,11 +688,11 @@ class AudioEngineMVP:
             "to_song_id": to_song_id,
             "fade_sec": tr.fade_sec,
             "to_at_sec": tr.to_at_sec,
-            "style": tr.style,
+            "style": self._resolve_style(tr.style, tr),
             "fallback_style": tr.fallback_style,
             "playback_tier": self._current_playback_tier(),
-            "degraded": False,
-            "degrade_reason": None,
+            "degraded": self._resolve_style(tr.style, tr) != tr.style,
+            "degrade_reason": "missing_stems" if self._resolve_style(tr.style, tr) != tr.style else None,
         }
 
     def _install_inactive_deck(self, deck: Deck) -> None:
@@ -921,7 +931,7 @@ class AudioEngineMVP:
     def _begin_transition(self, tr: Transition) -> None:
         if self.inactive_deck.song_id != tr.to_song_id:
             try:
-                want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
+                want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
                 audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
                 self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             except SongCacheError as exc:
@@ -975,7 +985,7 @@ class AudioEngineMVP:
             deck = Deck()
             deck.set_eq(*inactive_eq)
             # Load stems if this is a stem-aware transition style
-            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
+            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
             audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
             deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             self._apply_loudness_gain(deck, tr.to_song_id)
@@ -1188,6 +1198,103 @@ class AudioEngineMVP:
         # default smooth
         return {"full": cos_x}, {"full": sin_x}
 
+    @staticmethod
+    def _semantic_curve_value(curve: str, progress: float, *, deck: str) -> float:
+        x = min(1.0, max(0.0, progress))
+        if curve == "hold":
+            return 1.0
+        if curve == "linear_out":
+            return 1.0 - x
+        if curve == "linear_in":
+            return x
+        if curve == "out_at_break":
+            return 1.0 if x < 0.5 else 0.0
+        if curve == "in_at_break":
+            return 0.0 if x < 0.5 else 1.0
+        if curve == "in_late":
+            return 0.0 if x < 0.4 else min(1.0, (x - 0.4) / 0.6)
+        if curve == "in_very_late":
+            return 0.0 if x < 0.72 else min(1.0, (x - 0.72) / 0.28)
+        if curve == "out_early":
+            return max(0.0, 1.0 - x / 0.32)
+        if curve == "hold_then_out":
+            return 1.0 if x < 0.75 else max(0.0, 1.0 - (x - 0.75) / 0.25)
+        if curve == "swell_then_out":
+            return math.sin(x * math.pi) if x < 1.0 else 0.0
+        if curve == "kick_then_in":
+            return 1.0 if x < 0.08 else x
+        if curve == "duck_then_in":
+            return 0.45 + 0.55 * x
+        if curve == "pump":
+            base = 1.0 - x if deck == "prev" else x
+            return max(0.0, min(1.0, base * (0.85 + 0.15 * math.sin(2.0 * math.pi * x * 4.0))))
+        return 1.0 - x if deck == "prev" else x
+
+    @staticmethod
+    def _keyframe_curve_value(curve, progress: float, default: float) -> float:
+        x = min(1.0, max(0.0, progress))
+        if isinstance(curve, str):
+            return AudioEngineMVP._semantic_curve_value(curve, x, deck="next")
+        if not isinstance(curve, (list, tuple)) or not curve:
+            return default
+        if all(isinstance(v, (int, float)) for v in curve):
+            if len(curve) == 1:
+                return float(curve[0])
+            scaled = x * (len(curve) - 1)
+            i = int(math.floor(scaled))
+            if i >= len(curve) - 1:
+                return float(curve[-1])
+            frac = scaled - i
+            return float(curve[i]) * (1.0 - frac) + float(curve[i + 1]) * frac
+        points: list[tuple[float, float]] = []
+        for point in curve:
+            if isinstance(point, (list, tuple)) and len(point) >= 2:
+                try:
+                    points.append((float(point[0]), float(point[1])))
+                except (TypeError, ValueError):
+                    continue
+        if not points:
+            return default
+        points.sort(key=lambda p: p[0])
+        if x <= points[0][0]:
+            return points[0][1]
+        for (t0, v0), (t1, v1) in zip(points, points[1:]):
+            if x <= t1:
+                frac = (x - t0) / max(0.0001, t1 - t0)
+                return v0 * (1.0 - frac) + v1 * frac
+        return points[-1][1]
+
+    @classmethod
+    def _automation_stem_gains(cls, curves: dict | None, progress: float) -> tuple[dict, dict] | None:
+        if not isinstance(curves, dict):
+            return None
+        out: dict[str, dict[str, float]] = {"prev": {}, "next": {}}
+        for deck in ("prev", "next"):
+            deck_curves = curves.get(deck)
+            if not isinstance(deck_curves, dict):
+                return None
+            for stem in REQUIRED_STEMS:
+                curve = deck_curves.get(stem)
+                default = 1.0 - progress if deck == "prev" else progress
+                if isinstance(curve, str):
+                    value = cls._semantic_curve_value(curve, progress, deck=deck)
+                else:
+                    value = cls._keyframe_curve_value(curve, progress, default)
+                out[deck][stem] = max(0.0, min(1.0, float(value)))
+        return out["prev"], out["next"]
+
+    @classmethod
+    def _automation_eq_db(cls, curves: dict | None, key: str, progress: float) -> float | None:
+        if not isinstance(curves, dict):
+            return None
+        value = curves.get(key)
+        if value is None and key.endswith("_db"):
+            value = curves.get(key[:-3])
+        if value is None:
+            return None
+        db = cls._keyframe_curve_value(value, progress, 0.0)
+        return max(-12.0, min(12.0, float(db)))
+
     def _read_deck_styled(self, deck: Deck, frames: int, gains: dict) -> np.ndarray:
         """按 stem gain 表从 deck 读一块。gains 同时出现 stem 键和 'full' 时，
         如果 deck 有完整 4 个 stem 则走分豁路径；否则退化到整轨增益。"""
@@ -1358,8 +1465,23 @@ class AudioEngineMVP:
             if self._in_transition and self._active_tr:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
-                style = self._resolve_style(tr.style or "smooth")
-                if style in ("smooth", "blend"):
+                style = self._resolve_style(tr.style or "smooth", tr)
+                automation = self._automation_stem_gains(tr.stem_curves, progress)
+                if automation is not None and self._stems_available():
+                    sa, sb = automation
+                    a = self._read_deck_styled(self.active_deck, frames, sa)
+                    b = self._read_deck_styled(self.inactive_deck, frames, sb)
+                    prev_low = self._automation_eq_db(tr.eq_curves, "prev_low_db", progress)
+                    next_low = self._automation_eq_db(tr.eq_curves, "next_low_db", progress)
+                    if prev_low is not None:
+                        self.active_deck.set_eq(prev_low, self.active_deck.eq_mid_db, self.active_deck.eq_hi_db)
+                    if next_low is not None:
+                        self.inactive_deck.set_eq(next_low, self.inactive_deck.eq_mid_db, self.inactive_deck.eq_hi_db)
+                    a = self.active_deck.apply_eq(a)
+                    b = self.inactive_deck.apply_eq(b)
+                    a, b = self._apply_style_effects(style, progress, a, b, frames)
+                    main = a + b
+                elif style in ("smooth", "blend"):
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
                     b = self._read_with_solo(self.inactive_deck, frames)
@@ -1392,7 +1514,7 @@ class AudioEngineMVP:
                     if tr and self._plan_enabled and not self._in_transition:
                         # 强制开始转场，即使预加载未完成
                         try:
-                            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
+                            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
                             self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems)
                             self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
                             self._start_transition_locked(tr)

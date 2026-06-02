@@ -16,8 +16,10 @@ from edge_agent.models import (
   DeckEqRequest,
   HealthResponse,
   LoadPlanRequest,
+  BeatReinforceRequest,
   PlayRequest,
   PrefetchRequest,
+  PrewarmBeatmatchRequest,
   RKPlaybackState,
   SeekRequest,
   StemSoloRequest,
@@ -278,6 +280,30 @@ async def prefetch(req: PrefetchRequest) -> dict[str, Any]:
   """预解码候选歌曲到 RK 内存，跳过后续 /xfade 的磁盘 IO。未同步到 RK 的 song_id 会静默忽略。"""
   result = await _forward("prefetch", song_ids=req.song_ids)
   return {"ok": True, "result": result}
+
+
+@app.post("/prewarm_beatmatch", dependencies=[Depends(_optional_auth)])
+async def prewarm_beatmatch(req: PrewarmBeatmatchRequest) -> dict[str, Any]:
+  return {
+    "ok": False,
+    "supported": False,
+    "reason": "not_implemented",
+    "song_id": req.song_id,
+    "tempo_ratio": req.tempo_ratio,
+    "tempo_multiplier": req.tempo_multiplier,
+  }
+
+
+@app.post("/beat_reinforce", dependencies=[Depends(_optional_auth)])
+async def beat_reinforce(req: BeatReinforceRequest) -> dict[str, Any]:
+  return {
+    "ok": False,
+    "supported": False,
+    "reason": "not_implemented",
+    "start_sec": req.start_sec,
+    "end_sec": req.end_sec,
+    "beat_count": len(req.beats),
+  }
 
 
 @app.post("/stem_solo", dependencies=[Depends(_optional_auth)])

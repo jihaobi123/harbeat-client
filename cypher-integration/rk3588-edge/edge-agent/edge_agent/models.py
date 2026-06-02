@@ -59,6 +59,21 @@ class PrefetchRequest(BaseModel):
     song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=8)
 
 
+class PrewarmBeatmatchRequest(BaseModel):
+    song_id: Union[int, str]
+    tempo_ratio: Optional[float] = None
+    tempo_multiplier: Optional[float] = None
+
+
+class BeatReinforceRequest(BaseModel):
+    start_sec: float = 0.0
+    end_sec: float = 0.0
+    beats: list[float] = Field(default_factory=list, max_length=256)
+    sample_key: int = Field(default=4, ge=1, le=9)
+    gain: float = Field(default=1.0, ge=0.0, le=8.0)
+    pattern: Literal["all", "half", "backbeat"] = "all"
+
+
 class LoadPlanRequest(BaseModel):
     mix_plan: dict[str, Any]
     manifest: dict[str, Any]

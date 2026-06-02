@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.modules.manifest import build_song_manifest, build_playlist_manifest
@@ -11,8 +11,22 @@ from app.shared.database import get_db
 router = APIRouter(prefix="/manifest", tags=["manifest"])
 
 
+def _public_base_url(request: Request) -> str:
+    from app.shared.config import get_settings
+
+    settings = get_settings()
+    configured = (settings.public_asset_base_url or "").strip().rstrip("/")
+    if configured:
+        return configured
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host:
+        return f"{proto}://{host}".rstrip("/")
+    return ""
+
+
 @router.get("/song/{song_id}")
-def get_song_manifest(song_id: str, db: Session = Depends(get_db)):
+def get_song_manifest(song_id: str, request: Request, db: Session = Depends(get_db)):
     """Return standard manifest for a single song (P5 / P8 compatible)."""
     from app.modules.library.models import LibrarySong
 
@@ -20,16 +34,14 @@ def get_song_manifest(song_id: str, db: Session = Depends(get_db)):
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
 
-    from app.shared.config import get_settings
-    settings = get_settings()
-    base_url = f"http://localhost:{settings.app_port}"
-
-    return {"ok": True, "manifest": build_song_manifest(song, base_url=base_url)}
+    manifest = build_song_manifest(song, base_url=_public_base_url(request))
+    return {"code": 0, "message": "ok", "data": {"manifest": manifest}, "ok": True, "manifest": manifest}
 
 
 @router.get("/playlist/{playlist_id}")
 def get_playlist_manifest(
     playlist_id: int,
+    request: Request,
     plan_id: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
@@ -37,11 +49,12 @@ def get_playlist_manifest(
 
     Called by Flutter app: GET /api/playlists/{id}/manifest
     """
-    from app.shared.config import get_settings
-    settings = get_settings()
-    base_url = f"http://localhost:{settings.app_port}"
+    from app.modules.playlists.models import Playlist
+
+    if db.get(Playlist, playlist_id) is None:
+        raise HTTPException(status_code=404, detail="Playlist not found")
 
     manifest = build_playlist_manifest(
-        playlist_id, db, base_url=base_url, plan_id=plan_id,
+        playlist_id, db, base_url=_public_base_url(request), plan_id=plan_id,
     )
-    return {"ok": True, "manifest": manifest}
+    return {"code": 0, "message": "ok", "data": {"manifest": manifest}, "ok": True, "manifest": manifest}

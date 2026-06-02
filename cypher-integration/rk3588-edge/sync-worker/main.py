@@ -28,6 +28,7 @@ RK_TOKEN = os.environ.get("HARBEAT_RK_TOKEN") or os.environ.get("RKTOKEN", "")
 MAX_CONCURRENCY = int(os.environ.get("SYNC_MAX_CONCURRENCY", "4"))
 REQUEST_TIMEOUT = httpx.Timeout(connect=10.0, read=180.0, write=60.0, pool=10.0)
 CURL_MAX_TIME_SEC = int(os.environ.get("SYNC_CURL_MAX_TIME_SEC", "240"))
+VERIFY_FULL_CACHE = os.environ.get("SYNC_VERIFY_FULL", "0") == "1"
 
 app = FastAPI(title="Cypher Sync Worker", version="0.1.0")
 
@@ -110,7 +111,13 @@ def _manifest_from_body(body: dict[str, Any]) -> dict[str, Any]:
 def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for track in manifest.get("tracks") or []:
-        song_id = track.get("song_id") or track.get("library_song_id") or track.get("id")
+        song_id = (
+            track.get("song_id")
+            or track.get("library_song_id")
+            or track.get("songId")
+            or track.get("librarySongId")
+            or track.get("id")
+        )
         if song_id is None:
             continue
         files = track.get("files") or {}
@@ -182,11 +189,25 @@ def _sidecar(path: Path) -> Path:
 def _already_valid(path: Path, expected_sha: str | None, expected_size: int | None) -> bool:
     if not path.is_file():
         return False
-    if expected_sha and _sidecar(path).is_file():
-        if _sidecar(path).read_text(encoding="utf-8").strip() == expected_sha:
-            return True
-    if expected_size is not None and path.stat().st_size != expected_size:
+    stat = path.stat()
+    if expected_size is not None and stat.st_size != expected_size:
         return False
+    if VERIFY_FULL_CACHE and expected_sha:
+        return _sha256(path) == expected_sha
+    if expected_sha and _sidecar(path).is_file():
+        raw = _sidecar(path).read_text(encoding="utf-8").strip()
+        try:
+            meta = json.loads(raw)
+        except json.JSONDecodeError:
+            meta = {"sha256": raw}
+        if meta.get("sha256") == expected_sha:
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
+            return True
     if expected_sha:
         return _sha256(path) == expected_sha
     return True
@@ -326,7 +347,19 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                 else:
                     tmp_path.replace(final_path)
                 if expected_sha:
-                    _sidecar(final_path).write_text(expected_sha + "\n", encoding="utf-8")
+                    stat = final_path.stat()
+                    _sidecar(final_path).write_text(
+                        json.dumps(
+                            {
+                                "sha256": expected_sha,
+                                "size": stat.st_size,
+                                "mtime_ns": stat.st_mtime_ns,
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
                 await state.mark_done()
                 return
             except Exception as exc:

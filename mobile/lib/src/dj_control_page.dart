@@ -638,7 +638,7 @@ class _DjControlPageState extends State<DjControlPage> {
     }
     _prefetchInFlight.add(id);
     try {
-      final url = widget.apiClient.streamUrl(
+      final manifest = await widget.apiClient.getSongManifest(
         token: widget.token,
         songId: song.id,
       );
@@ -646,14 +646,7 @@ class _DjControlPageState extends State<DjControlPage> {
       for (var attempt = 0; attempt < 2; attempt++) {
         try {
           await _sync.syncAndWait(
-            tracks: [
-              {
-                'song_id': id,
-                'files': {
-                  'original': {'url': url, 'format': 'mp3'},
-                },
-              },
-            ],
+            tracks: [manifest],
             planId: 'dj-${DateTime.now().millisecondsSinceEpoch}-$id',
             timeout: const Duration(minutes: 2),
             onProgress: (st) {
