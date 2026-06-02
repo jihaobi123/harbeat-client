@@ -6,11 +6,13 @@ import hashlib
 import logging
 import os
 from typing import Any
+from urllib.parse import quote
 
 from app.shared.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+COMPUTE_SHA256 = os.environ.get("MANIFEST_COMPUTE_SHA256", "0") == "1"
 
 
 def _compute_sha256(path: str) -> str:
@@ -25,6 +27,12 @@ def _file_size(path: str) -> int:
     return os.path.getsize(path)
 
 
+def _maybe_sha256(path: str) -> str | None:
+    if not COMPUTE_SHA256:
+        return None
+    return _compute_sha256(path)
+
+
 def _format_from_path(path: str) -> str:
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     return ext if ext else "wav"
@@ -33,7 +41,8 @@ def _format_from_path(path: str) -> str:
 def _asset_url(rel_path: str) -> str:
     """Build a downloadable URL for an asset file."""
     # rel_path is relative to upload_dir, e.g. "stems/htdemucs/song1/vocals.wav"
-    return f"/api/assets/{rel_path.lstrip('/')}"
+    normalized = rel_path.replace("\\", "/").lstrip("/")
+    return f"/api/assets/{quote(normalized, safe='/')}"
 
 
 def _asset_rel_path(path: str) -> str:
@@ -42,6 +51,17 @@ def _asset_rel_path(path: str) -> str:
     except ValueError:
         logger.warning("asset is outside upload_dir or on another drive: %s", path)
         return os.path.basename(path)
+
+
+def _stem_status_for_song(song, stems: dict[str, Any]) -> str:
+    explicit = getattr(song, "stem_status", None)
+    if explicit:
+        return explicit
+    if all(stems.get(name) for name in ("vocals", "drums", "bass", "other")):
+        return "ready"
+    if stems:
+        return "partial"
+    return "none"
 
 
 def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
@@ -56,9 +76,9 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
     if song.source_path and os.path.isfile(song.source_path):
         rel = _asset_rel_path(song.source_path)
         files["original"] = {
-            "url": f"{base_url}/api/assets/{rel}",
+            "url": f"{base_url}{_asset_url(rel)}",
             "size": _file_size(song.source_path),
-            "sha256": _compute_sha256(song.source_path),
+            "sha256": _maybe_sha256(song.source_path),
             "format": _format_from_path(song.source_path),
         }
 
@@ -70,9 +90,9 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
             if stem_path and os.path.isfile(stem_path):
                 rel = _asset_rel_path(stem_path)
                 stems[stem_name] = {
-                    "url": f"{base_url}/api/assets/{rel}",
+                    "url": f"{base_url}{_asset_url(rel)}",
                     "size": _file_size(stem_path),
-                    "sha256": _compute_sha256(stem_path),
+                    "sha256": _maybe_sha256(stem_path),
                     "format": _format_from_path(stem_path),
                 }
     if stems:
@@ -201,7 +221,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "replayGainDb": (getattr(song, "loudness_profile", {}) or {}).get("replay_gain_db"),
         "qualityFlags": quality_flags,
         "analysisStatus": song.analysis_status,
-        "stemStatus": song.stem_status,
+        "stemStatus": _stem_status_for_song(song, stems),
     }
 
 

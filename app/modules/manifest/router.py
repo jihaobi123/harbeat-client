@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
@@ -15,7 +17,10 @@ def _public_base_url(request: Request) -> str:
     from app.shared.config import get_settings
 
     settings = get_settings()
-    configured = (settings.public_asset_base_url or "").strip().rstrip("/")
+    configured = (
+        getattr(settings, "public_asset_base_url", None)
+        or os.environ.get("PUBLIC_ASSET_BASE_URL", "")
+    ).strip().rstrip("/")
     if configured:
         return configured
     proto = request.headers.get("x-forwarded-proto") or request.url.scheme
