@@ -36,6 +36,14 @@ def _asset_url(rel_path: str) -> str:
     return f"/api/assets/{rel_path.lstrip('/')}"
 
 
+def _asset_rel_path(path: str) -> str:
+    try:
+        return os.path.relpath(path, settings.upload_dir)
+    except ValueError:
+        logger.warning("asset is outside upload_dir or on another drive: %s", path)
+        return os.path.basename(path)
+
+
 def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
     """Generate a standard manifest for one song.
 
@@ -46,7 +54,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
 
     # Original audio
     if song.source_path and os.path.isfile(song.source_path):
-        rel = os.path.relpath(song.source_path, settings.upload_dir)
+        rel = _asset_rel_path(song.source_path)
         files["original"] = {
             "url": f"{base_url}/api/assets/{rel}",
             "size": _file_size(song.source_path),
@@ -60,7 +68,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         for stem_name in ("vocals", "drums", "bass", "other"):
             stem_path = song.stems.get(stem_name)
             if stem_path and os.path.isfile(stem_path):
-                rel = os.path.relpath(stem_path, settings.upload_dir)
+                rel = _asset_rel_path(stem_path)
                 stems[stem_name] = {
                     "url": f"{base_url}/api/assets/{rel}",
                     "size": _file_size(stem_path),
