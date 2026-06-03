@@ -73,7 +73,7 @@ class TransitionPlanRequest(BaseModel):
 
 
 class CutPlanRequest(BaseModel):
-    strategy: str  # fast_cut | energy_up_cut | energy_down_cut
+    strategy: str | None = None  # fast_cut | energy_up_cut | energy_down_cut | target_* intents
     current_song_id: str
     cursor_sec: float = 0.0
     queue_song_ids: list[str] = Field(default_factory=list)
@@ -92,6 +92,9 @@ class CutPlanRequest(BaseModel):
     current_style: str | None = None
     prefer_cached: bool = True
     mode: str = "preview"
+    # For target_dance_style intent
+    target_style: str | None = None
+    style_reserve_pool_song_ids: list[str] = Field(default_factory=list)
 
 
 class LivePoolPrepareRequest(BaseModel):
@@ -100,6 +103,16 @@ class LivePoolPrepareRequest(BaseModel):
     target_reserve_per_bucket: int = Field(default=2, ge=1, le=5)
     include_buckets: list[str] = Field(default_factory=list)
     exclude_song_ids: list[str] = Field(default_factory=list)
+    # For style reserve pool
+    target_style_reserve_per_style: int = Field(default=2, ge=1, le=5)
+    include_styles: list[str] = Field(default_factory=list)
+
+
+class StylePoolStatus(BaseModel):
+    available: int
+    cached: int
+    syncing: int
+    status: str  # ready | syncing | empty | insufficient
 
 
 class LivePoolPrepareResponse(BaseModel):
@@ -107,6 +120,9 @@ class LivePoolPrepareResponse(BaseModel):
     reserve_pool: dict[str, list[str]]
     energy_profiles: dict
     sync_priority: dict[str, list[str]]
+    # For style reserve pool
+    style_reserve_pool: dict[str, list[str]] = Field(default_factory=dict)
+    style_pool_status: dict[str, StylePoolStatus] = Field(default_factory=dict)
 
 
 class FxItem(BaseModel):
@@ -122,3 +138,29 @@ class FxItem(BaseModel):
 
 class FxListResponse(BaseModel):
     fx: list[FxItem]
+
+
+class TargetStyleSelectedSong(BaseModel):
+    song_id: str
+    title: str
+    artist: str
+    style_score: float
+    confidence: float
+    matched_labels: list[str] = Field(default_factory=list)
+    energy_score: float
+    cache_status: str  # ready | syncing | not_cached | failed
+    source: str  # active_queue | style_reserve_pool | library_fallback
+
+
+class TargetStyleCutResponse(BaseModel):
+    intent: str  # target_dance_style
+    current_song: dict
+    target_style: str
+    selected_song: TargetStyleSelectedSong
+    queue_action: dict
+    candidate_score: float
+    score_breakdown: dict
+    recommended_transition_hint: str | None = None
+    reason: list[str] = Field(default_factory=list)
+    fallback: bool = False
+    fallback_reason: str | None = None

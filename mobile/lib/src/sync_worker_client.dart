@@ -52,7 +52,11 @@ class SyncWorkerClient {
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /sync ${resp.statusCode}: ${resp.body}');
     }
-    return jsonDecode(resp.body) as Map<String, dynamic>;
+    final payload = jsonDecode(resp.body) as Map<String, dynamic>;
+    if (payload['ok'] == false) {
+      throw Exception('sync-worker busy: ${payload['error'] ?? resp.body}');
+    }
+    return payload;
   }
 
   Future<SyncStatus> getStatus() async {

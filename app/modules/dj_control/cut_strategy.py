@@ -296,20 +296,10 @@ def plan_target_energy_cut(
         stages = [
             [x for x in active if _song_id(x[0]) in cached],
             [x for x in reserve if _song_id(x[0]) in cached],
-            *(
-                [
-                    [x for x in active if _song_id(x[0]) not in cached],
-                    [x for x in reserve if _song_id(x[0]) not in cached],
-                    library,
-                ]
-                if not prefer_cached or reason is not None
-                else []
-            ),
+            [x for x in active if _song_id(x[0]) not in cached],
+            [x for x in reserve if _song_id(x[0]) not in cached],
+            library,
         ]
-        if prefer_cached and reason is None:
-            # If exact target has no cached song, try relaxed cached before
-            # allowing an uncached exact candidate.
-            stages.extend([])
         for stage in stages:
             items = [
                 _candidate_plan_item(
@@ -332,23 +322,6 @@ def plan_target_energy_cut(
                 break
         if selected:
             break
-    if selected is None and prefer_cached:
-        # Last chance: exact uncached candidates.
-        items = [
-            _candidate_plan_item(
-                song,
-                current_song=current_song,
-                target_min=target_min,
-                target_max=target_max,
-                current_style=current_style,
-                source=source,
-                cached_ids=cached,
-                syncing_ids=syncing,
-            )
-            for song, source in [*active, *reserve, *library]
-            if target_min <= _score(song) <= target_max
-        ]
-        selected = _select_best(items, prefer_cached=False)
 
     target = {
         "min": float(target_min),
@@ -436,6 +409,8 @@ def prepare_live_pool(
     target_reserve_per_bucket: int = 2,
     include_buckets: Sequence[str] | None = None,
     exclude_song_ids: set[str] | None = None,
+    target_style_reserve_per_style: int = 2,
+    include_styles: Sequence[str] | None = None,
 ) -> dict:
     excluded = set(exclude_song_ids or set())
     include = list(include_buckets or [f"{i}-{i + 10}" for i in range(0, 100, 10)])
@@ -468,10 +443,56 @@ def prepare_live_pool(
         reserve_pool[bucket].append(sid)
         energy_profiles[sid] = profile
 
+    # Prepare style reserve pool
+    supported_styles = list(include_styles or ["breaking", "hiphop", "popping", "locking", "house", "krump", "waacking"])
+    style_reserve_pool = {s: [] for s in supported_styles}
+    style_pool_status = {}
+
+    style_candidates = []
+    for song in library_songs:
+        sid = _song_id(song)
+        if not sid or sid in active_set or sid in excluded:
+            continue
+        # Check if already in energy reserve pool
+        if any(sid in songs for songs in reserve_pool.values()):
+            continue
+
+        for target_style in supported_styles:
+            style_score = get_style_score(song, target_style)
+            if style_score >= 0.40:  # Minimum threshold
+                mix_score = _transition_window_score(song) * 0.35 + _risk_safety(song) * 0.20
+                total = style_score + mix_score
+                style_candidates.append((target_style, total, song, style_score))
+
+    # Sort and distribute to style reserve pools
+    style_candidates.sort(key=lambda item: item[1], reverse=True)
+    for target_style, _total, song, style_score in style_candidates:
+        if len(style_reserve_pool[target_style]) >= max(1, target_style_reserve_per_style):
+            continue
+        sid = _song_id(song)
+        if sid not in [s for songs in style_reserve_pool.values() for s in songs]:
+            style_reserve_pool[target_style].append(sid)
+            # Add to energy_profiles if not already there
+            if sid not in energy_profiles:
+                energy_profiles[sid] = get_dance_energy_profile(song)
+
+    # Calculate style pool status
+    # Note: We don't have cache status here, this would need to be filled by router
+    for s in supported_styles:
+        count = len(style_reserve_pool[s])
+        style_pool_status[s] = {
+            "available": count,
+            "cached": 0,  # To be filled by router with actual cache status
+            "syncing": 0,  # To be filled by router
+            "status": "ready" if count >= target_style_reserve_per_style else "insufficient" if count > 0 else "empty",
+        }
+
     p0 = active_ids[:1]
     p1 = active_ids[1:2]
     p2 = active_ids[2:6]
-    p3 = [ids[0] for ids in reserve_pool.values() if ids]
+    p3 = [sid for ids in reserve_pool.values() for sid in ids]
+    p4 = [sid for ids in style_reserve_pool.values() for sid in ids]
+
     return {
         "active_queue": active_ids,
         "reserve_pool": reserve_pool,
@@ -479,7 +500,9 @@ def prepare_live_pool(
             sid: {"score": profile["dance_energy_score"], "bucket": profile["bucket"], **profile}
             for sid, profile in energy_profiles.items()
         },
-        "sync_priority": {"p0": p0, "p1": p1, "p2": p2, "p3": p3},
+        "sync_priority": {"p0": p0, "p1": p1, "p2": p2, "p3": p3, "p4": p4},
+        "style_reserve_pool": style_reserve_pool,
+        "style_pool_status": style_pool_status,
     }
 
 
@@ -520,3 +543,342 @@ def plan_cut(
         # Could not find a swap candidate — fall back to the existing next song.
         plan["next_song_id"] = getattr(queue[current_index + 1], "id", None)
     return plan
+
+
+def get_style_score(song, target_style: str) -> float:
+    """Get target dance style score from song."""
+    scores = getattr(song, "dance_style_scores", None) or {}
+    if isinstance(scores, dict) and target_style in scores:
+        try:
+            return max(0.0, min(1.0, float(scores[target_style])))
+        except (TypeError, ValueError):
+            pass
+
+    # Fallback to genre_profile.style_evidence_v1
+    genre_profile = getattr(song, "genre_profile", None) or {}
+    if isinstance(genre_profile, dict):
+        style_evidence = genre_profile.get("style_evidence_v1", {})
+        if isinstance(style_evidence, dict) and target_style in style_evidence:
+            evidence = style_evidence[target_style]
+            if isinstance(evidence, dict) and "final_score" in evidence:
+                try:
+                    return max(0.0, min(1.0, float(evidence["final_score"])))
+                except (TypeError, ValueError):
+                    pass
+
+    return 0.0
+
+
+def _get_matched_labels(song, target_style: str) -> list[str]:
+    """Extract matched labels from genre_profile for target style."""
+    genre_profile = getattr(song, "genre_profile", None) or {}
+    if not isinstance(genre_profile, dict):
+        return []
+
+    style_evidence = genre_profile.get("style_evidence_v1", {})
+    if not isinstance(style_evidence, dict) or target_style not in style_evidence:
+        return []
+
+    evidence = style_evidence[target_style]
+    if not isinstance(evidence, dict):
+        return []
+
+    # Extract from external_source_scores or local_breakdown
+    matched = []
+
+    external_sources = evidence.get("external_source_scores", {})
+    if isinstance(external_sources, dict):
+        for source, data in external_sources.items():
+            if isinstance(data, dict) and data.get("matched_labels"):
+                matched.extend(data["matched_labels"])
+
+    local_breakdown = evidence.get("local_breakdown", {})
+    if isinstance(local_breakdown, dict) and local_breakdown.get("matched_features"):
+        matched.extend(local_breakdown["matched_features"])
+
+    return list(set(matched))[:5]  # Return top 5 unique labels
+
+
+def _style_transition_hint(from_style: str | None, to_style: str) -> str:
+    """Recommend transition strategy hint based on style change."""
+    if not from_style or from_style == to_style:
+        return "harmonic_blend"
+
+    # Style transition hint mapping
+    hints = {
+        ("hiphop", "popping"): "percussion_bridge",
+        ("hiphop", "locking"): "percussion_bridge",
+        ("hiphop", "breaking"): "drop_swap",
+        ("hiphop", "house"): "auto_bpm_ramp",
+        ("hiphop", "krump"): "impact_slam_cut",
+        ("hiphop", "waacking"): "neutral_fx_bridge",
+
+        ("popping", "locking"): "eq_swap_4bar",
+        ("popping", "house"): "harmonic_blend",
+        ("popping", "breaking"): "percussion_bridge",
+
+        ("locking", "house"): "auto_bpm_ramp",
+        ("locking", "popping"): "eq_swap_4bar",
+
+        ("house", "waacking"): "harmonic_blend",
+        ("house", "krump"): "echo_out_hard_drop",
+
+        ("krump", "house"): "neutral_fx_bridge",
+        ("krump", "hiphop"): "breakdown_reset",
+
+        ("breaking", "hiphop"): "drop_swap",
+        ("breaking", "popping"): "percussion_bridge",
+    }
+
+    key = (from_style.lower(), to_style.lower())
+    return hints.get(key, "echo_out_hard_drop")
+
+
+def plan_target_style_cut(
+    *,
+    current_song,
+    cursor_sec: float,
+    target_style: str,
+    active_queue: Sequence,
+    style_reserve_pool: Sequence,
+    library_pool: Sequence = (),
+    current_style: str | None = None,
+    played_song_ids: set[str] | None = None,
+    blocked_song_ids: set[str] | None = None,
+    exclude_song_ids: set[str] | None = None,
+    cached_song_ids: set[str] | None = None,
+    syncing_song_ids: set[str] | None = None,
+    prefer_cached: bool = True,
+    max_wait_sec: float = 5.0,
+) -> dict:
+    """Plan a target dance style cut."""
+    played = set(played_song_ids or set())
+    blocked = set(blocked_song_ids or set())
+    excluded = set(exclude_song_ids or set()) | {_song_id(current_song)}
+    cached = set(cached_song_ids or set())
+    syncing = set(syncing_song_ids or set())
+
+    current_profile = get_dance_energy_profile(current_song)
+    current_energy = float(current_profile["dance_energy_score"])
+    cut_at = find_fast_cut_point(current_song, cursor_sec, max_wait_sec)
+
+    def eligible(seq: Sequence, source: str) -> list[tuple[object, str]]:
+        out = []
+        for song in seq:
+            sid = _song_id(song)
+            if not sid or sid in played or sid in blocked or sid in excluded:
+                continue
+            out.append((song, source))
+        return out
+
+    active = eligible(active_queue, "active_queue")
+    reserve = eligible(style_reserve_pool, "style_reserve_pool")
+    active_ids = {sid for _song, _source in active for sid in [_song_id(_song)]}
+    reserve_ids = {sid for _song, _source in reserve for sid in [_song_id(_song)]}
+    library = [
+        (song, "library_fallback")
+        for song, _source in eligible(library_pool, "library_fallback")
+        if _song_id(song) not in active_ids and _song_id(song) not in reserve_ids
+    ]
+
+    def score_candidate(song, source: str) -> dict:
+        sid = _song_id(song)
+        style_score = get_style_score(song, target_style)
+        profile = get_dance_energy_profile(song)
+        energy = float(profile["dance_energy_score"])
+
+        # Calculate score components
+        target_style_match = style_score
+
+        # Transition safety
+        transition_safety = _transition_window_score(song) * 0.60 + _risk_safety(song) * 0.40
+
+        # Energy continuity (prefer similar energy, allow ±20 range)
+        energy_diff = abs(energy - current_energy)
+        if energy_diff <= 20:
+            energy_continuity = 1.0 - (energy_diff / 40.0)
+        elif energy_diff <= 35:
+            energy_continuity = 0.50 - ((energy_diff - 20) / 60.0)
+        else:
+            energy_continuity = max(0.0, 0.25 - ((energy_diff - 35) / 100.0))
+
+        # BPM compatibility
+        bpm_compat = _bpm_compat(current_song, song)
+
+        # Cache status
+        cache_status = _cache_status(sid, cached, syncing)
+        cache_ready = _cache_score(cache_status)
+
+        # Novelty (avoid recently played)
+        novelty = 0.80  # Default
+
+        # Total score
+        candidate_score = (
+            0.45 * target_style_match
+            + 0.20 * transition_safety
+            + 0.15 * energy_continuity
+            + 0.10 * bpm_compat
+            + 0.05 * cache_ready
+            + 0.05 * novelty
+        )
+
+        return {
+            "song": song,
+            "song_id": sid,
+            "style_score": style_score,
+            "energy_score": energy,
+            "source": source,
+            "cache_status": cache_status,
+            "candidate_score": round(candidate_score, 4),
+            "score_breakdown": {
+                "target_style_match": round(target_style_match, 4),
+                "transition_safety": round(transition_safety, 4),
+                "energy_continuity": round(energy_continuity, 4),
+                "bpm_compat": round(bpm_compat, 4),
+                "cache_ready": round(cache_ready, 4),
+                "novelty": round(novelty, 4),
+            },
+            "matched_labels": _get_matched_labels(song, target_style),
+            "confidence": style_score,  # Use style_score as confidence
+        }
+
+    # Search stages: prefer cached first, then high-confidence, then fallback
+    selected = None
+    fallback_reason = None
+
+    # Stage 1: active_queue + style_reserve_pool, cached, high confidence (>=0.75)
+    for song, source in active + reserve:
+        if _song_id(song) not in cached:
+            continue
+        candidate = score_candidate(song, source)
+        if candidate["style_score"] >= 0.75:
+            if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
+                selected = candidate
+
+    # Stage 2: active_queue + style_reserve_pool, cached, usable (>=0.55)
+    if not selected:
+        for song, source in active + reserve:
+            if _song_id(song) not in cached:
+                continue
+            candidate = score_candidate(song, source)
+            if candidate["style_score"] >= 0.55:
+                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
+                    selected = candidate
+
+    # Stage 3: active_queue + style_reserve_pool, not cached, high confidence
+    if not selected:
+        for song, source in active + reserve:
+            if _song_id(song) in cached:
+                continue
+            candidate = score_candidate(song, source)
+            if candidate["style_score"] >= 0.75:
+                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
+                    selected = candidate
+
+    # Stage 4: library fallback, high confidence
+    if not selected:
+        fallback_reason = f"未在主队列和风格备选池找到 {target_style} 高置信候选，已从曲库扩展"
+        for song, source in library:
+            candidate = score_candidate(song, source)
+            if candidate["style_score"] >= 0.55:
+                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
+                    selected = candidate
+
+    # Stage 5: library fallback with relaxed threshold (>=0.40)
+    if not selected:
+        fallback_reason = f"未找到 {target_style} 高置信候选，已放宽标准从曲库选择相近风格"
+        for song, source in library:
+            candidate = score_candidate(song, source)
+            if candidate["style_score"] >= 0.40:
+                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
+                    selected = candidate
+
+    # No candidate found
+    if selected is None:
+        return {
+            "intent": "target_dance_style",
+            "strategy": "target_dance_style",
+            "cut_at_sec": cut_at,
+            "next_song_id": None,
+            "current_song": {
+                "song_id": _song_id(current_song),
+                "dominant_style": current_style or "unknown",
+                "energy_score": current_energy,
+            },
+            "target_style": target_style,
+            "selected_song": None,
+            "fallback": True,
+            "fallback_reason": f"未找到可用的 {target_style} 风格候选",
+            "reason": [f"当前曲库没有足够可信的 {target_style} 风格歌曲"],
+        }
+
+    # Build response
+    song = selected["song"]
+    is_fallback = fallback_reason is not None or selected["style_score"] < 0.75
+
+    reason = [
+        f"该歌曲 {target_style} 适配分 {selected['style_score']:.2f}",
+    ]
+
+    if selected["matched_labels"]:
+        labels_str = " / ".join(selected["matched_labels"][:3])
+        reason.append(f"命中 {labels_str} 标签")
+
+    energy_diff = abs(selected["energy_score"] - current_energy)
+    if energy_diff <= 20:
+        reason.append(f"能量从 {current_energy:.0f} 到 {selected['energy_score']:.0f}，变化可控")
+    elif energy_diff <= 35:
+        reason.append(f"能量从 {current_energy:.0f} 到 {selected['energy_score']:.0f}，适度变化")
+    else:
+        reason.append(f"能量从 {current_energy:.0f} 到 {selected['energy_score']:.0f}，较大变化")
+
+    if selected["score_breakdown"]["bpm_compat"] >= 0.65:
+        reason.append("BPM 差较小或存在倍速关系")
+
+    if selected["cache_status"] == "ready":
+        reason.append("已在 RK 缓存，可立即切")
+    elif selected["cache_status"] == "synchronizing":
+        reason.append("正在同步到 RK")
+    else:
+        reason.append("未缓存，确认前会先同步")
+
+    hint = _style_transition_hint(current_style, target_style)
+    reason.append(f"推荐使用 {hint} 进行风格过渡")
+
+    if fallback_reason:
+        reason.insert(0, fallback_reason)
+
+    return {
+        "intent": "target_dance_style",
+        "strategy": "target_dance_style",
+        "cut_at_sec": cut_at,
+        "next_song_id": selected["song_id"],
+        "current_song": {
+            "song_id": _song_id(current_song),
+            "dominant_style": current_style or "unknown",
+            "energy_score": current_energy,
+        },
+        "target_style": target_style,
+        "selected_song": {
+            "song_id": selected["song_id"],
+            "title": getattr(song, "title", ""),
+            "artist": getattr(song, "artist", ""),
+            "style_score": selected["style_score"],
+            "confidence": selected["confidence"],
+            "matched_labels": selected["matched_labels"],
+            "energy_score": selected["energy_score"],
+            "cache_status": selected["cache_status"],
+            "source": selected["source"],
+        },
+        "queue_action": {
+            "type": "insert_next",
+            "after_song_id": _song_id(current_song),
+            "remove_from_style_reserve_pool": selected["source"] == "style_reserve_pool",
+        },
+        "candidate_score": selected["candidate_score"],
+        "score_breakdown": selected["score_breakdown"],
+        "recommended_transition_hint": hint,
+        "reason": reason,
+        "fallback": is_fallback,
+        "fallback_reason": fallback_reason,
+    }

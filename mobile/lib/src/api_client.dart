@@ -797,6 +797,46 @@ class HarBeatApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> djPlanTargetStyleCut({
+    required String token,
+    required String currentSongId,
+    required double cursorSec,
+    required String targetStyle,
+    required List<String> activeQueueSongIds,
+    required List<String> styleReservePoolSongIds,
+    required List<String> playedSongIds,
+    required List<String> blockedSongIds,
+    required List<String> cachedSongIds,
+    required List<String> syncingSongIds,
+    String? currentStyle,
+    bool preferCached = true,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/cut/plan',
+      token: token,
+      body: {
+        'strategy': 'target_dance_style',
+        'intent': 'target_dance_style',
+        'mode': 'preview',
+        'current_song_id': currentSongId,
+        'cursor_sec': cursorSec,
+        'target_style': targetStyle,
+        'active_queue_song_ids': activeQueueSongIds,
+        'style_reserve_pool_song_ids': styleReservePoolSongIds,
+        'played_song_ids': playedSongIds,
+        'blocked_song_ids': blockedSongIds,
+        'exclude_song_ids': const [],
+        'cached_song_ids': cachedSongIds,
+        'syncing_song_ids': syncingSongIds,
+        if (currentStyle != null && currentStyle.isNotEmpty)
+          'current_style': currentStyle,
+        'prefer_cached': preferCached,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> djSequence({
     required String token,
     required List<String> songIds,

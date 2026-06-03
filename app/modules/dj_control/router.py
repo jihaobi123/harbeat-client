@@ -235,6 +235,8 @@ def prepare_live_pool_endpoint(
         target_reserve_per_bucket=payload.target_reserve_per_bucket,
         include_buckets=payload.include_buckets,
         exclude_song_ids=set(payload.exclude_song_ids),
+        target_style_reserve_per_style=payload.target_style_reserve_per_style,
+        include_styles=payload.include_styles,
     )
     return APIResponse(data=LivePoolPrepareResponse(**result))
 
@@ -281,6 +283,48 @@ def plan_cut_endpoint(
             library_pool=library_songs,
             target_min=target_min,
             target_max=target_max,
+            current_style=payload.current_style,
+            played_song_ids=set(payload.played_song_ids),
+            blocked_song_ids=set(payload.blocked_song_ids),
+            exclude_song_ids=set(payload.exclude_song_ids),
+            cached_song_ids=set(payload.cached_song_ids),
+            syncing_song_ids=set(payload.syncing_song_ids),
+            prefer_cached=payload.prefer_cached,
+            max_wait_sec=payload.max_wait_sec,
+        )
+        return APIResponse(data=plan)
+
+    if intent == "target_dance_style":
+        current = db.get(LibrarySong, payload.current_song_id)
+        if not current or current.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="current song not found")
+        if not payload.target_style:
+            raise HTTPException(status_code=400, detail="target_style required for target_dance_style intent")
+
+        active_ids = payload.active_queue_song_ids or payload.queue_song_ids
+        style_reserve_ids = payload.style_reserve_pool_song_ids
+        all_ids = set(active_ids) | set(style_reserve_ids)
+        songs_by_id = {
+            s.id: s
+            for s in db.query(LibrarySong)
+            .filter(LibrarySong.user_id == current_user.id)
+            .filter(LibrarySong.id.in_(all_ids))
+            .all()
+        } if all_ids else {}
+        active = [songs_by_id[sid] for sid in active_ids if sid in songs_by_id]
+        style_reserve = [songs_by_id[sid] for sid in style_reserve_ids if sid in songs_by_id]
+        library_songs = (
+            db.query(LibrarySong)
+            .filter(LibrarySong.user_id == current_user.id)
+            .all()
+        )
+        plan = cut_strategy.plan_target_style_cut(
+            current_song=current,
+            cursor_sec=payload.cursor_sec,
+            target_style=payload.target_style,
+            active_queue=active,
+            style_reserve_pool=style_reserve,
+            library_pool=library_songs,
             current_style=payload.current_style,
             played_song_ids=set(payload.played_song_ids),
             blocked_song_ids=set(payload.blocked_song_ids),

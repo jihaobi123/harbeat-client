@@ -109,6 +109,7 @@ class _DjControlPageState extends State<DjControlPage> {
   String? _activeRule; // last applied transition rule label
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
   bool _xfadeInFlight = false;
+  DateTime? _xfadeInFlightAt;
   Timer? _rkPoll;
 
   // Sync-worker: pulls Jetson wav into ~/cypher/cache/<song_id>/ on RK.
@@ -117,12 +118,27 @@ class _DjControlPageState extends State<DjControlPage> {
   final Set<String> _prefetched = <String>{};
   final Set<String> _prefetchInFlight = <String>{};
   Map<String, List<String>> _reservePoolByBucket = const {};
+  Map<String, List<String>> _styleReservePoolByStyle = const {};
   Map<String, Map<String, dynamic>> _liveEnergyProfiles = const {};
   Map<String, String> _rkCacheStatus = const {};
   Map<String, dynamic>? _targetEnergyPreview;
   bool _targetEnergyLoading = false;
   String? _targetEnergyBucketLabel;
   final Set<String> _targetEnergyExcluded = <String>{};
+
+  // ---- Target style cut state ----
+  Map<String, dynamic>? _targetStylePreview;
+  bool _targetStyleLoading = false;
+  String? _selectedTargetStyle;
+
+  // ---- Progressive loading state (前3首快速启动策略) ----
+  /// true when the first 3 tracks are synced and playback started, but
+  /// background sync of remaining queue + reserve pools is still in progress.
+  /// Cuts (quick/energy/style) are disabled until this becomes false.
+  bool _backgroundSyncInProgress = false;
+
+  /// Completes when all background sync (remaining queue + pools) finishes.
+  Future<void>? _backgroundSyncFuture;
 
   @override
   void initState() {
@@ -430,6 +446,12 @@ class _DjControlPageState extends State<DjControlPage> {
       .toSet()
       .toList();
 
+  List<String> _styleReserveSongIds() => _styleReservePoolByStyle.values
+      .expand((ids) => ids)
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .toList();
+
   String? _energyBucketForSongId(String songId) {
     final liveBucket = _liveEnergyProfiles[songId]?['bucket'];
     if (liveBucket != null) return liveBucket.toString();
@@ -506,6 +528,14 @@ class _DjControlPageState extends State<DjControlPage> {
             (v as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
       });
     }
+    final rawStyleReserve = pool['style_reserve_pool'];
+    final styleReserve = <String, List<String>>{};
+    if (rawStyleReserve is Map) {
+      rawStyleReserve.forEach((k, v) {
+        styleReserve[k.toString()] =
+            (v as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
+      });
+    }
     final profiles = <String, Map<String, dynamic>>{};
     final rawProfiles = pool['energy_profiles'];
     if (rawProfiles is Map) {
@@ -516,6 +546,7 @@ class _DjControlPageState extends State<DjControlPage> {
     if (!mounted) return;
     setState(() {
       _reservePoolByBucket = reserve;
+      _styleReservePoolByStyle = styleReserve;
       _liveEnergyProfiles = profiles;
     });
   }
@@ -757,12 +788,21 @@ class _DjControlPageState extends State<DjControlPage> {
   /// RK disk — sync-worker's response can race with the file write, and
   /// edge-agent's `/xfade` will 409 ("缺少 original.*") if it's invoked the
   /// instant the response lands but before fsync completes.
-  Future<void> _ensureRkCache(LibrarySong song, {String? statusPrefix}) async {
+  Future<void> _ensureRkCache(
+    LibrarySong song, {
+    String? statusPrefix,
+    bool requireFullManifest = false,
+  }) async {
     final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
     if (id == null || id.isEmpty) {
       throw Exception('song ${song.title} 缺少 song_id，无法同步到 RK');
     }
-    if (_prefetched.contains(id)) {
+    if (!requireFullManifest && await _sync.cacheExists(id)) {
+      _prefetched.add(id);
+      _setCacheStatus(id, 'ready');
+      return;
+    }
+    if (!requireFullManifest && _prefetched.contains(id)) {
       // Re-verify: cache may have been evicted, partially written, or the
       // earlier "prefetched" mark was set after a sync that never actually
       // wrote `original.*`. Cheap (~50ms) compared to a 409 mid-set.
@@ -773,7 +813,11 @@ class _DjControlPageState extends State<DjControlPage> {
       while (_prefetchInFlight.contains(id)) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
-      if (_prefetched.contains(id) && await _sync.cacheExists(id)) return;
+      if (!requireFullManifest &&
+          _prefetched.contains(id) &&
+          await _sync.cacheExists(id)) {
+        return;
+      }
     }
     _prefetchInFlight.add(id);
     _setCacheStatus(id, 'syncing');
@@ -788,7 +832,7 @@ class _DjControlPageState extends State<DjControlPage> {
           await _sync.syncAndWait(
             tracks: [manifest],
             planId: 'dj-${DateTime.now().millisecondsSinceEpoch}-$id',
-            timeout: const Duration(minutes: 2),
+            timeout: const Duration(minutes: 6),
             onProgress: (st) {
               if (!mounted) return;
               setState(() {
@@ -898,6 +942,7 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _warmActiveQueueAndReservePool(int startIdx) async {
     final ordered = _orderedSongs();
     final warmUntil = math.min(ordered.length, startIdx + 3);
@@ -906,10 +951,6 @@ class _DjControlPageState extends State<DjControlPage> {
       final s = ordered[i];
       final id = s.id.isNotEmpty ? s.id : s.songId?.toString();
       if (id == null || id.isEmpty) continue;
-      if (_prefetched.contains(id) && await _sync.cacheExists(id)) {
-        _setCacheStatus(id, 'ready');
-        continue;
-      }
       try {
         await _ensureRkCache(s, statusPrefix: 'Warm active ${i + 1}/${ordered.length}');
         try {
@@ -924,7 +965,9 @@ class _DjControlPageState extends State<DjControlPage> {
     }
     final reserveIds = <String>[];
     for (final ids in _reservePoolByBucket.values) {
-      if (ids.isNotEmpty) reserveIds.add(ids.first);
+      for (final id in ids) {
+        if (id.isNotEmpty && !reserveIds.contains(id)) reserveIds.add(id);
+      }
     }
     for (var i = 0; i < reserveIds.length; i++) {
       if (!mounted || !_liveStarted) return;
@@ -949,6 +992,224 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
+  Future<void> _warmAllLiveCandidatesToRk(int startIdx) async {
+    final ids = _liveCacheQueueIds(_orderedSongs(), startIdx: startIdx);
+
+    for (var i = 0; i < ids.length; i++) {
+      if (!mounted || !_liveStarted) return;
+      final id = ids[i];
+      final song = _songById(id);
+      if (song == null) continue;
+      if (_prefetched.contains(id) && await _sync.cacheExists(id)) {
+        _setCacheStatus(id, 'ready');
+        continue;
+      }
+      try {
+        await _ensureRkCache(
+          song,
+          statusPrefix: 'RK pre-cache ${i + 1}/${ids.length}',
+          requireFullManifest: true,
+        );
+        try {
+          await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(song)]);
+        } catch (_) {
+          /* best-effort */
+        }
+      } catch (_) {
+        _setCacheStatus(id, 'failed');
+        if (mounted) setState(() => _cutInfo = 'RK pre-cache failed: ${song.title}');
+      }
+    }
+    if (mounted && _liveStarted) {
+      setState(() => _cutInfo = 'Active queue and candidate pools cached on RK');
+    }
+  }
+
+  List<String> _liveCacheQueueIds(
+    List<LibrarySong> ordered, {
+    int startIdx = 0,
+  }) {
+    final ids = <String>[];
+    void addId(String? id) {
+      if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
+    }
+
+    for (final s in ordered.skip(startIdx)) {
+      addId(s.id.isNotEmpty ? s.id : s.songId?.toString());
+    }
+    for (final id in _reserveSongIds()) {
+      addId(id);
+    }
+    for (final id in _styleReserveSongIds()) {
+      addId(id);
+    }
+    return ids;
+  }
+
+  Future<void> _waitForSyncWorkerIdleBeforeStartup() async {
+    final deadline = DateTime.now().add(const Duration(minutes: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      final st = await _sync.getStatus();
+      if (!st.running) return;
+      if (mounted) {
+        setState(() {
+          _cutInfo =
+              'Waiting RK sync ${st.completed}/${st.total} ${st.percent.toStringAsFixed(0)}%';
+        });
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw TimeoutException('RK sync-worker is still busy');
+  }
+
+  /// Sync only the first 3 tracks to enable fast startup.
+  /// Called by [_startLiveMix] before playback begins.
+  Future<void> _syncFirst3TracksBeforePlay(List<LibrarySong> ordered) async {
+    final first3Songs = ordered.take(3).toList();
+    if (first3Songs.isEmpty) return;
+
+    await _waitForSyncWorkerIdleBeforeStartup();
+
+    final tracks = <Map<String, dynamic>>[];
+    for (var i = 0; i < first3Songs.length; i++) {
+      final song = first3Songs[i];
+      final id = song.id.isNotEmpty ? song.id : song.songId?.toString() ?? '';
+      if (id.isEmpty) continue;
+      _setCacheStatus(id, 'syncing');
+      if (mounted) {
+        setState(() {
+          _cutInfo = 'Build RK sync plan (前3首) ${i + 1}/${first3Songs.length}: ${song.title}';
+        });
+      }
+      tracks.add(
+        await widget.apiClient.getSongManifest(
+          token: widget.token,
+          songId: song.id,
+        ),
+      );
+    }
+
+    if (tracks.isEmpty) return;
+    await _sync.syncAndWait(
+      tracks: tracks,
+      planId: 'dj-startup-first3-${DateTime.now().millisecondsSinceEpoch}',
+      timeout: const Duration(minutes: 10),
+      onProgress: (st) {
+        if (!mounted) return;
+        setState(() {
+          _cutInfo =
+              'Sync RK (前3首) ${st.completed}/${st.total} ${st.percent.toStringAsFixed(0)}%';
+        });
+      },
+    );
+
+    for (final song in first3Songs) {
+      final id = song.id.isNotEmpty ? song.id : song.songId?.toString() ?? '';
+      if (id.isEmpty) continue;
+      if (await _sync.cacheExists(id)) {
+        _prefetched.add(id);
+        _setCacheStatus(id, 'ready');
+      } else {
+        _setCacheStatus(id, 'failed');
+        throw Exception('RK cache missing after first-3 sync: $id');
+      }
+    }
+
+    final decodeIds = ordered
+        .take(2)
+        .map((s) => _rkIdForXfade(s))
+        .toList(growable: false);
+    if (decodeIds.isNotEmpty) {
+      await widget.edgeClient.prefetch(songIds: decodeIds);
+    }
+    if (mounted) {
+      setState(() => _cutInfo = 'RK 前3首已缓存，正在启动播放');
+    }
+  }
+
+  /// Sync remaining tracks (after first 3) + reserve pools in the background.
+  /// Called by [_startLiveMix] after playback starts.
+  Future<void> _syncRemainingTracksInBackground(List<LibrarySong> ordered) async {
+    try {
+      final remainingSongs = ordered.skip(3).toList();
+      final ids = _liveCacheQueueIds(ordered, startIdx: 3);
+      if (ids.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _backgroundSyncInProgress = false;
+            _cutInfo = '后台同步完成：无剩余歌曲';
+          });
+        }
+        return;
+      }
+
+      final tracks = <Map<String, dynamic>>[];
+      for (var i = 0; i < ids.length; i++) {
+        final id = ids[i];
+        final song = _songById(id);
+        if (song == null) continue;
+        _setCacheStatus(id, 'syncing');
+        if (mounted && i % 5 == 0) {
+          setState(() {
+            _cutInfo = '后台同步中 ${i + 1}/${ids.length}…';
+          });
+        }
+        tracks.add(
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: song.id,
+          ),
+        );
+      }
+
+      if (tracks.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _backgroundSyncInProgress = false;
+            _cutInfo = '后台同步完成';
+          });
+        }
+        return;
+      }
+
+      await _sync.syncAndWait(
+        tracks: tracks,
+        planId: 'dj-background-${DateTime.now().millisecondsSinceEpoch}',
+        timeout: const Duration(hours: 1),
+        onProgress: (st) {
+          if (!mounted) return;
+          setState(() {
+            _cutInfo =
+                '后台同步 ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)';
+          });
+        },
+      );
+
+      for (final id in ids) {
+        if (await _sync.cacheExists(id)) {
+          _prefetched.add(id);
+          _setCacheStatus(id, 'ready');
+        } else {
+          _setCacheStatus(id, 'failed');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _backgroundSyncInProgress = false;
+          _cutInfo = '✅ 后台同步完成，所有切歌功能已启用';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _backgroundSyncInProgress = false;
+          _cutInfo = '⚠️ 后台同步失败: $e';
+        });
+      }
+    }
+  }
+
   Future<void> _startLiveMix() async {
     final ordered = _orderedSongs();
     if (ordered.isEmpty) return;
@@ -967,40 +1228,36 @@ class _DjControlPageState extends State<DjControlPage> {
       _lastXfadeAt = null;
       _lastXfadeSec = 0.0;
       _lastXfadeToSongId = null;
+      _xfadeInFlightAt = null;
       _smartPlan = null;
       _smartPlanForSongId = null;
       _step = 3; // jump to 实时操作
-      _cutInfo = '正在同步首曲到 RK…';
+      _backgroundSyncInProgress = true;
+      _cutInfo = '正在同步前3首到 RK…';
     });
     try {
       await _prepareLivePoolForOrdered(ordered);
-      // 1) Make sure RK has the wav cached. Skips quickly if already cached.
-      await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
-      if (ordered.length > 1) {
-        await _ensureRkCache(ordered[1], statusPrefix: '同步下一首到 RK');
-      }
-      // 2) Tell edge-agent to start playback.
+      // NEW: Only sync first 3 tracks before starting playback
+      await _syncFirst3TracksBeforePlay(ordered);
       await widget.edgeClient.play(songId: rkId, startAtSec: 0);
-      if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
-      // 3) Warm up *every* remaining song serially in the background. Single
-      //    pipe to Jetson keeps egress simple; the loop survives per-track
-      //    failures so a transient miss on #2 doesn't starve #3+.
-      // ignore: discarded_futures
-      _warmActiveQueueAndReservePool(2);
+      if (mounted) {
+        setState(() => _cutInfo = '▶ ${first.title}（前3首期间切歌已禁用）');
+      }
+      // NEW: Start background sync of remaining tracks + pools
+      _backgroundSyncFuture = _syncRemainingTracksInBackground(ordered);
     } catch (e) {
       // Last-ditch retry: if play failed with 409 we may have missed the sync.
       if (_isMissingCacheError(e)) {
         try {
-          await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
-          if (ordered.length > 1) {
-            await _ensureRkCache(ordered[1], statusPrefix: '同步下一首到 RK');
-          }
+          await _syncFirst3TracksBeforePlay(ordered);
           await widget.edgeClient.play(songId: rkId, startAtSec: 0);
-          if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
-          // ignore: discarded_futures
-          _warmActiveQueueAndReservePool(2);
+          if (mounted) {
+            setState(() => _cutInfo = '▶ ${first.title}（前3首期间切歌已禁用）');
+          }
+          _backgroundSyncFuture = _syncRemainingTracksInBackground(ordered);
         } catch (e2) {
           if (mounted) {
+            setState(() => _backgroundSyncInProgress = false);
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('RK 启动失败: $e2')));
@@ -1008,6 +1265,7 @@ class _DjControlPageState extends State<DjControlPage> {
         }
       } else {
         if (mounted) {
+          setState(() => _backgroundSyncInProgress = false);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('RK 启动失败: $e')));
@@ -1030,15 +1288,128 @@ class _DjControlPageState extends State<DjControlPage> {
           _duration = Duration(milliseconds: (st.durationSec * 1000).round());
           _rkCurrentSongId = st.currentSongId;
         });
-        _maybeAutoXfade();
+        if (_shouldRecoverEndedTrack(st)) {
+          // ignore: discarded_futures
+          _recoverEndedTrack();
+        } else {
+          _maybeAutoXfade();
+        }
       } catch (_) {
         /* swallow */
       }
     });
   }
 
-  Future<void> _maybeAutoXfade() async {
+  bool _shouldRecoverEndedTrack(dynamic st) {
+    if (!_liveStarted || st.playing || _xfadeInFlight) return false;
+    if (_liveIdx == _lastXfadeFromIdx) return false;
+    final ordered = _orderedSongs();
+    if (_liveIdx + 1 >= ordered.length) return false;
+    if (st.durationSec <= 0 || st.positionSec <= 5) return false;
+    return st.durationSec - st.positionSec <= 2.5;
+  }
+
+  Future<void> _recoverEndedTrack() async {
     if (_xfadeInFlight) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx + 1 >= ordered.length) return;
+    final prev = ordered[_liveIdx];
+    final next = ordered[_liveIdx + 1];
+    final nextPlayId = _rkPlayId(next);
+    if (nextPlayId == null) return;
+
+    _xfadeInFlight = true;
+    _xfadeInFlightAt = DateTime.now();
+    try {
+      final nextId = next.id.isNotEmpty ? next.id : next.songId?.toString();
+      if (nextId == null || !await _sync.cacheExists(nextId)) {
+        await _ensureRkCache(next, statusPrefix: 'End recovery sync next')
+            .timeout(const Duration(seconds: 3));
+      }
+
+      Map<String, dynamic>? plan;
+      try {
+        plan =
+            _canonicalPlanFor(
+              transitionIndex: _liveIdx,
+              prev: prev,
+              next: next,
+            ) ??
+            await widget.apiClient
+                .djPlanTransition(
+                  token: widget.token,
+                  prevSongId: prev.id,
+                  nextSongId: next.id,
+                  cursorSec: _position.inMilliseconds / 1000.0,
+                )
+                .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        plan = null;
+      }
+
+      final toAtSec = (plan?['to_at_sec'] as num?)?.toDouble() ?? 0.0;
+      final rawRuleKey = plan?['rule_key']?.toString() ?? 'end_recovery';
+      final ruleLabel = plan?['rule_label_zh']?.toString() ?? rawRuleKey;
+      final nextRkId = _rkIdForXfade(next);
+      final fadeSec = math
+          .max(
+            _minFadeForRule[rawRuleKey] ?? 0.05,
+            (plan?['duration_sec'] as num?)?.toDouble() ??
+                (plan?['fade_sec'] as num?)?.toDouble() ??
+                0.4,
+          )
+          .clamp(0.05, 3.0)
+          .toDouble();
+
+      try {
+        await widget.edgeClient.xfade(
+          toSongId: nextRkId,
+          fadeSec: fadeSec,
+          toAtSec: toAtSec,
+          style: _plannedRkStyle(plan ?? const {}, rawRuleKey, fallback: 'cut'),
+        );
+      } catch (_) {
+        await widget.edgeClient.play(songId: nextPlayId, startAtSec: toAtSec);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _lastXfadeFromIdx = _liveIdx;
+        _liveIdx += 1;
+        _activeRule = '$ruleLabel · end recovery';
+        _cutInfo = 'End recovery -> #${_liveIdx + 1} ${next.title}';
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = nextRkId.toString();
+        _smartPlan = null;
+        _smartPlanForSongId = null;
+      });
+      _kickPrefetchNext();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cutInfo = 'End recovery failed: $e';
+          _lastXfadeAt = DateTime.now();
+          _lastXfadeSec = 0.0;
+        });
+      }
+    } finally {
+      _xfadeInFlight = false;
+      _xfadeInFlightAt = null;
+    }
+  }
+
+  Future<void> _maybeAutoXfade() async {
+    if (_xfadeInFlight) {
+      final started = _xfadeInFlightAt;
+      if (started != null &&
+          DateTime.now().difference(started) > const Duration(seconds: 8)) {
+        _xfadeInFlight = false;
+        _xfadeInFlightAt = null;
+      } else {
+        return;
+      }
+    }
     if (_liveIdx == _lastXfadeFromIdx) return;
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return;
@@ -1158,8 +1529,13 @@ class _DjControlPageState extends State<DjControlPage> {
     final nextRkId = _rkIdForXfade(next);
 
     _xfadeInFlight = true;
+    _xfadeInFlightAt = DateTime.now();
     try {
-      await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
+      final nextId = next.id.isNotEmpty ? next.id : next.songId?.toString();
+      if (nextId == null || !await _sync.cacheExists(nextId)) {
+        await _ensureRkCache(next, statusPrefix: '同步下一首到 RK')
+            .timeout(const Duration(seconds: 3));
+      }
 
       // Use the cached smart plan if we have one; otherwise fetch on the spot
       // (legacy path).
@@ -1345,6 +1721,7 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     } finally {
       _xfadeInFlight = false;
+      _xfadeInFlightAt = null;
     }
   }
 
@@ -1407,6 +1784,17 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _doCut(String strategy) async {
+    // Block cuts during first-3-tracks phase
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('前3首播放期间切歌功能已禁用，请等待后台同步完成'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     final ordered = _orderedSongs();
     if (ordered.isEmpty) return;
     final current = ordered[_liveIdx];
@@ -1612,6 +2000,26 @@ class _DjControlPageState extends State<DjControlPage> {
                 ? '未找到 $label 可用候选'
                 : '已推荐 ${plan['selected_song']['title']}';
       });
+      final selected = plan['selected_song'];
+      if (selected is Map && selected['song_id'] != null) {
+        final target = _songById(selected['song_id'].toString());
+        final id = target?.id;
+        if (target != null &&
+            id != null &&
+            _rkCacheStatus[id] != 'ready' &&
+            _rkCacheStatus[id] != 'syncing') {
+          // Preview should also start warming the chosen candidate, otherwise
+          // the user sees a good recommendation but still waits on confirm.
+          // ignore: discarded_futures
+          _ensureRkCache(
+                target,
+                statusPrefix: '预缓存能量候选到 RK',
+                requireFullManifest: true,
+              )
+              .then((_) => widget.edgeClient.prefetch(songIds: [_rkIdForXfade(target)]))
+              .catchError((_) => <String, dynamic>{});
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => _cutInfo = '目标能量预览失败: $e');
     } finally {
@@ -1636,7 +2044,188 @@ class _DjControlPageState extends State<DjControlPage> {
     });
   }
 
+  // =========================================================================
+  // Target Style Cut (风格切歌)
+  // =========================================================================
+
+  Future<void> _previewTargetStyle(String style) async {
+    final ordered = _orderedSongs();
+    if (!_liveStarted || _liveIdx >= ordered.length) return;
+    final current = ordered[_liveIdx];
+    setState(() {
+      _targetStyleLoading = true;
+      _selectedTargetStyle = style;
+      _targetStylePreview = null;
+      _cutInfo = '正在寻找 $style 风格的下一首…';
+    });
+    try {
+      final plan = await widget.apiClient.djPlanTargetStyleCut(
+        token: widget.token,
+        currentSongId: current.id,
+        cursorSec: _position.inMilliseconds / 1000.0,
+        targetStyle: style,
+        activeQueueSongIds: ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
+        styleReservePoolSongIds: _styleReserveSongIds(),
+        playedSongIds: _playedSongIds(),
+        blockedSongIds: _rkCacheStatus.entries
+            .where((e) => e.value == 'failed')
+            .map((e) => e.key)
+            .toList(),
+        cachedSongIds: _cachedIds(),
+        syncingSongIds: _syncingIds(),
+        currentStyle: _v2StyleForPreset(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _targetStylePreview = plan;
+        _cutInfo =
+            plan['selected_song'] == null
+                ? '未找到 $style 可用候选'
+                : '已推荐 ${plan['selected_song']['title']}';
+      });
+      final selected = plan['selected_song'];
+      if (selected is Map && selected['song_id'] != null) {
+        final target = _songById(selected['song_id'].toString());
+        final id = target?.id;
+        if (target != null &&
+            id != null &&
+            _rkCacheStatus[id] != 'ready' &&
+            _rkCacheStatus[id] != 'syncing') {
+          // ignore: discarded_futures
+          _ensureRkCache(
+                target,
+                statusPrefix: '预缓存风格候选到 RK',
+                requireFullManifest: true,
+              )
+              .then((_) => widget.edgeClient.prefetch(songIds: [_rkIdForXfade(target)]))
+              .catchError((_) => <String, dynamic>{});
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = '目标风格预览失败: $e');
+    } finally {
+      if (mounted) setState(() => _targetStyleLoading = false);
+    }
+  }
+
+  Future<void> _confirmTargetStyleCut() async {
+    // Block cuts during first-3-tracks phase
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('前3首播放期间风格切歌功能已禁用，请等待后台同步完成'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final plan = _targetStylePreview;
+    final selected = plan?['selected_song'];
+    if (plan == null || selected is! Map || selected['song_id'] == null) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx >= ordered.length) return;
+    final current = ordered[_liveIdx];
+    final targetId = selected['song_id'].toString();
+    final target = _songById(targetId);
+    if (target == null) {
+      setState(() => _cutInfo = '推荐歌曲不在本地曲库列表，无法切换');
+      return;
+    }
+    try {
+      setState(() => _cutInfo = '目标风格切歌：同步 ${target.title}');
+      await _ensureRkCache(
+        target,
+        statusPrefix: '同步目标风格候选到 RK',
+        requireFullManifest: true,
+      );
+      await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(target)]);
+      final cursorSec = _position.inMilliseconds / 1000.0;
+      final transition = await widget.apiClient.djPlanTransition(
+        token: widget.token,
+        prevSongId: current.id,
+        nextSongId: target.id,
+        cursorSec: cursorSec,
+        ruleKey: plan['recommended_transition_hint']?.toString(),
+      );
+      final ratio = (transition['tempo_ratio'] as num?)?.toDouble();
+      if (ratio != null &&
+          (ratio - 1.0).abs() >= 0.005 &&
+          (ratio - 1.0).abs() <= 0.06) {
+        // ignore: discarded_futures
+        widget.edgeClient
+            .prewarmBeatmatch(songId: _rkIdForXfade(target), tempoRatio: ratio)
+            .catchError((_) => <String, dynamic>{});
+      }
+      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
+      final ruleKey = _plannedRkStyle(transition, rawRuleKey, fallback: 'blend');
+      final rawDur =
+          (transition['duration_sec'] as num?)?.toDouble() ??
+          (transition['fade_sec'] as num?)?.toDouble() ??
+          6.0;
+      final fadeSec = math
+          .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
+          .clamp(0.05, 30.0)
+          .toDouble();
+      final response = await widget.edgeClient.xfade(
+        toSongId: _rkIdForXfade(target),
+        fadeSec: fadeSec,
+        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
+        style: ruleKey,
+        transitionId: transition['transition_id']?.toString(),
+        fallbackStyle:
+            transition['fallback_style'] == null
+                ? null
+                : _rkStyle(transition['fallback_style'].toString(), fallback: 'blend'),
+        tempoRatio: ratio,
+        stemCurves: transition['stem_curves'] is Map
+            ? Map<String, dynamic>.from(transition['stem_curves'] as Map)
+            : null,
+        eqCurves: transition['eq_curves'] is Map
+            ? Map<String, dynamic>.from(transition['eq_curves'] as Map)
+            : null,
+        phaseAnchorSec: (transition['phase_anchor_sec'] as num?)?.toDouble(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _insertTargetAsNext(target);
+        _liveIdx += 1;
+        _lastXfadeFromIdx = _liveIdx - 1;
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = _rkIdForXfade(target).toString();
+        _activeRule =
+            '${transition['rule_label_zh']?.toString() ?? rawRuleKey} · ${fadeSec.toStringAsFixed(1)}s';
+        final hint = _xfadeResultHint(response);
+        _cutInfo =
+            '目标风格切歌 → ${target.title}${hint == null ? "" : " · $hint"}';
+        _targetStylePreview = null;
+        _selectedTargetStyle = null;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = '目标风格切歌失败: $e');
+    }
+  }
+
+  void _cancelTargetStylePreview() {
+    setState(() {
+      _targetStylePreview = null;
+      _selectedTargetStyle = null;
+    });
+  }
+
   Future<void> _confirmTargetEnergyCut() async {
+    // Block cuts during first-3-tracks phase
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('前3首播放期间能量切歌功能已禁用，请等待后台同步完成'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     final plan = _targetEnergyPreview;
     final selected = plan?['selected_song'];
     if (plan == null || selected is! Map || selected['song_id'] == null) return;
@@ -1651,7 +2240,11 @@ class _DjControlPageState extends State<DjControlPage> {
     }
     try {
       setState(() => _cutInfo = '目标能量切歌：同步 ${target.title}');
-      await _ensureRkCache(target, statusPrefix: '同步目标能量候选到 RK');
+      await _ensureRkCache(
+        target,
+        statusPrefix: '同步目标能量候选到 RK',
+        requireFullManifest: true,
+      );
       await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(target)]);
       final cursorSec = _position.inMilliseconds / 1000.0;
       final transition = await widget.apiClient.djPlanTransition(
@@ -1889,6 +2482,13 @@ class _DjControlPageState extends State<DjControlPage> {
           onConfirmTargetEnergy: _confirmTargetEnergyCut,
           onChangeTargetEnergy: _changeTargetEnergyCandidate,
           onCancelTargetEnergy: _cancelTargetEnergyPreview,
+          backgroundSyncInProgress: _backgroundSyncInProgress,
+          targetStylePreview: _targetStylePreview,
+          targetStyleLoading: _targetStyleLoading,
+          selectedTargetStyle: _selectedTargetStyle,
+          onPreviewTargetStyle: _previewTargetStyle,
+          onConfirmTargetStyle: _confirmTargetStyleCut,
+          onCancelTargetStyle: _cancelTargetStylePreview,
         );
     }
     return const SizedBox.shrink();
@@ -4526,6 +5126,13 @@ class _Step4Live extends StatelessWidget {
     required this.onConfirmTargetEnergy,
     required this.onChangeTargetEnergy,
     required this.onCancelTargetEnergy,
+    required this.backgroundSyncInProgress,
+    required this.targetStylePreview,
+    required this.targetStyleLoading,
+    required this.selectedTargetStyle,
+    required this.onPreviewTargetStyle,
+    required this.onConfirmTargetStyle,
+    required this.onCancelTargetStyle,
   });
   final List<LibrarySong> ordered;
   final int idx;
@@ -4545,6 +5152,13 @@ class _Step4Live extends StatelessWidget {
   final Future<void> Function() onConfirmTargetEnergy;
   final Future<void> Function() onChangeTargetEnergy;
   final VoidCallback onCancelTargetEnergy;
+  final bool backgroundSyncInProgress;
+  final Map<String, dynamic>? targetStylePreview;
+  final bool targetStyleLoading;
+  final String? selectedTargetStyle;
+  final Future<void> Function(String style) onPreviewTargetStyle;
+  final Future<void> Function() onConfirmTargetStyle;
+  final VoidCallback onCancelTargetStyle;
 
   static const _groupOrder = ['hype', 'drop', 'drum'];
   static const _groupTitle = {
@@ -4627,6 +5241,8 @@ class _Step4Live extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _targetEnergyCard(),
+        const SizedBox(height: 10),
+        _targetStyleCard(),
         const SizedBox(height: 10),
         const Text(
           '✂️ 现场切歌',
@@ -4745,7 +5361,9 @@ class _Step4Live extends StatelessWidget {
                 final label =
                     '$bucket｜${ready > 0 ? "可切 $ready" : syncing > 0 ? "同步中" : ids.isNotEmpty ? "候选 ${ids.length}" : reserveCount > 0 ? "备选 $reserveCount" : "搜索曲库"}';
                 return OutlinedButton(
-                  onPressed: targetEnergyLoading ? null : () => onPreviewTargetBucket(bucket),
+                  onPressed: (targetEnergyLoading || backgroundSyncInProgress)
+                      ? null
+                      : () => onPreviewTargetBucket(bucket),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: active ? Colors.black : const Color(0xFFE85A2A),
                     backgroundColor: active ? const Color(0xFFE85A2A) : Colors.transparent,
@@ -4829,6 +5447,149 @@ class _Step4Live extends StatelessWidget {
     );
   }
 
+  Widget _targetStyleCard() {
+    final preview = targetStylePreview;
+    final selected = preview?['selected_song'];
+
+    // 7个街舞大舞种
+    const styles = [
+      {'key': 'breaking', 'label': 'Breaking', 'emoji': '🌪️'},
+      {'key': 'hiphop', 'label': 'Hip Hop', 'emoji': '🎤'},
+      {'key': 'popping', 'label': 'Popping', 'emoji': '⚡'},
+      {'key': 'locking', 'label': 'Locking', 'emoji': '🔒'},
+      {'key': 'house', 'label': 'House', 'emoji': '🏠'},
+      {'key': 'krump', 'label': 'Krump', 'emoji': '💥'},
+      {'key': 'waacking', 'label': 'Waacking', 'emoji': '💃'},
+    ];
+
+    return Card(
+      color: const Color(0x0A000000),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '🎨 风格切歌',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                if (targetStyleLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '选择目标舞种风格，系统会从队列和风格备选池推荐最匹配的歌曲。',
+              style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: styles.map((style) {
+                final key = style['key'] as String;
+                final label = style['label'] as String;
+                final emoji = style['emoji'] as String;
+                final active = selectedTargetStyle == key;
+
+                return OutlinedButton(
+                  onPressed: (targetStyleLoading || backgroundSyncInProgress)
+                      ? null
+                      : () => onPreviewTargetStyle(key),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: active ? Colors.black : const Color(0xFF2196F3),
+                    backgroundColor: active ? const Color(0xFF2196F3) : Colors.transparent,
+                    side: const BorderSide(color: Color(0xFF2196F3)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    minimumSize: const Size(0, 0),
+                  ),
+                  child: Text(
+                    '$emoji $label',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                );
+              }).toList(),
+            ),
+            if (preview != null) ...[
+              const SizedBox(height: 8),
+              if (selected is Map)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0x08000000),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '推荐：${selected['title'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${selected['artist'] ?? ''}｜风格分 ${(selected['style_score'] as num?)?.toStringAsFixed(2) ?? '-'}｜${_sourceLabel(selected['source'])}｜${_cacheLabel(selected['cache_status'])}',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                      if (preview['fallback'] == true && preview['fallback_reason'] != null)
+                        Text(
+                          preview['fallback_reason'].toString(),
+                          style: const TextStyle(fontSize: 10, color: Color(0xFFFF9800)),
+                        ),
+                      if (preview['recommended_transition_hint'] != null)
+                        Text(
+                          '过渡策略: ${preview['recommended_transition_hint']}',
+                          style: const TextStyle(fontSize: 10, color: Color(0xFF4CAF50)),
+                        ),
+                      ...((preview['reason'] as List<dynamic>? ?? const [])
+                          .take(4)
+                          .map((r) => Text('• $r', style: const TextStyle(fontSize: 10)))),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: targetStyleLoading ? null : onConfirmTargetStyle,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2196F3),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 7),
+                              ),
+                              child: const Text('确认切歌', style: TextStyle(fontSize: 11)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          TextButton(
+                            onPressed: onCancelTargetStyle,
+                            child: const Text('取消', style: TextStyle(fontSize: 11)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  preview['fallback_reason']?.toString() ?? '没有可用候选',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   String _bucketFor(double score) {
     final clamped = score.clamp(0.0, 100.0).toDouble();
     if (clamped >= 90.0) return '90-100';
@@ -4840,6 +5601,7 @@ class _Step4Live extends StatelessWidget {
     final s = raw?.toString();
     if (s == 'active_queue') return '主队列';
     if (s == 'reserve_pool') return '备选池';
+    if (s == 'style_reserve_pool') return '风格池';
     if (s == 'library') return '曲库扩展';
     return s ?? '-';
   }
@@ -4857,10 +5619,12 @@ class _Step4Live extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ElevatedButton(
-        onPressed: () => onCut(strategy),
+        onPressed: backgroundSyncInProgress ? null : () => onCut(strategy),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0x0A000000),
           foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0x05000000),
+          disabledForegroundColor: Colors.grey,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.all(10),
         ),
@@ -4873,7 +5637,7 @@ class _Step4Live extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              desc,
+              backgroundSyncInProgress ? '前3首期间禁用，等待后台同步...' : desc,
               style: const TextStyle(fontSize: 10, color: Colors.grey),
             ),
           ],

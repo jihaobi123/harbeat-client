@@ -12,7 +12,7 @@ Group=cat
 WorkingDirectory=/home/cat/cypher/sync-worker
 EnvironmentFile=-/home/cat/cypher/deploy/cypher.env
 Environment=PATH=/home/cat/venvs/edge/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/home/cat/venvs/edge/bin/uvicorn main:app --host 127.0.0.1 --port 9100
+ExecStart=/home/cat/venvs/edge/bin/uvicorn main:app --host 0.0.0.0 --port 9100
 Restart=always
 RestartSec=3
 StandardOutput=journal
