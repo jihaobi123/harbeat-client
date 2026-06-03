@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.modules.playlists import models as _playlist_models  # noqa: F401 - registers Song relationship
 from app.modules.library.external_metadata import run_enrich_song_external_metadata
 from app.modules.library.models import LibrarySong
 from app.shared.database import SessionLocal
@@ -64,4 +65,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
