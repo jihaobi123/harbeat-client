@@ -9,13 +9,15 @@ from sqlalchemy.orm import Session
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
 from app.modules.dj_control import cut_strategy, dance_style, fx_synth, mixer_rules, sequencer, vibe_search
-from app.modules.dj_control.energy_hiphop import compute_dance_energy
+from app.modules.dj_control.energy_hiphop import compute_dance_energy, get_dance_energy_profile
 from app.modules.dj_set import service as dj_set_service
 from app.modules.dj_set.set_templates import ALL_TEMPLATES, get_template
 from app.modules.dj_control.schemas import (
     CutPlanRequest,
     FxItem,
     FxListResponse,
+    LivePoolPrepareRequest,
+    LivePoolPrepareResponse,
     ScoredSong,
     SequenceEntry,
     SequenceRequest,
@@ -157,6 +159,7 @@ def energy_breakdown_endpoint(
     if not song or song.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="song not found")
     eb = compute_dance_energy(song)
+    profile = get_dance_energy_profile(song)
     data = eb.as_dict()
     bucket = _energy_bucket(data["total"])
     data.update({
@@ -174,6 +177,9 @@ def energy_breakdown_endpoint(
             "tempo": data["tempo_factor"],
         },
         "explain_zh": f"{bucket['label_zh']}能量，适合接在相邻能量段。",
+        "dance_energy_score": profile["dance_energy_score"],
+        "energy_bucket_10": profile["bucket"],
+        "energy_profile": profile,
     })
     return APIResponse(data=data)
 
@@ -203,12 +209,89 @@ def plan_transition_endpoint(
 # --------------------------------------------------------------------------- #
 # Live cut strategies
 # --------------------------------------------------------------------------- #
+@router.post("/live/pool/prepare", response_model=APIResponse[LivePoolPrepareResponse])
+def prepare_live_pool_endpoint(
+    payload: LivePoolPrepareRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    active = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id)
+        .filter(LibrarySong.id.in_(payload.active_queue_song_ids))
+        .all()
+    )
+    by_id = {song.id: song for song in active}
+    ordered_active = [by_id[sid] for sid in payload.active_queue_song_ids if sid in by_id]
+    library_songs = (
+        db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id)
+        .all()
+    )
+    result = cut_strategy.prepare_live_pool(
+        active_queue=ordered_active,
+        library_songs=library_songs,
+        style=payload.style,
+        target_reserve_per_bucket=payload.target_reserve_per_bucket,
+        include_buckets=payload.include_buckets,
+        exclude_song_ids=set(payload.exclude_song_ids),
+    )
+    return APIResponse(data=LivePoolPrepareResponse(**result))
+
+
 @router.post("/cut/plan")
 def plan_cut_endpoint(
     payload: CutPlanRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    intent = payload.intent or payload.strategy
+    if intent == "target_energy_bucket":
+        current = db.get(LibrarySong, payload.current_song_id)
+        if not current or current.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="current song not found")
+        target = payload.target_energy_bucket or {}
+        try:
+            target_min = float(target.get("min"))
+            target_max = float(target.get("max"))
+        except (TypeError, ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail="target_energy_bucket.min/max required")
+        active_ids = payload.active_queue_song_ids or payload.queue_song_ids
+        reserve_ids = payload.reserve_pool_song_ids or payload.pool_song_ids
+        all_ids = set(active_ids) | set(reserve_ids)
+        songs_by_id = {
+            s.id: s
+            for s in db.query(LibrarySong)
+            .filter(LibrarySong.user_id == current_user.id)
+            .filter(LibrarySong.id.in_(all_ids))
+            .all()
+        } if all_ids else {}
+        active = [songs_by_id[sid] for sid in active_ids if sid in songs_by_id]
+        reserve = [songs_by_id[sid] for sid in reserve_ids if sid in songs_by_id]
+        library_songs = (
+            db.query(LibrarySong)
+            .filter(LibrarySong.user_id == current_user.id)
+            .all()
+        )
+        plan = cut_strategy.plan_target_energy_cut(
+            current_song=current,
+            cursor_sec=payload.cursor_sec,
+            active_queue=active,
+            reserve_pool=reserve,
+            library_pool=library_songs,
+            target_min=target_min,
+            target_max=target_max,
+            current_style=payload.current_style,
+            played_song_ids=set(payload.played_song_ids),
+            blocked_song_ids=set(payload.blocked_song_ids),
+            exclude_song_ids=set(payload.exclude_song_ids),
+            cached_song_ids=set(payload.cached_song_ids),
+            syncing_song_ids=set(payload.syncing_song_ids),
+            prefer_cached=payload.prefer_cached,
+            max_wait_sec=payload.max_wait_sec,
+        )
+        return APIResponse(data=plan)
+
     if payload.strategy not in ("fast_cut", "energy_up_cut", "energy_down_cut"):
         raise HTTPException(status_code=400, detail=f"unknown strategy: {payload.strategy}")
     current = db.get(LibrarySong, payload.current_song_id)

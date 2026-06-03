@@ -732,6 +732,71 @@ class HarBeatApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> djPrepareLivePool({
+    required String token,
+    required List<String> activeQueueSongIds,
+    String? style,
+    int targetReservePerBucket = 2,
+    List<String> includeBuckets = const [],
+    List<String> excludeSongIds = const [],
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/live/pool/prepare',
+      token: token,
+      body: {
+        'active_queue_song_ids': activeQueueSongIds,
+        if (style != null && style.isNotEmpty) 'style': style,
+        'target_reserve_per_bucket': targetReservePerBucket,
+        'include_buckets': includeBuckets,
+        'exclude_song_ids': excludeSongIds,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> djPlanTargetEnergyCut({
+    required String token,
+    required String currentSongId,
+    required double cursorSec,
+    required List<String> activeQueueSongIds,
+    required List<String> reservePoolSongIds,
+    required List<String> playedSongIds,
+    required List<String> blockedSongIds,
+    required List<String> excludeSongIds,
+    required List<String> cachedSongIds,
+    required List<String> syncingSongIds,
+    required int targetMin,
+    required int targetMax,
+    String? currentStyle,
+    bool preferCached = true,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/cut/plan',
+      token: token,
+      body: {
+        'strategy': 'target_energy_bucket',
+        'intent': 'target_energy_bucket',
+        'mode': 'preview',
+        'current_song_id': currentSongId,
+        'cursor_sec': cursorSec,
+        'active_queue_song_ids': activeQueueSongIds,
+        'reserve_pool_song_ids': reservePoolSongIds,
+        'played_song_ids': playedSongIds,
+        'blocked_song_ids': blockedSongIds,
+        'exclude_song_ids': excludeSongIds,
+        'cached_song_ids': cachedSongIds,
+        'syncing_song_ids': syncingSongIds,
+        'target_energy_bucket': {'min': targetMin, 'max': targetMax},
+        if (currentStyle != null && currentStyle.isNotEmpty)
+          'current_style': currentStyle,
+        'prefer_cached': preferCached,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> djSequence({
     required String token,
     required List<String> songIds,

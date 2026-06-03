@@ -75,11 +75,38 @@ class TransitionPlanRequest(BaseModel):
 class CutPlanRequest(BaseModel):
     strategy: str  # fast_cut | energy_up_cut | energy_down_cut
     current_song_id: str
-    cursor_sec: float
-    queue_song_ids: list[str]
-    current_index: int
+    cursor_sec: float = 0.0
+    queue_song_ids: list[str] = Field(default_factory=list)
+    current_index: int = 0
     pool_song_ids: list[str] = Field(default_factory=list)
     max_wait_sec: float = 5.0
+    intent: str | None = None
+    active_queue_song_ids: list[str] = Field(default_factory=list)
+    reserve_pool_song_ids: list[str] = Field(default_factory=list)
+    played_song_ids: list[str] = Field(default_factory=list)
+    blocked_song_ids: list[str] = Field(default_factory=list)
+    exclude_song_ids: list[str] = Field(default_factory=list)
+    cached_song_ids: list[str] = Field(default_factory=list)
+    syncing_song_ids: list[str] = Field(default_factory=list)
+    target_energy_bucket: dict | None = None
+    current_style: str | None = None
+    prefer_cached: bool = True
+    mode: str = "preview"
+
+
+class LivePoolPrepareRequest(BaseModel):
+    active_queue_song_ids: list[str]
+    style: str | None = None
+    target_reserve_per_bucket: int = Field(default=2, ge=1, le=5)
+    include_buckets: list[str] = Field(default_factory=list)
+    exclude_song_ids: list[str] = Field(default_factory=list)
+
+
+class LivePoolPrepareResponse(BaseModel):
+    active_queue: list[str]
+    reserve_pool: dict[str, list[str]]
+    energy_profiles: dict
+    sync_priority: dict[str, list[str]]
 
 
 class FxItem(BaseModel):
