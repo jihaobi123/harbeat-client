@@ -29,7 +29,7 @@ def resolve_audio_device(raw: str | None) -> int | str | None:
 
     key = raw.lower().strip()
     aliases = {
-        "pulse": ("pulse", "default"),
+        "pulse": ("pulse",),
         "default": ("default", "pulse"),
         "hdmi": ("hdmi", "rockchip-hdmi"),
         "es8388": ("es8388", "es8323", "rockchip-es8388"),
@@ -50,7 +50,15 @@ def resolve_audio_device(raw: str | None) -> int | str | None:
 
     # pulse 不可用时回退：default → es8388 硬件 → 第一个输出设备
     if key in ("pulse", "default", "es8388", "headphone"):
-        for prefer in ("default", "es8388", "es8323", "sysdefault"):
+        # RK3588 "default/sysdefault" may point to DP/HDMI. For a missing
+        # Pulse sink, fall back to the ES8388 3.5mm codec before defaults.
+        if key == "pulse":
+            fallback_order = ("es8388", "es8323", "rockchip-es8388", "default", "sysdefault")
+        elif key in ("es8388", "headphone"):
+            fallback_order = ("es8388", "es8323", "rockchip-es8388", "pulse", "default")
+        else:
+            fallback_order = ("default", "pulse", "es8388", "es8323", "rockchip-es8388")
+        for prefer in fallback_order:
             for i, name in outputs:
                 if prefer in name:
                     return i

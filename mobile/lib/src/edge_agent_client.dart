@@ -171,6 +171,31 @@ class EdgeAgentClient {
   /// Use right before /xfade when the planner flagged the prev or next song
   /// as rhythmically weak. [pattern] ∈ {all, half, backbeat}; [sampleKey] 1-5
   /// (4 = snare_crack is the typical reinforcement pick).
+  Future<Map<String, dynamic>> validateCache({
+    required List<Object> songIds,
+    bool requireStems = false,
+  }) async {
+    if (songIds.isEmpty) {
+      return {
+        'all_ready': true,
+        'ready': <String>[],
+        'failed': <String>[],
+        'results': <Map<String, dynamic>>[],
+      };
+    }
+    final data = await _request(
+      method: 'POST',
+      path: '/cache/validate',
+      body: {'song_ids': songIds, 'require_stems': requireStems},
+      timeout: const Duration(seconds: 120),
+    );
+    final result = data['result'];
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    return data;
+  }
+
   Future<Map<String, dynamic>> beatReinforce({
     required double startSec,
     required double endSec,
@@ -204,6 +229,7 @@ class EdgeAgentClient {
     required String path,
     Object? body,
     Map<String, String>? queryParameters,
+    Duration? timeout,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) {
@@ -221,12 +247,12 @@ class EdgeAgentClient {
         case 'GET':
           response = await http
               .get(uri, headers: headers)
-              .timeout(const Duration(seconds: 5));
+              .timeout(timeout ?? const Duration(seconds: 5));
           break;
         case 'POST':
           response = await http
               .post(uri, headers: headers, body: jsonEncode(body))
-              .timeout(const Duration(seconds: 10));
+              .timeout(timeout ?? const Duration(seconds: 10));
           break;
         default:
           throw Exception('Unsupported method: $method');

@@ -190,8 +190,6 @@ def _already_valid(path: Path, expected_sha: str | None, expected_size: int | No
     if not path.is_file():
         return False
     stat = path.stat()
-    if expected_size is not None and stat.st_size != expected_size:
-        return False
     if VERIFY_FULL_CACHE and expected_sha:
         return _sha256(path) == expected_sha
     if expected_sha and _sidecar(path).is_file():
@@ -200,6 +198,17 @@ def _already_valid(path: Path, expected_sha: str | None, expected_size: int | No
             meta = json.loads(raw)
         except json.JSONDecodeError:
             meta = {"sha256": raw}
+        if meta.get("converted_from_sha256") == expected_sha:
+            source_size = meta.get("converted_from_size")
+            if expected_size is not None and source_size is not None and int(source_size) != expected_size:
+                return False
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
+            return True
         if meta.get("sha256") == expected_sha:
             sidecar_size = meta.get("size")
             sidecar_mtime = meta.get("mtime_ns")
@@ -208,6 +217,24 @@ def _already_valid(path: Path, expected_sha: str | None, expected_size: int | No
             if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
                 return False
             return True
+    if _sidecar(path).is_file():
+        try:
+            meta = json.loads(_sidecar(path).read_text(encoding="utf-8").strip())
+        except (json.JSONDecodeError, OSError):
+            meta = {}
+        source_size = meta.get("converted_from_size")
+        if expected_size is not None and source_size is not None:
+            if int(source_size) != expected_size:
+                return False
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
+            return True
+    if expected_size is not None and stat.st_size != expected_size:
+        return False
     if expected_sha:
         return _sha256(path) == expected_sha
     return True
@@ -222,9 +249,7 @@ def _needs_wav_conversion(info: dict[str, Any]) -> bool:
 def _convert_to_wav(src: Path, dst: Path) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        logger.warning("ffmpeg not found; storing validated source bytes as %s", dst)
-        src.replace(dst)
-        return
+        raise RuntimeError("ffmpeg not found; cannot convert original audio to wav")
     tmp = dst.with_suffix(".wav.tmp")
     subprocess.run(
         [ffmpeg, "-y", "-i", str(src), "-ar", "44100", "-ac", "2", "-f", "wav", str(tmp)],
@@ -263,6 +288,16 @@ def _find_existing_original(out_dir: Path) -> Path | None:
     return None
 
 
+def _safe_song_dir(song_id: str) -> Path:
+    if not song_id.strip():
+        raise ValueError("empty song_id")
+    cache_root = CACHE_DIR.resolve()
+    target = (CACHE_DIR / song_id).resolve()
+    if target == cache_root or cache_root not in target.parents:
+        raise ValueError(f"invalid song_id path: {song_id}")
+    return target
+
+
 def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) -> None:
     curl = shutil.which("curl")
     if not curl:
@@ -288,6 +323,20 @@ def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) ->
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
+async def _download_with_httpx(
+    client: httpx.AsyncClient,
+    url: str,
+    path: Path,
+    headers: dict[str, str] | None,
+) -> None:
+    async with client.stream("GET", url, headers=headers) as resp:
+        resp.raise_for_status()
+        with path.open("wb") as f:
+            async for chunk in resp.aiter_bytes():
+                if chunk:
+                    f.write(chunk)
+
+
 async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: asyncio.Semaphore) -> None:
     song_id = str(item["song_id"])
     kind = str(item["kind"])
@@ -295,10 +344,12 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
     expected_sha = info.get("sha256")
     expected_size = int(info["size"]) if info.get("size") is not None else None
     url = _final_url(str(info["url"]))
-    out_dir = CACHE_DIR / song_id
+    out_dir = _safe_song_dir(song_id)
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = _choose_ext(kind, info, url)
     final_path = out_dir / f"{kind}.{ext}"
+    if kind == "original":
+        final_path = out_dir / "original.wav"
 
     # legacy: original.wav may already exist from old runs; treat as valid for original
     if kind == "original":
@@ -318,15 +369,10 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
         for attempt in range(1, 4):
             try:
                 try:
+                    await _download_with_httpx(client, url, tmp_path, req_headers)
+                except Exception as httpx_exc:
+                    logger.warning("%s/%s httpx download failed, fallback to curl: %r", song_id, kind, httpx_exc)
                     await asyncio.to_thread(_download_with_curl, url, tmp_path, req_headers)
-                except Exception as curl_exc:
-                    logger.warning("%s/%s curl download failed, fallback to httpx: %r", song_id, kind, curl_exc)
-                    async with client.stream("GET", url, headers=req_headers) as resp:
-                        resp.raise_for_status()
-                        with tmp_path.open("wb") as f:
-                            async for chunk in resp.aiter_bytes():
-                                if chunk:
-                                    f.write(chunk)
                 if expected_size is not None and tmp_path.stat().st_size != expected_size:
                     raise ValueError(f"size mismatch {song_id}/{kind}: got {tmp_path.stat().st_size}, want {expected_size}")
                 if expected_sha and _sha256(tmp_path) != expected_sha:
@@ -340,7 +386,12 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                 is_mp3 = head[:3] == b"ID3" or (
                     len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
                 )
-                if final_path.suffix.lower() == ".wav" and is_mp3:
+                source_size = tmp_path.stat().st_size
+                converted_original = False
+                if kind == "original" and (_needs_wav_conversion(info) or is_mp3 or ext != "wav"):
+                    _convert_to_wav(tmp_path, final_path)
+                    converted_original = True
+                elif final_path.suffix.lower() == ".wav" and is_mp3:
                     mp3_path = final_path.with_suffix(".mp3")
                     tmp_path.replace(mp3_path)
                     final_path = mp3_path
@@ -348,16 +399,18 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                     tmp_path.replace(final_path)
                 if expected_sha:
                     stat = final_path.stat()
+                    meta: dict[str, Any] = {
+                        "size": stat.st_size,
+                        "mtime_ns": stat.st_mtime_ns,
+                    }
+                    if converted_original:
+                        meta["converted_from_sha256"] = expected_sha
+                        meta["converted_from_size"] = source_size
+                        meta["sha256"] = _sha256(final_path)
+                    else:
+                        meta["sha256"] = expected_sha
                     _sidecar(final_path).write_text(
-                        json.dumps(
-                            {
-                                "sha256": expected_sha,
-                                "size": stat.st_size,
-                                "mtime_ns": stat.st_mtime_ns,
-                            },
-                            ensure_ascii=False,
-                        )
-                        + "\n",
+                        json.dumps(meta, ensure_ascii=False) + "\n",
                         encoding="utf-8",
                     )
                 await state.mark_done()
@@ -402,7 +455,7 @@ async def status() -> dict[str, Any]:
 
 @app.get("/cache/check")
 async def cache_check(song_id: str) -> dict[str, Any]:
-    out_dir = CACHE_DIR / song_id
+    out_dir = _safe_song_dir(song_id)
     if not out_dir.is_dir():
         return {"ok": True, "exists": False}
     found = _find_existing_original(out_dir)
@@ -419,3 +472,14 @@ async def cache_check(song_id: str) -> dict[str, Any]:
         "size": size,
         "ext": found.suffix.lstrip("."),
     }
+
+
+@app.delete("/cache/song/{song_id}")
+async def delete_song_cache(song_id: str) -> dict[str, Any]:
+    out_dir = _safe_song_dir(song_id)
+    if not out_dir.exists():
+        return {"ok": True, "deleted": False, "song_id": song_id}
+    if not out_dir.is_dir():
+        raise ValueError(f"cache path is not a directory: {out_dir}")
+    shutil.rmtree(out_dir)
+    return {"ok": True, "deleted": True, "song_id": song_id}

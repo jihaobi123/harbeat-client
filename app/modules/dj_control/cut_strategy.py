@@ -248,7 +248,6 @@ def plan_target_energy_cut(
     cursor_sec: float,
     active_queue: Sequence,
     reserve_pool: Sequence,
-    library_pool: Sequence = (),
     target_min: float,
     target_max: float,
     current_style: str | None = None,
@@ -260,7 +259,7 @@ def plan_target_energy_cut(
     prefer_cached: bool = True,
     max_wait_sec: float = 5.0,
 ) -> dict:
-    """Preview a target-energy cut candidate from queue + reserve + library."""
+    """Preview a target-energy cut candidate from the loaded queue/reserve pool."""
     played = set(played_song_ids or set())
     blocked = set(blocked_song_ids or set())
     excluded = set(exclude_song_ids or set()) | {_song_id(current_song)}
@@ -281,14 +280,6 @@ def plan_target_energy_cut(
 
     active = eligible(active_queue, "active_queue")
     reserve = eligible(reserve_pool, "reserve_pool")
-    active_ids = {sid for _song, _source in active for sid in [_song_id(_song)]}
-    reserve_ids = {sid for _song, _source in reserve for sid in [_song_id(_song)]}
-    library = [
-        (song, "library")
-        for song, _source in eligible(library_pool, "library")
-        if _song_id(song) not in active_ids and _song_id(song) not in reserve_ids
-    ]
-
     selected = None
     fallback_reason = None
     selected_range = (target_min, target_max)
@@ -298,7 +289,6 @@ def plan_target_energy_cut(
             [x for x in reserve if _song_id(x[0]) in cached],
             [x for x in active if _song_id(x[0]) not in cached],
             [x for x in reserve if _song_id(x[0]) not in cached],
-            library,
         ]
         for stage in stages:
             items = [
@@ -356,7 +346,7 @@ def plan_target_energy_cut(
     }
     reason = [
         f"目标区间为 {target['label']}，该歌曲能量 {profile['dance_energy_score']:.0f}",
-        f"来源：{'主队列' if selected['source'] == 'active_queue' else '备选池' if selected['source'] == 'reserve_pool' else '曲库扩展'}",
+        f"来源：{'主队列' if selected['source'] == 'active_queue' else '备选池'}",
         f"缓存状态：{'已缓存，可立即切' if selected['cache_status'] == 'ready' else '正在同步' if selected['cache_status'] == 'synchronizing' else '未缓存，确认前会先同步'}",
     ]
     if current_style:
@@ -641,7 +631,6 @@ def plan_target_style_cut(
     target_style: str,
     active_queue: Sequence,
     style_reserve_pool: Sequence,
-    library_pool: Sequence = (),
     current_style: str | None = None,
     played_song_ids: set[str] | None = None,
     blocked_song_ids: set[str] | None = None,
@@ -651,7 +640,7 @@ def plan_target_style_cut(
     prefer_cached: bool = True,
     max_wait_sec: float = 5.0,
 ) -> dict:
-    """Plan a target dance style cut."""
+    """Plan a target dance style cut from the loaded queue/style reserve pool."""
     played = set(played_song_ids or set())
     blocked = set(blocked_song_ids or set())
     excluded = set(exclude_song_ids or set()) | {_song_id(current_song)}
@@ -673,14 +662,6 @@ def plan_target_style_cut(
 
     active = eligible(active_queue, "active_queue")
     reserve = eligible(style_reserve_pool, "style_reserve_pool")
-    active_ids = {sid for _song, _source in active for sid in [_song_id(_song)]}
-    reserve_ids = {sid for _song, _source in reserve for sid in [_song_id(_song)]}
-    library = [
-        (song, "library_fallback")
-        for song, _source in eligible(library_pool, "library_fallback")
-        if _song_id(song) not in active_ids and _song_id(song) not in reserve_ids
-    ]
-
     def score_candidate(song, source: str) -> dict:
         sid = _song_id(song)
         style_score = get_style_score(song, target_style)
@@ -742,7 +723,7 @@ def plan_target_style_cut(
             "confidence": style_score,  # Use style_score as confidence
         }
 
-    # Search stages: prefer cached first, then high-confidence, then fallback
+    # Search stages: prefer cached first, then high-confidence in the loaded pool.
     selected = None
     fallback_reason = None
 
@@ -775,24 +756,6 @@ def plan_target_style_cut(
                 if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
                     selected = candidate
 
-    # Stage 4: library fallback, high confidence
-    if not selected:
-        fallback_reason = f"未在主队列和风格备选池找到 {target_style} 高置信候选，已从曲库扩展"
-        for song, source in library:
-            candidate = score_candidate(song, source)
-            if candidate["style_score"] >= 0.55:
-                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
-                    selected = candidate
-
-    # Stage 5: library fallback with relaxed threshold (>=0.40)
-    if not selected:
-        fallback_reason = f"未找到 {target_style} 高置信候选，已放宽标准从曲库选择相近风格"
-        for song, source in library:
-            candidate = score_candidate(song, source)
-            if candidate["style_score"] >= 0.40:
-                if selected is None or candidate["candidate_score"] > selected["candidate_score"]:
-                    selected = candidate
-
     # No candidate found
     if selected is None:
         return {
@@ -809,7 +772,7 @@ def plan_target_style_cut(
             "selected_song": None,
             "fallback": True,
             "fallback_reason": f"未找到可用的 {target_style} 风格候选",
-            "reason": [f"当前曲库没有足够可信的 {target_style} 风格歌曲"],
+            "reason": [f"当前已加载候选池没有足够可信的 {target_style} 风格歌曲"],
         }
 
     # Build response

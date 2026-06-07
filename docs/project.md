@@ -1,6 +1,6 @@
 # HarBeat 项目交接与真实部署手册
 
-版本日期：2026-06-04  
+版本日期：2026-06-07
 适用对象：后续开发者、部署运维人员、接手项目的 AI Agent  
 覆盖范围：FastAPI 后端、Flutter 手机 App、Jetson 后端部署、RK3588 播放端、DJ Control、风格/能量切歌、现场同步与排障。
 
@@ -256,13 +256,15 @@ mobile/lib/src/api_client.dart
 
 mobile/lib/src/dj_control_page.dart
   - _prepareLivePoolForOrdered(...)
-  - _warmActiveQueueAndReservePool(...)
-  - _syncRemainingTracksInBackground(...)
+  - _syncMissingLiveCandidatesBeforePlay(...)
+  - _syncMissingCacheFilesForIds(...)
+  - _ensurePlayableRkCacheIds(...)
+  - _resetLiveSessionForNewSet(...)
   - _previewTargetStyle(...)
   - _confirmTargetStyleCut(...)
   - _previewTargetEnergy(...)
   - _confirmTargetEnergyCut(...)
-  - _backgroundSyncInProgress
+  - _backgroundSyncInProgress 表示启动前候选池同步/校验中
 ```
 
 ### 3.3 RK3588 集成代码
@@ -298,8 +300,8 @@ cypher-integration/rk3588-edge/deploy/*.service
 | 舞种选歌 | `app/modules/dj_control/router.py`, `cut_strategy.py`, `style_reference_profiles.py` | `/api/dj/styles/pick` 和实时风格切歌都依赖舞种分数 |
 | 实时风格切歌 | `app/modules/dj_control/cut_strategy.py`, `schemas.py`, `router.py`, `mobile/lib/src/api_client.dart`, `dj_control_page.dart` | intent/strategy 为 `target_dance_style` |
 | 实时能量切歌 | `app/modules/dj_control/cut_strategy.py`, `energy_hiphop.py`, `mobile/lib/src/dj_control_page.dart` | 关注 `dance_energy_score` 和候选池 |
-| 预加载/备用池/RK 同步 | `prepare_live_pool(...)`, `mobile/lib/src/sync_worker_client.dart`, `cypher-integration/rk3588-edge/sync-worker/main.py` | 关注 `style_reserve_pool`、`sync_priority`、缓存状态 |
-| DJ Control UI | `mobile/lib/src/dj_control_page.dart` | 按钮禁用、预览卡片、确认切歌、背景同步提示 |
+| 预加载/备用池/RK 同步 | `prepare_live_pool(...)`, `mobile/lib/src/sync_worker_client.dart`, `cypher-integration/rk3588-edge/sync-worker/main.py` | 当前策略是启动前同步并校验全部候选池，播放期间不后台拉取 |
+| DJ Control UI | `mobile/lib/src/dj_control_page.dart` | 按钮禁用、预览卡片、确认切歌、启动前候选池同步提示 |
 | RK 播放控制 | `cypher-integration/rk3588-edge/edge-agent/*` | App 到 RK 的控制协议 |
 | RK 混音/xfade | `cypher-integration/rk3588-edge/audio-engine/*` | 播放行为、转场、音量包络 |
 | APK 地址配置 | `mobile/lib/src/app.dart` | 公网 API 和 RK LAN 地址 |
@@ -309,7 +311,7 @@ cypher-integration/rk3588-edge/deploy/*.service
 
 ## 5. 实时舞种风格切歌链路
 
-目标：DJ Control 播放中，用户点击 Popping / Locking / House 等目标舞种，系统推荐下一首更适合该舞种的歌，用户确认后插入下一首，并让 RK 预取/播放。
+目标：DJ Control 播放中，用户点击 Popping / Locking / House 等目标舞种，系统只从当前已加载的主队列和风格备选池中推荐下一首，用户确认后插入下一首，并让 RK 执行转场/播放。
 
 当前实现链路：
 
@@ -334,7 +336,7 @@ app/modules/dj_control/router.py
 
 app/modules/dj_control/cut_strategy.py
   - prepare_live_pool(...) 生成 style_reserve_pool/style_pool_status/sync_priority
-  - plan_target_style_cut(...) 从主队列、风格备用池、曲库兜底里找候选
+  - plan_target_style_cut(...) 只从主队列和风格备用池里找候选，不再临时扩展整曲库
 
 app/modules/dj_control/schemas.py
   - CutPlanRequest.strategy 允许 target_dance_style
@@ -352,7 +354,21 @@ mobile/lib/src/dj_control_page.dart
   - _previewTargetStyle(...)
   - _confirmTargetStyleCut(...)
   - _targetStyleCard(...)
-  - _backgroundSyncInProgress 控制首批同步完成前不允许切歌
+  - _backgroundSyncInProgress 控制候选池同步/校验完成前不允许切歌
+```
+
+当前 DJ Control 缓存/播放策略：
+
+```text
+1. 用户选择舞种/时长并开始播放。
+2. App 调用 /api/dj/live/pool/prepare，拿到主队列、能量备选池、风格备选池。
+3. App 汇总主队列 + reserve_pool + style_reserve_pool 的所有候选 song_id。
+4. App 通过 sync-worker 将缺失音源同步到 RK。
+5. App 通过 edge-agent /cache/validate 要求 audio-engine 实际解码校验。
+6. 若校验失败，App 调用 sync-worker 删除对应缓存并重新拉取，然后再次 validate。
+7. 全部候选池和首选播放队列都 ready 后，才调用 edge-agent /play 播放第一首。
+8. 播放期间不再进行后台拉取，切歌前只做目标歌的轻量 playable check。
+9. 如果 /xfade 到达 RK 时 audio-engine 已经停播，audio-engine 会兜底为 play_fallback，直接播放目标歌，避免 200 OK 但静音。
 ```
 
 测试文件：
@@ -540,7 +556,7 @@ mobile/lib/src/dj_control_page.dart
 
 ### 7.5 RK 报缺少 original / 409 / 缓存失败
 
-这通常是 RK 本地还没有同步对应音频，或 manifest 的 asset URL 不可达。
+这通常是 RK 本地还没有同步对应音频、缓存文件损坏、manifest 的 asset URL 不可达，或旧缓存 sidecar 与真实文件不匹配。
 
 检查：
 
@@ -548,6 +564,8 @@ mobile/lib/src/dj_control_page.dart
 ssh cat@192.168.43.7
 curl http://127.0.0.1:9100/status
 journalctl -u cypher-sync-worker -n 160 --no-pager
+journalctl -u cypher-edge-agent -n 160 --no-pager
+journalctl -u cypher-audio-engine -n 160 --no-pager
 ```
 
 再确认 Jetson asset URL：
@@ -563,7 +581,20 @@ app/modules/manifest/router.py
 app/modules/assets/router.py
 mobile/lib/src/sync_worker_client.dart
 cypher-integration/rk3588-edge/sync-worker/main.py
+cypher-integration/rk3588-edge/edge-agent/main.py
+cypher-integration/rk3588-edge/audio-engine/engine.py
 ```
+
+当前 App 启动播放前会调用：
+
+```text
+sync-worker /cache/check
+sync-worker /sync
+edge-agent /cache/validate
+sync-worker DELETE /cache/song/{song_id}
+```
+
+如果 `/cache/validate` 失败，App 会删除该歌 RK 缓存并重新拉取；全部歌曲 validate 成功后才会 `/play`。
 
 ### 7.6 播放、xfade 或现场控制异常
 
@@ -582,6 +613,15 @@ cypher-integration/rk3588-edge/edge-agent/*
 cypher-integration/rk3588-edge/audio-engine/*
 mobile/lib/src/edge_agent_client.dart
 ```
+
+若日志里看到 `/xfade 200 OK` 但 RK `/state` 是 `playing=false`，重点看 audio-engine 是否返回：
+
+```text
+action=play_fallback
+reason=engine_not_playing / engine_stopped_during_load
+```
+
+这个兜底表示 xfade 请求到来时播放器已停，audio-engine 已直接改为播放目标歌。若没有出现兜底日志，说明部署到 RK 的 `engine.py` 不是最新版本或 audio-engine 没重启。
 
 ---
 
@@ -618,10 +658,10 @@ python -m pytest cypher-integration/rk3588-edge/tests
 3. App 登录成功
 4. 进入 DJ Control
 5. 准备 live pool
-6. 等首批 active queue / reserve pool 同步完成
+6. 等主队列 + 能量备选池 + 风格备选池全部同步并通过 /cache/validate
 7. 点击目标舞种预览
 8. 确认切歌
-9. RK 正常预取和播放
+9. RK 正常 xfade；若当前播放已结束，应看到 play_fallback 并直接播放目标歌
 ```
 
 ---

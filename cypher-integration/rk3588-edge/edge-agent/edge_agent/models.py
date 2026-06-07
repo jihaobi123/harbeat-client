@@ -59,6 +59,13 @@ class PrefetchRequest(BaseModel):
     song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=8)
 
 
+class ValidateCacheRequest(BaseModel):
+    """Verify cached songs by decoding them in audio-engine before playback."""
+
+    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    require_stems: bool = False
+
+
 class PrewarmBeatmatchRequest(BaseModel):
     song_id: Union[int, str]
     tempo_ratio: Optional[float] = None

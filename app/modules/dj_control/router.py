@@ -270,17 +270,11 @@ def plan_cut_endpoint(
         } if all_ids else {}
         active = [songs_by_id[sid] for sid in active_ids if sid in songs_by_id]
         reserve = [songs_by_id[sid] for sid in reserve_ids if sid in songs_by_id]
-        library_songs = (
-            db.query(LibrarySong)
-            .filter(LibrarySong.user_id == current_user.id)
-            .all()
-        )
         plan = cut_strategy.plan_target_energy_cut(
             current_song=current,
             cursor_sec=payload.cursor_sec,
             active_queue=active,
             reserve_pool=reserve,
-            library_pool=library_songs,
             target_min=target_min,
             target_max=target_max,
             current_style=payload.current_style,
@@ -313,18 +307,12 @@ def plan_cut_endpoint(
         } if all_ids else {}
         active = [songs_by_id[sid] for sid in active_ids if sid in songs_by_id]
         style_reserve = [songs_by_id[sid] for sid in style_reserve_ids if sid in songs_by_id]
-        library_songs = (
-            db.query(LibrarySong)
-            .filter(LibrarySong.user_id == current_user.id)
-            .all()
-        )
         plan = cut_strategy.plan_target_style_cut(
             current_song=current,
             cursor_sec=payload.cursor_sec,
             target_style=payload.target_style,
             active_queue=active,
             style_reserve_pool=style_reserve,
-            library_pool=library_songs,
             current_style=payload.current_style,
             played_song_ids=set(payload.played_song_ids),
             blocked_song_ids=set(payload.blocked_song_ids),

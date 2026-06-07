@@ -24,12 +24,6 @@ SAMPLES_DIR = CYPHER_HOME / "samples"
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")
 STEM_AWARE_STYLES = {
     # 专业 DJ 转场（需要 stems）
-    "smooth",
-    "bass_swap",
-    "echo_out",
-    "echo_freeze",
-    "filter",
-    "slam",
     # 自定义转场（需要 stems）
     "drum_swap",
     "vocal_ducking",
@@ -616,8 +610,44 @@ class AudioEngineMVP:
         ~/cypher/cache/{song_id}/original.wav，否则会抛 SongCacheError。
         style: 7 种 DJ 切歌风格，默认 smooth。
         """
+        safe_to_at_sec = float(max(0.0, to_at_sec))
+        safe_fade_sec = float(max(0.05, fade_sec))
+        requested_style = str(style or "smooth")
+
+        stopped_reason = None
         with self._lock:
             if self.active_deck.audio is None:
+                stopped_reason = "no_active_audio"
+            elif not self._playing:
+                stopped_reason = "engine_not_playing"
+            elif self._paused:
+                stopped_reason = "engine_paused"
+
+        if stopped_reason is not None:
+            logger.info(
+                "xfade fallback to play: reason=%s to=%s at=%.2fs",
+                stopped_reason,
+                to_song_id,
+                safe_to_at_sec,
+            )
+            play_result = self.play(to_song_id, safe_to_at_sec)
+            return {
+                "action": "play_fallback",
+                "reason": stopped_reason,
+                "transition_id": transition_id,
+                "to_song_id": to_song_id,
+                "fade_sec": safe_fade_sec,
+                "to_at_sec": safe_to_at_sec,
+                "style": requested_style,
+                "fallback_style": fallback_style,
+                "playback_tier": self._current_playback_tier(),
+                "degraded": False,
+                "degrade_reason": None,
+                **play_result,
+            }
+
+        with self._lock:
+            if self.active_deck.audio is None or not self._playing or self._paused:
                 raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
             # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
             # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
@@ -631,10 +661,10 @@ class AudioEngineMVP:
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
                 from_at_sec=self.active_deck.pos_sec,
-                to_at_sec=float(max(0.0, to_at_sec)),
-                fade_sec=float(max(0.05, fade_sec)),
+                to_at_sec=safe_to_at_sec,
+                fade_sec=safe_fade_sec,
                 transition_id=transition_id,
-                style=str(style or "smooth"),
+                style=requested_style,
                 fallback_style=fallback_style,
                 tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
                 phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
@@ -650,12 +680,55 @@ class AudioEngineMVP:
         # beatmatched stems as a bundle, stem-aware styles must load source
         # stems and leave tempo handling to cue selection.
         audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
-        deck.load(to_song_id, to_at_sec, load_stems=want_stems, audio_path=audio_path)
+        deck.load(to_song_id, safe_to_at_sec, load_stems=want_stems, audio_path=audio_path)
         self._apply_loudness_gain(deck, to_song_id)
 
         with self._lock:
+            stopped_reason = None
             if self.active_deck.audio is None:
-                raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+                stopped_reason = "no_active_audio_after_load"
+            elif not self._playing:
+                stopped_reason = "engine_stopped_during_load"
+            elif self._paused:
+                stopped_reason = "engine_paused_during_load"
+            if stopped_reason is not None:
+                self._ensure_stream()
+                self._active = "a"
+                self.deck_a = deck
+                self.deck_b.clear()
+                self._playing = True
+                self._paused = False
+                self._in_transition = False
+                self._transition_index = 0
+                self._next_preloaded = False
+                self._preload_requested = None
+                self._one_shot_keys.clear()
+                self.stem_fx = None
+                self._stem_solo = None
+                self._plan_enabled = False
+                duration_sec = len(deck.audio) / SAMPLE_RATE if deck.audio is not None else 0.0
+                logger.info(
+                    "xfade fallback installed loaded deck: reason=%s to=%s at=%.2fs",
+                    stopped_reason,
+                    to_song_id,
+                    safe_to_at_sec,
+                )
+                return {
+                    "action": "play_fallback",
+                    "reason": stopped_reason,
+                    "transition_id": transition_id,
+                    "to_song_id": to_song_id,
+                    "song_id": to_song_id,
+                    "position_sec": safe_to_at_sec,
+                    "duration_sec": duration_sec,
+                    "fade_sec": safe_fade_sec,
+                    "to_at_sec": safe_to_at_sec,
+                    "style": requested_style,
+                    "fallback_style": fallback_style,
+                    "playback_tier": self._current_playback_tier(),
+                    "degraded": False,
+                    "degrade_reason": None,
+                }
             # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
             # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
             if self._in_transition:
@@ -668,10 +741,10 @@ class AudioEngineMVP:
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
                 from_at_sec=self.active_deck.pos_sec,
-                to_at_sec=float(max(0.0, to_at_sec)),
-                fade_sec=float(max(0.05, fade_sec)),
+                to_at_sec=safe_to_at_sec,
+                fade_sec=safe_fade_sec,
                 transition_id=transition_id,
-                style=str(style or "smooth"),
+                style=requested_style,
                 fallback_style=fallback_style,
                 tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
                 phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
@@ -777,6 +850,59 @@ class AudioEngineMVP:
             logger.info("prefetch ok: %s in %.0fms (cache=%d)", song_id, dt, len(_PREFETCH_CACHE))
         except Exception as e:
             logger.warning("prefetch failed for %s: %s", song_id, e)
+
+    def validate_cache(self, song_ids: list[int | str], require_stems: bool = False) -> dict:
+        """Synchronously verify that cached songs are actually decodable."""
+        ready: list[str] = []
+        failed: list[str] = []
+        results: list[dict] = []
+        seen: set[str] = set()
+
+        for sid in song_ids:
+            key = str(sid)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            try:
+                t0 = time.time()
+                path = check_song_cache(sid, require_stems=require_stems)
+                audio = _load_wav_stereo(path)
+                stems_ready: list[str] = []
+                if require_stems:
+                    for name in REQUIRED_STEMS:
+                        stem_path = _song_dir(sid) / f"{name}.wav"
+                        _load_wav_stereo(stem_path)
+                        stems_ready.append(name)
+                duration_sec = len(audio) / SAMPLE_RATE if len(audio) else 0.0
+                dt = (time.time() - t0) * 1000
+                ready.append(key)
+                results.append(
+                    {
+                        "song_id": key,
+                        "ready": True,
+                        "path": str(path),
+                        "duration_sec": round(duration_sec, 3),
+                        "stems": stems_ready,
+                        "elapsed_ms": round(dt),
+                    }
+                )
+            except Exception as exc:
+                logger.warning("cache validation failed for %s: %s", sid, exc)
+                failed.append(key)
+                results.append(
+                    {
+                        "song_id": key,
+                        "ready": False,
+                        "error": str(exc),
+                    }
+                )
+
+        return {
+            "all_ready": not failed,
+            "ready": ready,
+            "failed": failed,
+            "results": results,
+        }
 
     def _apply_loudness_gain(self, deck: Deck, song_id: int | str) -> None:
         """从 plan.track_meta 取 replay_gain_db 并套到 deck 上。"""

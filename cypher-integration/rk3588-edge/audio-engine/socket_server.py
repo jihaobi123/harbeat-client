@@ -90,6 +90,13 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
         result = engine.prefetch(list(raw))
         return {"ok": True, **result}
+    if cmd == "validate_cache":
+        raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
+        result = engine.validate_cache(
+            list(raw),
+            require_stems=bool(msg.get("require_stems", False)),
+        )
+        return {"ok": True, **result}
     if cmd in ("prewarm_beatmatch", "beat_reinforce"):
         return {"ok": False, "supported": False, "reason": "not_implemented", "code": 501}
     if cmd == "trigger":

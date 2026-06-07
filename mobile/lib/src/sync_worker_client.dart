@@ -60,8 +60,9 @@ class SyncWorkerClient {
   }
 
   Future<SyncStatus> getStatus() async {
-    final resp =
-        await http.get(_u('/status')).timeout(const Duration(seconds: 5));
+    final resp = await http
+        .get(_u('/status'))
+        .timeout(const Duration(seconds: 5));
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /status ${resp.statusCode}: ${resp.body}');
     }
@@ -84,6 +85,18 @@ class SyncWorkerClient {
   }
 
   /// 健康探测：返回 true 表示 sync-worker 可达。
+  Future<Map<String, dynamic>> deleteSongCache(String songId) async {
+    final resp = await http
+        .delete(_u('/cache/song/${Uri.encodeComponent(songId)}'))
+        .timeout(const Duration(seconds: 10));
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception(
+        'sync-worker delete cache ${resp.statusCode}: ${resp.body}',
+      );
+    }
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
   Future<bool> ping() async {
     try {
       await getStatus();
@@ -149,12 +162,12 @@ class SyncStatus {
   final List<String> errors;
 
   factory SyncStatus.empty() => SyncStatus(
-        running: false,
-        total: 0,
-        downloaded: 0,
-        completed: 0,
-        percent: 0,
-      );
+    running: false,
+    total: 0,
+    downloaded: 0,
+    completed: 0,
+    percent: 0,
+  );
 
   factory SyncStatus.fromJson(Map<String, dynamic> json) {
     return SyncStatus(
@@ -165,9 +178,10 @@ class SyncStatus {
       percent: (json['percent'] as num?)?.toDouble() ?? 0,
       planId: json['plan_id']?.toString(),
       currentFile: json['current_file']?.toString(),
-      errors: (json['errors'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      errors:
+          (json['errors'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 }

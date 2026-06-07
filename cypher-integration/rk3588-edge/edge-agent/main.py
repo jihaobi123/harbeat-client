@@ -24,6 +24,7 @@ from edge_agent.models import (
   SeekRequest,
   StemSoloRequest,
   TriggerRequest,
+  ValidateCacheRequest,
   XfadeRequest,
 )
 from edge_agent.state import edge_state
@@ -31,7 +32,7 @@ from edge_agent.transition_api import router as transition_router
 
 logger = logging.getLogger(__name__)
 
-DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "prefetch"}
+DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "prefetch", "validate_cache"}
 DECODE_HEAVY_AUDIO_TIMEOUT_SEC = 60.0
 
 
@@ -279,6 +280,17 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
 async def prefetch(req: PrefetchRequest) -> dict[str, Any]:
   """预解码候选歌曲到 RK 内存，跳过后续 /xfade 的磁盘 IO。未同步到 RK 的 song_id 会静默忽略。"""
   result = await _forward("prefetch", song_ids=req.song_ids)
+  return {"ok": True, "result": result}
+
+
+@app.post("/cache/validate", dependencies=[Depends(_optional_auth)])
+async def validate_cache(req: ValidateCacheRequest) -> dict[str, Any]:
+  """Decode cached songs synchronously so playback only starts with good files."""
+  result = await _forward(
+    "validate_cache",
+    song_ids=req.song_ids,
+    require_stems=req.require_stems,
+  )
   return {"ok": True, "result": result}
 
 
