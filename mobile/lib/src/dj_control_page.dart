@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -99,14 +99,9 @@ class _DjControlPageState extends State<DjControlPage> {
   int _liveSessionId = 0;
   bool _liveStartInFlight = false;
 
-  /// Smart plan pre-fetched while the current track is within 30s of its
-  /// phrase-aligned exit. Lets us trigger the xfade exactly at the planned
-  /// outro/break boundary instead of guessing from "remaining ≤ Ns".
-  /// Keyed by the prev song id; cleared after the xfade fires or the queue
-  /// advances.
-  String? _smartPlanForSongId;
-  Map<String, dynamic>? _smartPlan;
-  bool _smartPlanInFlight = false;
+  final Set<String> _startupValidatedCacheIds = <String>{};
+  final Map<int, Map<String, dynamic>> _preparedTransitionPlans =
+      <int, Map<String, dynamic>>{};
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
@@ -214,9 +209,8 @@ class _DjControlPageState extends State<DjControlPage> {
     _lastXfadeAt = null;
     _lastXfadeSec = 0.0;
     _lastXfadeToSongId = null;
-    _smartPlanForSongId = null;
-    _smartPlan = null;
-    _smartPlanInFlight = false;
+    _startupValidatedCacheIds.clear();
+    _preparedTransitionPlans.clear();
     _cutInfo = null;
     _activeRule = null;
     _lastXfadeFromIdx = -1;
@@ -800,6 +794,181 @@ class _DjControlPageState extends State<DjControlPage> {
     return _rkStyle(rawRuleKey, fallback: fallback);
   }
 
+  bool _isEqBandPlan(Map<String, dynamic>? plan) =>
+      plan?['transition_mode']?.toString() == 'eq_band_mix';
+
+  String? _cacheIdForSong(LibrarySong song) {
+    final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
+    if (id == null || id.trim().isEmpty) return null;
+    return id.trim();
+  }
+
+  Future<Map<String, dynamic>> _planEqBandTransition({
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+    String? ruleKey,
+    String? targetStyle,
+  }) async {
+    try {
+      return await widget.apiClient.djPlanTransition(
+        token: widget.token,
+        prevSongId: prev.id,
+        nextSongId: next.id,
+        cursorSec: cursorSec,
+        ruleKey: ruleKey,
+        transitionMode: 'eq_band_mix',
+        eqMixUserMode: 'auto',
+        targetStyle: targetStyle,
+      );
+    } catch (_) {
+      return await widget.apiClient.djPlanTransition(
+        token: widget.token,
+        prevSongId: prev.id,
+        nextSongId: next.id,
+        cursorSec: cursorSec,
+        ruleKey: ruleKey,
+      );
+    }
+  }
+
+  double _preplanCursorSec(LibrarySong prev) {
+    final duration = prev.duration;
+    if (duration <= 0) return 0.0;
+    return math.max(0.0, duration - 45.0);
+  }
+
+  Map<String, dynamic> _localFallbackTransitionPlan({
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) {
+    final fadeSec = 8.0;
+    final fromAtSec =
+        prev.duration > fadeSec + 3.0 ? prev.duration - fadeSec - 3.0 : 0.0;
+    return <String, dynamic>{
+      'transition_mode': 'ordinary_xfade',
+      'rule_key': 'startup_prepared_blend',
+      'rule_label_zh': 'Prepared blend',
+      'duration_sec': fadeSec,
+      'fade_sec': fadeSec,
+      'from_at_sec': fromAtSec,
+      'to_at_sec': 0.0,
+      'start_in_prev': fromAtSec,
+      'start_in_next': 0.0,
+      'to_song_id': _cacheIdForSong(next),
+      'style': 'blend',
+      'rk_style': 'blend',
+      'fallback_style': 'blend',
+    };
+  }
+
+  Future<Map<String, dynamic>> _prepareTransitionPlanForPair({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) async {
+    final canonical = _canonicalPlanFor(
+      transitionIndex: transitionIndex,
+      prev: prev,
+      next: next,
+    );
+    try {
+      return await _planEqBandTransition(
+        prev: prev,
+        next: next,
+        cursorSec: _preplanCursorSec(prev),
+        ruleKey: canonical?['rule_key']?.toString(),
+      );
+    } catch (_) {
+      return canonical ?? _localFallbackTransitionPlan(prev: prev, next: next);
+    }
+  }
+
+  Future<void> _prepareAllTransitionPlansBeforePlay(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    _preparedTransitionPlans.clear();
+    if (ordered.length < 2) return;
+
+    for (var i = 0; i < ordered.length - 1; i++) {
+      if (!_isActiveLiveSession(sessionId)) return;
+      final prev = ordered[i];
+      final next = ordered[i + 1];
+      if (_isActiveLiveSession(sessionId)) {
+        setState(() {
+          _cutInfo =
+              'Preparing transition plans ${i + 1}/${ordered.length - 1}';
+        });
+      }
+      final plan = await _prepareTransitionPlanForPair(
+        transitionIndex: i,
+        prev: prev,
+        next: next,
+      );
+      _preparedTransitionPlans[i] = plan;
+    }
+  }
+
+  Map<String, dynamic> _preparedTransitionPlanFor({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) {
+    final prepared = _preparedTransitionPlans[transitionIndex];
+    if (prepared != null) return Map<String, dynamic>.from(prepared);
+    return _canonicalPlanFor(
+      transitionIndex: transitionIndex,
+      prev: prev,
+      next: next,
+    ) ??
+        _localFallbackTransitionPlan(prev: prev, next: next);
+  }
+
+  Future<Map<String, dynamic>> _edgeXfadeFromPlan({
+    required LibrarySong target,
+    required Map<String, dynamic> plan,
+    required double fadeSec,
+    required double toAtSec,
+    required String ruleKey,
+    String fallback = 'blend',
+  }) {
+    final stemCurves = plan['stem_curves'];
+    final eqCurves = plan['eq_curves'];
+    final fallbackStyle = plan['fallback_style']?.toString();
+    Map<String, dynamic>? transitionPlan;
+    if (_isEqBandPlan(plan)) {
+      transitionPlan = Map<String, dynamic>.from(plan);
+      transitionPlan['fade_sec'] = fadeSec;
+      transitionPlan['duration_sec'] = fadeSec;
+      transitionPlan['to_at_sec'] = toAtSec;
+      final target = _asStringMap(transitionPlan['target']) ?? <String, dynamic>{};
+      target['start_cue_sec'] = toAtSec;
+      transitionPlan['target'] = target;
+    }
+    return widget.edgeClient.xfade(
+      toSongId: _rkIdForXfade(target),
+      fadeSec: fadeSec,
+      toAtSec: toAtSec,
+      style: _plannedRkStyle(plan, ruleKey, fallback: fallback),
+      transitionId: plan['transition_id']?.toString(),
+      fallbackStyle:
+          fallbackStyle == null ? null : _rkStyle(fallbackStyle, fallback: fallback),
+      tempoRatio: (plan['tempo_ratio'] as num?)?.toDouble(),
+      stemCurves:
+          stemCurves is Map<String, dynamic>
+              ? stemCurves
+              : (stemCurves is Map ? Map<String, dynamic>.from(stemCurves) : null),
+      eqCurves:
+          eqCurves is Map<String, dynamic>
+              ? eqCurves
+              : (eqCurves is Map ? Map<String, dynamic>.from(eqCurves) : null),
+      transitionMode: transitionPlan == null ? null : 'eq_band_mix',
+      transitionPlan: transitionPlan,
+      phaseAnchorSec: (plan['phase_anchor_sec'] as num?)?.toDouble(),
+    );
+  }
+
   String? _xfadeResultHint(Map<String, dynamic>? response) {
     if (response == null) return null;
     final result = _asStringMap(response['result']);
@@ -889,9 +1058,15 @@ class _DjControlPageState extends State<DjControlPage> {
   /// edge-agent's `/xfade` will 409 ("缺少 original.*") if it's invoked the
   /// instant the response lands but before fsync completes.
   Future<void> _assertRkCacheReady(LibrarySong song) async {
-    final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
+    final id = _cacheIdForSong(song);
     if (id == null || id.isEmpty) {
       throw Exception('song ${song.title} missing song_id');
+    }
+    if (_liveStarted && !_backgroundSyncInProgress) {
+      if (_startupValidatedCacheIds.contains(id)) return;
+      throw Exception(
+        'song ${song.title} was not validated before playback; refusing live cache check',
+      );
     }
     await _waitForSyncWorkerIdleBeforeStartup();
     await _ensurePlayableRkCacheIds(
@@ -1131,6 +1306,44 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
+  List<Object> _liveQueueDecodeIds(List<LibrarySong> ordered) {
+    final ids = <Object>[];
+    final seen = <String>{};
+    for (final song in ordered) {
+      final id = _rkIdForXfade(song);
+      if (seen.add(id.toString())) ids.add(id);
+    }
+    return ids;
+  }
+
+  Future<void> _prefetchLiveQueueBeforePlay(
+    List<LibrarySong> ordered,
+    int? sessionId,
+  ) async {
+    final ids = _liveQueueDecodeIds(ordered);
+    if (ids.isEmpty) return;
+    if (!_isCachePrepActive(sessionId)) return;
+    setState(() {
+      _cutInfo = 'Preloading RK audio engine ${ids.length} queued songs';
+    });
+    final response = await widget.edgeClient.prefetch(
+      songIds: ids,
+      wait: true,
+      loadStems: false,
+    );
+    final result = _asStringMap(response['result']) ?? response;
+    final failed = result['failed'];
+    if (failed is List && failed.isNotEmpty) {
+      throw Exception('RK prefetch failed: ${failed.join(', ')}');
+    }
+    final ready = result['ready'];
+    if (ready is List && ready.length < ids.length) {
+      throw Exception(
+        'RK prefetch incomplete: ${ready.length}/${ids.length} ready',
+      );
+    }
+  }
+
   /// Sync the full live queue and all reserve/style candidates before playback.
   /// This intentionally blocks the first song until RK has the complete pool.
   // ignore: unused_element
@@ -1150,76 +1363,13 @@ class _DjControlPageState extends State<DjControlPage> {
       ids,
       stageLabel: 'Checking RK playable pool',
     );
+    _startupValidatedCacheIds
+      ..clear()
+      ..addAll(ids);
 
-    final startupDecodeIds = ordered
-        .take(math.min(3, ordered.length))
-        .map((s) => _rkIdForXfade(s))
-        .toList(growable: false);
-    if (startupDecodeIds.isNotEmpty) {
-      await widget.edgeClient.prefetch(songIds: startupDecodeIds);
-    }
+    await _prefetchLiveQueueBeforePlay(ordered, null);
     if (mounted) {
       setState(() => _cutInfo = 'RK candidate pool is playable, starting playback');
-    }
-    return;
-
-    // ignore: dead_code
-    final tracks = <Map<String, dynamic>>[];
-    for (var i = 0; i < ids.length; i++) {
-      final candidateId = ids[i];
-      final song = _songById(candidateId);
-      final id = song?.id.isNotEmpty == true ? song!.id : candidateId;
-      if (id.isEmpty) {
-        continue;
-      }
-      _setCacheStatus(id, 'syncing');
-      if (mounted) {
-        setState(() {
-          final label = song == null ? id : song.title;
-          _cutInfo = '准备同步全部候选到 RK ${i + 1}/${ids.length}: $label';
-        });
-      }
-      tracks.add(
-        await widget.apiClient.getSongManifest(token: widget.token, songId: id),
-      );
-    }
-
-    if (tracks.isEmpty) return;
-    await _sync.syncAndWait(
-      tracks: tracks,
-      planId: 'dj-startup-all-${DateTime.now().millisecondsSinceEpoch}',
-      timeout: const Duration(hours: 2),
-      onProgress: (st) {
-        if (!mounted) return;
-        setState(() {
-          _cutInfo =
-              '同步全部候选到 RK ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)';
-        });
-      },
-    );
-
-    for (final candidateId in ids) {
-      final song = _songById(candidateId);
-      final id = song?.id.isNotEmpty == true ? song!.id : candidateId;
-      if (id.isEmpty) continue;
-      if (await _sync.cacheExists(id)) {
-        _prefetched.add(id);
-        _setCacheStatus(id, 'ready');
-      } else {
-        _setCacheStatus(id, 'failed');
-        throw Exception('RK cache missing after full candidate sync: $id');
-      }
-    }
-
-    final decodeIds = ordered
-        .take(math.min(3, ordered.length))
-        .map((s) => _rkIdForXfade(s))
-        .toList(growable: false);
-    if (decodeIds.isNotEmpty) {
-      await widget.edgeClient.prefetch(songIds: decodeIds);
-    }
-    if (mounted) {
-      setState(() => _cutInfo = 'RK 候选池已全部缓存，正在启动播放');
     }
   }
 
@@ -1244,92 +1394,15 @@ class _DjControlPageState extends State<DjControlPage> {
       stageLabel: 'Checking RK playable pool',
     );
     if (!_isActiveLiveSession(sessionId)) return;
+    _startupValidatedCacheIds
+      ..clear()
+      ..addAll(ids);
 
-    final startupDecodeIds = ordered
-        .take(math.min(3, ordered.length))
-        .map((s) => _rkIdForXfade(s))
-        .toList(growable: false);
-    if (startupDecodeIds.isNotEmpty) {
-      await widget.edgeClient.prefetch(songIds: startupDecodeIds);
-    }
+    await _prefetchLiveQueueBeforePlay(ordered, sessionId);
+    if (!_isActiveLiveSession(sessionId)) return;
     if (_isActiveLiveSession(sessionId)) {
       setState(() {
         _cutInfo = 'RK candidate pool is playable, starting playback';
-      });
-    }
-    return;
-
-    // ignore: dead_code
-    final tracks = <Map<String, dynamic>>[];
-    var reused = 0;
-    for (var i = 0; i < ids.length; i++) {
-      final candidateId = ids[i];
-      final song = _songById(candidateId);
-      final id = song?.id.isNotEmpty == true ? song!.id : candidateId;
-      if (id.isEmpty) continue;
-
-      if (_prefetched.contains(id) || await _sync.cacheExists(id)) {
-        reused += 1;
-        _prefetched.add(id);
-        _setCacheStatusForSession(sessionId, id, 'ready');
-        continue;
-      }
-
-      _setCacheStatusForSession(sessionId, id, 'syncing');
-      if (_isActiveLiveSession(sessionId)) {
-        setState(() {
-          final label = song == null ? id : song.title;
-          _cutInfo =
-              '准备同步新增候选到 RK ${tracks.length + 1}: $label（已复用 $reused/${i + 1}）';
-        });
-      }
-      tracks.add(
-        await widget.apiClient.getSongManifest(token: widget.token, songId: id),
-      );
-      if (!_isActiveLiveSession(sessionId)) return;
-    }
-
-    if (tracks.isNotEmpty) {
-      await _sync.syncAndWait(
-        tracks: tracks,
-        planId: 'dj-startup-all-${DateTime.now().millisecondsSinceEpoch}',
-        timeout: const Duration(hours: 2),
-        onProgress: (st) {
-          if (!_isActiveLiveSession(sessionId)) return;
-          setState(() {
-            _cutInfo =
-                '同步新增候选到 RK ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)，已复用 $reused 首';
-          });
-        },
-      );
-    }
-    if (!_isActiveLiveSession(sessionId)) return;
-
-    for (final candidateId in ids) {
-      final song = _songById(candidateId);
-      final id = song?.id.isNotEmpty == true ? song!.id : candidateId;
-      if (id.isEmpty) continue;
-      if (await _sync.cacheExists(id)) {
-        _prefetched.add(id);
-        _setCacheStatusForSession(sessionId, id, 'ready');
-      } else {
-        _setCacheStatusForSession(sessionId, id, 'failed');
-        throw Exception('RK cache missing after live candidate sync: $id');
-      }
-      if (!_isActiveLiveSession(sessionId)) return;
-    }
-
-    final decodeIds = ordered
-        .take(math.min(3, ordered.length))
-        .map((s) => _rkIdForXfade(s))
-        .toList(growable: false);
-    if (decodeIds.isNotEmpty) {
-      await widget.edgeClient.prefetch(songIds: decodeIds);
-    }
-    if (_isActiveLiveSession(sessionId)) {
-      setState(() {
-        _cutInfo =
-            tracks.isEmpty ? 'RK 候选池已全部命中缓存，正在启动播放' : 'RK 候选池已全部缓存，正在启动播放';
       });
     }
   }
@@ -1370,8 +1443,6 @@ class _DjControlPageState extends State<DjControlPage> {
       _lastXfadeSec = 0.0;
       _lastXfadeToSongId = null;
       _xfadeInFlightAt = null;
-      _smartPlan = null;
-      _smartPlanForSongId = null;
       _step = 3; // jump to 实时操作
       _backgroundSyncInProgress = true;
       _cutInfo = '正在检查 RK 候选池缓存，缺失歌曲同步完成后开始播放...';
@@ -1381,6 +1452,8 @@ class _DjControlPageState extends State<DjControlPage> {
       await _prepareLivePoolForSession(ordered, sessionId);
       if (!_isActiveLiveSession(sessionId)) return;
       await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+      if (!_isActiveLiveSession(sessionId)) return;
+      await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
       if (!_isActiveLiveSession(sessionId)) return;
       await widget.edgeClient.play(songId: rkId, startAtSec: 0);
       if (_isActiveLiveSession(sessionId)) {
@@ -1395,6 +1468,8 @@ class _DjControlPageState extends State<DjControlPage> {
       if (_isMissingCacheError(e)) {
         try {
           await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+          if (!_isActiveLiveSession(sessionId)) return;
+          await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
           if (!_isActiveLiveSession(sessionId)) return;
           await widget.edgeClient.play(songId: rkId, startAtSec: 0);
           if (_isActiveLiveSession(sessionId)) {
@@ -1483,49 +1558,35 @@ class _DjControlPageState extends State<DjControlPage> {
     _xfadeInFlight = true;
     _xfadeInFlightAt = DateTime.now();
     try {
-      await _assertRkCacheReady(next);
+      final plan = _preparedTransitionPlanFor(
+        transitionIndex: _liveIdx,
+        prev: prev,
+        next: next,
+      );
 
-      Map<String, dynamic>? plan;
-      try {
-        plan =
-            _canonicalPlanFor(
-              transitionIndex: _liveIdx,
-              prev: prev,
-              next: next,
-            ) ??
-            await widget.apiClient
-                .djPlanTransition(
-                  token: widget.token,
-                  prevSongId: prev.id,
-                  nextSongId: next.id,
-                  cursorSec: _position.inMilliseconds / 1000.0,
-                )
-                .timeout(const Duration(seconds: 3));
-      } catch (_) {
-        plan = null;
-      }
-
-      final toAtSec = (plan?['to_at_sec'] as num?)?.toDouble() ?? 0.0;
-      final rawRuleKey = plan?['rule_key']?.toString() ?? 'end_recovery';
-      final ruleLabel = plan?['rule_label_zh']?.toString() ?? rawRuleKey;
+      final toAtSec = (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0;
+      final rawRuleKey = plan['rule_key']?.toString() ?? 'end_recovery';
+      final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
       final nextRkId = _rkIdForXfade(next);
       final fadeSec =
           math
               .max(
                 _minFadeForRule[rawRuleKey] ?? 0.05,
-                (plan?['duration_sec'] as num?)?.toDouble() ??
-                    (plan?['fade_sec'] as num?)?.toDouble() ??
+                (plan['duration_sec'] as num?)?.toDouble() ??
+                    (plan['fade_sec'] as num?)?.toDouble() ??
                     0.4,
               )
               .clamp(0.05, 3.0)
               .toDouble();
 
       try {
-        await widget.edgeClient.xfade(
-          toSongId: nextRkId,
+        await _edgeXfadeFromPlan(
+          target: next,
+          plan: plan,
           fadeSec: fadeSec,
           toAtSec: toAtSec,
-          style: _plannedRkStyle(plan ?? const {}, rawRuleKey, fallback: 'cut'),
+          ruleKey: rawRuleKey,
+          fallback: 'cut',
         );
       } catch (_) {
         await widget.edgeClient.play(songId: nextPlayId, startAtSec: toAtSec);
@@ -1540,8 +1601,6 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
-        _smartPlan = null;
-        _smartPlanForSongId = null;
       });
     } catch (e) {
       if (mounted) {
@@ -1600,48 +1659,16 @@ class _DjControlPageState extends State<DjControlPage> {
     final remainingSec =
         durationSec > 0 ? durationSec - positionSec : double.infinity;
 
-    // --- Smart plan pre-fetch ---
-    // When the track is within 30s of its end, fetch the phrase-aligned plan
-    // ahead of time so we know exactly when (from_at_sec) and how
-    // (to_at_sec / duration_sec / rule) to fire the xfade. Cached per song.
-    if (remainingSec <= 30.0 &&
-        _smartPlanForSongId != prev.id &&
-        !_smartPlanInFlight) {
-      _smartPlanInFlight = true;
-      try {
-        final plan =
-            _canonicalPlanFor(
-              transitionIndex: _liveIdx,
-              prev: prev,
-              next: next,
-            ) ??
-            await widget.apiClient.djPlanTransition(
-              token: widget.token,
-              prevSongId: prev.id,
-              nextSongId: next.id,
-              cursorSec: positionSec,
-            );
-        if (!mounted) return;
-        setState(() {
-          _smartPlan = plan;
-          _smartPlanForSongId = prev.id;
-        });
-      } catch (_) {
-        // ignore — fall back to legacy trigger below
-      } finally {
-        _smartPlanInFlight = false;
-      }
-    }
-
     // --- Trigger decision ---
-    // If we have a smart plan and the cursor has reached its exit point, fire.
+    // Use the startup-prepared plan to fire at the phrase-aligned exit point.
     // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
     // miss a transition when the planner produced no usable exit.
-    final smart =
-        (_smartPlan != null && _smartPlanForSongId == prev.id)
-            ? _smartPlan
-            : null;
-    final smartExitAt = (smart?['from_at_sec'] as num?)?.toDouble();
+    final plan = _preparedTransitionPlanFor(
+      transitionIndex: _liveIdx,
+      prev: prev,
+      next: next,
+    );
+    final smartExitAt = (plan['from_at_sec'] as num?)?.toDouble();
     final bool shouldTrigger;
     if (smartExitAt != null && smartExitAt > 0) {
       // Belt-and-suspenders: even if the planner missed the moment (RK
@@ -1663,26 +1690,7 @@ class _DjControlPageState extends State<DjControlPage> {
     _xfadeInFlight = true;
     _xfadeInFlightAt = DateTime.now();
     try {
-      await _assertRkCacheReady(next);
-
-      // Use the cached smart plan if we have one; otherwise fetch on the spot
-      // (legacy path).
-      Map<String, dynamic> plan =
-          smart ??
-          _canonicalPlanFor(
-            transitionIndex: _liveIdx,
-            prev: prev,
-            next: next,
-          ) ??
-          await widget.apiClient.djPlanTransition(
-            token: widget.token,
-            prevSongId: prev.id,
-            nextSongId: next.id,
-            cursorSec: positionSec,
-          );
-
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(plan, rawRuleKey, fallback: 'blend');
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
       final rawDur =
           (plan['duration_sec'] as num?)?.toDouble() ??
@@ -1700,15 +1708,11 @@ class _DjControlPageState extends State<DjControlPage> {
       // Phase-2: tempo align hint.
       final tempoRatio = (plan['tempo_ratio'] as num?)?.toDouble();
       final alignStrategy = plan['align_strategy']?.toString() ?? 'skip';
-      final transitionId = plan['transition_id']?.toString();
-      final fallbackStyle = plan['fallback_style']?.toString();
-      final phaseAnchorSec = (plan['phase_anchor_sec'] as num?)?.toDouble();
 
       // Phase 3.1 — surface stem strategy on cutInfo so the operator sees
       // when bass is actually being swapped vs faded. Highlight non-trivial
       // curves only (skip the "all linear" trivial case).
       final stemCurves = plan['stem_curves'];
-      final eqCurves = plan['eq_curves'];
       String? stemHint;
       if (stemCurves is Map) {
         final prev = stemCurves['prev'];
@@ -1728,67 +1732,13 @@ class _DjControlPageState extends State<DjControlPage> {
         if (highlights.isNotEmpty) stemHint = highlights.join('+');
       }
 
-      // Phase 2.5 — beat reinforcement. Fire-and-forget BEFORE xfade so the
-      // schedule is anchored against active_deck.pos_sec at the moment of
-      // crossfade start. RK drops events that slip >100ms past the clock.
-      final reinforceTags = <String>[];
-      final reinforce = plan['beat_reinforce'];
-      if (reinforce is Map) {
-        Future<void> _fireSide(String side) async {
-          final cfg = reinforce[side];
-          if (cfg is! Map) return;
-          final beatsRaw = cfg['beats'];
-          if (beatsRaw is! List || beatsRaw.isEmpty) return;
-          final beats = beatsRaw
-              .whereType<num>()
-              .map((n) => n.toDouble())
-              .toList(growable: false);
-          try {
-            await widget.edgeClient.beatReinforce(
-              startSec: (cfg['start_sec'] as num?)?.toDouble() ?? 0.0,
-              endSec: (cfg['end_sec'] as num?)?.toDouble() ?? 0.0,
-              beats: beats,
-              sampleKey: (cfg['sample_key'] as num?)?.toInt() ?? 4,
-              gain: (cfg['gain'] as num?)?.toDouble() ?? 1.0,
-              pattern: cfg['pattern']?.toString() ?? 'all',
-            );
-            reinforceTags.add(
-              '${side == "prev" ? "出" : "入"}加鼓×${beats.length}',
-            );
-          } catch (_) {
-            /* swallow — reinforcement is best-effort */
-          }
-        }
-
-        // Run sequentially so the second call sees up-to-date scheduler state.
-        await _fireSide('prev');
-        await _fireSide('next');
-      }
-
-      Future<Map<String, dynamic>> doXfade() => widget.edgeClient.xfade(
-        toSongId: nextRkId,
+      Future<Map<String, dynamic>> doXfade() => _edgeXfadeFromPlan(
+        target: next,
+        plan: plan,
         fadeSec: fadeSec,
         toAtSec: toAtSec,
-        style: ruleKey,
-        transitionId: transitionId,
-        fallbackStyle:
-            fallbackStyle == null
-                ? null
-                : _rkStyle(fallbackStyle, fallback: 'blend'),
-        tempoRatio: tempoRatio,
-        stemCurves:
-            stemCurves is Map<String, dynamic>
-                ? stemCurves
-                : (stemCurves is Map
-                    ? Map<String, dynamic>.from(stemCurves)
-                    : null),
-        eqCurves:
-            eqCurves is Map<String, dynamic>
-                ? eqCurves
-                : (eqCurves is Map
-                    ? Map<String, dynamic>.from(eqCurves)
-                    : null),
-        phaseAnchorSec: phaseAnchorSec,
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
       );
       final xfadeResponse = await doXfade();
       if (!mounted) return;
@@ -1806,9 +1756,6 @@ class _DjControlPageState extends State<DjControlPage> {
             '对速${alignStrategy == "match" ? "" : "(${alignStrategy})"} ×${tempoRatio.toStringAsFixed(3)}',
           );
         }
-        if (reinforceTags.isNotEmpty) {
-          tail.add(reinforceTags.join('+'));
-        }
         if (stemHint != null) {
           tail.add('stem:$stemHint');
         }
@@ -1821,8 +1768,6 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
-        _smartPlan = null;
-        _smartPlanForSongId = null;
       });
     } catch (e) {
       // Failure cooldown: even if xfade failed (409 because the song finished
@@ -1932,19 +1877,13 @@ class _DjControlPageState extends State<DjControlPage> {
       final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
       await _assertRkCacheReady(target);
 
-      // Use 7+11 transition rules: plan transition from cut point.
-      final transition = await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: current.id,
-        nextSongId: nextId,
+      // Use EQ band mix first; fall back to ordinary transition planning if needed.
+      final transition = await _planEqBandTransition(
+        prev: current,
+        next: target,
         cursorSec: cutAt,
       );
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(
-        transition,
-        rawRuleKey,
-        fallback: 'blend',
-      );
       final ruleLabel = transition['rule_label_zh']?.toString() ?? rawRuleKey;
       final rawDur =
           (transition['duration_sec'] as num?)?.toDouble() ??
@@ -1953,35 +1892,13 @@ class _DjControlPageState extends State<DjControlPage> {
       final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
       final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
 
-      Future<Map<String, dynamic>> doXfade() => widget.edgeClient.xfade(
-        toSongId: targetRk,
+      Future<Map<String, dynamic>> doXfade() => _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
         fadeSec: fadeSec,
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        style: ruleKey,
-        transitionId: transition['transition_id']?.toString(),
-        fallbackStyle:
-            transition['fallback_style'] == null
-                ? null
-                : _rkStyle(
-                  transition['fallback_style'].toString(),
-                  fallback: 'blend',
-                ),
-        tempoRatio: (transition['tempo_ratio'] as num?)?.toDouble(),
-        stemCurves:
-            transition['stem_curves'] is Map<String, dynamic>
-                ? transition['stem_curves'] as Map<String, dynamic>
-                : (transition['stem_curves'] is Map
-                    ? Map<String, dynamic>.from(
-                      transition['stem_curves'] as Map,
-                    )
-                    : null),
-        eqCurves:
-            transition['eq_curves'] is Map<String, dynamic>
-                ? transition['eq_curves'] as Map<String, dynamic>
-                : (transition['eq_curves'] is Map
-                    ? Map<String, dynamic>.from(transition['eq_curves'] as Map)
-                    : null),
-        phaseAnchorSec: (transition['phase_anchor_sec'] as num?)?.toDouble(),
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
       );
       final xfadeResponse = await doXfade();
       setState(() {
@@ -2198,20 +2115,14 @@ class _DjControlPageState extends State<DjControlPage> {
       setState(() => _cutInfo = 'Checking RK cache for ${target.title}');
       await _assertRkCacheReady(target);
       final cursorSec = _position.inMilliseconds / 1000.0;
-      final transition = await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: current.id,
-        nextSongId: target.id,
+      final transition = await _planEqBandTransition(
+        prev: current,
+        next: target,
         cursorSec: cursorSec,
         ruleKey: plan['recommended_transition_hint']?.toString(),
+        targetStyle: _selectedTargetStyle,
       );
-      final ratio = (transition['tempo_ratio'] as num?)?.toDouble();
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(
-        transition,
-        rawRuleKey,
-        fallback: 'blend',
-      );
       final rawDur =
           (transition['duration_sec'] as num?)?.toDouble() ??
           (transition['fade_sec'] as num?)?.toDouble() ??
@@ -2221,29 +2132,13 @@ class _DjControlPageState extends State<DjControlPage> {
               .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
               .clamp(0.05, 30.0)
               .toDouble();
-      final response = await widget.edgeClient.xfade(
-        toSongId: _rkIdForXfade(target),
+      final response = await _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
         fadeSec: fadeSec,
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        style: ruleKey,
-        transitionId: transition['transition_id']?.toString(),
-        fallbackStyle:
-            transition['fallback_style'] == null
-                ? null
-                : _rkStyle(
-                  transition['fallback_style'].toString(),
-                  fallback: 'blend',
-                ),
-        tempoRatio: ratio,
-        stemCurves:
-            transition['stem_curves'] is Map
-                ? Map<String, dynamic>.from(transition['stem_curves'] as Map)
-                : null,
-        eqCurves:
-            transition['eq_curves'] is Map
-                ? Map<String, dynamic>.from(transition['eq_curves'] as Map)
-                : null,
-        phaseAnchorSec: (transition['phase_anchor_sec'] as num?)?.toDouble(),
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
       );
       if (!mounted) return;
       setState(() {
@@ -2301,20 +2196,13 @@ class _DjControlPageState extends State<DjControlPage> {
       setState(() => _cutInfo = 'Checking RK cache for ${target.title}');
       await _assertRkCacheReady(target);
       final cursorSec = _position.inMilliseconds / 1000.0;
-      final transition = await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: current.id,
-        nextSongId: target.id,
+      final transition = await _planEqBandTransition(
+        prev: current,
+        next: target,
         cursorSec: cursorSec,
         ruleKey: plan['recommended_transition_hint']?.toString(),
       );
-      final ratio = (transition['tempo_ratio'] as num?)?.toDouble();
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(
-        transition,
-        rawRuleKey,
-        fallback: 'blend',
-      );
       final rawDur =
           (transition['duration_sec'] as num?)?.toDouble() ??
           (transition['fade_sec'] as num?)?.toDouble() ??
@@ -2324,29 +2212,13 @@ class _DjControlPageState extends State<DjControlPage> {
               .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
               .clamp(0.05, 30.0)
               .toDouble();
-      final response = await widget.edgeClient.xfade(
-        toSongId: _rkIdForXfade(target),
+      final response = await _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
         fadeSec: fadeSec,
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        style: ruleKey,
-        transitionId: transition['transition_id']?.toString(),
-        fallbackStyle:
-            transition['fallback_style'] == null
-                ? null
-                : _rkStyle(
-                  transition['fallback_style'].toString(),
-                  fallback: 'blend',
-                ),
-        tempoRatio: ratio,
-        stemCurves:
-            transition['stem_curves'] is Map
-                ? Map<String, dynamic>.from(transition['stem_curves'] as Map)
-                : null,
-        eqCurves:
-            transition['eq_curves'] is Map
-                ? Map<String, dynamic>.from(transition['eq_curves'] as Map)
-                : null,
-        phaseAnchorSec: (transition['phase_anchor_sec'] as num?)?.toDouble(),
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
       );
       if (!mounted) return;
       setState(() {
@@ -5245,13 +5117,6 @@ class _Step4Live extends StatelessWidget {
   final Future<void> Function() onConfirmTargetStyle;
   final VoidCallback onCancelTargetStyle;
 
-  static const _groupOrder = ['hype', 'drop', 'drum'];
-  static const _groupTitle = {
-    'hype': '🚨 喊场',
-    'drop': '💥 Drop',
-    'drum': '🥁 节奏',
-  };
-
   String _iconFor(String key) =>
       const {
         'air_horn': '📯',
@@ -5306,7 +5171,7 @@ class _Step4Live extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Phase-2 节奏对齐：outro 出歌、跳过 intro、按 7+11 衔接、BPM 接近时拉速对拍。',
+                  '系统会自动选择合适的调性混音策略，并在失败时回退普通 xfade。',
                   style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
                 ),
                 if (energyScore != null) ...[

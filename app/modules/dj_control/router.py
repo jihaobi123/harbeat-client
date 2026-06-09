@@ -1,4 +1,4 @@
-"""DJ Control router — exposes dance-style recommendation, energy sequencing,
+﻿"""DJ Control router — exposes dance-style recommendation, energy sequencing,
 mixing rules, live cut planning, and FX synthesis under /api/dj.
 """
 from __future__ import annotations
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
-from app.modules.dj_control import cut_strategy, dance_style, fx_synth, mixer_rules, sequencer, vibe_search
+from app.modules.dj_control import cut_strategy, dance_style, eq_transition_strategy, fx_synth, mixer_rules, sequencer, vibe_search
 from app.modules.dj_control.energy_hiphop import compute_dance_energy, get_dance_energy_profile
 from app.modules.dj_set import service as dj_set_service
 from app.modules.dj_set.set_templates import ALL_TEMPLATES, get_template
@@ -202,7 +202,17 @@ def plan_transition_endpoint(
     nxt = db.get(LibrarySong, payload.next_song_id)
     if not prev or not nxt or prev.user_id != current_user.id or nxt.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="song(s) not found")
-    spec = mixer_rules.build_transition_spec(prev, nxt, payload.cursor_sec, payload.rule_key)
+    if payload.transition_mode == "eq_band_mix":
+        spec = eq_transition_strategy.plan_eq_band_mix_transition(
+            prev,
+            nxt,
+            cursor_sec=payload.cursor_sec,
+            rule_key=payload.rule_key,
+            eq_mix_user_mode=payload.eq_mix_user_mode,
+            target_style=payload.target_style,
+        )
+    else:
+        spec = mixer_rules.build_transition_spec(prev, nxt, payload.cursor_sec, payload.rule_key)
     return APIResponse(data=spec)
 
 

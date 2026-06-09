@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import importlib.util
 import sys
 from pathlib import Path
@@ -33,3 +33,9 @@ def test_forward_uses_long_timeout_for_decode_heavy_audio_commands(monkeypatch):
 
     assert calls[0][0]["cmd"] == "xfade"
     assert calls[0][1] >= 30.0
+
+
+def test_eq_band_mix_is_decode_heavy_command():
+    main = _load_main()
+
+    assert "xfade_eq_band_mix" in main.DECODE_HEAVY_AUDIO_COMMANDS

@@ -1,4 +1,4 @@
-"""Unix socket 服务：4 字节 big-endian 长度 + JSON。"""
+﻿"""Unix socket 服务：4 字节 big-endian 长度 + JSON。"""
 
 from __future__ import annotations
 
@@ -88,13 +88,28 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **result}
     if cmd == "prefetch":
         raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
-        result = engine.prefetch(list(raw))
+        result = engine.prefetch(
+            list(raw),
+            wait=bool(msg.get("wait", False)),
+            load_stems=bool(msg.get("load_stems", True)),
+        )
         return {"ok": True, **result}
     if cmd == "validate_cache":
         raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
         result = engine.validate_cache(
             list(raw),
             require_stems=bool(msg.get("require_stems", False)),
+        )
+        return {"ok": True, **result}
+    if cmd == "xfade_eq_band_mix":
+        result = engine.manual_eq_band_mix(
+            msg.get("transition_plan") or {},
+            to_song_id=msg.get("to_song_id"),
+            fade_sec=msg.get("fade_sec"),
+            to_at_sec=msg.get("to_at_sec"),
+            style=msg.get("style"),
+            fallback_style=msg.get("fallback_style"),
+            transition_id=msg.get("transition_id"),
         )
         return {"ok": True, **result}
     if cmd in ("prewarm_beatmatch", "beat_reinforce"):

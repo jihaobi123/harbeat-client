@@ -1,4 +1,4 @@
-"""edge-agent REST API — FastAPI :9000（协议 P4）。"""
+﻿"""edge-agent REST API — FastAPI :9000（协议 P4）。"""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ from edge_agent.transition_api import router as transition_router
 
 logger = logging.getLogger(__name__)
 
-DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "prefetch", "validate_cache"}
-DECODE_HEAVY_AUDIO_TIMEOUT_SEC = 60.0
+DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "xfade_eq_band_mix", "prefetch", "validate_cache"}
+DECODE_HEAVY_AUDIO_TIMEOUT_SEC = 600.0
 
 
 def _jetson_headers() -> dict[str, str]:
@@ -234,19 +234,49 @@ async def next_track() -> dict[str, Any]:
 @app.post("/xfade", dependencies=[Depends(_optional_auth)])
 async def xfade(req: XfadeRequest) -> dict[str, Any]:
   """对任意已缓存歌做主动 crossfade（复刻网页能量/风格切歌的无缝衰接）。"""
-  result = await _forward(
-    "xfade",
-    transition_id=req.transition_id,
-    to_song_id=req.to_song_id,
-    fade_sec=req.fade_sec,
-    to_at_sec=req.to_at_sec,
-    style=req.style,
-    fallback_style=req.fallback_style,
-    tempo_ratio=req.tempo_ratio,
-    stem_curves=req.stem_curves,
-    eq_curves=req.eq_curves,
-    phase_anchor_sec=req.phase_anchor_sec,
-  )
+  if req.transition_mode == "eq_band_mix" and req.transition_plan:
+    try:
+      result = await _forward(
+        "xfade_eq_band_mix",
+        transition_plan=req.transition_plan,
+        to_song_id=req.to_song_id,
+        fade_sec=req.fade_sec,
+        to_at_sec=req.to_at_sec,
+        style=req.style,
+        fallback_style=req.fallback_style,
+        transition_id=req.transition_id,
+      )
+    except HTTPException as exc:
+      logger.warning("eq_band_mix failed, fallback to ordinary xfade: %s", exc.detail)
+      result = await _forward(
+        "xfade",
+        transition_id=req.transition_id,
+        to_song_id=req.to_song_id,
+        fade_sec=req.fade_sec,
+        to_at_sec=req.to_at_sec,
+        style=req.fallback_style or req.style,
+        fallback_style=req.fallback_style,
+        tempo_ratio=req.tempo_ratio,
+        stem_curves=req.stem_curves,
+        eq_curves=req.eq_curves,
+        phase_anchor_sec=req.phase_anchor_sec,
+      )
+      result["degraded"] = True
+      result["degrade_reason"] = "eq_band_mix_forward_failed"
+  else:
+    result = await _forward(
+      "xfade",
+      transition_id=req.transition_id,
+      to_song_id=req.to_song_id,
+      fade_sec=req.fade_sec,
+      to_at_sec=req.to_at_sec,
+      style=req.style,
+      fallback_style=req.fallback_style,
+      tempo_ratio=req.tempo_ratio,
+      stem_curves=req.stem_curves,
+      eq_curves=req.eq_curves,
+      phase_anchor_sec=req.phase_anchor_sec,
+    )
   await edge_state.update_playback(
     playing=True,
     paused=False,
@@ -262,12 +292,13 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
       "to_at_sec": req.to_at_sec,
       "style": req.style,
       "fallback_style": req.fallback_style,
+      "transition_mode": req.transition_mode,
     }
   )
   return {
     "ok": True,
     "transition_id": req.transition_id,
-    "requested_tier": "stem_aware" if req.stem_curves else "basic",
+    "requested_tier": "eq_band_mix" if req.transition_mode == "eq_band_mix" else ("stem_aware" if req.stem_curves else "basic"),
     "actual_tier": result.get("playback_tier"),
     "actual_style": result.get("style", req.style),
     "degraded": bool(result.get("degraded", False)),
@@ -279,7 +310,12 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
 @app.post("/prefetch", dependencies=[Depends(_optional_auth)])
 async def prefetch(req: PrefetchRequest) -> dict[str, Any]:
   """预解码候选歌曲到 RK 内存，跳过后续 /xfade 的磁盘 IO。未同步到 RK 的 song_id 会静默忽略。"""
-  result = await _forward("prefetch", song_ids=req.song_ids)
+  result = await _forward(
+    "prefetch",
+    song_ids=req.song_ids,
+    wait=req.wait,
+    load_stems=req.load_stems,
+  )
   return {"ok": True, "result": result}
 
 

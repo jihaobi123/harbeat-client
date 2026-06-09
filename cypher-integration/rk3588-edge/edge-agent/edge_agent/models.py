@@ -1,4 +1,4 @@
-"""协议 P4/P5/P8 的 Pydantic 模型（骨架版）。"""
+﻿"""协议 P4/P5/P8 的 Pydantic 模型（骨架版）。"""
 
 from __future__ import annotations
 
@@ -50,13 +50,17 @@ class XfadeRequest(BaseModel):
     tempo_ratio: Optional[float] = None
     stem_curves: Optional[dict[str, Any]] = None
     eq_curves: Optional[dict[str, Any]] = None
+    transition_mode: Optional[Literal["ordinary_xfade", "eq_band_mix"]] = None
+    transition_plan: Optional[dict[str, Any]] = None
     phase_anchor_sec: Optional[float] = None
 
 
 class PrefetchRequest(BaseModel):
     """提前把候选歌曲的 PCM+stems 解码到 RK 内存，按键切歌即取即用。"""
 
-    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=8)
+    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    wait: bool = False
+    load_stems: bool = True
 
 
 class ValidateCacheRequest(BaseModel):

@@ -1,4 +1,4 @@
-"""DJ Control schemas."""
+﻿"""DJ Control schemas."""
 from __future__ import annotations
 
 from typing import Optional
@@ -70,6 +70,9 @@ class TransitionPlanRequest(BaseModel):
     next_song_id: str
     cursor_sec: float = 0.0
     rule_key: Optional[str] = None
+    transition_mode: str = "ordinary_xfade"
+    eq_mix_user_mode: str = "auto"
+    target_style: Optional[str] = None
 
 
 class CutPlanRequest(BaseModel):

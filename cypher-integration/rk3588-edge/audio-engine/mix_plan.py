@@ -1,4 +1,4 @@
-"""解析 MixPlan（P2 + Jetson DjMixPlanResult）为统一结构。"""
+﻿"""解析 MixPlan（P2 + Jetson DjMixPlanResult）为统一结构。"""
 
 from __future__ import annotations
 
@@ -90,12 +90,16 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
             track_meta[str(sid)] = meta
 
     if "tracks" in raw:
-        ordered = sorted(raw["tracks"], key=lambda t: t.get("order", 0))
+        ordered = sorted(
+            raw["tracks"],
+            key=lambda t: t.get("order", 0) if isinstance(t, dict) else 0,
+        )
         for t in ordered:
-            sid = _song_id(t)
+            sid = _song_id(t) if isinstance(t, dict) else t
             if sid is not None:
                 tracks.append(sid)
-                _absorb_meta(t, sid)
+                if isinstance(t, dict):
+                    _absorb_meta(t, sid)
     elif "playlist" in raw:
         for item in raw["playlist"]:
             sid = _song_id(item)
@@ -106,13 +110,17 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
     transitions: list[Transition] = []
 
     for tr in raw.get("transitions") or []:
+        from_song = tr.get("from_song", tr.get("from_track", tr.get("from_song_id")))
+        to_song = tr.get("to_song", tr.get("to_track", tr.get("to_song_id")))
+        if from_song is None or to_song is None:
+            continue
         transitions.append(
             Transition(
-                from_song_id=tr["from_song"],
-                to_song_id=tr["to_song"],
-                from_at_sec=float(tr.get("from_at_sec", 0)),
-                to_at_sec=float(tr.get("to_at_sec", 0)),
-                fade_sec=float(tr.get("fade_sec", 8)),
+                from_song_id=from_song,
+                to_song_id=to_song,
+                from_at_sec=float(tr.get("from_at_sec", tr.get("start_at_sec", 0))),
+                to_at_sec=float(tr.get("to_at_sec", tr.get("to_in_sec", 0))),
+                fade_sec=float(tr.get("fade_sec", tr.get("duration_sec", 8))),
                 transition_id=tr.get("transition_id"),
                 fade_curve=str(tr.get("fade_curve", "equal_power")),
                 style=str(tr.get("style", tr.get("transition_type", "smooth"))),

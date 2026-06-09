@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart';
@@ -949,6 +949,9 @@ class HarBeatApiClient {
     required String nextSongId,
     required double cursorSec,
     String? ruleKey,
+    String transitionMode = 'ordinary_xfade',
+    String eqMixUserMode = 'auto',
+    String? targetStyle,
   }) async {
     return await _request<Map<String, dynamic>>(
       method: 'POST',
@@ -959,6 +962,9 @@ class HarBeatApiClient {
         'next_song_id': nextSongId,
         'cursor_sec': cursorSec,
         if (ruleKey != null) 'rule_key': ruleKey,
+        'transition_mode': transitionMode,
+        'eq_mix_user_mode': eqMixUserMode,
+        if (targetStyle != null) 'target_style': targetStyle,
       },
     );
   }

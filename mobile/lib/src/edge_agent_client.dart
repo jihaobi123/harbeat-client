@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -121,6 +121,8 @@ class EdgeAgentClient {
     double? tempoRatio,
     Map<String, dynamic>? stemCurves,
     Map<String, dynamic>? eqCurves,
+    String? transitionMode,
+    Map<String, dynamic>? transitionPlan,
     double? phaseAnchorSec,
   }) async {
     final body = <String, dynamic>{
@@ -138,6 +140,8 @@ class EdgeAgentClient {
     if (tempoRatio != null) body['tempo_ratio'] = tempoRatio;
     if (stemCurves != null) body['stem_curves'] = stemCurves;
     if (eqCurves != null) body['eq_curves'] = eqCurves;
+    if (transitionMode != null) body['transition_mode'] = transitionMode;
+    if (transitionPlan != null) body['transition_plan'] = transitionPlan;
     if (phaseAnchorSec != null) body['phase_anchor_sec'] = phaseAnchorSec;
     return _request(method: 'POST', path: '/xfade', body: body);
   }
@@ -159,11 +163,16 @@ class EdgeAgentClient {
   /// so the next /xfade lands instantly (no 300ms-2s file IO inside deck.load).
   /// Idempotent — songs already in cache are skipped. Best called once per
   /// upcoming song, well before the actual transition window.
-  Future<Map<String, dynamic>> prefetch({required List<Object> songIds}) async {
+  Future<Map<String, dynamic>> prefetch({
+    required List<Object> songIds,
+    bool wait = false,
+    bool loadStems = true,
+  }) async {
     return _request(
       method: 'POST',
       path: '/prefetch',
-      body: {'song_ids': songIds},
+      body: {'song_ids': songIds, 'wait': wait, 'load_stems': loadStems},
+      timeout: wait ? const Duration(minutes: 10) : null,
     );
   }
 
