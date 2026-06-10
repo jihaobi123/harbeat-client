@@ -4,17 +4,17 @@ from __future__ import annotations
 STYLE_TAG_PROFILE: dict[str, dict[str, list[str]]] = {
     "popping": {
         "strong": ["funk", "electro", "boogie", "electro_funk", "g_funk"],
-        "medium": ["hiphop_oldschool", "synth_funk", "groovy", "west_coast", "robotic"],
+        "medium": ["hiphop_oldschool", "synth_funk", "groovy", "west_coast", "east_coast", "robotic", "street"],
         "negative": ["ambient", "acoustic", "ballad"],
     },
     "locking": {
-        "strong": ["funk", "soul", "disco", "jazz_funk"],
+        "strong": ["funk", "soul", "disco", "jazz_funk", "boogie"],
         "medium": ["groovy", "dance", "old_school", "bright", "upbeat"],
         "negative": ["trap", "ambient", "ballad"],
     },
     "breaking": {
-        "strong": ["breakbeat", "hiphop_oldschool", "funk", "boom_bap", "bboy"],
-        "medium": ["electro", "latin_funk", "drum_breaks", "raw"],
+        "strong": ["breakbeat", "hiphop_oldschool", "funk", "boom_bap", "bboy", "old_school"],
+        "medium": ["electro", "latin_funk", "drum_breaks", "raw", "street", "battle_rap"],
         "negative": ["ambient", "ballad", "acoustic"],
     },
     "house": {
@@ -28,14 +28,13 @@ STYLE_TAG_PROFILE: dict[str, dict[str, list[str]]] = {
         "negative": ["trap", "ambient", "minimal"],
     },
     "krump": {
-        "strong": ["krump", "trap", "aggressive_hiphop", "battle_rap"],
-        "medium": ["dark", "heavy_bass", "hard_hitting", "urban"],
+        "strong": ["krump", "trap", "aggressive_hiphop", "battle_rap", "hard_hitting"],
+        "medium": ["dark", "heavy_bass", "urban", "street"],
         "negative": ["soft_pop", "acoustic", "ambient"],
     },
     "hiphop": {
-        "strong": ["hiphop", "boom_bap", "rap", "rnb", "trap_soul"],
-        "medium": ["urban", "groovy", "pop_rap", "old_school", "street"],
+        "strong": ["hiphop", "boom_bap", "rap", "rnb", "trap_soul", "hiphop_oldschool"],
+        "medium": ["urban", "groovy", "pop_rap", "old_school", "street", "west_coast", "east_coast", "battle_rap", "trap"],
         "negative": ["ambient", "classical"],
     },
 }
-

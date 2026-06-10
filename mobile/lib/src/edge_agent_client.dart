@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -156,6 +156,7 @@ class EdgeAgentClient {
       method: 'POST',
       path: '/prewarm_beatmatch',
       body: {'song_id': songId, 'tempo_ratio': tempoRatio},
+      timeout: const Duration(minutes: 10),
     );
   }
 

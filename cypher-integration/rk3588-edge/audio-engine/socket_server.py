@@ -112,7 +112,14 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
             transition_id=msg.get("transition_id"),
         )
         return {"ok": True, **result}
-    if cmd in ("prewarm_beatmatch", "beat_reinforce"):
+    if cmd == "prewarm_beatmatch":
+        result = engine.prewarm_beatmatch(
+            msg["song_id"],
+            tempo_ratio=msg.get("tempo_ratio"),
+            tempo_multiplier=msg.get("tempo_multiplier"),
+        )
+        return {"ok": True, **result}
+    if cmd == "beat_reinforce":
         return {"ok": False, "supported": False, "reason": "not_implemented", "code": 501}
     if cmd == "trigger":
         return {"ok": True, **engine.trigger(int(msg["key"]))}

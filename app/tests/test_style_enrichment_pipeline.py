@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import asyncio
 
 from app.modules.library.external_metadata.schemas import ExternalSourceResult
 from app.modules.library.external_metadata.service import run_enrich_song_external_metadata
@@ -61,6 +62,15 @@ def fake_fetcher(**_kwargs):
     }
 
 
+async def async_fake_fetcher(**_kwargs):
+    await asyncio.sleep(0)
+    return {
+        "discogs": ExternalSourceResult("discogs", "hit", ["Hip-Hop/Rap", "Boom Bap"], 0.8),
+        "lastfm": ExternalSourceResult("lastfm", "miss", [], 0.0),
+        "musicbrainz": ExternalSourceResult("musicbrainz", "miss", [], 0.0),
+    }
+
+
 def test_external_enrichment_writes_style_evidence_and_scores():
     song = _song()
     db = FakeDb()
@@ -74,3 +84,17 @@ def test_external_enrichment_writes_style_evidence_and_scores():
     assert song.dance_style_status in {"ready", "partial"}
     assert db.commits >= 1
 
+
+def test_sync_wrapper_can_run_inside_existing_event_loop():
+    song = _song()
+    db = FakeDb()
+
+    async def run_inside_loop():
+        return run_enrich_song_external_metadata(db, song, force=True, fetcher=async_fake_fetcher)
+
+    result = asyncio.run(run_inside_loop())
+
+    assert result.source_statuses()["discogs"] == "hit"
+    assert song.genre_profile["sources"]["discogs"]["labels"] == ["hiphop", "boom_bap"]
+    assert song.genre_profile["style_evidence_v1"]["hiphop"]["external_platform_score"] > 0.7
+    assert song.dance_style_scores["hiphop"] > 0.5

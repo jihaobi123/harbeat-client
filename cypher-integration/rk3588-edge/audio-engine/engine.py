@@ -57,6 +57,22 @@ BEATMATCH_MIN_SHIFT = 0.005
 BEATMATCH_CACHE_MAX_FILES = 20
 
 
+def _prefetch_cache_key(song_id: int | str, audio_path: Path | None = None) -> str:
+    if audio_path is None:
+        return str(song_id)
+    return f"{song_id}@{audio_path}"
+
+
+def _store_prefetch_cache(key: str, audio: np.ndarray, stems: dict[str, np.ndarray]) -> int:
+    with _PREFETCH_LOCK:
+        while len(_PREFETCH_CACHE) >= _PREFETCH_MAX:
+            drop = next(iter(_PREFETCH_CACHE))
+            _PREFETCH_CACHE.pop(drop)
+            logger.info("prefetch LRU drop: %s", drop)
+        _PREFETCH_CACHE[key] = {"audio": audio, "stems": stems}
+        return len(_PREFETCH_CACHE)
+
+
 class SongCacheError(Exception):
     def __init__(self, message: str, code: int = 409) -> None:
         super().__init__(message)
@@ -213,16 +229,24 @@ class Deck:
         load_stems: bool = True,
         audio_path: Path | None = None,
     ) -> float:
-        key = str(song_id)
+        key = _prefetch_cache_key(song_id, audio_path)
         cached: dict | None = None
-        if audio_path is None:
-            with _PREFETCH_LOCK:
-                if key in _PREFETCH_CACHE:
-                    cached = _PREFETCH_CACHE.pop(key)
+        with _PREFETCH_LOCK:
+            if key in _PREFETCH_CACHE:
+                cached = _PREFETCH_CACHE.pop(key)
         if cached is not None and audio_path is None:
             self.audio = cached["audio"]
             self.stems = cached["stems"]
             logger.info("deck.load hit prefetch cache: %s (remain=%d)", song_id, len(_PREFETCH_CACHE))
+        elif cached is not None:
+            self.audio = cached["audio"]
+            self.stems = cached["stems"]
+            logger.info(
+                "deck.load hit path prefetch cache: %s (%s remain=%d)",
+                song_id,
+                audio_path,
+                len(_PREFETCH_CACHE),
+            )
         else:
             path = audio_path or check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY and load_stems)
             self.audio = _load_wav_stereo(path)
@@ -1058,14 +1082,7 @@ class AudioEngineMVP:
                 stem_path = _song_dir(song_id) / f"{name}.wav"
                 if stem_path.is_file():
                     stems[name] = _load_wav_stereo(stem_path)
-        with _PREFETCH_LOCK:
-            # LRU：超出上限丢最早项
-            while len(_PREFETCH_CACHE) >= _PREFETCH_MAX:
-                drop = next(iter(_PREFETCH_CACHE))
-                _PREFETCH_CACHE.pop(drop)
-                logger.info("prefetch LRU drop: %s", drop)
-            _PREFETCH_CACHE[key] = {"audio": audio, "stems": stems}
-            cache_size = len(_PREFETCH_CACHE)
+        cache_size = _store_prefetch_cache(key, audio, stems)
         dt = (time.time() - t0) * 1000
         logger.info("prefetch ok: %s in %.0fms (cache=%d)", song_id, dt, cache_size)
         return {
@@ -1133,6 +1150,81 @@ class AudioEngineMVP:
             "ready": ready,
             "failed": failed,
             "results": results,
+        }
+
+    def prewarm_beatmatch(
+        self,
+        song_id: int | str,
+        tempo_ratio: float | None = None,
+        tempo_multiplier: float | None = None,
+    ) -> dict:
+        """Render the beatmatched intro before the live transition needs it.
+
+        Manual App transitions only have target song + tempo ratio, not a full
+        MixPlan transition, so we synthesize the small Transition object that
+        the existing rubberband cache path already understands.
+        """
+        ratio = tempo_multiplier if tempo_multiplier is not None else tempo_ratio
+        try:
+            safe_ratio = float(ratio) if ratio is not None else None
+        except (TypeError, ValueError):
+            safe_ratio = None
+        if safe_ratio is None or safe_ratio <= 0:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": True,
+                "reason": "missing_tempo_ratio",
+                "song_id": str(song_id),
+                "tempo_ratio": tempo_ratio,
+                "tempo_multiplier": tempo_multiplier,
+            }
+
+        tr = Transition(
+            from_song_id="prewarm",
+            to_song_id=song_id,
+            from_at_sec=0.0,
+            to_at_sec=0.0,
+            fade_sec=8.0,
+            tempo_ratio=safe_ratio,
+        )
+        normalized = self._beatmatch_time_ratio(tr)
+        if normalized is None:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": True,
+                "reason": "ratio_outside_safe_range_or_noop",
+                "song_id": str(song_id),
+                "tempo_ratio": safe_ratio,
+            }
+
+        before = self._beatmatched_audio_path(tr, render=False)
+        path = before or self._beatmatched_audio_path(tr, render=True)
+        if path is None:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": False,
+                "reason": "render_failed_or_rubberband_missing",
+                "song_id": str(song_id),
+                "tempo_ratio": normalized,
+            }
+
+        audio = _load_wav_stereo(path)
+        cache_key = _prefetch_cache_key(song_id, path)
+        cache_size = _store_prefetch_cache(cache_key, audio, {})
+
+        return {
+            "supported": True,
+            "rendered": before is None,
+            "skipped": False,
+            "song_id": str(song_id),
+            "tempo_ratio": normalized,
+            "path": str(path),
+            "prefetched": True,
+            "cache_key": cache_key,
+            "cache_size": cache_size,
         }
 
     def _apply_loudness_gain(self, deck: Deck, song_id: int | str) -> None:
@@ -1236,22 +1328,60 @@ class AudioEngineMVP:
         # 只渲染前 60 秒，大幅减少 rubberband 耗时（长曲从 80s → ~20s）
         trim_src = src
         trim_tmp = None
+        decode_tmp = None
         try:
-            info = sf.info(str(src))
+            # rubberband 2.x can be unreliable with compressed inputs on RK.
+            # Decode MP3/FLAC/M4A/etc. to a short PCM wav first so prewarm is
+            # deterministic and the live xfade never blocks on this conversion.
+            if src.suffix.lower() != ".wav":
+                ffmpeg = shutil.which("ffmpeg")
+                if not ffmpeg:
+                    logger.warning("beatmatch skip: ffmpeg CLI not found for compressed source %s", src)
+                    return None
+                decode_tmp = song_dir / f"original.decode60.{tag}.wav"
+                if not decode_tmp.is_file() or decode_tmp.stat().st_mtime < src.stat().st_mtime:
+                    subprocess.run(
+                        [
+                            ffmpeg,
+                            "-y",
+                            "-t",
+                            "60",
+                            "-i",
+                            str(src),
+                            "-vn",
+                            "-ac",
+                            "2",
+                            "-c:a",
+                            "pcm_f32le",
+                            "-ar",
+                            str(SAMPLE_RATE),
+                            str(decode_tmp),
+                        ],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=60,
+                    )
+                if decode_tmp.is_file():
+                    trim_src = decode_tmp
+                else:
+                    return None
+            info = sf.info(str(trim_src))
             if info.duration > 65:
-                trim_tmp = src.with_name(src.name.replace(".wav", ".trim60.wav"))
+                trim_tmp = song_dir / f"original.trim60.{tag}.wav"
                 if not trim_tmp.is_file() or trim_tmp.stat().st_mtime < src.stat().st_mtime:
                     ffmpeg = shutil.which("ffmpeg")
                     if ffmpeg:
                         subprocess.run(
-                            [ffmpeg, "-y", "-t", "60", "-i", str(src),
+                            [ffmpeg, "-y", "-t", "60", "-i", str(trim_src),
                              "-c:a", "pcm_f32le", "-ar", str(info.samplerate), str(trim_tmp)],
                             check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30,
                         )
                 if trim_tmp.is_file():
                     trim_src = trim_tmp
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("beatmatch source prepare failed for %s: %s", tr.to_song_id, exc)
+            return None
 
         tmp = out.with_suffix(out.suffix + ".tmp")
         cmd = [rubberband, "--ignore-clipping", "-t", f"{ratio:.6f}", str(trim_src), str(tmp)]
@@ -1262,6 +1392,11 @@ class AudioEngineMVP:
             if trim_tmp is not None:
                 try:
                     trim_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            if decode_tmp is not None:
+                try:
+                    decode_tmp.unlink(missing_ok=True)
                 except OSError:
                     pass
             logger.info(
@@ -1280,6 +1415,11 @@ class AudioEngineMVP:
             if trim_tmp is not None:
                 try:
                     trim_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            if decode_tmp is not None:
+                try:
+                    decode_tmp.unlink(missing_ok=True)
                 except OSError:
                     pass
             logger.warning("beatmatch render failed for %s: %s", tr.to_song_id, exc)

@@ -32,7 +32,15 @@ from edge_agent.transition_api import router as transition_router
 
 logger = logging.getLogger(__name__)
 
-DECODE_HEAVY_AUDIO_COMMANDS = {"load_plan", "play", "xfade", "xfade_eq_band_mix", "prefetch", "validate_cache"}
+DECODE_HEAVY_AUDIO_COMMANDS = {
+  "load_plan",
+  "play",
+  "xfade",
+  "xfade_eq_band_mix",
+  "prefetch",
+  "validate_cache",
+  "prewarm_beatmatch",
+}
 DECODE_HEAVY_AUDIO_TIMEOUT_SEC = 600.0
 
 
@@ -332,14 +340,13 @@ async def validate_cache(req: ValidateCacheRequest) -> dict[str, Any]:
 
 @app.post("/prewarm_beatmatch", dependencies=[Depends(_optional_auth)])
 async def prewarm_beatmatch(req: PrewarmBeatmatchRequest) -> dict[str, Any]:
-  return {
-    "ok": False,
-    "supported": False,
-    "reason": "not_implemented",
-    "song_id": req.song_id,
-    "tempo_ratio": req.tempo_ratio,
-    "tempo_multiplier": req.tempo_multiplier,
-  }
+  result = await _forward(
+    "prewarm_beatmatch",
+    song_id=req.song_id,
+    tempo_ratio=req.tempo_ratio,
+    tempo_multiplier=req.tempo_multiplier,
+  )
+  return {"ok": bool(result.get("ok", True)), "result": result}
 
 
 @app.post("/beat_reinforce", dependencies=[Depends(_optional_auth)])

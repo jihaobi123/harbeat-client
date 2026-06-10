@@ -39,3 +39,4 @@ def test_eq_band_mix_is_decode_heavy_command():
     main = _load_main()
 
     assert "xfade_eq_band_mix" in main.DECODE_HEAVY_AUDIO_COMMANDS
+    assert "prewarm_beatmatch" in main.DECODE_HEAVY_AUDIO_COMMANDS
