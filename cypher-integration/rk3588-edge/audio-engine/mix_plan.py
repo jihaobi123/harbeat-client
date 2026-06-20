@@ -27,6 +27,8 @@ class Transition:
     vocal_handoff_ratio: float | None = None
     stem_curves: dict | None = None
     eq_curves: dict | None = None
+    execution_mode: str | None = None
+    transition_plan: dict | None = None
 
 
 @dataclass
@@ -114,6 +116,16 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
         to_song = tr.get("to_song", tr.get("to_track", tr.get("to_song_id")))
         if from_song is None or to_song is None:
             continue
+        execution_mode = tr.get("execution_mode")
+        transition_plan = tr.get("transition_plan")
+        if transition_plan is None and (
+            execution_mode == "eq_band_mix"
+            or tr.get("transition_mode") in {"eq_band_mix", "section_match"}
+            or tr.get("deck_a") is not None
+            or tr.get("deck_b") is not None
+        ):
+            transition_plan = dict(tr)
+            execution_mode = "eq_band_mix"
         transitions.append(
             Transition(
                 from_song_id=from_song,
@@ -132,10 +144,22 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
                 stem_curves=tr.get("stem_curves"),
                 eq_curves=tr.get("eq_curves"),
+                execution_mode=execution_mode,
+                transition_plan=transition_plan,
             )
         )
 
     for tr in raw.get("transition_plan") or []:
+        execution_mode = tr.get("execution_mode")
+        transition_plan = tr.get("transition_plan")
+        if transition_plan is None and (
+            execution_mode == "eq_band_mix"
+            or tr.get("transition_mode") in {"eq_band_mix", "section_match"}
+            or tr.get("deck_a") is not None
+            or tr.get("deck_b") is not None
+        ):
+            transition_plan = dict(tr)
+            execution_mode = "eq_band_mix"
         transitions.append(
             Transition(
                 from_song_id=tr["from_song_id"],
@@ -154,6 +178,8 @@ def normalize_mix_plan(raw: dict) -> NormalizedPlan:
                 vocal_handoff_ratio=_f(tr.get("vocal_handoff_ratio"), _f(tr.get("handoff_ratio"), _f(tr.get("vocal_cut_ratio")))),
                 stem_curves=tr.get("stem_curves"),
                 eq_curves=tr.get("eq_curves"),
+                execution_mode=execution_mode,
+                transition_plan=transition_plan,
             )
         )
 

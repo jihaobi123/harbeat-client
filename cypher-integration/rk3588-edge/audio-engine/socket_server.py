@@ -80,6 +80,23 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
             phase_anchor_sec=msg.get("phase_anchor_sec"),
         )
         return {"ok": True, **result}
+    if cmd == "apply_filter":
+        result = engine.apply_filter(
+            str(msg.get("deck", "active")),
+            str(msg.get("filter_type", "bypass")),
+            float(msg.get("cutoff_hz", 18000.0)),
+            float(msg.get("q", 0.707)),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "apply_loudness_norm":
+        raw_gain = msg.get("gain_db")
+        gain_db = None if raw_gain is None else float(raw_gain)
+        result = engine.apply_loudness_norm(
+            str(msg.get("deck", "active")),
+            gain_db=gain_db,
+            target_lufs=float(msg.get("target_lufs", -14.0)),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "stem_solo":
         stem = msg.get("stem")
         if stem in ("", "null", "none"):

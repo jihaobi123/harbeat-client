@@ -19,6 +19,8 @@ from typing import Any
 
 import numpy as np
 
+from app.modules.dj_control.auto_mixer.feature_analyzer import FeatureAnalyzer
+
 logger = logging.getLogger(__name__)
 
 
@@ -238,6 +240,24 @@ def extract_dj_features(song) -> dict:
         bpm=getattr(song, "bpm", None),
     ))
     out["energy"] = _safe_float(getattr(song, "energy", None), default=0.5)
+    try:
+        band_features = FeatureAnalyzer.extract_features(
+            str(getattr(song, "source_path", "") or ""),
+            {
+                "bpm": getattr(song, "bpm", None),
+                "energy": getattr(song, "energy", None),
+            },
+        )
+        out["low_ratio"] = band_features["low_ratio"]
+        out["mid_ratio"] = band_features["mid_ratio"]
+        out["high_ratio"] = band_features["high_ratio"]
+        out["band_feature_source"] = "mp3_spectrum"
+    except Exception:
+        logger.warning(
+            "[dj-feat] MP3 band-ratio extraction failed for %s",
+            getattr(song, "source_path", ""),
+            exc_info=True,
+        )
     out.update(stem_features(getattr(song, "stems", None) or None))
     out.update(timbre_features(
         original_path=getattr(song, "source_path", ""),

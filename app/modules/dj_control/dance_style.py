@@ -47,6 +47,8 @@ STYLE_PROFILES: dict[str, StyleProfile] = {
                              (0.55, 0.95), (1.6, 2.1), -0.4, (8, 16)),
     "hiphop":   StyleProfile("hiphop",   "Hip-Hop",        (85, 100), 8,
                              (0.45, 0.85), (1.4, 1.8), -0.2, (8, 16)),
+    "jazz":     StyleProfile("jazz",     "Jazz",           (88, 125), 10,
+                             (0.35, 0.80), (1.2, 2.0), -0.1, (8, 32)),
     "popping":  StyleProfile("popping",  "Popping 机械舞", (95, 115), 6,
                              (0.50, 0.85), (1.7, 2.0),  0.0, (8, 16)),
     "locking":  StyleProfile("locking",  "Locking 锁舞",   (100, 115), 6,
@@ -97,6 +99,16 @@ STYLE_FINGERPRINTS: dict[str, StyleFingerprint] = {
         "drums_to_vocals_ratio": (0.6, 2.5, 1.0),
         "energy":             (0.45, 0.85, 0.8),
         "spectral_centroid":  (1200, 2400, 0.8),
+    },
+    "jazz": {
+        "bpm":                (88, 125, 2.0),
+        "beat_density":       (1.1, 2.1, 1.0),
+        "groove_complexity":  (0.05, 0.28, 1.6),
+        "swing_ratio":        (0.90, 1.18, 1.5),
+        "spectral_contrast_mean": (16, 32, 1.2),
+        "brass_likely":       (0.15, 0.65, 1.0),
+        "drums_to_vocals_ratio": (0.3, 2.8, 0.8),
+        "energy":             (0.35, 0.82, 0.8),
     },
     "popping": {
         "bpm":                (95, 115, 3.0),
@@ -174,6 +186,10 @@ STYLE_TAG_SIGNALS: dict[str, dict[str, set[str]]] = {
     "hiphop": {
         "strong": {"hip hop", "boom bap", "rap", "old school hip hop", "r&b"},
         "medium": {"urban", "groove", "vocal", "street"},
+    },
+    "jazz": {
+        "strong": {"jazz", "swing", "electro swing", "jazz pop", "big band", "jump blues"},
+        "medium": {"latin jazz", "soul jazz", "funk", "shuffle", "brass", "walking bass"},
     },
 }
 

@@ -46,6 +46,7 @@ def apply_stem_analysis(song) -> None:
     )
     from app.modules.library.stem_analysis import analyze_stem_files
 
+    existing_vocal_events = list(getattr(song, "vocal_events", None) or [])
     result = analyze_stem_files(song.stems, original_path=song.source_path)
     song.stem_activity = result["stem_activity"]
     song.stem_activity_windows = result["stem_activity_windows"]
@@ -61,10 +62,13 @@ def apply_stem_analysis(song) -> None:
     windows = result.get("stem_activity_windows", [])
 
     # Vocal enter/exit events from stem activity curve
-    try:
-        song.vocal_events = _detect_vocal_events(windows)
-    except Exception:
-        song.vocal_events = []
+    if existing_vocal_events:
+        song.vocal_events = existing_vocal_events
+    else:
+        try:
+            song.vocal_events = _detect_vocal_events(windows)
+        except Exception:
+            song.vocal_events = []
 
     # Bass risk per window
     try:
@@ -133,6 +137,26 @@ def run_analysis_and_separation(song_id: str) -> None:
                 from app.modules.library.analysis import analyze_audio_file
 
                 result = analyze_audio_file(song.source_path)
+                if os.getenv("ENABLE_GPU_VOCAL_DETECTION", "false").lower() == "true":
+                    try:
+                        from app.modules.library.analysis_vocal_patch_gpu import patch_analysis_result_with_vocals
+
+                        force_refresh = os.getenv("FORCE_REFRESH_VOCAL", "false").lower() == "true"
+                        fast_mode = os.getenv("VOCAL_DETECTION_FAST", "true").lower() == "true"
+                        if force_refresh or not result.get("vocal_events"):
+                            result = patch_analysis_result_with_vocals(
+                                result,
+                                song.source_path,
+                                use_gpu=True,
+                                fast_mode=fast_mode,
+                            )
+                            logger.info(
+                                "[bg-analysis] GPU vocal detection done for %s: %d events",
+                                song_id,
+                                len(result.get("vocal_events", [])),
+                            )
+                    except Exception as exc:
+                        logger.warning("[bg-analysis] GPU vocal detection failed for %s: %s", song_id, exc)
                 song.bpm = result["bpm"]
                 song.duration = result["duration"]
                 song.key = result.get("key")

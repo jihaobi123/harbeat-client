@@ -37,4 +37,9 @@ STYLE_TAG_PROFILE: dict[str, dict[str, list[str]]] = {
         "medium": ["urban", "groovy", "pop_rap", "old_school", "street", "west_coast", "east_coast", "battle_rap", "trap"],
         "negative": ["ambient", "classical"],
     },
+    "jazz": {
+        "strong": ["jazz", "swing", "electro_swing", "jazz_pop", "big_band", "jump_blues"],
+        "medium": ["latin_jazz", "soul_jazz", "shuffle", "brass", "walking_bass", "groovy"],
+        "negative": ["trap", "ambient", "minimal"],
+    },
 }

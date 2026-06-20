@@ -13,6 +13,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from edge_agent.audio_client import AudioEngineClient, AudioEngineError, audio_client
 from edge_agent.config import settings
 from edge_agent.models import (
+  ApplyFilterRequest,
+  ApplyLoudnessNormRequest,
   DeckEqRequest,
   HealthResponse,
   LoadPlanRequest,
@@ -36,6 +38,7 @@ DECODE_HEAVY_AUDIO_COMMANDS = {
   "load_plan",
   "play",
   "xfade",
+  "xfade_mix_effects",
   "xfade_eq_band_mix",
   "prefetch",
   "validate_cache",
@@ -239,9 +242,11 @@ async def next_track() -> dict[str, Any]:
   return {"ok": True, "result": result}
 
 
-@app.post("/xfade", dependencies=[Depends(_optional_auth)])
-async def xfade(req: XfadeRequest) -> dict[str, Any]:
-  """对任意已缓存歌做主动 crossfade（复刻网页能量/风格切歌的无缝衰接）。"""
+async def _run_xfade(req: XfadeRequest) -> dict[str, Any]:
+  current = await edge_state.snapshot_playback()
+  if current.current_song_id is not None and str(current.current_song_id) == str(req.to_song_id):
+    raise HTTPException(status_code=409, detail=f"refusing self-transition: {req.to_song_id}")
+
   if req.transition_mode == "eq_band_mix" and req.transition_plan:
     try:
       result = await _forward(
@@ -290,6 +295,19 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
     paused=False,
     current_song_id=req.to_song_id,
     position_sec=req.to_at_sec,
+    playback_tier=result.get("playback_tier") or (
+      "eq_band_mix" if req.transition_mode == "eq_band_mix" else current.playback_tier
+    ),
+    last_transition={
+      "transition_id": req.transition_id,
+      "requested_tier": "eq_band_mix" if req.transition_mode == "eq_band_mix" else ("stem_aware" if req.stem_curves else "basic"),
+      "actual_tier": result.get("playback_tier"),
+      "actual_style": result.get("style", req.style),
+      "degraded": bool(result.get("degraded", False)),
+      "degrade_reason": result.get("degrade_reason"),
+      "fade_sec": req.fade_sec,
+      "to_at_sec": req.to_at_sec,
+    },
   )
   await edge_state.append_event(
     {
@@ -313,6 +331,20 @@ async def xfade(req: XfadeRequest) -> dict[str, Any]:
     "degrade_reason": result.get("degrade_reason"),
     "result": result,
   }
+
+
+@app.post("/xfade", dependencies=[Depends(_optional_auth)])
+async def xfade(req: XfadeRequest) -> dict[str, Any]:
+  """对任意已缓存歌做主动 crossfade（网页能量/风格切歌的无缝衔接）。"""
+  return await _run_xfade(req)
+
+
+@app.post("/xfade_mix_effects", dependencies=[Depends(_optional_auth)])
+async def xfade_mix_effects(req: XfadeRequest) -> dict[str, Any]:
+  """Mix effects preset crossfade alias used by App DJ Control."""
+  result = await _run_xfade(req)
+  result["mix_effects"] = True
+  return result
 
 
 @app.post("/prefetch", dependencies=[Depends(_optional_auth)])
@@ -378,6 +410,31 @@ async def deck_eq(req: DeckEqRequest) -> dict[str, Any]:
     low_db=req.low_db,
     mid_db=req.mid_db,
     hi_db=req.hi_db,
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/apply_filter", dependencies=[Depends(_optional_auth)])
+async def apply_filter(req: ApplyFilterRequest) -> dict[str, Any]:
+  """Apply a realtime lowpass/highpass/bypass filter to a deck."""
+  result = await _forward(
+    "apply_filter",
+    deck=req.deck,
+    filter_type=req.filter_type,
+    cutoff_hz=req.cutoff_hz,
+    q=req.q,
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/apply_loudness_norm", dependencies=[Depends(_optional_auth)])
+async def apply_loudness_norm(req: ApplyLoudnessNormRequest) -> dict[str, Any]:
+  """Apply a realtime loudness trim to a deck."""
+  result = await _forward(
+    "apply_loudness_norm",
+    deck=req.deck,
+    gain_db=req.gain_db,
+    target_lufs=req.target_lufs,
   )
   return {"ok": True, "result": result}
 

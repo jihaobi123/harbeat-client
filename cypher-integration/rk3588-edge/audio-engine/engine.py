@@ -55,6 +55,13 @@ PRELOAD_BEFORE_SEC = 30.0
 BEATMATCH_MAX_SHIFT = 0.06
 BEATMATCH_MIN_SHIFT = 0.005
 BEATMATCH_CACHE_MAX_FILES = 20
+V32_MIN_FADE_SEC = 6.0
+LOW_BAND_MIN_DB = -36.0
+LOW_BAND_MAX_DB = 12.0
+MID_BAND_MIN_DB = -24.0
+MID_BAND_MAX_DB = 12.0
+HIGH_BAND_MIN_DB = -24.0
+HIGH_BAND_MAX_DB = 12.0
 
 
 def _prefetch_cache_key(song_id: int | str, audio_path: Path | None = None) -> str:
@@ -84,7 +91,8 @@ def _song_dir(song_id: int | str) -> Path:
 
 
 
-_ORIGINAL_EXTS = ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac")
+_ORIGINAL_EXTS = ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac")
+_STEM_EXTS = ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac")
 
 
 def _find_original_path(song_dir: Path) -> Path | None:
@@ -96,13 +104,22 @@ def _find_original_path(song_dir: Path) -> Path | None:
     return None
 
 
+def _find_stem_path(song_dir: Path, stem: str) -> Path | None:
+    """Locate a cached stem in any format the sync-worker can store."""
+    for ext in _STEM_EXTS:
+        p = song_dir / f"{stem}.{ext}"
+        if p.is_file():
+            return p
+    return None
+
+
 def check_song_cache(song_id: int | str, require_stems: bool = False) -> Path:
     song_dir = _song_dir(song_id)
     original = _find_original_path(song_dir)
     if original is None:
         raise SongCacheError(f"缺少 original.*: {song_dir}", code=409)
     if require_stems:
-        missing = [n for n in REQUIRED_STEMS if not (song_dir / f"{n}.wav").is_file()]
+        missing = [n for n in REQUIRED_STEMS if _find_stem_path(song_dir, n) is None]
         if missing:
             raise SongCacheError(f"缺少 stem: {missing}", code=409)
     return original
@@ -140,6 +157,7 @@ class Deck:
         # 3-band EQ：80Hz low-shelf / 1kHz peak / 8kHz high-shelf
         "eq_low_db", "eq_mid_db", "eq_hi_db",
         "_eq_lo", "_eq_mid", "_eq_hi",
+        "filter_type", "filter_cutoff_hz", "filter_q", "_manual_filter",
     )
 
     def __init__(self) -> None:
@@ -156,6 +174,10 @@ class Deck:
         self._eq_lo: Biquad = Biquad()
         self._eq_mid: Biquad = Biquad()
         self._eq_hi: Biquad = Biquad()
+        self.filter_type: str = "bypass"
+        self.filter_cutoff_hz: float = 18000.0
+        self.filter_q: float = 0.707
+        self._manual_filter: Biquad = Biquad()
 
     @property
     def pos_sec(self) -> float:
@@ -174,16 +196,21 @@ class Deck:
         for bq in (self._eq_lo, self._eq_mid, self._eq_hi):
             bq.reset()
             bq.set_bypass(True)
+        self.filter_type = "bypass"
+        self.filter_cutoff_hz = 18000.0
+        self.filter_q = 0.707
+        self._manual_filter.reset()
+        self._manual_filter.set_bypass(True)
 
     def set_eq(self, low_db: float, mid_db: float, hi_db: float,
                sr: float = float(SAMPLE_RATE)) -> tuple[float, float, float]:
-        """设置 3-band EQ（限幅 ±12 dB）。返回实际被采纳的 (low, mid, hi)。
+        """设置 3-band EQ。返回实际被采纳的 (low, mid, hi)。
 
         任一 band = 0 dB 时该段跳过 process（bypass），省下 CPU。
         """
-        low_db = max(-12.0, min(12.0, float(low_db)))
-        mid_db = max(-12.0, min(12.0, float(mid_db)))
-        hi_db = max(-12.0, min(12.0, float(hi_db)))
+        low_db = max(LOW_BAND_MIN_DB, min(LOW_BAND_MAX_DB, float(low_db)))
+        mid_db = max(MID_BAND_MIN_DB, min(MID_BAND_MAX_DB, float(mid_db)))
+        hi_db = max(HIGH_BAND_MIN_DB, min(HIGH_BAND_MAX_DB, float(hi_db)))
         self.eq_low_db = low_db
         self.eq_mid_db = mid_db
         self.eq_hi_db = hi_db
@@ -207,6 +234,34 @@ class Deck:
         chunk = self._eq_mid.process(chunk)
         chunk = self._eq_hi.process(chunk)
         return chunk
+
+    def set_filter(
+        self,
+        filter_type: str,
+        cutoff_hz: float,
+        q: float = 0.707,
+        sr: float = float(SAMPLE_RATE),
+    ) -> tuple[str, float, float]:
+        """Set a persistent lowpass/highpass/bypass filter for this deck."""
+        kind = (filter_type or "bypass").lower()
+        if kind not in ("lowpass", "highpass", "bypass"):
+            raise ValueError(f"invalid_filter_type: {filter_type}")
+        cutoff = max(20.0, min(sr * 0.45, float(cutoff_hz)))
+        q_value = max(0.1, min(10.0, float(q)))
+        self.filter_type = kind
+        self.filter_cutoff_hz = cutoff
+        self.filter_q = q_value
+        if kind == "bypass":
+            self._manual_filter.set_bypass(True)
+        elif kind == "lowpass":
+            self._manual_filter.set_lpf(sr, cutoff, q=q_value)
+        else:
+            self._manual_filter.set_hpf(sr, cutoff, q=q_value)
+        return kind, cutoff, q_value
+
+    def apply_filter(self, chunk: np.ndarray) -> np.ndarray:
+        """Apply the persistent deck filter, if enabled."""
+        return self._manual_filter.process(chunk)
 
     def eq_values(self) -> tuple[float, float, float]:
         return self.eq_low_db, self.eq_mid_db, self.eq_hi_db
@@ -252,9 +307,10 @@ class Deck:
             self.audio = _load_wav_stereo(path)
             self.stems = {}
             if load_stems and audio_path is None:
+                song_dir = _song_dir(song_id)
                 for name in REQUIRED_STEMS:
-                    stem_path = _song_dir(song_id) / f"{name}.wav"
-                    if stem_path.is_file():
+                    stem_path = _find_stem_path(song_dir, name)
+                    if stem_path is not None:
                         self.stems[name] = _load_wav_stereo(stem_path)
         start_frame = int(max(0.0, start_at_sec) * SAMPLE_RATE)
         self.pos = min(start_frame, max(0, len(self.audio) - 1))
@@ -267,7 +323,7 @@ class Deck:
         chunk, self.pos = _read_segment(self.audio, self.pos, frames)
         if self.gain != 1.0:
             chunk = chunk * self.gain
-        return chunk
+        return self.apply_filter(chunk)
 
 
 class AudioEngineMVP:
@@ -284,6 +340,7 @@ class AudioEngineMVP:
         self._fade_total_frames = 0
         self._active_tr: Transition | None = None
         self._eq_band_plan: dict | None = None
+        self._last_transition_result: dict | None = None
         self._next_preloaded = False
         self._preload_requested: str | None = None
         self._playing = False
@@ -310,6 +367,22 @@ class AudioEngineMVP:
         # 每个 deck 一段 biquad（LPF / HPF，按风格切换），系数每个 callback 重设。
         self._fx_filter_a: Biquad = Biquad()
         self._fx_filter_b: Biquad = Biquad()
+        # EQ-band mix uses the auto_dj_mix.py topology: split full-range MP3
+        # into low/mid/high bands, apply per-band ratio curves, then sum.
+        self._eq_band_filters: dict[str, dict[str, Biquad]] = {
+            "a": {
+                "low": Biquad(),
+                "mid_hpf": Biquad(),
+                "mid_lpf": Biquad(),
+                "high": Biquad(),
+            },
+            "b": {
+                "low": Biquad(),
+                "mid_hpf": Biquad(),
+                "mid_lpf": Biquad(),
+                "high": Biquad(),
+            },
+        }
         # echo: 250ms 单 tap 延迟 + 反馈，缓冲 0.6 sec 留余量
         self._echo_delay_samples: int = int(0.25 * SAMPLE_RATE)
         self._echo_buf_len: int = int(0.6 * SAMPLE_RATE)
@@ -343,6 +416,10 @@ class AudioEngineMVP:
         self._fx_filter_a.set_bypass(True)
         self._fx_filter_b.reset()
         self._fx_filter_b.set_bypass(True)
+        for filters in self._eq_band_filters.values():
+            for biquad in filters.values():
+                biquad.reset()
+                biquad.set_bypass(True)
         self._echo_buf.fill(0.0)
         self._echo_pos = 0
 
@@ -418,11 +495,17 @@ class AudioEngineMVP:
 
     def get_state(self) -> dict:
         with self._lock:
+            duration_sec = (
+                len(self.active_deck.audio) / SAMPLE_RATE
+                if self.active_deck.audio is not None
+                else 0.0
+            )
             return {
                 "playing": self._playing and not self._paused,
                 "paused": self._paused,
                 "current_song_id": self.active_deck.song_id,
                 "position_sec": round(self.active_deck.pos_sec, 3),
+                "duration_sec": round(duration_sec, 3),
                 "next_song_id": self._next_song_id(),
                 "next_transition_in_sec": self._next_transition_in_sec(),
                 "in_transition": self._in_transition,
@@ -431,6 +514,7 @@ class AudioEngineMVP:
                 "active_stem_solo": self._stem_solo,
                 "audio_xrun_count": self._xrun_count,
                 "playback_tier": self._playback_tier(),
+                "last_transition": dict(self._last_transition_result or {}),
             }
 
     def _stems_available(self, deck: Deck | None = None) -> bool:
@@ -454,9 +538,25 @@ class AudioEngineMVP:
             return "stem_aware"
         if self._in_transition and self._stems_available(self.inactive_deck):
             return "stem_aware"
+        if self._in_transition and self._active_tr and self._active_tr.style == "eq_band_mix":
+            return "eq_band_mix"
         if not self._plan_enabled or not self._plan:
             return "basic"
         return "non_stem"
+
+    def _record_transition_result(self, result: dict) -> dict:
+        self._last_transition_result = {
+            "transition_id": result.get("transition_id"),
+            "action": result.get("action"),
+            "to_song_id": result.get("to_song_id"),
+            "fade_sec": result.get("fade_sec"),
+            "to_at_sec": result.get("to_at_sec"),
+            "style": result.get("style"),
+            "playback_tier": result.get("playback_tier"),
+            "degraded": bool(result.get("degraded", False)),
+            "degrade_reason": result.get("degrade_reason"),
+        }
+        return result
 
     def _resolve_style(self, requested_style: str, tr: Transition | None = None) -> str:
         """Auto-downgrade stem-aware styles when stems are unavailable."""
@@ -486,6 +586,16 @@ class AudioEngineMVP:
 
     def _current_playback_tier(self) -> str:
         return self._playback_tier()
+
+    @staticmethod
+    def _is_eq_band_transition(tr: Transition | None) -> bool:
+        if tr is None:
+            return False
+        return (
+            str(getattr(tr, "execution_mode", "") or "") == "eq_band_mix"
+            or str(getattr(tr, "style", "") or "") == "eq_band_mix"
+            or isinstance(getattr(tr, "transition_plan", None), dict)
+        )
 
     def _transition_handoff_ratio(self, tr: Transition) -> float:
         """Return the beat-aligned vocal handoff point for vocal_handoff."""
@@ -643,6 +753,8 @@ class AudioEngineMVP:
 
         stopped_reason = None
         with self._lock:
+            if self.active_deck.song_id is not None and str(self.active_deck.song_id) == str(to_song_id):
+                raise SongCacheError(f"refusing self-transition: {to_song_id}", code=409)
             if self.active_deck.audio is None:
                 stopped_reason = "no_active_audio"
             elif not self._playing:
@@ -658,7 +770,7 @@ class AudioEngineMVP:
                 safe_to_at_sec,
             )
             play_result = self.play(to_song_id, safe_to_at_sec)
-            return {
+            return self._record_transition_result({
                 "action": "play_fallback",
                 "reason": stopped_reason,
                 "transition_id": transition_id,
@@ -668,10 +780,10 @@ class AudioEngineMVP:
                 "style": requested_style,
                 "fallback_style": fallback_style,
                 "playback_tier": self._current_playback_tier(),
-                "degraded": False,
-                "degrade_reason": None,
+                "degraded": True,
+                "degrade_reason": stopped_reason,
                 **play_result,
-            }
+            })
 
         with self._lock:
             if self.active_deck.audio is None or not self._playing or self._paused:
@@ -740,7 +852,7 @@ class AudioEngineMVP:
                     to_song_id,
                     safe_to_at_sec,
                 )
-                return {
+                return self._record_transition_result({
                     "action": "play_fallback",
                     "reason": stopped_reason,
                     "transition_id": transition_id,
@@ -753,9 +865,9 @@ class AudioEngineMVP:
                     "style": requested_style,
                     "fallback_style": fallback_style,
                     "playback_tier": self._current_playback_tier(),
-                    "degraded": False,
-                    "degrade_reason": None,
-                }
+                    "degraded": True,
+                    "degrade_reason": stopped_reason,
+                })
             # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
             # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
             if self._in_transition:
@@ -782,7 +894,7 @@ class AudioEngineMVP:
             self._plan_enabled = False
             self._install_inactive_deck(deck)
             self._start_transition_locked(tr)
-        return {
+        return self._record_transition_result({
             "action": "crossfade",
             "transition_id": transition_id,
             "to_song_id": to_song_id,
@@ -793,7 +905,7 @@ class AudioEngineMVP:
             "playback_tier": self._current_playback_tier(),
             "degraded": self._resolve_style(tr.style, tr) != tr.style,
             "degrade_reason": "missing_stems" if self._resolve_style(tr.style, tr) != tr.style else None,
-        }
+        })
 
     def manual_eq_band_mix(
         self,
@@ -840,11 +952,13 @@ class AudioEngineMVP:
         except (TypeError, ValueError):
             safe_fade_sec = 8.0
         safe_to_at_sec = max(0.0, safe_to_at_sec)
-        safe_fade_sec = max(0.05, min(30.0, safe_fade_sec))
+        safe_fade_sec = max(V32_MIN_FADE_SEC, min(32.0, safe_fade_sec))
         fallback = fallback_style or str(transition_plan.get("fallback_style") or style or "blend")
         tr_id = transition_id or transition_plan.get("transition_id")
 
         with self._lock:
+            if self.active_deck.song_id is not None and str(self.active_deck.song_id) == str(target_song_id):
+                raise SongCacheError(f"refusing self-transition: {target_song_id}", code=409)
             stopped_reason = None
             if self.active_deck.audio is None:
                 stopped_reason = "no_active_audio"
@@ -855,7 +969,7 @@ class AudioEngineMVP:
         if stopped_reason is not None:
             logger.info("eq_band_mix fallback to play: reason=%s to=%s", stopped_reason, target_song_id)
             play_result = self.play(target_song_id, safe_to_at_sec)
-            return {
+            return self._record_transition_result({
                 "action": "play_fallback",
                 "reason": stopped_reason,
                 "transition_id": tr_id,
@@ -865,10 +979,10 @@ class AudioEngineMVP:
                 "style": "eq_band_mix",
                 "fallback_style": fallback,
                 "playback_tier": self._current_playback_tier(),
-                "degraded": False,
-                "degrade_reason": None,
+                "degraded": True,
+                "degrade_reason": stopped_reason,
                 **play_result,
-            }
+            })
 
         try:
             deck = Deck()
@@ -895,7 +1009,7 @@ class AudioEngineMVP:
                 self._paused = False
                 self._in_transition = False
                 self._eq_band_plan = None
-                return {
+                return self._record_transition_result({
                     "action": "play_fallback",
                     "reason": "engine_stopped_during_eq_band_load",
                     "transition_id": tr_id,
@@ -904,9 +1018,9 @@ class AudioEngineMVP:
                     "to_at_sec": safe_to_at_sec,
                     "style": "eq_band_mix",
                     "playback_tier": self._current_playback_tier(),
-                    "degraded": False,
-                    "degrade_reason": None,
-                }
+                    "degraded": True,
+                    "degrade_reason": "engine_stopped_during_eq_band_load",
+                })
             if self._in_transition:
                 self._in_transition = False
                 self._fade_frames_done = 0
@@ -928,7 +1042,7 @@ class AudioEngineMVP:
             self._install_inactive_deck(deck)
             self._eq_band_plan = transition_plan
             self._start_transition_locked(tr)
-        return {
+        return self._record_transition_result({
             "action": "crossfade",
             "transition_id": tr_id,
             "to_song_id": target_song_id,
@@ -939,7 +1053,7 @@ class AudioEngineMVP:
             "playback_tier": "eq_band_mix",
             "degraded": False,
             "degrade_reason": None,
-        }
+        })
 
     def _install_inactive_deck(self, deck: Deck) -> None:
         if self._active == "a":
@@ -961,10 +1075,12 @@ class AudioEngineMVP:
         self._echo_buf.fill(0.0)
         self._echo_pos = 0
         logger.info(
-            "crossfade start %s -> %s (%.1fs)",
+            "crossfade start %s -> %s (%.1fs style=%s execution=%s)",
             tr.from_song_id,
             tr.to_song_id,
             tr.fade_sec,
+            tr.style,
+            tr.execution_mode,
         )
 
     def _apply_eq_band_filter(self, deck_id: str, params: dict, audio: np.ndarray) -> np.ndarray:
@@ -987,15 +1103,26 @@ class AudioEngineMVP:
     def _read_eq_band_deck(self, deck: Deck, deck_plan: dict | None, beat: float, frames: int, deck_id: str) -> np.ndarray:
         params = eval_deck(deck_plan, beat)
         chunk = self._read_with_solo(deck, frames)
-        # Keep the biquad EQ in a stable range; isolator-style kills are
-        # achieved by EQ attenuation plus fader curves.
-        low = max(-24.0, min(12.0, float(params.get("low_db", 0.0))))
-        mid = max(-30.0, min(12.0, float(params.get("mid_db", 0.0))))
-        hi = max(-30.0, min(12.0, float(params.get("hi_db", 0.0))))
-        deck.set_eq(low, mid, hi)
-        chunk = deck.apply_eq(chunk)
+        filters = self._eq_band_filters["a" if deck_id == "a" else "b"]
+        sr = float(SAMPLE_RATE)
+        filters["low"].set_lpf(sr, 250.0, q=0.707)
+        filters["mid_hpf"].set_hpf(sr, 250.0, q=0.707)
+        filters["mid_lpf"].set_lpf(sr, 4000.0, q=0.707)
+        filters["high"].set_hpf(sr, 4000.0, q=0.707)
+        low = filters["low"].process(chunk.copy())
+        mid = filters["mid_lpf"].process(filters["mid_hpf"].process(chunk.copy()))
+        high = filters["high"].process(chunk.copy())
+        low_gain = self._db_to_ratio(params.get("low_db", 0.0))
+        mid_gain = self._db_to_ratio(params.get("mid_db", 0.0))
+        hi_gain = self._db_to_ratio(params.get("hi_db", 0.0))
+        chunk = low * low_gain + mid * mid_gain + high * hi_gain
         chunk = self._apply_eq_band_filter(deck_id, params, chunk)
-        return chunk * float(params.get("fader", 1.0))
+        return chunk * max(0.0, min(1.5, float(params.get("fader", 1.0))))
+
+    @staticmethod
+    def _db_to_ratio(value: float) -> float:
+        db = max(-60.0, min(12.0, float(value)))
+        return float(10.0 ** (db / 20.0))
 
     def set_stem_solo(self, stem: str | None) -> dict:
         """持久 stem solo：只让某个 stem 出声，None = 恢复全轨。不影响 crossfade。"""
@@ -1078,9 +1205,10 @@ class AudioEngineMVP:
         audio = _load_wav_stereo(path)
         stems: dict[str, np.ndarray] = {}
         if load_stems:
+            song_dir = _song_dir(song_id)
             for name in REQUIRED_STEMS:
-                stem_path = _song_dir(song_id) / f"{name}.wav"
-                if stem_path.is_file():
+                stem_path = _find_stem_path(song_dir, name)
+                if stem_path is not None:
                     stems[name] = _load_wav_stereo(stem_path)
         cache_size = _store_prefetch_cache(key, audio, stems)
         dt = (time.time() - t0) * 1000
@@ -1117,8 +1245,11 @@ class AudioEngineMVP:
                 audio = _load_wav_stereo(path)
                 stems_ready: list[str] = []
                 if require_stems:
+                    song_dir = _song_dir(sid)
                     for name in REQUIRED_STEMS:
-                        stem_path = _song_dir(sid) / f"{name}.wav"
+                        stem_path = _find_stem_path(song_dir, name)
+                        if stem_path is None:
+                            raise SongCacheError(f"缺少 stem: {name}", code=409)
                         _load_wav_stereo(stem_path)
                         stems_ready.append(name)
                 duration_sec = len(audio) / SAMPLE_RATE if len(audio) else 0.0
@@ -1428,14 +1559,23 @@ class AudioEngineMVP:
     def _begin_transition(self, tr: Transition) -> None:
         if self.inactive_deck.song_id != tr.to_song_id:
             try:
-                want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
-                audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+                is_eq_band = self._is_eq_band_transition(tr)
+                want_stems = False if is_eq_band else ((tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves))
+                audio_path = None if is_eq_band or want_stems else self._beatmatched_audio_path(tr, render=False)
                 self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             except SongCacheError as exc:
                 logger.error("transition load failed: %s", exc)
                 return
             self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-        self._apply_beat_align(tr)
+        if self._is_eq_band_transition(tr):
+            self._eq_band_plan = dict(tr.transition_plan or {})
+            self._eq_band_plan.setdefault("target", {"song_id": tr.to_song_id, "start_cue_sec": tr.to_at_sec})
+            self._eq_band_plan.setdefault("fade_sec", tr.fade_sec)
+            self._eq_band_plan.setdefault("duration_sec", tr.fade_sec)
+            self._eq_band_plan.setdefault("to_at_sec", tr.to_at_sec)
+            tr.style = "eq_band_mix"
+        else:
+            self._apply_beat_align(tr)
         self._start_transition_locked(tr)
 
     def _apply_beat_align(self, tr: Transition) -> None:
@@ -1482,8 +1622,9 @@ class AudioEngineMVP:
             deck = Deck()
             deck.set_eq(*inactive_eq)
             # Load stems if this is a stem-aware transition style
-            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
-            audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+            is_eq_band = self._is_eq_band_transition(tr)
+            want_stems = False if is_eq_band else ((tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves))
+            audio_path = None if is_eq_band or want_stems else self._beatmatched_audio_path(tr, render=False)
             deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             self._apply_loudness_gain(deck, tr.to_song_id)
             with self._lock:
@@ -1790,7 +1931,11 @@ class AudioEngineMVP:
         if value is None:
             return None
         db = cls._keyframe_curve_value(value, progress, 0.0)
-        return max(-12.0, min(12.0, float(db)))
+        if "low" in key:
+            return max(LOW_BAND_MIN_DB, min(LOW_BAND_MAX_DB, float(db)))
+        if "mid" in key:
+            return max(MID_BAND_MIN_DB, min(MID_BAND_MAX_DB, float(db)))
+        return max(HIGH_BAND_MIN_DB, min(HIGH_BAND_MAX_DB, float(db)))
 
     def _read_deck_styled(self, deck: Deck, frames: int, gains: dict) -> np.ndarray:
         """按 stem gain 表从 deck 读一块。gains 同时出现 stem 键和 'full' 时，
@@ -1802,7 +1947,7 @@ class AudioEngineMVP:
         if "full" in gains or not deck.stems:
             chunk, deck.pos = _read_segment(deck.audio, pos, frames)
             g = float(gains.get("full", max(gains.values()) if gains else 1.0))
-            return chunk * (g * deck.gain)
+            return deck.apply_filter(chunk * (g * deck.gain))
         # 分 stem 路径
         out = np.zeros((frames, 2), dtype=np.float32)
         new_pos = pos
@@ -1824,31 +1969,74 @@ class AudioEngineMVP:
         deck.pos = new_pos
         if deck.gain != 1.0:
             out *= deck.gain
-        return out
+        return deck.apply_filter(out)
+
+    def _deck_by_id(self, deck_id: str) -> tuple[str, Deck] | None:
+        did = (deck_id or "").lower()
+        if did == "a":
+            return "a", self.deck_a
+        if did == "b":
+            return "b", self.deck_b
+        if did == "active":
+            return ("a" if self.active_deck is self.deck_a else "b"), self.active_deck
+        if did == "inactive":
+            return ("a" if self.inactive_deck is self.deck_a else "b"), self.inactive_deck
+        return None
 
     def set_deck_eq(self, deck_id: str, low_db: float = 0.0,
                     mid_db: float = 0.0, hi_db: float = 0.0) -> dict:
         """DJ 风 3-band EQ。deck_id ∈ {'a', 'b', 'active', 'inactive'}。
         每个 band 限幅 ±12 dB；返回实际被采纳的值。"""
         with self._lock:
-            did = (deck_id or "").lower()
-            if did == "a":
-                deck = self.deck_a
-            elif did == "b":
-                deck = self.deck_b
-            elif did == "active":
-                deck = self.active_deck
-            elif did == "inactive":
-                deck = self.inactive_deck
-            else:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
                 return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
             lo, mi, hi = deck.set_eq(low_db, mid_db, hi_db)
             return {
                 "ok": True,
-                "deck": "a" if deck is self.deck_a else "b",
+                "deck": deck_name,
                 "low_db": lo,
                 "mid_db": mi,
                 "hi_db": hi,
+            }
+
+    def apply_filter(self, deck_id: str, filter_type: str,
+                     cutoff_hz: float, q: float = 0.707) -> dict:
+        """Apply a persistent realtime filter to a deck."""
+        with self._lock:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
+                return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
+            try:
+                kind, cutoff, q_value = deck.set_filter(filter_type, cutoff_hz, q)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "deck": deck_id}
+            return {
+                "ok": True,
+                "deck": deck_name,
+                "filter_type": kind,
+                "cutoff_hz": cutoff,
+                "q": q_value,
+            }
+
+    def apply_loudness_norm(self, deck_id: str, gain_db: float | None = None,
+                            target_lufs: float = -14.0) -> dict:
+        """Apply a persistent realtime loudness trim to a deck."""
+        with self._lock:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
+                return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
+            if gain_db is not None:
+                deck.set_gain_db(gain_db)
+            return {
+                "ok": True,
+                "deck": deck_name,
+                "gain": deck.gain,
+                "gain_db": 20.0 * math.log10(deck.gain) if deck.gain > 0 else -120.0,
+                "target_lufs": float(target_lufs),
             }
 
     def trigger(self, key: int) -> dict:
@@ -1949,7 +2137,7 @@ class AudioEngineMVP:
         chunk, deck.pos = _read_segment(buf, deck.pos, frames)
         if deck.gain != 1.0:
             chunk = chunk * deck.gain
-        return chunk
+        return deck.apply_filter(chunk)
 
     def _callback(self, outdata, frames, time_info, status) -> None:
         if status:
@@ -1972,14 +2160,9 @@ class AudioEngineMVP:
                     deck_b_plan = self._eq_band_plan.get("deck_b")
                     a = self._read_eq_band_deck(self.active_deck, deck_a_plan, beat, frames, "a")
                     b = self._read_eq_band_deck(self.inactive_deck, deck_b_plan, beat, frames, "b")
-                    headroom_db = -6.0
-                    safety = self._eq_band_plan.get("safety")
-                    if isinstance(safety, dict):
-                        try:
-                            headroom_db = float(safety.get("headroom_db", -6.0))
-                        except (TypeError, ValueError):
-                            headroom_db = -6.0
-                    main = (a + b) * (10.0 ** (headroom_db / 20.0))
+                    # Match the offline 5-strategy renderer: do not apply a
+                    # fixed master headroom cut when entering eq_band_mix.
+                    main = a + b
                 elif automation is not None and self._stems_available():
                     sa, sb = automation
                     a = self._read_deck_styled(self.active_deck, frames, sa)
@@ -2027,10 +2210,7 @@ class AudioEngineMVP:
                     if tr and self._plan_enabled and not self._in_transition:
                         # 强制开始转场，即使预加载未完成
                         try:
-                            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves)
-                            self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems)
-                            self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-                            self._start_transition_locked(tr)
+                            self._begin_transition(tr)
                         except Exception as e:
                             import logging
                             logging.getLogger(__name__).warning("Force transition failed: %s", e)

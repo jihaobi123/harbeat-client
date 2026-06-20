@@ -146,6 +146,18 @@ class EdgeAgentClient {
     return _request(method: 'POST', path: '/xfade', body: body);
   }
 
+  Future<Map<String, dynamic>> loadPlan({
+    required Map<String, dynamic> mixPlan,
+    Map<String, dynamic> manifest = const <String, dynamic>{},
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/load_plan',
+      body: {'mix_plan': mixPlan, 'manifest': manifest},
+      timeout: const Duration(minutes: 10),
+    );
+  }
+
   /// Phase 2: kick a background rubberband render so a future /xfade with
   /// the same [tempoRatio] doesn't block on it.
   Future<Map<String, dynamic>> prewarmBeatmatch({

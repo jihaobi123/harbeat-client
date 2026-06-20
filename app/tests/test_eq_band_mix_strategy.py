@@ -44,7 +44,7 @@ def test_eq_band_mix_plan_contains_deck_curves_and_fallback_fields():
     )
 
     assert plan["transition_mode"] == "eq_band_mix"
-    assert plan["strategy"] == "hard_bass_swap"
+    assert plan["strategy"] == "tempo_compat"
     assert plan["target"]["song_id"] == "next"
     assert plan["deck_a"]["song_id"] == "prev"
     assert plan["deck_b"]["song_id"] == "next"
@@ -56,12 +56,28 @@ def test_eq_band_mix_plan_contains_deck_curves_and_fallback_fields():
     assert plan["safety"]["fallback_mode"] == "ordinary_xfade"
 
 
-def test_eq_band_mix_user_mode_filter_forces_filter_strategy():
+def test_eq_band_mix_user_mode_filter_maps_to_energy_lift():
     prev = song(id="prev", bpm=90.0, camelot_key="1A")
     nxt = song(id="next", bpm=118.0, camelot_key="9B")
 
     plan = plan_eq_band_mix_transition(prev, nxt, cursor_sec=0.0, eq_mix_user_mode="filter")
 
-    assert plan["strategy"] == "filter_sweep"
-    assert plan["style"] == "filter"
-    assert plan["deck_a"]["filter"]["type"] == "lowpass"
+    assert plan["strategy"] == "energy_lift"
+    assert plan["style"] == "eq_band_mix"
+    assert plan["deck_a"]["filter"] is None
+
+
+def test_eq_band_mix_auto_uses_package_strategy_names():
+    prev = song(id="prev", bpm=90.0, camelot_key="1A")
+    nxt = song(id="next", bpm=118.0, camelot_key="9B")
+
+    plan = plan_eq_band_mix_transition(prev, nxt, cursor_sec=0.0, eq_mix_user_mode="auto")
+
+    assert plan["strategy"] != "filter_sweep"
+    assert plan["strategy"] in {
+        "standard_blend",
+        "energy_lift",
+        "energy_drop",
+        "tempo_compat",
+        "cross_style",
+    }

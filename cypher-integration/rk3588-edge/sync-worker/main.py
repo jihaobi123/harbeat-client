@@ -110,7 +110,16 @@ def _manifest_from_body(body: dict[str, Any]) -> dict[str, Any]:
 
 def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    for track in manifest.get("tracks") or []:
+    tracks = manifest.get("tracks")
+    if not isinstance(tracks, list):
+        # Accept a single-song manifest directly as a convenience. The mobile
+        # app normally wraps this in {"tracks": [...]}, but manual tests and
+        # relay tools often post the song manifest itself.
+        if isinstance(manifest.get("files"), dict):
+            tracks = [manifest]
+        else:
+            tracks = []
+    for track in tracks:
         song_id = (
             track.get("song_id")
             or track.get("library_song_id")
@@ -280,9 +289,30 @@ def _choose_ext(kind: str, info: dict, url: str) -> str:
     return "wav"
 
 
+_AUDIO_EXTS = ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac")
+
+
 def _find_existing_original(out_dir: Path) -> Path | None:
-    for ext in ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac"):
+    for ext in _AUDIO_EXTS:
         cand = out_dir / f"original.{ext}"
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _find_existing_asset(out_dir: Path, kind: str, required_format: str | None = None) -> Path | None:
+    if kind == "original":
+        fmt = (required_format or "").lower().lstrip(".")
+        if fmt in _AUDIO_EXTS:
+            cand = out_dir / f"original.{fmt}"
+            return cand if cand.is_file() else None
+        return _find_existing_original(out_dir)
+    if kind not in ("vocals", "drums", "bass", "other"):
+        return None
+    fmt = (required_format or "").lower().lstrip(".")
+    exts = (fmt,) if fmt in _AUDIO_EXTS else _AUDIO_EXTS
+    for ext in exts:
+        cand = out_dir / f"{kind}.{ext}"
         if cand.is_file():
             return cand
     return None
@@ -348,12 +378,10 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = _choose_ext(kind, info, url)
     final_path = out_dir / f"{kind}.{ext}"
-    if kind == "original":
-        final_path = out_dir / "original.wav"
 
     # legacy: original.wav may already exist from old runs; treat as valid for original
     if kind == "original":
-        existing = _find_existing_original(out_dir)
+        existing = _find_existing_asset(out_dir, "original", ext)
         if existing and _already_valid(existing, expected_sha, expected_size):
             await state.mark_done()
             return
@@ -387,11 +415,7 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                     len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
                 )
                 source_size = tmp_path.stat().st_size
-                converted_original = False
-                if kind == "original" and (_needs_wav_conversion(info) or is_mp3 or ext != "wav"):
-                    _convert_to_wav(tmp_path, final_path)
-                    converted_original = True
-                elif final_path.suffix.lower() == ".wav" and is_mp3:
+                if final_path.suffix.lower() == ".wav" and is_mp3:
                     mp3_path = final_path.with_suffix(".mp3")
                     tmp_path.replace(mp3_path)
                     final_path = mp3_path
@@ -403,12 +427,8 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                         "size": stat.st_size,
                         "mtime_ns": stat.st_mtime_ns,
                     }
-                    if converted_original:
-                        meta["converted_from_sha256"] = expected_sha
-                        meta["converted_from_size"] = source_size
-                        meta["sha256"] = _sha256(final_path)
-                    else:
-                        meta["sha256"] = expected_sha
+                    meta["source_size"] = source_size
+                    meta["sha256"] = expected_sha
                     _sidecar(final_path).write_text(
                         json.dumps(meta, ensure_ascii=False) + "\n",
                         encoding="utf-8",
@@ -454,13 +474,15 @@ async def status() -> dict[str, Any]:
 
 
 @app.get("/cache/check")
-async def cache_check(song_id: str) -> dict[str, Any]:
+async def cache_check(song_id: str, kind: str = "original", format: str | None = None) -> dict[str, Any]:
     out_dir = _safe_song_dir(song_id)
+    normalized_kind = (kind or "original").lower().lstrip(".")
+    requested_format = (format or "").lower().lstrip(".")
     if not out_dir.is_dir():
-        return {"ok": True, "exists": False}
-    found = _find_existing_original(out_dir)
+        return {"ok": True, "exists": False, "kind": normalized_kind, "format": requested_format or None}
+    found = _find_existing_asset(out_dir, normalized_kind, requested_format)
     if not found:
-        return {"ok": True, "exists": False}
+        return {"ok": True, "exists": False, "kind": normalized_kind, "format": requested_format or None}
     try:
         size = found.stat().st_size
     except OSError:
@@ -468,6 +490,8 @@ async def cache_check(song_id: str) -> dict[str, Any]:
     return {
         "ok": True,
         "exists": True,
+        "kind": normalized_kind,
+        "format": requested_format or None,
         "path": str(found),
         "size": size,
         "ext": found.suffix.lstrip("."),

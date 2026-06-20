@@ -83,6 +83,158 @@ def _score(song) -> float:
     return float(get_dance_energy_profile(song)["dance_energy_score"])
 
 
+def _as_energy_100(value, default: float = 50.0) -> float:
+    try:
+        raw = float(value)
+    except (TypeError, ValueError):
+        return default
+    if raw <= 1.0:
+        raw *= 100.0
+    return max(0.0, min(100.0, raw))
+
+
+def _float_value(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _vocal_density_for_range(song, start: float, end: float) -> float:
+    events = getattr(song, "vocal_events", None) or []
+    if not isinstance(events, list) or not events or end <= start:
+        return 0.55
+    total = 0.0
+    markers = []
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        if "start" in event or "end" in event:
+            ev_start = _float_value(event.get("start", event.get("time")), 0.0)
+            ev_end = _float_value(event.get("end"), ev_start + _float_value(event.get("duration"), 0.0))
+            confidence = _float_value(event.get("confidence"), 1.0)
+            overlap = max(0.0, min(end, ev_end) - max(start, ev_start))
+            total += overlap * confidence
+        elif "time" in event and "type" in event:
+            markers.append(event)
+    if markers:
+        active_start = None
+        confidence = 1.0
+        for marker in sorted(markers, key=lambda item: _float_value(item.get("time"), 0.0)):
+            t = _float_value(marker.get("time"), 0.0)
+            kind = str(marker.get("type") or "").lower()
+            if kind == "enter":
+                if active_start is None:
+                    active_start = t
+                    confidence = _float_value(marker.get("confidence"), 1.0)
+                else:
+                    confidence = max(confidence, _float_value(marker.get("confidence"), 1.0))
+            elif kind == "exit" and active_start is not None:
+                overlap = max(0.0, min(end, t) - max(start, active_start))
+                total += overlap * confidence
+                active_start = None
+                confidence = 1.0
+        if active_start is not None:
+            overlap = max(0.0, end - max(start, active_start))
+            total += overlap * confidence
+    return min(1.0, total / (end - start))
+
+
+def _section_energy_candidates(song) -> list[dict]:
+    """Return entry-friendly section/curve energy candidates in 0..100.
+
+    Energy cuts should feel like the selected bucket at the actual entry point,
+    not merely match the song-wide average. We therefore inspect phrase_map and
+    energy_curve, preferring musically useful early entry sections.
+    """
+    duration = float(getattr(song, "duration", 0) or 0)
+    out: list[dict] = []
+
+    phrases = getattr(song, "phrase_map", None) or []
+    if isinstance(phrases, list):
+        for idx, phrase in enumerate(phrases[:8]):
+            if not isinstance(phrase, dict):
+                continue
+            start = float(phrase.get("start", phrase.get("start_sec", phrase.get("time", 0.0))) or 0.0)
+            end = float(phrase.get("end", phrase.get("end_sec", start + 16.0)) or start + 16.0)
+            if duration > 0 and start > max(75.0, duration * 0.55):
+                continue
+            label = str(phrase.get("label", phrase.get("type", "section")) or "section").lower()
+            energy = _as_energy_100(phrase.get("energy", phrase.get("intensity")), _score(song))
+            priority = {
+                "drop": 1.0,
+                "chorus": 0.95,
+                "hook": 0.92,
+                "intro": 0.85,
+                "break": 0.82,
+                "verse": 0.78,
+                "build": 0.75,
+            }.get(label, 0.68)
+            out.append({
+                "start": max(0.0, start),
+                "end": max(end, start),
+                "label": label,
+                "energy": energy,
+                "priority": priority,
+                "vocal_density": _vocal_density_for_range(song, start, min(end, start + 8.0)),
+                "source": "phrase_map",
+            })
+
+    curve = getattr(song, "energy_curve", None) or []
+    if isinstance(curve, list):
+        for point in curve:
+            if isinstance(point, dict):
+                t = float(point.get("time", point.get("sec", 0.0)) or 0.0)
+                raw = point.get("energy", point.get("value"))
+            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                t = float(point[0] or 0.0)
+                raw = point[1]
+            else:
+                continue
+            if duration > 0 and t > max(75.0, duration * 0.55):
+                continue
+            out.append({
+                "start": max(0.0, t),
+                "end": max(0.0, t + 8.0),
+                "label": "energy_peak",
+                "energy": _as_energy_100(raw, _score(song)),
+                "priority": 0.72,
+                "vocal_density": _vocal_density_for_range(song, t, t + 8.0),
+                "source": "energy_curve",
+            })
+
+    if not out:
+        out.append({
+            "start": 0.0,
+            "end": min(duration, 16.0) if duration > 0 else 16.0,
+            "label": "song_average",
+            "energy": _score(song),
+            "priority": 0.50,
+            "vocal_density": _vocal_density_for_range(song, 0.0, 8.0),
+            "source": "song_average",
+        })
+    return out
+
+
+def _best_target_energy_segment(song, target_min: float, target_max: float) -> dict:
+    candidates = _section_energy_candidates(song)
+    best = max(
+        candidates,
+        key=lambda item: (
+            _energy_match(float(item["energy"]), target_min, target_max),
+            float(item.get("priority", 0.0)),
+            float(item["energy"]),
+        ),
+    )
+    match = _energy_match(float(best["energy"]), target_min, target_max)
+    return {
+        **best,
+        "match": round(match, 4),
+        "in_target": target_min <= float(best["energy"]) <= target_max,
+        "vocal_density": round(float(best.get("vocal_density", 0.55)), 4),
+    }
+
+
 def _style_score(song, style: str | None) -> float:
     if not style:
         return 0.5
@@ -120,9 +272,8 @@ def _transition_window_score(song) -> float:
 
 
 def _risk_safety(song) -> float:
-    vocal_events = getattr(song, "vocal_events", None) or []
     bass_windows = getattr(song, "bass_risk_windows", None) or []
-    penalty = min(0.45, 0.04 * len(vocal_events) + 0.04 * len(bass_windows))
+    penalty = min(0.30, 0.04 * len(bass_windows))
     stem_bonus = 0.10 if isinstance(getattr(song, "stems", None), dict) and getattr(song, "stems", None) else 0.0
     return max(0.0, min(1.0, 0.75 + stem_bonus - penalty))
 
@@ -199,8 +350,17 @@ def _candidate_plan_item(
     song_id = _song_id(candidate)
     status = _cache_status(song_id, cached_ids, syncing_ids)
     energy = float(profile["dance_energy_score"])
+    segment = _best_target_energy_segment(candidate, target_min, target_max)
+    segment_energy = float(segment["energy"])
+    segment_match = _energy_match(segment_energy, target_min, target_max)
+    whole_match = _energy_match(energy, target_min, target_max)
     breakdown = {
-        "energy_match": round(_energy_match(energy, target_min, target_max), 4),
+        "energy_match": round((0.72 * segment_match + 0.28 * whole_match), 4),
+        "segment_energy_match": round(segment_match, 4),
+        "song_energy_match": round(whole_match, 4),
+        "segment_priority": round(float(segment.get("priority", 0.0)), 4),
+        "segment_vocal_density": round(float(segment.get("vocal_density", 0.55)), 4),
+        "segment_single_vocal_allowed": True,
         "style_match": round(_style_score(candidate, current_style), 4),
         "bpm_compat": round(_bpm_compat(current_song, candidate), 4),
         "transition_window": round(_transition_window_score(candidate), 4),
@@ -218,6 +378,7 @@ def _candidate_plan_item(
     return {
         "song": candidate,
         "profile": profile,
+        "target_segment": segment,
         "source": source,
         "cache_status": status,
         "candidate_score": round(score, 4),
@@ -301,8 +462,9 @@ def plan_target_energy_cut(
             library,
         ]
         for stage in stages:
-            items = [
-                _candidate_plan_item(
+            items = []
+            for song, source in stage:
+                item = _candidate_plan_item(
                     song,
                     current_song=current_song,
                     target_min=lo,
@@ -312,9 +474,8 @@ def plan_target_energy_cut(
                     cached_ids=cached,
                     syncing_ids=syncing,
                 )
-                for song, source in stage
-                if lo <= _score(song) <= hi
-            ]
+                if item["target_segment"].get("in_target") or lo <= _score(song) <= hi:
+                    items.append(item)
             selected = _select_best(items, prefer_cached=prefer_cached)
             if selected:
                 fallback_reason = reason
@@ -348,14 +509,16 @@ def plan_target_energy_cut(
 
     song = selected["song"]
     profile = selected["profile"]
-    fallback = fallback_reason is not None or not (target_min <= profile["dance_energy_score"] <= target_max)
+    target_segment = selected["target_segment"]
+    effective_energy = float(target_segment["energy"])
+    fallback = fallback_reason is not None or not (target_min <= effective_energy <= target_max)
     selected_bucket = {
         "min": float(selected_range[0]),
         "max": float(selected_range[1]),
         "label": _target_label(selected_range[0], selected_range[1]),
     }
     reason = [
-        f"目标区间为 {target['label']}，该歌曲能量 {profile['dance_energy_score']:.0f}",
+        f"目标区间为 {target['label']}，接入段落能量 {effective_energy:.0f}（整首 {profile['dance_energy_score']:.0f}）",
         f"来源：{'主队列' if selected['source'] == 'active_queue' else '备选池' if selected['source'] == 'reserve_pool' else '曲库扩展'}",
         f"缓存状态：{'已缓存，可立即切' if selected['cache_status'] == 'ready' else '正在同步' if selected['cache_status'] == 'synchronizing' else '未缓存，确认前会先同步'}",
     ]
@@ -383,6 +546,9 @@ def plan_target_energy_cut(
             "title": getattr(song, "title", ""),
             "artist": getattr(song, "artist", ""),
             "energy_score": profile["dance_energy_score"],
+            "segment_energy_score": round(effective_energy, 1),
+            "entry_start_sec": round(float(target_segment.get("start", 0.0)), 3),
+            "entry_label": target_segment.get("label"),
             "bucket": profile["bucket"],
             "source": selected["source"],
             "cache_status": selected["cache_status"],
@@ -394,7 +560,7 @@ def plan_target_energy_cut(
         },
         "candidate_score": selected["candidate_score"],
         "score_breakdown": selected["score_breakdown"],
-        "recommended_transition_hint": "drop_swap" if profile["dance_energy_score"] >= current_score else "filter_sweep_high",
+        "recommended_transition_hint": "drop_swap" if effective_energy >= current_score else "filter_sweep_high",
         "reason": reason,
         "fallback": fallback,
         "fallback_reason": fallback_reason,
@@ -444,7 +610,7 @@ def prepare_live_pool(
         energy_profiles[sid] = profile
 
     # Prepare style reserve pool
-    supported_styles = list(include_styles or ["breaking", "hiphop", "popping", "locking", "house", "krump", "waacking"])
+    supported_styles = list(include_styles or ["breaking", "hiphop", "jazz", "popping", "locking", "house", "krump", "waacking"])
     style_reserve_pool = {s: [] for s in supported_styles}
     style_pool_status = {}
 
@@ -612,6 +778,10 @@ def _style_transition_hint(from_style: str | None, to_style: str) -> str:
         ("hiphop", "house"): "auto_bpm_ramp",
         ("hiphop", "krump"): "impact_slam_cut",
         ("hiphop", "waacking"): "neutral_fx_bridge",
+        ("hiphop", "jazz"): "harmonic_blend",
+        ("jazz", "hiphop"): "harmonic_blend",
+        ("jazz", "locking"): "percussion_bridge",
+        ("jazz", "waacking"): "harmonic_blend",
 
         ("popping", "locking"): "eq_swap_4bar",
         ("popping", "house"): "harmonic_blend",

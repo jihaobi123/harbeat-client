@@ -49,25 +49,26 @@ def band_density(song: Any) -> dict[str, float]:
     stem_activity = getattr(song, "stem_activity", None) or {}
     genre_profile = getattr(song, "genre_profile", None) or {}
     energy = clamp01(getattr(song, "energy", None), 0.5)
+    dj = music_features.get("dj") if isinstance(music_features.get("dj"), dict) else {}
 
     low = clamp01(
-        music_features.get("low_energy")
+        dj.get("low_ratio")
+        or music_features.get("low_energy")
         or music_features.get("bass_energy")
         or loudness_profile.get("low")
-        or stem_activity.get("bass")
         or genre_profile.get("bass_density"),
         energy,
     )
     mid = clamp01(
-        music_features.get("mid_energy")
+        dj.get("mid_ratio")
+        or music_features.get("mid_energy")
         or loudness_profile.get("mid")
-        or stem_activity.get("vocals")
-        or stem_activity.get("other")
         or genre_profile.get("vocal_density"),
         max(0.35, energy * 0.9),
     )
     high = clamp01(
-        music_features.get("high_energy")
+        dj.get("high_ratio")
+        or music_features.get("high_energy")
         or loudness_profile.get("high")
         or genre_profile.get("hi_hat_density"),
         max(0.3, energy * 0.75),

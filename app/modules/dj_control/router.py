@@ -10,6 +10,8 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
 from app.modules.dj_control import cut_strategy, dance_style, eq_transition_strategy, fx_synth, mixer_rules, sequencer, vibe_search
 from app.modules.dj_control.energy_hiphop import compute_dance_energy, get_dance_energy_profile
+from app.modules.dj_control.spotify_mix.section_features import vocal_density_in_range
+from app.modules.dj_control.spotify_mix.section_matcher import plan_section_match_transition
 from app.modules.dj_set import service as dj_set_service
 from app.modules.dj_set.set_templates import ALL_TEMPLATES, get_template
 from app.modules.dj_control.schemas import (
@@ -22,6 +24,11 @@ from app.modules.dj_control.schemas import (
     SequenceEntry,
     SequenceRequest,
     SequenceResponse,
+    SmartReorderRequest,
+    SpotifyDecideRequest,
+    SpotifyEQRequest,
+    SpotifyFilterRequest,
+    SpotifyVolumeRequest,
     StyleListResponse,
     StylePickRequest,
     StylePickResponse,
@@ -192,6 +199,112 @@ def list_transition_rules_endpoint():
     return APIResponse(data=mixer_rules.list_transition_rules())
 
 
+def _song_for_section_match(song: LibrarySong) -> dict:
+    loudness_profile = getattr(song, "loudness_profile", None) or {}
+    music_features = getattr(song, "music_features", None) or {}
+    analysis = {
+        "duration": float(song.duration or 0.0),
+        "phrase_map": getattr(song, "phrase_map", None) or [],
+        "transition_windows": getattr(song, "transition_windows", None) or [],
+        "energy_curve": getattr(song, "energy_curve", None) or [],
+        "vocal_events": getattr(song, "vocal_events", None) or [],
+        "bass_risk_windows": getattr(song, "bass_risk_windows", None) or [],
+        "stem_activity_windows": getattr(song, "stem_activity_windows", None) or [],
+        "beat_points": getattr(song, "beat_points", None) or [],
+        "downbeats": getattr(song, "downbeats", None) or [],
+        "beatgrid": {"downbeats": getattr(song, "downbeats", None) or []},
+        "bpm_curve": getattr(song, "bpm_curve", None) or [],
+    }
+    return {
+        "id": song.id,
+        "song_id": song.id,
+        "source_path": song.source_path,
+        "bpm": float(song.bpm or music_features.get("bpm") or 120.0),
+        "camelot_key": song.camelot_key or "8A",
+        "duration": float(song.duration or 0.0),
+        "energy": float(song.energy if song.energy is not None else 0.5),
+        "loudness": float(loudness_profile.get("integrated_lufs", -14.0)),
+        "music_features": music_features,
+        "genre_profile": getattr(song, "genre_profile", None) or {},
+        "analysis": analysis,
+    }
+
+
+def _override_would_create_double_vocal(
+    transition: dict,
+    *,
+    current: LibrarySong,
+    target: LibrarySong,
+    entry_sec: float,
+) -> dict:
+    fade_sec = float(transition.get("fade_sec") or transition.get("duration_sec") or 6.0)
+    from_at = float(transition.get("from_at_sec") or transition.get("start_in_prev") or 0.0)
+    current_duration = float(current.duration or 0.0)
+    target_duration = float(target.duration or 0.0)
+    from_end = min(current_duration, from_at + fade_sec) if current_duration > from_at else from_at + fade_sec
+    to_end = min(target_duration, entry_sec + fade_sec) if target_duration > entry_sec else entry_sec + fade_sec
+    a_vocal = vocal_density_in_range(getattr(current, "vocal_events", None) or [], from_at, from_end)
+    b_vocal = vocal_density_in_range(getattr(target, "vocal_events", None) or [], entry_sec, to_end)
+    both = min(a_vocal, b_vocal)
+    return {
+        "double_vocal": bool(both >= 0.25 or (a_vocal >= 0.60 and b_vocal >= 0.60)),
+        "from_window": [round(from_at, 3), round(from_end, 3)],
+        "to_window": [round(entry_sec, 3), round(to_end, 3)],
+        "a_vocal": round(a_vocal, 3),
+        "b_vocal": round(b_vocal, 3),
+        "both_vocal": round(both, 3),
+    }
+
+
+def _attach_prepared_section_transition(
+    plan: dict,
+    *,
+    current: LibrarySong,
+    target: LibrarySong | None,
+    cursor_sec: float,
+) -> dict:
+    if target is None:
+        return plan
+    prepared = dict(plan)
+    transition = plan_section_match_transition(
+        _song_for_section_match(current),
+        _song_for_section_match(target),
+        cursor_sec=cursor_sec,
+    )
+    selected = prepared.get("selected_song")
+    if isinstance(selected, dict) and selected.get("entry_start_sec") is not None:
+        entry = round(float(selected.get("entry_start_sec") or 0.0), 3)
+        vocal_check = _override_would_create_double_vocal(
+            transition,
+            current=current,
+            target=target,
+            entry_sec=entry,
+        )
+        override = {
+            "entry_start_sec": entry,
+            "entry_label": selected.get("entry_label"),
+            "segment_energy_score": selected.get("segment_energy_score"),
+            "vocal_check": vocal_check,
+        }
+        if vocal_check["double_vocal"]:
+            override["applied"] = False
+            override["reason"] = "rejected_double_vocal_overlap"
+        else:
+            transition["to_at_sec"] = entry
+            transition["start_in_next"] = entry
+            target_spec = dict(transition.get("target") or {})
+            target_spec["song_id"] = target.id
+            target_spec["start_cue_sec"] = entry
+            transition["target"] = target_spec
+            override["applied"] = True
+        transition["energy_entry_override"] = override
+    prepared["prepared_transition"] = transition
+    prepared["prepared_for_current_song_id"] = current.id
+    prepared["prepared_target_song_id"] = target.id
+    prepared.setdefault("reason", []).append("Jetson prepared v3.2 section_match transition with current vocal_events.")
+    return prepared
+
+
 @router.post("/transitions/plan")
 def plan_transition_endpoint(
     payload: TransitionPlanRequest,
@@ -202,7 +315,18 @@ def plan_transition_endpoint(
     nxt = db.get(LibrarySong, payload.next_song_id)
     if not prev or not nxt or prev.user_id != current_user.id or nxt.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="song(s) not found")
-    if payload.transition_mode == "eq_band_mix":
+    if payload.transition_mode == "section_match":
+        spec = plan_section_match_transition(
+            _song_for_section_match(prev),
+            _song_for_section_match(nxt),
+            cursor_sec=payload.cursor_sec,
+            user_strategy=(
+                payload.eq_mix_user_mode
+                if payload.eq_mix_user_mode and payload.eq_mix_user_mode != "auto"
+                else None
+            ),
+        )
+    elif payload.transition_mode == "eq_band_mix":
         spec = eq_transition_strategy.plan_eq_band_mix_transition(
             prev,
             nxt,
@@ -213,6 +337,43 @@ def plan_transition_endpoint(
         )
     else:
         spec = mixer_rules.build_transition_spec(prev, nxt, payload.cursor_sec, payload.rule_key)
+    if payload.apply_phrase_alignment and payload.transition_mode != "section_match":
+        from app.modules.dj_control.spotify_mix.phrase_alignment import find_transition_point
+
+        prev_analysis = {
+            "phrase_map": getattr(prev, "phrase_map", []) or [],
+            "downbeats": getattr(prev, "downbeats", []) or [],
+            "dj_hot_cues": getattr(prev, "dj_hot_cues", []) or [],
+        }
+        next_analysis = {
+            "phrase_map": getattr(nxt, "phrase_map", []) or [],
+            "downbeats": getattr(nxt, "downbeats", []) or [],
+            "dj_hot_cues": getattr(nxt, "dj_hot_cues", []) or [],
+            "stems": getattr(nxt, "stems", {}) or {},
+            "vocal_events": getattr(nxt, "vocal_events", []) or [],
+        }
+        exit_at, entry_at = find_transition_point(
+            prev_analysis,
+            next_analysis,
+            float(spec.get("from_at_sec", payload.cursor_sec) or payload.cursor_sec),
+        )
+        spec["from_at_sec"] = round(float(exit_at), 3)
+        spec["to_at_sec"] = round(float(entry_at), 3)
+        spec["start_in_prev"] = spec["from_at_sec"]
+        spec["start_in_next"] = spec["to_at_sec"]
+        spec["phrase_alignment"] = {"applied": True, "exit_at_sec": spec["from_at_sec"], "entry_at_sec": spec["to_at_sec"]}
+    if payload.mix_preset and payload.transition_mode != "section_match":
+        from app.modules.dj_control.transition import enrich_transition_plan_with_mix_effects
+
+        try:
+            spec = enrich_transition_plan_with_mix_effects(spec, prev, nxt, payload.mix_preset)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    elif payload.mix_preset and payload.transition_mode == "section_match":
+        spec["mix_preset_ignored"] = payload.mix_preset
+        spec.setdefault("reason", []).append(
+            "mix_preset ignored because v3.2 section_match owns duration/style."
+        )
     return APIResponse(data=spec)
 
 
@@ -296,7 +457,14 @@ def plan_cut_endpoint(
             prefer_cached=payload.prefer_cached,
             max_wait_sec=payload.max_wait_sec,
         )
-        return APIResponse(data=plan)
+        selected = plan.get("selected_song") if isinstance(plan, dict) else None
+        target_song = db.get(LibrarySong, selected.get("song_id")) if isinstance(selected, dict) and selected.get("song_id") else None
+        return APIResponse(data=_attach_prepared_section_transition(
+            plan,
+            current=current,
+            target=target_song if target_song and target_song.user_id == current_user.id else None,
+            cursor_sec=payload.cursor_sec,
+        ))
 
     if intent == "target_dance_style":
         current = db.get(LibrarySong, payload.current_song_id)
@@ -332,7 +500,14 @@ def plan_cut_endpoint(
             prefer_cached=payload.prefer_cached,
             max_wait_sec=payload.max_wait_sec,
         )
-        return APIResponse(data=plan)
+        selected = plan.get("selected_song") if isinstance(plan, dict) else None
+        target_song = db.get(LibrarySong, selected.get("song_id")) if isinstance(selected, dict) and selected.get("song_id") else None
+        return APIResponse(data=_attach_prepared_section_transition(
+            plan,
+            current=current,
+            target=target_song if target_song and target_song.user_id == current_user.id else None,
+            cursor_sec=payload.cursor_sec,
+        ))
 
     if payload.strategy not in ("fast_cut", "energy_up_cut", "energy_down_cut"):
         raise HTTPException(status_code=400, detail=f"unknown strategy: {payload.strategy}")
@@ -358,7 +533,13 @@ def plan_cut_endpoint(
         pool=pool,
         max_wait_sec=payload.max_wait_sec,
     )
-    return APIResponse(data=plan)
+    target_song = db.get(LibrarySong, plan.get("next_song_id")) if plan.get("next_song_id") else None
+    return APIResponse(data=_attach_prepared_section_transition(
+        plan,
+        current=current,
+        target=target_song if target_song and target_song.user_id == current_user.id else None,
+        cursor_sec=payload.cursor_sec,
+    ))
 
 
 # --------------------------------------------------------------------------- #
@@ -551,3 +732,81 @@ def set_preview_endpoint(
         "set": entry["set"],
         "hint": "前端 / RK 端按 plan.actions 自行 render",
     })
+
+
+# --------------------------------------------------------------------------- #
+# HarBeat Mix Effects API
+# --------------------------------------------------------------------------- #
+@router.get("/mix_effects/presets")
+def mix_effect_presets_endpoint():
+    from app.modules.dj_control.transition import mix_effect_presets
+
+    return APIResponse(data=mix_effect_presets())
+
+
+@router.post("/mix_effects/decide")
+def mix_effect_decide_endpoint(
+    payload: SpotifyDecideRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.modules.dj_control.transition import decide_mix_preset
+    prev = db.get(LibrarySong, payload.prev_song_id)
+    nxt = db.get(LibrarySong, payload.next_song_id)
+    if not prev or not nxt or prev.user_id != current_user.id or nxt.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="song(s) not found")
+    try:
+        decision = decide_mix_preset(prev, nxt, payload.user_preference)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return APIResponse(data=decision)
+
+
+@router.post("/mix_effects/smart_reorder")
+def mix_effect_smart_reorder_endpoint(
+    payload: SmartReorderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.modules.dj_control.transition import smart_reorder
+    songs_by_id = {
+        s.id: s for s in db.query(LibrarySong)
+        .filter(LibrarySong.user_id == current_user.id)
+        .filter(LibrarySong.id.in_(payload.song_ids))
+        .all()
+    }
+    ordered = [songs_by_id[sid] for sid in payload.song_ids if sid in songs_by_id]
+    if len(ordered) < 2:
+        raise HTTPException(status_code=400, detail="need >=2 songs")
+    reordered = smart_reorder(ordered, payload.bpm_tolerance, payload.prefer_energy_flow)
+    return APIResponse(data={"song_ids": [s.id for s in reordered]})
+
+
+@router.post("/mix_effects/eq_curve")
+def mix_effect_eq_curve_endpoint(payload: SpotifyEQRequest):
+    from app.modules.dj_control.transition import generate_eq_curve
+    try:
+        curve = generate_eq_curve(payload.eq_type, payload.duration_beats, payload.bpm)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return APIResponse(data=curve)
+
+
+@router.post("/mix_effects/filter_curve")
+def mix_effect_filter_curve_endpoint(payload: SpotifyFilterRequest):
+    from app.modules.dj_control.transition import generate_filter_curve
+    try:
+        curve = generate_filter_curve(payload.filter_type, payload.duration_beats, payload.bpm)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return APIResponse(data=curve)
+
+
+@router.post("/mix_effects/volume_curve")
+def mix_effect_volume_curve_endpoint(payload: SpotifyVolumeRequest):
+    from app.modules.dj_control.transition import generate_volume_curve
+    try:
+        curve = generate_volume_curve(payload.curve_type, payload.duration_beats, payload.bpm)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return APIResponse(data=curve)

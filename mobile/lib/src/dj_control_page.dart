@@ -104,9 +104,12 @@ class _DjControlPageState extends State<DjControlPage> {
       <int, Map<String, dynamic>>{};
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
+  String? _rkExecutionHint;
+  String? _lastTransitionDebug;
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
   bool _xfadeInFlight = false;
   DateTime? _xfadeInFlightAt;
+  static const double _v32MinFadeSec = 6.0;
   Timer? _rkPoll;
 
   // Sync-worker: pulls Jetson wav into ~/cypher/cache/<song_id>/ on RK.
@@ -213,6 +216,8 @@ class _DjControlPageState extends State<DjControlPage> {
     _preparedTransitionPlans.clear();
     _cutInfo = null;
     _activeRule = null;
+    _rkExecutionHint = null;
+    _lastTransitionDebug = null;
     _lastXfadeFromIdx = -1;
     _xfadeInFlight = false;
     _xfadeInFlightAt = null;
@@ -690,6 +695,7 @@ class _DjControlPageState extends State<DjControlPage> {
     'instrumental_only',
     'vocal_solo_intro',
     'echo_freeze',
+    'eq_band_mix',
   };
 
   /// Map Jetson `mixer_rules.py` 的 7+11 rule_key 到 RK `XfadeRequest.style`。
@@ -727,6 +733,13 @@ class _DjControlPageState extends State<DjControlPage> {
     'neutral_fx_bridge': 'melt',
     'breakdown_reset': 'fade',
     'impact_slam_cut': 'slam',
+    // v3.2 section matcher strategies.
+    'section_match:standard_blend': 'eq_band_mix',
+    'section_match:energy_lift': 'eq_band_mix',
+    'section_match:energy_drop': 'eq_band_mix',
+    'section_match:tempo_compat': 'eq_band_mix',
+    'section_match:cross_style': 'eq_band_mix',
+    'section_match:fallback:standard_blend': 'eq_band_mix',
   };
 
   /// Per-rule minimum fade in seconds. The backend rule_key authoritatively
@@ -794,8 +807,13 @@ class _DjControlPageState extends State<DjControlPage> {
     return _rkStyle(rawRuleKey, fallback: fallback);
   }
 
-  bool _isEqBandPlan(Map<String, dynamic>? plan) =>
-      plan?['transition_mode']?.toString() == 'eq_band_mix';
+  bool _isEqBandPlan(Map<String, dynamic>? plan) {
+    if (plan == null) return false;
+    return plan['transition_mode']?.toString() == 'eq_band_mix' ||
+        plan['execution_mode']?.toString() == 'eq_band_mix' ||
+        plan['deck_a'] is Map ||
+        plan['deck_b'] is Map;
+  }
 
   String? _cacheIdForSong(LibrarySong song) {
     final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
@@ -803,33 +821,40 @@ class _DjControlPageState extends State<DjControlPage> {
     return id.trim();
   }
 
-  Future<Map<String, dynamic>> _planEqBandTransition({
+  Future<Map<String, dynamic>> _planSectionMatchTransition({
     required LibrarySong prev,
     required LibrarySong next,
     required double cursorSec,
     String? ruleKey,
     String? targetStyle,
   }) async {
-    try {
-      return await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: prev.id,
-        nextSongId: next.id,
-        cursorSec: cursorSec,
-        ruleKey: ruleKey,
-        transitionMode: 'eq_band_mix',
-        eqMixUserMode: 'auto',
-        targetStyle: targetStyle,
-      );
-    } catch (_) {
-      return await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: prev.id,
-        nextSongId: next.id,
-        cursorSec: cursorSec,
-        ruleKey: ruleKey,
-      );
-    }
+    final plan = await widget.apiClient.djPlanTransition(
+      token: widget.token,
+      prevSongId: prev.id,
+      nextSongId: next.id,
+      cursorSec: cursorSec,
+      ruleKey: ruleKey,
+      transitionMode: 'section_match',
+      eqMixUserMode: 'auto',
+      targetStyle: targetStyle,
+      targetLufs: -14.0,
+    );
+    _assertRealSectionMatchPlan(plan, prev: prev, next: next);
+    return plan;
+  }
+
+  double _v32FadeSec(Map<String, dynamic> plan, {double fallback = 6.0}) {
+    final rawRuleKey = plan['rule_key']?.toString() ?? '';
+    final rawDur =
+        (plan['duration_sec'] as num?)?.toDouble() ??
+        (plan['fade_sec'] as num?)?.toDouble() ??
+        fallback;
+    final ruleFloor = _minFadeForRule[rawRuleKey] ?? 0.05;
+    final v32Floor = _isEqBandPlan(plan) ? _v32MinFadeSec : 0.05;
+    return math
+        .max(math.max(ruleFloor, v32Floor), rawDur)
+        .clamp(0.05, 30.0)
+        .toDouble();
   }
 
   double _preplanCursorSec(LibrarySong prev) {
@@ -838,28 +863,38 @@ class _DjControlPageState extends State<DjControlPage> {
     return math.max(0.0, duration - 45.0);
   }
 
-  Map<String, dynamic> _localFallbackTransitionPlan({
+  void _assertRealSectionMatchPlan(
+    Map<String, dynamic> plan, {
     required LibrarySong prev,
     required LibrarySong next,
   }) {
-    final fadeSec = 8.0;
-    final fromAtSec =
-        prev.duration > fadeSec + 3.0 ? prev.duration - fadeSec - 3.0 : 0.0;
-    return <String, dynamic>{
-      'transition_mode': 'ordinary_xfade',
-      'rule_key': 'startup_prepared_blend',
-      'rule_label_zh': 'Prepared blend',
-      'duration_sec': fadeSec,
-      'fade_sec': fadeSec,
-      'from_at_sec': fromAtSec,
-      'to_at_sec': 0.0,
-      'start_in_prev': fromAtSec,
-      'start_in_next': 0.0,
-      'to_song_id': _cacheIdForSong(next),
-      'style': 'blend',
-      'rk_style': 'blend',
-      'fallback_style': 'blend',
-    };
+    final mode = plan['transition_mode']?.toString();
+    final execution = plan['execution_mode']?.toString();
+    final ruleKey = plan['rule_key']?.toString() ?? '';
+    final sectionMatch = plan['section_match'];
+    final fromAt = (plan['from_at_sec'] as num?)?.toDouble();
+    final toAt = (plan['to_at_sec'] as num?)?.toDouble();
+    final plannedNext =
+        _asStringMap(plan['target'])?['song_id']?.toString() ??
+        plan['to_song_id']?.toString() ??
+        plan['next_song_id']?.toString();
+    final isFallback =
+        sectionMatch is Map && sectionMatch['is_fallback'] == true;
+    if (mode != 'section_match' ||
+        execution != 'eq_band_mix' ||
+        !ruleKey.startsWith('section_match:') ||
+        sectionMatch is! Map ||
+        isFallback ||
+        fromAt == null ||
+        toAt == null ||
+        (plannedNext != null &&
+            plannedNext.isNotEmpty &&
+            plannedNext != next.id)) {
+      throw Exception(
+        'Jetson v3.2 section_match plan invalid for ${prev.title} -> ${next.title}: '
+        'mode=$mode execution=$execution rule=$ruleKey from=$fromAt to=$toAt',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _prepareTransitionPlanForPair({
@@ -872,16 +907,12 @@ class _DjControlPageState extends State<DjControlPage> {
       prev: prev,
       next: next,
     );
-    try {
-      return await _planEqBandTransition(
-        prev: prev,
-        next: next,
-        cursorSec: _preplanCursorSec(prev),
-        ruleKey: canonical?['rule_key']?.toString(),
-      );
-    } catch (_) {
-      return canonical ?? _localFallbackTransitionPlan(prev: prev, next: next);
-    }
+    return await _planSectionMatchTransition(
+      prev: prev,
+      next: next,
+      cursorSec: _preplanCursorSec(prev),
+      ruleKey: canonical?['rule_key']?.toString(),
+    );
   }
 
   Future<void> _prepareAllTransitionPlansBeforePlay(
@@ -950,14 +981,42 @@ class _DjControlPageState extends State<DjControlPage> {
   }) {
     final prepared = _preparedTransitionPlans[transitionIndex];
     if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
-      return Map<String, dynamic>.from(prepared);
+      final out = Map<String, dynamic>.from(prepared);
+      _assertRealSectionMatchPlan(out, prev: prev, next: next);
+      return out;
     }
-    return _canonicalPlanFor(
-          transitionIndex: transitionIndex,
-          prev: prev,
-          next: next,
-        ) ??
-        _localFallbackTransitionPlan(prev: prev, next: next);
+    throw Exception(
+      'Missing Jetson v3.2 section_match plan for ${prev.title} -> ${next.title}',
+    );
+  }
+
+  Future<Map<String, dynamic>> _ensurePreparedSectionMatchPlanFor({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+    String? targetStyle,
+  }) async {
+    final prepared = _preparedTransitionPlans[transitionIndex];
+    if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
+      final out = Map<String, dynamic>.from(prepared);
+      _assertRealSectionMatchPlan(out, prev: prev, next: next);
+      return out;
+    }
+    final canonical = _canonicalPlanFor(
+      transitionIndex: transitionIndex,
+      prev: prev,
+      next: next,
+    );
+    final plan = await _planSectionMatchTransition(
+      prev: prev,
+      next: next,
+      cursorSec: cursorSec,
+      ruleKey: canonical?['rule_key']?.toString(),
+      targetStyle: targetStyle,
+    );
+    _preparedTransitionPlans[transitionIndex] = plan;
+    return plan;
   }
 
   double? _tempoRatioForPlan(Map<String, dynamic> plan) {
@@ -976,6 +1035,7 @@ class _DjControlPageState extends State<DjControlPage> {
     int? sessionId,
     required String stageLabel,
   }) async {
+    if (_isEqBandPlan(plan)) return;
     final ratio = _tempoRatioForPlan(plan);
     if (ratio == null) return;
     if (!_isCachePrepActive(sessionId)) return;
@@ -1039,31 +1099,42 @@ class _DjControlPageState extends State<DjControlPage> {
     required String ruleKey,
     String fallback = 'blend',
   }) {
-    final stemCurves = plan['stem_curves'];
-    final eqCurves = plan['eq_curves'];
+    final targetRkId = _rkIdForXfade(target).toString();
+    if (_rkCurrentSongId != null && _rkCurrentSongId == targetRkId) {
+      throw Exception('Refusing self-transition to $targetRkId');
+    }
+    final isEqBand = _isEqBandPlan(plan);
+    final stemCurves = isEqBand ? null : plan['stem_curves'];
+    final eqCurves = isEqBand ? null : plan['eq_curves'];
     final fallbackStyle = plan['fallback_style']?.toString();
     Map<String, dynamic>? transitionPlan;
-    if (_isEqBandPlan(plan)) {
+    if (isEqBand) {
+      final targetId = _rkIdForXfade(target);
       transitionPlan = Map<String, dynamic>.from(plan);
       transitionPlan['fade_sec'] = fadeSec;
       transitionPlan['duration_sec'] = fadeSec;
       transitionPlan['to_at_sec'] = toAtSec;
-      final target =
+      transitionPlan['to_song_id'] = targetId;
+      transitionPlan['to_song'] = targetId;
+      final targetSpec =
           _asStringMap(transitionPlan['target']) ?? <String, dynamic>{};
-      target['start_cue_sec'] = toAtSec;
-      transitionPlan['target'] = target;
+      targetSpec['song_id'] = targetId;
+      targetSpec['start_cue_sec'] = toAtSec;
+      transitionPlan['target'] = targetSpec;
     }
+    final requestStyle =
+        isEqBand ? 'eq_band_mix' : _plannedRkStyle(plan, ruleKey, fallback: fallback);
     return widget.edgeClient.xfade(
       toSongId: _rkIdForXfade(target),
       fadeSec: fadeSec,
       toAtSec: toAtSec,
-      style: _plannedRkStyle(plan, ruleKey, fallback: fallback),
+      style: transitionPlan == null ? requestStyle : requestStyle,
       transitionId: plan['transition_id']?.toString(),
       fallbackStyle:
           fallbackStyle == null
               ? null
               : _rkStyle(fallbackStyle, fallback: fallback),
-      tempoRatio: _tempoRatioForPlan(plan),
+      tempoRatio: isEqBand ? null : _tempoRatioForPlan(plan),
       stemCurves:
           stemCurves is Map<String, dynamic>
               ? stemCurves
@@ -1108,6 +1179,101 @@ class _DjControlPageState extends State<DjControlPage> {
       );
     }
     return parts.isEmpty ? null : parts.join(' / ');
+  }
+
+  String? _rkExecutionHintFromState(dynamic st) {
+    final last = st.lastTransition;
+    final parts = <String>[];
+    final tier = st.playbackTier?.toString();
+    if (tier != null && tier.isNotEmpty) {
+      parts.add('tier:$tier');
+    }
+    if (last is Map) {
+      final actualTier =
+          last['actual_tier']?.toString() ??
+          last['playback_tier']?.toString() ??
+          last['tier']?.toString();
+      final actualStyle =
+          last['actual_style']?.toString() ??
+          last['style']?.toString() ??
+          last['request_style']?.toString();
+      final degraded = last['degraded'] == true;
+      final reason = last['degrade_reason']?.toString();
+      if (actualTier != null &&
+          actualTier.isNotEmpty &&
+          !parts.contains('tier:$actualTier')) {
+        parts.add('actual:$actualTier');
+      }
+      if (actualStyle != null && actualStyle.isNotEmpty) {
+        parts.add('style:$actualStyle');
+      }
+      if (degraded) {
+        parts.add(
+          reason == null || reason.isEmpty ? 'degraded' : 'degraded:$reason',
+        );
+      }
+    }
+    return parts.isEmpty ? null : parts.join(' / ');
+  }
+
+  String _transitionDebugText({
+    required String trigger,
+    required LibrarySong from,
+    required LibrarySong to,
+    required Map<String, dynamic> plan,
+    Map<String, dynamic>? response,
+  }) {
+    String numText(Object? value, {int digits = 2}) {
+      final n =
+          value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
+      return n == null ? '-' : n.toStringAsFixed(digits);
+    }
+
+    final strategy = _asStringMap(plan['transition_strategy']);
+    final auto = _asStringMap(plan['auto_strategy_selection']);
+    final section = _asStringMap(plan['section_match']);
+    final source = auto?['source']?.toString();
+    final strategyName =
+        strategy?['label_zh']?.toString() ??
+        strategy?['strategy']?.toString() ??
+        strategy?['key']?.toString() ??
+        auto?['strategy']?.toString();
+    final mode = plan['transition_mode']?.toString() ?? '-';
+    final execution = plan['execution_mode']?.toString() ?? '-';
+    final rule = plan['rule_key']?.toString() ?? '-';
+    final reason = section?['reason']?.toString();
+    final parts = <String>[
+      '$trigger: ${from.title} -> ${to.title}',
+      'cut ${numText(plan['from_at_sec'])}s -> ${numText(plan['to_at_sec'])}s',
+      'fade ${numText(plan['duration_sec'] ?? plan['fade_sec'], digits: 1)}s',
+      '$mode/$execution',
+      'rule:$rule',
+      if (strategyName != null && strategyName.isNotEmpty)
+        'strategy:$strategyName',
+      if (source != null && source.isNotEmpty) 'source:$source',
+      if (reason != null && reason.isNotEmpty) 'section:$reason',
+    ];
+    final rkHint = _xfadeResultHint(response);
+    if (rkHint != null) parts.add('RK:$rkHint');
+    return parts.join(' | ');
+  }
+
+  String? _currentPreparedTransitionDebug() {
+    if (!_liveStarted) return null;
+    final ordered = _orderedSongs();
+    if (_liveIdx < 0 || _liveIdx + 1 >= ordered.length) return null;
+    final plan = _preparedTransitionPlans[_liveIdx];
+    if (plan == null) return null;
+    try {
+      return _transitionDebugText(
+        trigger: 'prepared next',
+        from: ordered[_liveIdx],
+        to: ordered[_liveIdx + 1],
+        plan: plan,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Map<String, dynamic>? _canonicalPlanFor({
@@ -1303,7 +1469,10 @@ class _DjControlPageState extends State<DjControlPage> {
         });
       }
       tracks.add(
-        await widget.apiClient.getSongManifest(token: widget.token, songId: id),
+        _originalOnlyManifest(
+          await widget.apiClient.getSongManifest(token: widget.token, songId: id),
+          id,
+        ),
       );
     }
 
@@ -1312,6 +1481,7 @@ class _DjControlPageState extends State<DjControlPage> {
       tracks: tracks,
       planId: 'dj-cache-sync-${DateTime.now().millisecondsSinceEpoch}',
       timeout: const Duration(hours: 2),
+      audioOnly: true,
       onProgress: (st) {
         if (!_isCachePrepActive(sessionId)) return;
         setState(() {
@@ -1402,9 +1572,10 @@ class _DjControlPageState extends State<DjControlPage> {
           songId: id,
         );
         await _sync.syncAndWait(
-          tracks: [manifest],
+          tracks: [_originalOnlyManifest(manifest, id)],
           planId: 'dj-cache-repair-${DateTime.now().millisecondsSinceEpoch}',
           timeout: const Duration(hours: 2),
+          audioOnly: true,
           onProgress: (st) {
             if (!_isCachePrepActive(sessionId)) return;
             setState(() {
@@ -1478,6 +1649,35 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
+  Map<String, dynamic> _originalOnlyManifest(
+    Map<String, dynamic> manifest,
+    String songId,
+  ) {
+    final files = manifest['files'];
+    final original = files is Map ? files['original'] : null;
+    final originalEntry =
+        original is Map
+            ? Map<String, dynamic>.from(original)
+            : <String, dynamic>{};
+    originalEntry['url'] = widget.apiClient.streamUrl(
+      token: widget.token,
+      songId: songId,
+    );
+    originalEntry['format'] = 'mp3';
+    final out = Map<String, dynamic>.from(manifest);
+    out['files'] = <String, dynamic>{'original': originalEntry};
+    final qualityFlags = out['qualityFlags'];
+    if (qualityFlags is Map) {
+      out['qualityFlags'] = <String, dynamic>{
+        ...Map<String, dynamic>.from(qualityFlags),
+        'has_stems': false,
+        'stem_model': null,
+      };
+    }
+    out['stemStatus'] = 'not_requested';
+    return out;
+  }
+
   Future<Map<String, dynamic>> _prepareTargetCutPreview({
     required Map<String, dynamic> previewPlan,
     required LibrarySong current,
@@ -1498,7 +1698,7 @@ class _DjControlPageState extends State<DjControlPage> {
     });
     await _prefetchLiveTargetsBeforeCut([target], sessionId: sessionId);
 
-    final transition = await _planEqBandTransition(
+    final transition = await _planSectionMatchTransition(
       prev: current,
       next: target,
       cursorSec: _position.inMilliseconds / 1000.0,
@@ -1524,7 +1724,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _cutInfo = 'Preparing follow-up transition after ${target.title}';
       });
       await _prefetchLiveTargetsBeforeCut([originalNext], sessionId: sessionId);
-      final followup = await _planEqBandTransition(
+      final followup = await _planSectionMatchTransition(
         prev: target,
         next: originalNext,
         cursorSec: _preplanCursorSec(target),
@@ -1724,6 +1924,7 @@ class _DjControlPageState extends State<DjControlPage> {
           _position = Duration(milliseconds: (st.positionSec * 1000).round());
           _duration = Duration(milliseconds: (st.durationSec * 1000).round());
           _rkCurrentSongId = st.currentSongId;
+          _rkExecutionHint = _rkExecutionHintFromState(st);
         });
         if (_shouldRecoverEndedTrack(st)) {
           // ignore: discarded_futures
@@ -1758,35 +1959,33 @@ class _DjControlPageState extends State<DjControlPage> {
     if (_liveIdx + 1 >= ordered.length) return;
     final prev = ordered[_liveIdx];
     final next = ordered[_liveIdx + 1];
-    final nextPlayId = _rkPlayId(next);
-    if (nextPlayId == null) return;
 
     _xfadeInFlight = true;
     _xfadeInFlightAt = DateTime.now();
     try {
-      final plan = _preparedTransitionPlanFor(
+      final plan = await _ensurePreparedSectionMatchPlanFor(
         transitionIndex: _liveIdx,
         prev: prev,
         next: next,
+        cursorSec: _position.inMilliseconds / 1000.0,
       );
 
       final toAtSec = (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0;
       final rawRuleKey = plan['rule_key']?.toString() ?? 'end_recovery';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
       final nextRkId = _rkIdForXfade(next);
-      final fadeSec =
-          math
-              .max(
-                _minFadeForRule[rawRuleKey] ?? 0.05,
-                (plan['duration_sec'] as num?)?.toDouble() ??
-                    (plan['fade_sec'] as num?)?.toDouble() ??
-                    0.4,
-              )
-              .clamp(0.05, 3.0)
-              .toDouble();
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
 
+      await _ensurePlayableRkCacheIds(
+        [next.id],
+        sessionId: _liveSessionId,
+        stageLabel: 'Repairing next song cache',
+      );
+
+      var recoveredByPlay = false;
+      Map<String, dynamic> response;
       try {
-        await _edgeXfadeFromPlan(
+        response = await _edgeXfadeFromPlan(
           target: next,
           plan: plan,
           fadeSec: fadeSec,
@@ -1794,9 +1993,29 @@ class _DjControlPageState extends State<DjControlPage> {
           ruleKey: rawRuleKey,
           fallback: 'cut',
         );
-      } catch (_) {
-        await widget.edgeClient.play(songId: nextPlayId, startAtSec: toAtSec);
+      } catch (xfadeError) {
+        final playId = _rkPlayId(next);
+        if (playId == null) rethrow;
+        await widget.edgeClient.play(songId: playId, startAtSec: toAtSec);
+        recoveredByPlay = true;
+        response = <String, dynamic>{
+          'ok': true,
+          'result': <String, dynamic>{
+            'style': 'play',
+            'playback_tier': 'basic',
+            'degraded': true,
+            'degrade_reason': 'end_recovery_play_fallback',
+            'xfade_error': xfadeError.toString(),
+          },
+        };
       }
+      final transitionDebug = _transitionDebugText(
+        trigger: 'end recovery',
+        from: prev,
+        to: next,
+        plan: plan,
+        response: response,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -1807,6 +2026,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
+        _lastTransitionDebug = transitionDebug;
       });
     } catch (e) {
       if (mounted) {
@@ -1869,10 +2089,11 @@ class _DjControlPageState extends State<DjControlPage> {
     // Use the startup-prepared plan to fire at the phrase-aligned exit point.
     // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
     // miss a transition when the planner produced no usable exit.
-    final plan = _preparedTransitionPlanFor(
+    final plan = await _ensurePreparedSectionMatchPlanFor(
       transitionIndex: _liveIdx,
       prev: prev,
       next: next,
+      cursorSec: positionSec,
     );
     final smartExitAt = (plan['from_at_sec'] as num?)?.toDouble();
     final bool shouldTrigger;
@@ -1898,12 +2119,7 @@ class _DjControlPageState extends State<DjControlPage> {
     try {
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
-      final rawDur =
-          (plan['duration_sec'] as num?)?.toDouble() ??
-          (plan['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
-      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
 
       // Phase-1: enter next song at the planned point (skips intro silence /
       // build-up). Falls back to 0 when the backend didn't provide one.
@@ -1947,6 +2163,13 @@ class _DjControlPageState extends State<DjControlPage> {
         fallback: 'blend',
       );
       final xfadeResponse = await doXfade();
+      final transitionDebug = _transitionDebugText(
+        trigger: 'auto',
+        from: prev,
+        to: next,
+        plan: plan,
+        response: xfadeResponse,
+      );
       if (!mounted) return;
       setState(() {
         _lastXfadeFromIdx = _liveIdx;
@@ -1974,6 +2197,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
+        _lastTransitionDebug = transitionDebug;
       });
     } catch (e) {
       // Failure cooldown: even if xfade failed (409 because the song finished
@@ -2005,22 +2229,15 @@ class _DjControlPageState extends State<DjControlPage> {
     final nextSong = ordered[next];
     final nextRk = _rkIdForXfade(nextSong);
     try {
-      final plan = _preparedTransitionPlanFor(
+      final plan = await _ensurePreparedSectionMatchPlanFor(
         transitionIndex: _liveIdx,
         prev: prev,
         next: nextSong,
+        cursorSec: _position.inMilliseconds / 1000.0,
       );
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
-      final rawDur =
-          (plan['duration_sec'] as num?)?.toDouble() ??
-          (plan['fade_sec'] as num?)?.toDouble() ??
-          0.4;
-      final fadeSec =
-          math
-              .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
-              .clamp(0.05, 30.0)
-              .toDouble();
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
       final response = await _edgeXfadeFromPlan(
         target: nextSong,
         plan: plan,
@@ -2029,12 +2246,20 @@ class _DjControlPageState extends State<DjControlPage> {
         ruleKey: rawRuleKey,
         fallback: 'blend',
       );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'next',
+        from: prev,
+        to: nextSong,
+        plan: plan,
+        response: response,
+      );
       setState(() {
         _liveIdx = next;
         _lastXfadeFromIdx = next - 1;
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRk.toString();
+        _lastTransitionDebug = transitionDebug;
         final hint = _xfadeResultHint(response);
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         _cutInfo =
@@ -2100,29 +2325,15 @@ class _DjControlPageState extends State<DjControlPage> {
       final targetRk = _rkIdForXfade(target);
       final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
       final transitionIndex = inOrderIdx > _liveIdx ? inOrderIdx - 1 : _liveIdx;
-      final transition =
-          inOrderIdx == _liveIdx + 1
-              ? _preparedTransitionPlanFor(
-                transitionIndex: _liveIdx,
-                prev: current,
-                next: target,
-              )
-              : null;
-      if (transition == null) {
-        setState(() {
-          _cutInfo =
-              '⏭ $strategy 已选中 ${target.title}，但这首歌没有预热切歌计划。请先用目标风格/能量预览准备后再切。';
-        });
-        return;
-      }
+      final transition = await _ensurePreparedSectionMatchPlanFor(
+        transitionIndex: transitionIndex,
+        prev: current,
+        next: target,
+        cursorSec: _position.inMilliseconds / 1000.0,
+      );
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
       final ruleLabel = transition['rule_label_zh']?.toString() ?? rawRuleKey;
-      final rawDur =
-          (transition['duration_sec'] as num?)?.toDouble() ??
-          (transition['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
-      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
 
       Future<Map<String, dynamic>> doXfade() => _edgeXfadeFromPlan(
         target: target,
@@ -2133,6 +2344,13 @@ class _DjControlPageState extends State<DjControlPage> {
         fallback: 'blend',
       );
       final xfadeResponse = await doXfade();
+      final transitionDebug = _transitionDebugText(
+        trigger: strategy,
+        from: current,
+        to: target,
+        plan: transition,
+        response: xfadeResponse,
+      );
       setState(() {
         if (inOrderIdx > _liveIdx) {
           _liveIdx = inOrderIdx;
@@ -2143,6 +2361,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = targetRk.toString();
+        _lastTransitionDebug = transitionDebug;
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         final xfadeHint = _xfadeResultHint(xfadeResponse);
         _cutInfo =
@@ -2385,15 +2604,7 @@ class _DjControlPageState extends State<DjControlPage> {
       }
       final followup = _asStringMap(plan['prepared_followup_transition']);
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final rawDur =
-          (transition['duration_sec'] as num?)?.toDouble() ??
-          (transition['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final fadeSec =
-          math
-              .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
-              .clamp(0.05, 30.0)
-              .toDouble();
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
       final response = await _edgeXfadeFromPlan(
         target: target,
         plan: transition,
@@ -2401,6 +2612,13 @@ class _DjControlPageState extends State<DjControlPage> {
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
         ruleKey: rawRuleKey,
         fallback: 'blend',
+      );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'target style',
+        from: current,
+        to: target,
+        plan: transition,
+        response: response,
       );
       if (!mounted) return;
       setState(() {
@@ -2416,6 +2634,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = _rkIdForXfade(target).toString();
+        _lastTransitionDebug = transitionDebug;
         _activeRule =
             '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
         final hint = _xfadeResultHint(response);
@@ -2473,15 +2692,7 @@ class _DjControlPageState extends State<DjControlPage> {
       }
       final followup = _asStringMap(plan['prepared_followup_transition']);
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final rawDur =
-          (transition['duration_sec'] as num?)?.toDouble() ??
-          (transition['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final fadeSec =
-          math
-              .max(_minFadeForRule[rawRuleKey] ?? 0.05, rawDur)
-              .clamp(0.05, 30.0)
-              .toDouble();
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
       final response = await _edgeXfadeFromPlan(
         target: target,
         plan: transition,
@@ -2489,6 +2700,13 @@ class _DjControlPageState extends State<DjControlPage> {
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
         ruleKey: rawRuleKey,
         fallback: 'blend',
+      );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'target energy',
+        from: current,
+        to: target,
+        plan: transition,
+        response: response,
       );
       if (!mounted) return;
       setState(() {
@@ -2504,6 +2722,7 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = _rkIdForXfade(target).toString();
+        _lastTransitionDebug = transitionDebug;
         _activeRule =
             '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
         final hint = _xfadeResultHint(response);
@@ -2578,6 +2797,9 @@ class _DjControlPageState extends State<DjControlPage> {
             onPlayPause: _togglePlay,
             onNext: _advanceLive,
             cutInfo: _cutInfo,
+            rkExecutionHint: _rkExecutionHint,
+            transitionDebug: _lastTransitionDebug,
+            preparedTransitionDebug: _currentPreparedTransitionDebug(),
             energyScore:
                 _liveIdx < _orderedSongs().length
                     ? _liveEnergyScore(_orderedSongs()[_liveIdx].id)
@@ -2822,6 +3044,9 @@ class _LiveMixBar extends StatelessWidget {
     required this.onPlayPause,
     required this.onNext,
     required this.cutInfo,
+    required this.rkExecutionHint,
+    required this.transitionDebug,
+    required this.preparedTransitionDebug,
     required this.energyScore,
   });
   final List<LibrarySong> ordered;
@@ -2833,6 +3058,9 @@ class _LiveMixBar extends StatelessWidget {
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
   final String? cutInfo;
+  final String? rkExecutionHint;
+  final String? transitionDebug;
+  final String? preparedTransitionDebug;
   final double? energyScore;
 
   String _fmt(Duration d) {
@@ -2882,7 +3110,7 @@ class _LiveMixBar extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
+                        color: Colors.white,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2891,7 +3119,7 @@ class _LiveMixBar extends StatelessWidget {
                       '下一首：${next?.title ?? '—'}',
                       style: const TextStyle(
                         fontSize: 10,
-                        color: const Color(0xFF555555),
+                        color: Color(0xFFBDBDBD),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2909,13 +3137,13 @@ class _LiveMixBar extends StatelessWidget {
               ),
               Text(
                 '${_fmt(position)}/${_fmt(duration)}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF1A1A1A)),
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
               IconButton(
                 icon: const Icon(
                   Icons.skip_next,
                   size: 24,
-                  color: Color(0xFF1A1A1A),
+                  color: Colors.white,
                 ),
                 onPressed: onNext,
                 padding: EdgeInsets.zero,
@@ -2947,6 +3175,34 @@ class _LiveMixBar extends StatelessWidget {
               child: Text(
                 '当前过渡：$activeRule',
                 style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
+              ),
+            ),
+          if (rkExecutionHint != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'RK actual: $rkExecutionHint',
+                style: const TextStyle(fontSize: 10, color: Color(0xFF80CBC4)),
+              ),
+            ),
+          if (preparedTransitionDebug != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Next prepared plan: $preparedTransitionDebug',
+                style: const TextStyle(fontSize: 10, color: Color(0xFFFFF176)),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          if (transitionDebug != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Last executed plan: $transitionDebug',
+                style: const TextStyle(fontSize: 10, color: Color(0xFFB2FF59)),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
         ],
@@ -5447,7 +5703,7 @@ class _Step4Live extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  '系统会自动选择合适的调性混音策略，并在失败时回退普通 xfade。',
+                  '系统会使用 v3.2 段落匹配 + EQ band mix；执行失败会显示错误，不再伪装成普通 xfade 成功。',
                   style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
                 ),
                 if (energyScore != null) ...[
@@ -5727,10 +5983,11 @@ class _Step4Live extends StatelessWidget {
     final preview = targetStylePreview;
     final selected = preview?['selected_song'];
 
-    // 7个街舞大舞种
+    // Street dance / style targets.
     const styles = [
       {'key': 'breaking', 'label': 'Breaking', 'emoji': '🌪️'},
       {'key': 'hiphop', 'label': 'Hip Hop', 'emoji': '🎤'},
+      {'key': 'jazz', 'label': 'Jazz', 'emoji': '🎷'},
       {'key': 'popping', 'label': 'Popping', 'emoji': '⚡'},
       {'key': 'locking', 'label': 'Locking', 'emoji': '🔒'},
       {'key': 'house', 'label': 'House', 'emoji': '🏠'},

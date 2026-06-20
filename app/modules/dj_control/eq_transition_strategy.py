@@ -1,4 +1,4 @@
-﻿"""Generate MP3-only DJ EQ band mix transition plans."""
+"""Generate MP3-only DJ EQ band mix transition plans."""
 
 from __future__ import annotations
 
@@ -6,65 +6,109 @@ import hashlib
 from typing import Any
 
 from app.modules.dj_control import mixer_rules
-from app.modules.dj_control.band_analysis import clamp01
-from app.modules.dj_control.eq_transition_presets import preset_for_strategy, strategy_for_user_mode
+from app.modules.dj_control.auto_mixer.feature_analyzer import FeatureAnalyzer
+from app.modules.dj_control.auto_mixer.mixing_strategies import (
+    MixingStrategyParams,
+    generate_eq_band_envelopes,
+)
+from app.modules.dj_control.auto_mixer.strategy_selector import StrategySelector
+from app.modules.dj_control.eq_transition_presets import preset_for_strategy
 from app.modules.dj_control.mix_profile import build_mix_profile
 
 
-def _curve_avg(curve: Any, default: float = 0.5) -> float:
-    if not isinstance(curve, list) or not curve:
-        return default
-    vals: list[float] = []
-    for item in curve:
-        if isinstance(item, (list, tuple)) and len(item) >= 2:
-            vals.append(clamp01(item[1], default))
-    return sum(vals) / len(vals) if vals else default
+def generate_eq_band_mix_transition(
+    prev_song: Any,
+    next_song: Any,
+    *,
+    from_at_sec: float,
+    to_at_sec: float,
+    strategy_num: int,
+    strategy_name: str,
+    selection_reason: str | None = None,
+    features1: dict[str, float] | None = None,
+    features2: dict[str, float] | None = None,
+    transition_mode: str = "eq_band_mix",
+    eq_mix_user_mode: str | None = "auto",
+    fallback: dict[str, Any] | None = None,
+    rule_key_prefix: str | None = None,
+    target_style: str | None = None,
+    transition_seed: str | None = None,
+) -> dict[str, Any]:
+    """Build a full RK-compatible EQ-band plan from a selected package strategy."""
+    params = MixingStrategyParams.get_strategy_params(strategy_num)
+    fade_sec = float(params["fade_sec"])
+    envelopes = generate_eq_band_envelopes(strategy_num, fade_sec)
+    preset = preset_for_strategy(strategy_name)
+    fallback = dict(fallback or {})
+    prev_id = _song_id(prev_song)
+    next_id = _song_id(next_song)
 
+    deck_a = dict(envelopes["deck_a"])
+    deck_b = dict(envelopes["deck_b"])
+    deck_a["song_id"] = prev_id
+    deck_b["song_id"] = next_id
 
-def _camelot_distance(a: str | None, b: str | None) -> int | None:
-    if not a or not b:
-        return None
-    try:
-        an, al = int(a[:-1]), a[-1].upper()
-        bn, bl = int(b[:-1]), b[-1].upper()
-    except (ValueError, IndexError):
-        return None
-    if al not in "AB" or bl not in "AB":
-        return None
-    num_diff = min((an - bn) % 12, (bn - an) % 12)
-    letter_diff = 0 if al == bl else 1
-    return num_diff + letter_diff
-
-
-def _auto_strategy(prev_song: Any, next_song: Any, prev_profile: dict, next_profile: dict) -> str:
-    prev_bpm = float(getattr(prev_song, "bpm", 0.0) or prev_profile.get("bpm") or 0.0)
-    next_bpm = float(getattr(next_song, "bpm", 0.0) or next_profile.get("bpm") or 0.0)
-    bpm_diff = abs(prev_bpm - next_bpm) if prev_bpm and next_bpm else 0.0
-    prev_energy = clamp01(getattr(prev_song, "energy", None), 0.5)
-    next_energy = clamp01(getattr(next_song, "energy", None), 0.5)
-    e_delta = next_energy - prev_energy
-    cam = _camelot_distance(getattr(prev_song, "camelot_key", None), getattr(next_song, "camelot_key", None))
-
-    prev_vocal = _curve_avg((prev_profile.get("density") or {}).get("vocal_density_curve"), 0.25)
-    next_vocal = _curve_avg((next_profile.get("density") or {}).get("vocal_density_curve"), 0.25)
-    prev_low = _curve_avg((prev_profile.get("band_energy") or {}).get("low_curve"), prev_energy)
-    next_low = _curve_avg((next_profile.get("band_energy") or {}).get("low_curve"), next_energy)
-
-    if prev_vocal > 0.55 and next_vocal > 0.45:
-        return "vocal_safe"
-    if bpm_diff > 8.0 or (cam is not None and cam >= 4):
-        return "filter_sweep"
-    if next_energy > 0.68 or e_delta > 0.12:
-        return "hard_bass_swap" if prev_low + next_low > 1.05 else "soft_bass_swap"
-    if prev_low + next_low > 1.25:
-        return "soft_bass_swap"
-    return "smooth_blend"
-
-
-def _beats_to_sec(beats: int, bpm: float | None, fallback: float) -> float:
-    if bpm and bpm > 0:
-        return max(3.0, min(30.0, beats * 60.0 / bpm))
-    return fallback
+    prefix = rule_key_prefix or transition_mode
+    transition_id = hashlib.sha1(
+        (
+            transition_seed
+            or f"{prefix}|{prev_id}|{next_id}|{strategy_num}|{from_at_sec:.2f}|{to_at_sec:.2f}|{fade_sec:.2f}"
+        ).encode("utf-8")
+    ).hexdigest()[:16]
+    selection = {
+        "strategy_num": strategy_num,
+        "strategy_name": strategy_name,
+        "reason": selection_reason or params["description"],
+        "features1": features1 or FeatureAnalyzer.extract_features(prev_song),
+        "features2": features2 or FeatureAnalyzer.extract_features(next_song),
+        "duration_sec": fade_sec,
+        "duration_beats": int(round(fade_sec)),
+        "curve_units": "rk_db",
+        "source": "dj_mixer_package",
+    }
+    label = preset.get("label_zh") or strategy_name
+    plan = {
+        **fallback,
+        "transition_mode": transition_mode,
+        "execution_mode": "eq_band_mix",
+        "strategy": strategy_name,
+        "eq_strategy": strategy_name,
+        "strategy_num": strategy_num,
+        "eq_mix_user_mode": eq_mix_user_mode or "auto",
+        # RK uses this field as the curve x-axis end. Keep it aligned to seconds.
+        "duration_beats": int(round(fade_sec)),
+        "duration_sec": round(fade_sec, 3),
+        "fade_sec": round(fade_sec, 3),
+        "from_at_sec": round(float(from_at_sec), 3),
+        "to_at_sec": round(float(to_at_sec), 3),
+        "start_in_prev": round(float(from_at_sec), 3),
+        "start_in_next": round(float(to_at_sec), 3),
+        "to_song_id": next_id,
+        "target": {"song_id": next_id, "start_cue_sec": round(float(to_at_sec), 3)},
+        "deck_a": deck_a,
+        "deck_b": deck_b,
+        "safety": {
+            "headroom_db": 0,
+            "limiter_ceiling_db": -1,
+            "smooth_ms": 30,
+            "fallback_mode": "ordinary_xfade",
+        },
+        "reason": [
+            f"AutoMixer selected strategy {strategy_num}={strategy_name}: {selection['reason']}",
+            "使用本地 MP3/PCM 的 Low/Mid/High dB 自动化，不依赖 Spotify API 或 stems。",
+            "EQ 曲线来自 dj_mixer_package，并已转换为 RK dB 语义。",
+        ],
+        "rule_key": f"{prefix}:{strategy_name}",
+        "rule_label_zh": label,
+        "style": preset.get("rk_style") or "blend",
+        "rk_style": preset.get("rk_style") or "blend",
+        "fallback_style": fallback.get("rk_style") or fallback.get("style") or "blend",
+        "transition_id": transition_id,
+        "target_style": target_style,
+        "auto_strategy_selection": selection,
+        "strategy_description": params["description"],
+    }
+    return plan
 
 
 def plan_eq_band_mix_transition(
@@ -79,14 +123,14 @@ def plan_eq_band_mix_transition(
     """Return a transition plan with doc-shaped EQ/fader curves and fallback fields."""
     prev_profile = build_mix_profile(prev_song)
     next_profile = build_mix_profile(next_song)
-    auto = _auto_strategy(prev_song, next_song, prev_profile, next_profile)
-    strategy = strategy_for_user_mode(eq_mix_user_mode, auto_strategy=auto)
-    preset = preset_for_strategy(strategy)
-
-    prev_bpm = float(getattr(prev_song, "bpm", 0.0) or prev_profile.get("bpm") or 0.0)
-    duration_beats = int(preset.get("duration_beats") or 32)
-    fallback_seed = mixer_rules.build_transition_spec(prev_song, next_song, cursor_sec, rule_key)
-    fade_sec = _beats_to_sec(duration_beats, prev_bpm if prev_bpm > 0 else None, float(fallback_seed.get("duration_sec", 8.0) or 8.0))
+    features1 = FeatureAnalyzer.extract_features(_feature_payload(prev_song, prev_profile))
+    features2 = FeatureAnalyzer.extract_features(_feature_payload(next_song, next_profile))
+    strategy_num, strategy, selection_reason = StrategySelector.select(
+        features1,
+        features2,
+        user_strategy=eq_mix_user_mode,
+    )
+    fade_sec = float(MixingStrategyParams.get_strategy_params(strategy_num)["fade_sec"])
     fallback = mixer_rules.build_transition_spec(
         prev_song,
         next_song,
@@ -96,54 +140,66 @@ def plan_eq_band_mix_transition(
     )
     to_at_sec = float(fallback.get("to_at_sec", fallback.get("start_in_next", 0.0)) or 0.0)
     from_at_sec = float(fallback.get("from_at_sec", fallback.get("start_in_prev", cursor_sec)) or cursor_sec)
-    transition_id = hashlib.sha1(
-        f"eq-band|{getattr(prev_song, 'id', '')}|{getattr(next_song, 'id', '')}|{strategy}|{cursor_sec:.2f}".encode("utf-8")
-    ).hexdigest()[:16]
-
-    deck_a = preset["deck_a"]
-    deck_b = preset["deck_b"]
-    deck_a["song_id"] = getattr(prev_song, "id", None)
-    deck_b["song_id"] = getattr(next_song, "id", None)
-
-    label = preset.get("label_zh") or strategy
-    plan = {
-        **fallback,
-        "transition_mode": "eq_band_mix",
-        "strategy": strategy,
-        "eq_strategy": strategy,
-        "eq_mix_user_mode": eq_mix_user_mode or "auto",
-        "duration_beats": duration_beats,
-        "start": {"type": "next_phrase", "start_after_beats": 0},
-        "target": {"song_id": getattr(next_song, "id", None), "start_cue_sec": round(to_at_sec, 3)},
-        "deck_a": deck_a,
-        "deck_b": deck_b,
-        "safety": {
-            "headroom_db": -6,
-            "limiter_ceiling_db": -1,
-            "smooth_ms": 30,
-            "fallback_mode": "ordinary_xfade",
-        },
-        "reason": [
-            f"EQ band mix strategy={strategy}, user_mode={eq_mix_user_mode or 'auto'}",
-            "使用原始 MP3/PCM 的 Low/Mid/High + fader 曲线，不依赖 stems。",
-            "如果 RK 不支持 eq_band_mix，会自动回退普通 xfade。",
-        ],
-        "prev_mix_profile_v1": prev_profile,
-        "next_mix_profile_v1": next_profile,
-        # Compatibility fields consumed by existing Flutter/RK fallback paths.
-        "rule_key": f"eq_band_mix:{strategy}",
-        "rule_label_zh": label,
-        "duration_sec": round(fade_sec, 3),
-        "fade_sec": round(fade_sec, 3),
-        "from_at_sec": round(from_at_sec, 3),
-        "to_at_sec": round(to_at_sec, 3),
-        "start_in_prev": round(from_at_sec, 3),
-        "start_in_next": round(to_at_sec, 3),
-        "to_song_id": getattr(next_song, "id", None),
-        "style": preset.get("rk_style") or "blend",
-        "rk_style": preset.get("rk_style") or "blend",
-        "fallback_style": fallback.get("rk_style") or fallback.get("style") or "blend",
-        "transition_id": transition_id,
-        "target_style": target_style,
-    }
+    plan = generate_eq_band_mix_transition(
+        prev_song,
+        next_song,
+        from_at_sec=from_at_sec,
+        to_at_sec=to_at_sec,
+        strategy_num=strategy_num,
+        strategy_name=strategy,
+        selection_reason=selection_reason,
+        features1=features1,
+        features2=features2,
+        transition_mode="eq_band_mix",
+        eq_mix_user_mode=eq_mix_user_mode,
+        fallback=fallback,
+        rule_key_prefix="eq_band_mix",
+        target_style=target_style,
+        transition_seed=f"eq-band|{_song_id(prev_song)}|{_song_id(next_song)}|{strategy}|{cursor_sec:.2f}",
+    )
+    plan["start"] = {"type": "next_phrase", "start_after_beats": 0}
+    plan["prev_mix_profile_v1"] = prev_profile
+    plan["next_mix_profile_v1"] = next_profile
     return plan
+
+
+def _feature_payload(song: Any, profile: dict[str, Any]) -> dict[str, Any]:
+    music_features = _get(song, "music_features") or {}
+    dj_features = _get(music_features, "dj") if isinstance(music_features, dict) else {}
+    return {
+        "bpm": _get(song, "bpm") or profile.get("bpm"),
+        "energy": _get(song, "energy"),
+        "phrase_map": _get(song, "phrase_map"),
+        "music_features": music_features,
+        "loudness_profile": _get(song, "loudness_profile") or {},
+        "genre_profile": _get(song, "genre_profile") or {},
+        "stem_activity": _get(song, "stem_activity") or {},
+        "bass_risk_windows": _get(song, "bass_risk_windows") or [],
+        "vocal_events": _get(song, "vocal_events") or [],
+        "low_ratio": _curve_avg((profile.get("band_energy") or {}).get("low_curve")) or _get(dj_features, "low_ratio"),
+        "mid_ratio": _curve_avg((profile.get("band_energy") or {}).get("mid_curve")) or _get(dj_features, "mid_ratio"),
+        "high_ratio": _curve_avg((profile.get("band_energy") or {}).get("high_curve")) or _get(dj_features, "high_ratio"),
+    }
+
+
+def _curve_avg(curve: Any) -> float | None:
+    if not isinstance(curve, list) or not curve:
+        return None
+    vals: list[float] = []
+    for item in curve:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            try:
+                vals.append(float(item[1]))
+            except (TypeError, ValueError):
+                continue
+    return sum(vals) / len(vals) if vals else None
+
+
+def _song_id(song: Any) -> Any:
+    return _get(song, "id") or _get(song, "song_id")
+
+
+def _get(obj: Any, key: str, default: Any = None) -> Any:
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)

@@ -122,3 +122,30 @@ def test_sidecar_does_not_hide_truncated_cache_file(tmp_path):
     )
 
     assert not sync_worker._already_valid(path, "expected", 10)
+
+
+def test_cache_lookup_finds_stem_mp3(tmp_path):
+    sync_worker = _load_sync_worker()
+    song_dir = tmp_path / "song-d"
+    song_dir.mkdir()
+    (song_dir / "vocals.mp3").write_bytes(b"ID3")
+
+    assert sync_worker._find_existing_asset(song_dir, "vocals") == song_dir / "vocals.mp3"
+
+
+def test_cache_lookup_can_require_stem_mp3(tmp_path):
+    sync_worker = _load_sync_worker()
+    song_dir = tmp_path / "song-e"
+    song_dir.mkdir()
+    (song_dir / "vocals.wav").write_bytes(b"RIFF")
+
+    assert sync_worker._find_existing_asset(song_dir, "vocals", "mp3") is None
+
+
+def test_cache_lookup_can_require_original_mp3(tmp_path):
+    sync_worker = _load_sync_worker()
+    song_dir = tmp_path / "song-f"
+    song_dir.mkdir()
+    (song_dir / "original.wav").write_bytes(b"RIFF")
+
+    assert sync_worker._find_existing_asset(song_dir, "original", "mp3") is None

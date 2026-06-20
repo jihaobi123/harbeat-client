@@ -73,6 +73,39 @@ class TransitionPlanRequest(BaseModel):
     transition_mode: str = "ordinary_xfade"
     eq_mix_user_mode: str = "auto"
     target_style: Optional[str] = None
+    mix_preset: Optional[str] = None  # auto/fade/rise/blend/cut/overlap
+    apply_phrase_alignment: bool = False
+    target_lufs: Optional[float] = None
+
+
+class SpotifyDecideRequest(BaseModel):
+    prev_song_id: str
+    next_song_id: str
+    user_preference: str = "auto"  # auto/fade/rise/blend/cut/overlap
+
+
+class SmartReorderRequest(BaseModel):
+    song_ids: list[str]
+    bpm_tolerance: float = 0.03
+    prefer_energy_flow: bool = True
+
+
+class SpotifyEQRequest(BaseModel):
+    eq_type: str  # three_band_fade/mid_bass_swap/tail_bass_swap/head_bass_swap
+    duration_beats: int = 32
+    bpm: float = 120.0
+
+
+class SpotifyFilterRequest(BaseModel):
+    filter_type: str  # lowpass_in/lowpass_out/highpass_in/highpass_out
+    duration_beats: int = 16
+    bpm: float = 120.0
+
+
+class SpotifyVolumeRequest(BaseModel):
+    curve_type: str  # equal_power_sine/linear/exponential/smooth/overlap/quick_out/instant
+    duration_beats: int = 16
+    bpm: float = 120.0
 
 
 class CutPlanRequest(BaseModel):

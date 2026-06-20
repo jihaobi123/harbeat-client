@@ -34,6 +34,20 @@ STYLE_REFERENCE_PROFILES: dict[str, dict] = {
         "reference_artists": ["A Tribe Called Quest", "Dr. Dre", "Missy Elliott"],
         "description": "Groove-forward hip-hop and rap records for freestyle.",
     },
+    "jazz": {
+        "reference_tags": [
+            "jazz",
+            "swing",
+            "electro swing",
+            "jazz pop",
+            "big band",
+            "jump blues",
+            "soul jazz",
+            "shuffle",
+        ],
+        "reference_artists": ["Caro Emerald", "Mungo Jerry", "Louis Prima"],
+        "description": "Swing, jazz-pop, and shuffle records with danceable groove.",
+    },
     "popping": {
         "reference_tags": [
             "electro",
@@ -104,4 +118,3 @@ STYLE_REFERENCE_PROFILES: dict[str, dict] = {
         "description": "Disco, funk, soul, and vocal house with dramatic phrasing.",
     },
 }
-

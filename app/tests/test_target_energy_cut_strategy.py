@@ -143,3 +143,61 @@ def test_cut_strategy_uses_unified_energy_profile(monkeypatch):
     assert plan["selected_song"]["song_id"] == "target"
     assert "current" in calls
     assert "target" in calls
+
+
+def test_target_energy_can_select_song_by_entry_segment_energy():
+    current = song("current", 55)
+    whole_match = song("whole", 82, phrase_map=[
+        {"label": "intro", "start": 0.0, "end": 16.0, "energy": 0.52},
+        {"label": "verse", "start": 16.0, "end": 48.0, "energy": 0.62},
+    ])
+    segment_match = song("segment", 68, phrase_map=[
+        {"label": "intro", "start": 0.0, "end": 16.0, "energy": 0.84},
+        {"label": "verse", "start": 16.0, "end": 48.0, "energy": 0.62},
+    ])
+
+    plan = cut_strategy.plan_target_energy_cut(
+        current_song=current,
+        cursor_sec=10.0,
+        active_queue=[whole_match, segment_match],
+        reserve_pool=[],
+        target_min=80,
+        target_max=90,
+        current_style="popping",
+        prefer_cached=False,
+    )
+
+    assert plan["selected_song"]["song_id"] == "segment"
+    assert plan["selected_song"]["energy_score"] < 80
+    assert plan["selected_song"]["segment_energy_score"] == 84
+    assert plan["selected_song"]["entry_start_sec"] == 0.0
+    assert plan["fallback"] is False
+    assert plan["score_breakdown"]["segment_energy_match"] > plan["score_breakdown"]["song_energy_match"]
+
+
+def test_target_energy_allows_vocal_covered_high_energy_segment():
+    current = song("current", 55)
+    vocal_drop = song("vocal_drop", 62, phrase_map=[
+        {"label": "drop", "start": 32.0, "end": 48.0, "energy": 0.9},
+        {"label": "break", "start": 56.0, "end": 72.0, "energy": 0.72},
+    ], vocal_events=[{"start": 30.0, "end": 55.0, "confidence": 1.0}])
+    clean_drop = song("clean_drop", 62, phrase_map=[
+        {"label": "intro", "start": 0.0, "end": 16.0, "energy": 0.62},
+        {"label": "verse", "start": 32.0, "end": 48.0, "energy": 0.80},
+    ], vocal_events=[{"start": 90.0, "end": 110.0, "confidence": 1.0}])
+
+    plan = cut_strategy.plan_target_energy_cut(
+        current_song=current,
+        cursor_sec=10.0,
+        active_queue=[vocal_drop, clean_drop],
+        reserve_pool=[],
+        target_min=80,
+        target_max=90,
+        current_style="popping",
+        prefer_cached=False,
+    )
+
+    assert plan["selected_song"]["song_id"] == "vocal_drop"
+    assert plan["selected_song"]["entry_start_sec"] == 32.0
+    assert plan["score_breakdown"]["segment_vocal_density"] > 0.0
+    assert plan["score_breakdown"]["segment_single_vocal_allowed"] is True

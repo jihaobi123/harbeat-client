@@ -35,16 +35,39 @@ class DeckEqRequest(BaseModel):
     hi_db: float = Field(default=0.0, ge=-12.0, le=12.0)
 
 
+class ApplyFilterRequest(BaseModel):
+    """Persistent per-deck filter for live mix effects."""
+
+    deck: Literal["a", "b", "active", "inactive"] = "active"
+    filter_type: Literal["lowpass", "highpass", "bypass"] = "bypass"
+    cutoff_hz: float = Field(default=18000.0, ge=20.0, le=21600.0)
+    q: float = Field(default=0.707, ge=0.1, le=10.0)
+
+
+class ApplyLoudnessNormRequest(BaseModel):
+    """Persistent per-deck loudness trim.
+
+    gain_db is the realtime replay-gain value produced by Jetson analysis. If
+    omitted, target_lufs is accepted for protocol compatibility and the engine
+    leaves current gain unchanged.
+    """
+
+    deck: Literal["a", "b", "active", "inactive"] = "active"
+    gain_db: Optional[float] = Field(default=None, ge=-8.0, le=8.0)
+    target_lufs: float = Field(default=-14.0, ge=-30.0, le=0.0)
+
+
 class XfadeRequest(BaseModel):
     transition_id: Optional[str] = None
     to_song_id: Union[int, str]
-    fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)
+    fade_sec: float = Field(default=4.0, ge=0.05, le=32.0)
     to_at_sec: float = Field(default=0.0, ge=0.0)
-    # DJ + Spotify Mix 风格 preset，对应 Jetson transition_type / App 手动切歌。
+    # DJ + Mix effects style preset，对应 Jetson transition_type / App 手动切歌。
     style: Literal[
         "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam",
         "fade", "rise", "blend", "wave", "melt", "vocal_handoff", "vocal_ducking",
         "drum_swap", "instrumental_only", "vocal_solo_intro", "echo_freeze",
+        "eq_band_mix",
     ] = "smooth"
     fallback_style: Optional[str] = None
     tempo_ratio: Optional[float] = None
@@ -107,11 +130,13 @@ class RKPlaybackState(BaseModel):
     paused: bool = False
     current_song_id: Optional[Union[int, str]] = None
     position_sec: float = 0.0
+    duration_sec: float = 0.0
     next_song_id: Optional[Union[int, str]] = None
     next_transition_in_sec: Optional[float] = None
     active_loops: list[int] = Field(default_factory=list)
     active_stem_fx: Optional[str] = None
-    playback_tier: Literal["basic", "non_stem", "stem_aware"] = "basic"
+    playback_tier: Literal["basic", "non_stem", "stem_aware", "eq_band_mix"] = "basic"
+    last_transition: Optional[dict[str, Any]] = None
 
 
 class DeviceInfo(BaseModel):

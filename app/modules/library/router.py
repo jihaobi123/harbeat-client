@@ -35,6 +35,47 @@ class RefreshStyleEvidenceRequest(BaseModel):
     force: bool = False
 
 
+class NormalizeSongRequest(BaseModel):
+    target_lufs: float = -14.0
+
+
+def _get_owned_song(db: Session, song_id: str, user_id: int):
+    """Load a library song and enforce ownership."""
+    from app.modules.library.models import LibrarySong
+
+    song = db.get(LibrarySong, song_id)
+    if not song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
+    if song.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    return song
+
+
+def _waveform_from_energy_curve(song, points: int) -> dict:
+    """Build approximate waveform peaks from stored energy analysis."""
+    curve = getattr(song, "energy_curve", None) or []
+    if not curve:
+        return {}
+    raw = [float(item.get("relative_energy", item.get("energy", 0.0)) or 0.0) for item in curve]
+    if not raw:
+        return {}
+    if len(raw) == points:
+        peaks = raw
+    else:
+        import numpy as np
+
+        x_old = np.linspace(0.0, 1.0, len(raw))
+        x_new = np.linspace(0.0, 1.0, points)
+        peaks = [float(v) for v in np.interp(x_new, x_old, raw)]
+    return {
+        "song_id": song.id,
+        "points": points,
+        "duration": float(getattr(song, "duration", 0.0) or 0.0),
+        "source": "energy_curve",
+        "peaks": [round(max(0.0, min(1.0, p)), 4) for p in peaks],
+    }
+
+
 @router.get("/songs", response_model=APIResponse[LibrarySongListData])
 def list_library_songs_endpoint(
     db: Session = Depends(get_db),
@@ -60,13 +101,76 @@ def get_library_song_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.modules.library.models import LibrarySong
-    song = db.get(LibrarySong, song_id)
-    if not song:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
-    if song.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    song = _get_owned_song(db, song_id, current_user.id)
     return APIResponse(data=LibrarySongData.model_validate(song))
+
+
+@router.get("/songs/{song_id}/waveform", response_model=APIResponse[dict])
+def get_song_waveform_endpoint(
+    song_id: str,
+    points: int = 1000,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return compact waveform peaks for Spotify Mix visualization."""
+    song = _get_owned_song(db, song_id, current_user.id)
+    points = max(64, min(4000, int(points or 1000)))
+    cached = _waveform_from_energy_curve(song, points)
+    if cached:
+        return APIResponse(data=cached)
+    if not song.source_path or not os.path.isfile(song.source_path):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="audio file not found on disk")
+
+    try:
+        import librosa
+        import numpy as np
+
+        audio, sr = librosa.load(song.source_path, sr=None, mono=True)
+        if len(audio) == 0:
+            peaks = [0.0] * points
+        else:
+            frame = max(1, int(np.ceil(len(audio) / points)))
+            padded_len = frame * points
+            padded = np.pad(audio, (0, padded_len - len(audio)))
+            blocks = padded.reshape(points, frame)
+            peaks = np.max(np.abs(blocks), axis=1)
+            peak_max = float(np.max(peaks)) or 1.0
+            peaks = peaks / peak_max
+        return APIResponse(data={
+            "song_id": song.id,
+            "points": points,
+            "duration": round(float(len(audio)) / float(sr), 3) if sr else song.duration,
+            "source": "audio",
+            "peaks": [round(float(v), 4) for v in peaks],
+        })
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"waveform generation failed: {exc}") from exc
+
+
+@router.post("/songs/{song_id}/normalize", response_model=APIResponse[dict])
+def normalize_song_loudness_endpoint(
+    song_id: str,
+    payload: NormalizeSongRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Analyze a song and store replay-gain metadata for target LUFS playback."""
+    song = _get_owned_song(db, song_id, current_user.id)
+    if not song.source_path or not os.path.isfile(song.source_path):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="audio file not found on disk")
+    try:
+        import librosa
+
+        from app.modules.library.loudness import loudness_profile
+
+        audio, sr = librosa.load(song.source_path, sr=None, mono=True)
+        profile = loudness_profile(audio, int(sr), target_lufs=payload.target_lufs)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"loudness normalization failed: {exc}") from exc
+    song.loudness_profile = {**(song.loudness_profile or {}), **profile}
+    db.commit()
+    db.refresh(song)
+    return APIResponse(data={"song_id": song.id, "loudness_profile": song.loudness_profile})
 
 
 @router.post("/songs", response_model=APIResponse[LibrarySongData])
