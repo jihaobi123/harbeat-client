@@ -4,6 +4,8 @@ import sys
 import types
 from pathlib import Path
 
+import numpy as np
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "audio-engine"))
@@ -94,6 +96,36 @@ def test_eq_band_fader_uses_equal_power_shape():
     assert math.isclose(AudioEngineMVP._eq_band_equal_power_fader(0.0), 0.0)
     assert math.isclose(AudioEngineMVP._eq_band_equal_power_fader(1.0), 1.0)
     assert AudioEngineMVP._eq_band_equal_power_fader(0.5) > 0.5
+
+
+def test_eq_band_full_band_unity_preserves_dry_signal():
+    engine = AudioEngineMVP()
+    deck = Deck()
+    src = np.linspace(-0.5, 0.5, 2048, dtype=np.float32)
+    deck.audio = np.column_stack([src, src[::-1]]).astype(np.float32)
+    deck.pos = 0
+    plan = {
+        "fader": [[0.0, 1.0]],
+        "eq": {
+            "low": [[0.0, 0.0]],
+            "mid": [[0.0, 0.0]],
+            "high": [[0.0, 0.0]],
+        },
+    }
+
+    out = engine._read_eq_band_deck(deck, plan, 0.0, 1024, "a")
+
+    np.testing.assert_allclose(out, deck.audio[:1024], atol=1e-6)
+
+
+def test_eq_band_transition_resets_limiter_gain():
+    engine = AudioEngineMVP()
+    engine._lim_gain = 0.25
+    tr = Transition("a", "b", 0.0, 0.0, 16.0, style="eq_band_mix")
+
+    engine._start_transition_locked(tr)
+
+    assert engine._lim_gain == 1.0
 
 
 def test_transition_handoff_ratio_prefers_metadata_then_beat_grid():

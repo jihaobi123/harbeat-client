@@ -1074,6 +1074,8 @@ class AudioEngineMVP:
         self._fx_filter_b.set_bypass(True)
         self._echo_buf.fill(0.0)
         self._echo_pos = 0
+        if self._is_eq_band_transition(tr):
+            self._lim_gain = 1.0
         logger.info(
             "crossfade start %s -> %s (%.1fs style=%s execution=%s)",
             tr.from_song_id,
@@ -1109,13 +1111,20 @@ class AudioEngineMVP:
         filters["mid_hpf"].set_hpf(sr, 250.0, q=0.707)
         filters["mid_lpf"].set_lpf(sr, 4000.0, q=0.707)
         filters["high"].set_hpf(sr, 4000.0, q=0.707)
+        dry = chunk
         low = filters["low"].process(chunk.copy())
         mid = filters["mid_lpf"].process(filters["mid_hpf"].process(chunk.copy()))
         high = filters["high"].process(chunk.copy())
         low_gain = self._db_to_ratio(params.get("low_db", 0.0))
         mid_gain = self._db_to_ratio(params.get("mid_db", 0.0))
         hi_gain = self._db_to_ratio(params.get("hi_db", 0.0))
-        chunk = low * low_gain + mid * mid_gain + high * hi_gain
+        common_gain = min(low_gain, mid_gain, hi_gain)
+        chunk = (
+            dry * common_gain
+            + low * max(0.0, low_gain - common_gain)
+            + mid * max(0.0, mid_gain - common_gain)
+            + high * max(0.0, hi_gain - common_gain)
+        )
         chunk = self._apply_eq_band_filter(deck_id, params, chunk)
         return chunk * max(0.0, min(1.5, float(params.get("fader", 1.0))))
 
@@ -1678,6 +1687,11 @@ class AudioEngineMVP:
         return math.cos(x * math.pi / 2), math.sin(x * math.pi / 2)
 
     @staticmethod
+    def _eq_band_equal_power_fader(progress: float) -> float:
+        x = min(1.0, max(0.0, float(progress)))
+        return math.sin(x * math.pi / 2)
+
+    @staticmethod
     def _sin_ramp(progress: float, start: float, duration: float) -> float:
         t = min(1.0, max(0.0, (progress - start) / max(0.001, duration)))
         return math.sin(t * math.pi / 2)
@@ -2148,6 +2162,7 @@ class AudioEngineMVP:
                 outdata.fill(0)
                 return
 
+            eq_band_output = False
             if self._in_transition and self._active_tr:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
@@ -2163,6 +2178,7 @@ class AudioEngineMVP:
                     # Match the offline 5-strategy renderer: do not apply a
                     # fixed master headroom cut when entering eq_band_mix.
                     main = a + b
+                    eq_band_output = True
                 elif automation is not None and self._stems_available():
                     sa, sb = automation
                     a = self._read_deck_styled(self.active_deck, frames, sa)
@@ -2223,7 +2239,12 @@ class AudioEngineMVP:
             deck_for_fx = self.active_deck
             main = self._apply_stem_fx(main, deck_for_fx, frames)
             main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
-            outdata[:] = self._apply_limiter(main, frames)
+            if eq_band_output:
+                self._lim_gain = 1.0
+                np.clip(main, -1.0, 1.0, out=main)
+                outdata[:] = main
+            else:
+                outdata[:] = self._apply_limiter(main, frames)
 
     def _apply_style_effects(self, style: str, progress: float,
                              a: np.ndarray, b: np.ndarray,
