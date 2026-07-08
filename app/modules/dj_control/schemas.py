@@ -18,8 +18,18 @@ class StyleListResponse(BaseModel):
 
 class StylePickRequest(BaseModel):
     style: str
-    target_duration_sec: float = Field(gt=0, le=24 * 3600)
+    target_duration_sec: float | None = Field(default=None, gt=0, le=24 * 3600)
     min_score: float = 0.35
+    mode: str | None = None
+    bpm_min: float | None = Field(default=None, ge=0, le=400)
+    bpm_max: float | None = Field(default=None, ge=0, le=400)
+
+
+class BpmBucketItem(BaseModel):
+    label: str
+    min_bpm: float
+    max_bpm: float
+    count: int
 
 
 class ScoredSong(BaseModel):
@@ -27,9 +37,11 @@ class ScoredSong(BaseModel):
     title: str
     artist: str
     bpm: float | None = None
+    camelot_key: str | None = None
     duration: float | None = None
     score: float
     energy: float | None = None
+    analysis_status: str | None = None
     score_breakdown: dict = Field(default_factory=dict)
     confidence: float | None = None
     matched_labels: list[str] = Field(default_factory=list)
@@ -42,9 +54,10 @@ class ScoredSong(BaseModel):
 
 class StylePickResponse(BaseModel):
     style: str
-    target_duration_sec: float
+    target_duration_sec: float | None = None
     achieved_duration_sec: float
     songs: list[ScoredSong]
+    bpm_buckets: list[BpmBucketItem] = Field(default_factory=list)
 
 
 class SequenceRequest(BaseModel):
@@ -63,6 +76,9 @@ class SequenceEntry(BaseModel):
 class SequenceResponse(BaseModel):
     preset: str
     sequence: list[SequenceEntry]
+    ordering_mode: str | None = None
+    pair_scores: list[dict] = Field(default_factory=list)
+    pair_breakdowns: list[dict] = Field(default_factory=list)
 
 
 class TransitionPlanRequest(BaseModel):

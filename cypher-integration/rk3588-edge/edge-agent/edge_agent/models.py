@@ -73,7 +73,7 @@ class XfadeRequest(BaseModel):
     tempo_ratio: Optional[float] = None
     stem_curves: Optional[dict[str, Any]] = None
     eq_curves: Optional[dict[str, Any]] = None
-    transition_mode: Optional[Literal["ordinary_xfade", "eq_band_mix"]] = None
+    transition_mode: Optional[Literal["ordinary_xfade", "eq_band_mix", "default_mix"]] = None
     transition_plan: Optional[dict[str, Any]] = None
     phase_anchor_sec: Optional[float] = None
 
@@ -113,6 +113,20 @@ class LoadPlanRequest(BaseModel):
     manifest: dict[str, Any]
 
 
+class DefaultAutoplayStartRequest(BaseModel):
+    queue: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    transitions: list[dict[str, Any]] = Field(default_factory=list, max_length=255)
+    start_song_id: Optional[Union[int, str]] = None
+    start_at_sec: float = Field(default=0.0, ge=0.0)
+    session_id: Optional[str] = None
+
+
+class DefaultRenderPlaybackRequest(BaseModel):
+    transition_plan: dict[str, Any]
+    to_song_id: Optional[Union[int, str]] = None
+    render_path: Optional[str] = None
+
+
 class HealthResponse(BaseModel):
     ok: bool = True
     audio_ready: bool = False
@@ -135,7 +149,7 @@ class RKPlaybackState(BaseModel):
     next_transition_in_sec: Optional[float] = None
     active_loops: list[int] = Field(default_factory=list)
     active_stem_fx: Optional[str] = None
-    playback_tier: Literal["basic", "non_stem", "stem_aware", "eq_band_mix"] = "basic"
+    playback_tier: Literal["basic", "non_stem", "stem_aware", "eq_band_mix", "default_render_playback"] = "basic"
     last_transition: Optional[dict[str, Any]] = None
 
 

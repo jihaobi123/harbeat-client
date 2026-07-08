@@ -3,12 +3,15 @@ mixing rules, live cut planning, and FX synthesis under /api/dj.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.service import User
 from app.modules.dj_control import cut_strategy, dance_style, eq_transition_strategy, fx_synth, mixer_rules, sequencer, vibe_search
+from app.modules.dj_control.default_mix import reference_renderer
+from app.modules.dj_control.default_mix import transition_planner as default_transition_planner
 from app.modules.dj_control.energy_hiphop import compute_dance_energy, get_dance_energy_profile
 from app.modules.dj_control.spotify_mix.section_features import vocal_density_in_range
 from app.modules.dj_control.spotify_mix.section_matcher import plan_section_match_transition
@@ -16,6 +19,7 @@ from app.modules.dj_set import service as dj_set_service
 from app.modules.dj_set.set_templates import ALL_TEMPLATES, get_template
 from app.modules.dj_control.schemas import (
     CutPlanRequest,
+    BpmBucketItem,
     FxItem,
     FxListResponse,
     LivePoolPrepareRequest,
@@ -50,6 +54,56 @@ def list_styles_endpoint():
     return APIResponse(data=StyleListResponse(styles=dance_style.list_styles()))
 
 
+def _bpm_bucket_items(picks: list[tuple[LibrarySong, float, dict]]) -> list[BpmBucketItem]:
+    buckets: dict[int, int] = {}
+    for song, _score, _evidence in picks:
+        try:
+            bpm = float(song.bpm or 0.0)
+        except (TypeError, ValueError):
+            bpm = 0.0
+        if bpm <= 0:
+            continue
+        lo = int(bpm // 10) * 10
+        buckets[lo] = buckets.get(lo, 0) + 1
+    return [
+        BpmBucketItem(label=f"{lo}-{lo + 10}", min_bpm=float(lo), max_bpm=float(lo + 10), count=count)
+        for lo, count in sorted(buckets.items())
+    ]
+
+
+def _analysis_status(song: LibrarySong) -> str:
+    if getattr(song, "beat_points", None) and getattr(song, "music_features", None):
+        return "completed"
+    if getattr(song, "bpm", None) is not None:
+        return "partial"
+    return "missing"
+
+
+def _filter_and_sort_style_picks(
+    picks: list[tuple[LibrarySong, float, dict]],
+    *,
+    bpm_min: float | None,
+    bpm_max: float | None,
+) -> list[tuple[LibrarySong, float, dict]]:
+    filtered = list(picks)
+    if bpm_min is not None and bpm_max is not None:
+        filtered = [
+            item
+            for item in filtered
+            if item[0].bpm is not None and float(item[0].bpm) >= bpm_min and float(item[0].bpm) < bpm_max
+        ]
+        center = (float(bpm_min) + float(bpm_max)) * 0.5
+        filtered.sort(
+            key=lambda item: (
+                abs(float(item[0].bpm or center) - center),
+                0 if _analysis_status(item[0]) == "completed" else 1,
+                -float(item[1] or 0.0),
+                (item[0].title or "").lower(),
+            )
+        )
+    return filtered
+
+
 @router.post("/styles/pick", response_model=APIResponse[StylePickResponse])
 def pick_by_style_endpoint(
     payload: StylePickRequest,
@@ -63,12 +117,28 @@ def pick_by_style_endpoint(
         .filter(LibrarySong.user_id == current_user.id)
         .all()
     )
-    picks = dance_style.pick_songs_for_duration(
-        songs,
-        style_key=payload.style,
-        target_seconds=payload.target_duration_sec,
-        min_score=payload.min_score,
-    )
+    if payload.mode == "default":
+        picks = dance_style.rank_songs_for_style(
+            songs,
+            style_key=payload.style,
+            limit=80,
+            min_score=payload.min_score,
+        )
+        buckets = _bpm_bucket_items(picks)
+        picks = _filter_and_sort_style_picks(
+            picks,
+            bpm_min=payload.bpm_min,
+            bpm_max=payload.bpm_max,
+        )
+    else:
+        target_seconds = float(payload.target_duration_sec or 600.0)
+        picks = dance_style.pick_songs_for_duration(
+            songs,
+            style_key=payload.style,
+            target_seconds=target_seconds,
+            min_score=payload.min_score,
+        )
+        buckets = []
     achieved = sum(float(s.duration or 0) for s, _score, _evidence in picks)
     return APIResponse(data=StylePickResponse(
         style=payload.style,
@@ -80,9 +150,11 @@ def pick_by_style_endpoint(
                 title=s.title,
                 artist=s.artist,
                 bpm=s.bpm,
+                camelot_key=s.camelot_key,
                 duration=s.duration,
                 score=score,
                 energy=(s.energy if s.energy is not None else None),
+                analysis_status=_analysis_status(s),
                 score_breakdown=dance_style._component_score_breakdown(evidence),
                 confidence=evidence.get("confidence"),
                 matched_labels=evidence.get("matched_labels", []),
@@ -94,6 +166,7 @@ def pick_by_style_endpoint(
             )
             for s, score, evidence in picks
         ],
+        bpm_buckets=buckets,
     ))
 
 
@@ -148,10 +221,14 @@ def sequence_endpoint(
     ordered_songs = [songs_by_id[sid] for sid in payload.song_ids if sid in songs_by_id]
     if not ordered_songs:
         raise HTTPException(status_code=400, detail="no matching songs")
-    seq = sequencer.sequence_songs(ordered_songs, preset=payload.preset)
+    seq_result = sequencer.sequence_songs_with_details(ordered_songs, preset=payload.preset)
+    seq = seq_result["sequence"]
     return APIResponse(data=SequenceResponse(
         preset=payload.preset,
         sequence=[SequenceEntry(**e) for e in seq],
+        ordering_mode=seq_result.get("ordering_mode"),
+        pair_scores=seq_result.get("pair_scores") or [],
+        pair_breakdowns=seq_result.get("pair_breakdowns") or [],
     ))
 
 
@@ -197,6 +274,38 @@ def energy_breakdown_endpoint(
 @router.get("/transitions/rules")
 def list_transition_rules_endpoint():
     return APIResponse(data=mixer_rules.list_transition_rules())
+
+
+def _public_base_url(request: Request) -> str:
+    from app.shared.config import get_settings
+    import os
+
+    settings = get_settings()
+    configured = (
+        getattr(settings, "public_asset_base_url", None)
+        or os.environ.get("PUBLIC_ASSET_BASE_URL", "")
+    ).strip().rstrip("/")
+    if configured:
+        return configured
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    return f"{proto}://{host}".rstrip("/") if host else ""
+
+
+@router.get("/default/render/{pair_id}")
+def stream_default_render(pair_id: str):
+    path = reference_renderer.pair_dir(pair_id) / "transition_render.wav"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="default transition render not found")
+    return FileResponse(str(path), media_type="audio/wav", filename="transition_render.wav")
+
+
+@router.get("/default/render/{pair_id}/meta")
+def stream_default_render_meta(pair_id: str):
+    path = reference_renderer.pair_dir(pair_id) / "transition_render.json"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="default transition render meta not found")
+    return FileResponse(str(path), media_type="application/json", filename="transition_render.json")
 
 
 def _song_for_section_match(song: LibrarySong) -> dict:
@@ -308,6 +417,7 @@ def _attach_prepared_section_transition(
 @router.post("/transitions/plan")
 def plan_transition_endpoint(
     payload: TransitionPlanRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -315,7 +425,28 @@ def plan_transition_endpoint(
     nxt = db.get(LibrarySong, payload.next_song_id)
     if not prev or not nxt or prev.user_id != current_user.id or nxt.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="song(s) not found")
-    if payload.transition_mode == "section_match":
+    if payload.transition_mode == "default_mix":
+        compatibility_bridge = (
+            (payload.eq_mix_user_mode or "").lower() in {"bridge", "compat", "phase0"}
+            or payload.rule_key == "default_mix_bridge"
+        )
+        spec = default_transition_planner.plan_default_transition(
+            prev,
+            nxt,
+            cursor_sec=payload.cursor_sec,
+            compatibility_bridge=compatibility_bridge,
+        )
+        if not compatibility_bridge:
+            try:
+                render_meta = reference_renderer.ensure_reference_render(prev, nxt, spec)
+            except reference_renderer.DefaultRenderError as exc:
+                raise HTTPException(status_code=503, detail=f"default render unavailable: {exc}") from exc
+            spec = default_transition_planner.attach_render_resources(
+                spec,
+                render_meta=render_meta,
+                base_url=_public_base_url(request),
+            )
+    elif payload.transition_mode == "section_match":
         spec = plan_section_match_transition(
             _song_for_section_match(prev),
             _song_for_section_match(nxt),
@@ -337,7 +468,7 @@ def plan_transition_endpoint(
         )
     else:
         spec = mixer_rules.build_transition_spec(prev, nxt, payload.cursor_sec, payload.rule_key)
-    if payload.apply_phrase_alignment and payload.transition_mode != "section_match":
+    if payload.apply_phrase_alignment and payload.transition_mode not in {"section_match", "default_mix"}:
         from app.modules.dj_control.spotify_mix.phrase_alignment import find_transition_point
 
         prev_analysis = {
@@ -362,7 +493,12 @@ def plan_transition_endpoint(
         spec["start_in_prev"] = spec["from_at_sec"]
         spec["start_in_next"] = spec["to_at_sec"]
         spec["phrase_alignment"] = {"applied": True, "exit_at_sec": spec["from_at_sec"], "entry_at_sec": spec["to_at_sec"]}
-    if payload.mix_preset and payload.transition_mode != "section_match":
+    if payload.mix_preset and payload.transition_mode == "default_mix":
+        spec["mix_preset_ignored"] = payload.mix_preset
+        spec.setdefault("reason", []).append(
+            "mix_preset ignored because default_mix owns cut points, duration and reference render."
+        )
+    elif payload.mix_preset and payload.transition_mode != "section_match":
         from app.modules.dj_control.transition import enrich_transition_plan_with_mix_effects
 
         try:

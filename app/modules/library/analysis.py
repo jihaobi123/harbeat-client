@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+ESSENTIA_ANALYSIS_SAMPLE_RATE = 44100
 
 MAJOR_TEMPLATE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 MINOR_TEMPLATE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
@@ -16,6 +19,14 @@ NOTE_MODE_TO_CAMELOT = {
     ("D#", "minor"): "2A", ("E", "minor"): "9A", ("F", "minor"): "4A",
     ("F#", "minor"): "11A", ("G", "minor"): "6A", ("G#", "minor"): "1A",
     ("A", "minor"): "8A", ("A#", "minor"): "3A", ("B", "minor"): "10A",
+}
+
+FLAT_TO_SHARP = {
+    "Db": "C#",
+    "Eb": "D#",
+    "Gb": "F#",
+    "Ab": "G#",
+    "Bb": "A#",
 }
 
 # Camelot number lookup for distance calculation
@@ -144,6 +155,126 @@ def _generate_dj_hot_cues(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Key / tonal analysis — comprehensive DJ-oriented key detection
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _clamp01(value: Any, default: float = 0.0) -> float:
+    try:
+        raw = float(value)
+    except (TypeError, ValueError):
+        raw = default
+    return float(np.clip(raw, 0.0, 1.0))
+
+
+def _normalize_note_name(note: str) -> str:
+    raw = str(note or "").strip()
+    if not raw:
+        return "C"
+    raw = raw[0].upper() + raw[1:]
+    return FLAT_TO_SHARP.get(raw, raw)
+
+
+def _normalize_scale_name(scale: str) -> str:
+    raw = str(scale or "").strip().lower()
+    if raw in {"major", "maj"}:
+        return "major"
+    if raw in {"minor", "min"}:
+        return "minor"
+    return raw
+
+
+def _prepare_essentia_audio(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> np.ndarray:
+    """Return mono float32 audio at the sample rate expected by Essentia.
+
+    Essentia's old source build can be compiled without FFmpeg loaders on
+    Jetson, so HarBeat decodes the file once with the existing Python audio
+    stack and passes the decoded signal into Essentia's BPM/key algorithms.
+    """
+    import librosa
+
+    audio = np.asarray(y, dtype=np.float32)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=0).astype(np.float32)
+    if int(sr) != ESSENTIA_ANALYSIS_SAMPLE_RATE:
+        audio = librosa.resample(
+            audio,
+            orig_sr=int(sr),
+            target_sr=ESSENTIA_ANALYSIS_SAMPLE_RATE,
+        ).astype(np.float32)
+    if max_duration is not None and max_duration > 0:
+        audio = audio[: int(max_duration * ESSENTIA_ANALYSIS_SAMPLE_RATE)]
+    if len(audio) < ESSENTIA_ANALYSIS_SAMPLE_RATE:
+        raise ValueError("audio too short for Essentia analysis")
+    return np.ascontiguousarray(audio, dtype=np.float32)
+
+
+def _analyze_key_essentia(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> dict:
+    """Detect musical key with Essentia KeyExtractor.
+
+    This is the preferred DJ-facing key path. HarBeat decodes audio with its
+    existing Python stack, then Essentia analyzes the decoded 44.1 kHz signal.
+    """
+    import essentia.standard as es
+
+    audio = _prepare_essentia_audio(y, sr, max_duration=max_duration)
+    raw_key, raw_scale, strength = es.KeyExtractor()(audio)
+    root = _normalize_note_name(raw_key)
+    mode = _normalize_scale_name(raw_scale)
+    camelot = NOTE_MODE_TO_CAMELOT.get((root, mode))
+    if camelot is None:
+        raise ValueError(f"unsupported Essentia key result: {raw_key} {raw_scale}")
+
+    confidence = _clamp01(strength)
+    return {
+        "key": f"{root} {mode}",
+        "camelot_key": camelot,
+        "key_confidence": round(confidence, 4),
+        "tonal_clarity": round(confidence, 4),
+        "relative_ambiguity": False,
+        "candidates": [{
+            "root": root,
+            "mode": mode,
+            "camelot": camelot,
+            "score": round(confidence, 4),
+            "source": "essentia_keyextractor",
+        }],
+        "method": "essentia_keyextractor",
+        "engine": "essentia",
+        "sample_rate": ESSENTIA_ANALYSIS_SAMPLE_RATE,
+        "raw_key": str(raw_key),
+        "raw_scale": str(raw_scale),
+        "strength": round(confidence, 4),
+    }
+
+
+def _analyze_rhythm_essentia(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> dict:
+    """Detect BPM and beat ticks with Essentia RhythmExtractor2013."""
+    import essentia.standard as es
+
+    audio = _prepare_essentia_audio(y, sr, max_duration=max_duration)
+    bpm, beats, confidence, estimates, bpm_intervals = es.RhythmExtractor2013(method="multifeature")(audio)
+    beat_times = np.asarray(beats, dtype=float)
+    if len(beat_times) == 0:
+        raise ValueError("Essentia RhythmExtractor2013 returned no beat ticks")
+
+    candidates = []
+    try:
+        for estimate in list(estimates)[:8]:
+            candidates.append({"bpm": round(float(estimate), 3), "source": "essentia_estimate"})
+    except Exception:
+        candidates = []
+    if not candidates:
+        candidates = [{"bpm": round(float(bpm), 3), "source": "essentia_bpm"}]
+
+    return {
+        "bpm": float(bpm),
+        "beat_times": beat_times,
+        "confidence": _clamp01(confidence),
+        "bpm_candidates": candidates,
+        "bpm_intervals": [round(float(x), 6) for x in list(bpm_intervals)[:16]],
+        "engine": "essentia_rhythmextractor2013",
+        "sample_rate": ESSENTIA_ANALYSIS_SAMPLE_RATE,
+        "method": "multifeature",
+    }
+
 
 def _analyze_key(y: np.ndarray, sr: int) -> dict:
     """Comprehensive key detection with cross-validation, candidates, and tonal clarity.
@@ -1603,13 +1734,48 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     # Reported duration = real file length when available
     duration = real_duration if real_duration is not None else analysis_duration
 
-    # BPM + beat points
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+    # BPM + beat points. Essentia is the primary DJ-grade detector; librosa is
+    # kept only as an explicit fallback so downstream plans know the source.
+    rhythm_result: dict[str, Any] | None = None
+    rhythm_fallback_reason: str | None = None
+    try:
+        rhythm_result = _analyze_rhythm_essentia(y, sr, max_duration=MAX_ANALYSIS_DURATION)
+        bpm = float(rhythm_result["bpm"])
+        beat_times = np.asarray(rhythm_result["beat_times"], dtype=float)
+    except Exception as exc:
+        rhythm_fallback_reason = f"{type(exc).__name__}: {exc}"
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
+        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
     beat_points = [round(float(t), 3) for t in beat_times]
     bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
     beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
+    if rhythm_result is not None:
+        beatgrid_summary["beat_engines_used"] = [rhythm_result["engine"]]
+        details = dict(beatgrid_summary.get("beat_confidence_details") or {})
+        details.update({
+            "essentia_confidence": round(float(rhythm_result.get("confidence", 0.0)), 4),
+            "bpm_candidates": rhythm_result.get("bpm_candidates", []),
+            "bpm_intervals": rhythm_result.get("bpm_intervals", []),
+            "method": rhythm_result.get("method"),
+            "sample_rate": rhythm_result.get("sample_rate"),
+        })
+        beatgrid_summary["beat_confidence_details"] = details
+        beatgrid_summary["beat_confidence"] = round(float(np.clip(
+            float(beatgrid_summary.get("beat_confidence") or 0.0) * 0.7
+            + float(rhythm_result.get("confidence") or 0.0) * 0.3,
+            0.0,
+            1.0,
+        )), 4)
+        beatgrid_summary["beat_needs_review"] = bool(
+            beatgrid_summary.get("beat_confidence", 0.0) < 0.72
+            or len(beat_points) < 16
+        )
+    else:
+        beatgrid_summary["beat_engines_used"] = ["librosa_fallback"]
+        details = dict(beatgrid_summary.get("beat_confidence_details") or {})
+        details["fallback_reason"] = rhythm_fallback_reason
+        beatgrid_summary["beat_confidence_details"] = details
 
     # Downbeats and meter are inferred from the same beat-accent evidence.
     downbeats, time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
@@ -1620,11 +1786,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     energy_curve = _build_energy_curve(y, sr)
     loudness_profile = _analyze_loudness(y, sr)
 
-    # Key detection (CQT + CENS cross-validated Krumhansl-Schmuckler)
-    key_result = _analyze_key(y, sr)
-    root_note, mode_str = key_result["key"].split(" ") if " " in key_result["key"] else (key_result["key"], "major")
-    key_confidence = key_result["key_confidence"]
-    camelot_key = key_result["camelot_key"]
+    # Key detection. Essentia KeyExtractor is primary; the previous chroma
+    # Krumhansl-Schmuckler path remains an explicit fallback.
+    key_fallback_reason: str | None = None
+    try:
+        key_result = _analyze_key_essentia(y, sr, max_duration=MAX_ANALYSIS_DURATION)
+    except Exception as exc:
+        key_fallback_reason = f"{type(exc).__name__}: {exc}"
+        key_result = _analyze_key(y, sr)
+        key_result = {
+            **key_result,
+            "engine": "librosa_chroma_fallback",
+            "fallback_reason": key_fallback_reason,
+        }
 
     # Section detection → cue points (use analysis_duration for relative-position labels)
     cue_points = _detect_sections(y, sr, analysis_duration)
@@ -1663,6 +1837,12 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
             "relative_ambiguity": key_result["relative_ambiguity"],
             "candidates": key_result["candidates"],
             "method": key_result["method"],
+            "engine": key_result.get("engine"),
+            "sample_rate": key_result.get("sample_rate"),
+            "fallback_reason": key_result.get("fallback_reason"),
+            "raw_key": key_result.get("raw_key"),
+            "raw_scale": key_result.get("raw_scale"),
+            "strength": key_result.get("strength"),
         },
         "beat_points": beat_points,
         "bpm_curve": bpm_curve,

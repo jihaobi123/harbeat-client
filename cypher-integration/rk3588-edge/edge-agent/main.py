@@ -16,6 +16,8 @@ from edge_agent.models import (
   ApplyFilterRequest,
   ApplyLoudnessNormRequest,
   DeckEqRequest,
+  DefaultAutoplayStartRequest,
+  DefaultRenderPlaybackRequest,
   HealthResponse,
   LoadPlanRequest,
   BeatReinforceRequest,
@@ -40,6 +42,9 @@ DECODE_HEAVY_AUDIO_COMMANDS = {
   "xfade",
   "xfade_mix_effects",
   "xfade_eq_band_mix",
+  "default_autoplay_start",
+  "default_autoplay_prefetch",
+  "default_render_playback",
   "prefetch",
   "validate_cache",
   "prewarm_beatmatch",
@@ -345,6 +350,83 @@ async def xfade_mix_effects(req: XfadeRequest) -> dict[str, Any]:
   result = await _run_xfade(req)
   result["mix_effects"] = True
   return result
+
+
+@app.post("/autoplay/default/start", dependencies=[Depends(_optional_auth)])
+async def default_autoplay_start(req: DefaultAutoplayStartRequest) -> dict[str, Any]:
+  """Start the default automatic DJ playback branch.
+
+  This endpoint is separate from /xfade so the default path can evolve toward
+  reference-render playback without changing manual energy/style/fast cuts.
+  """
+  result = await _forward(
+    "default_autoplay_start",
+    queue=req.queue,
+    transitions=req.transitions,
+    start_song_id=req.start_song_id,
+    start_at_sec=req.start_at_sec,
+    session_id=req.session_id,
+  )
+  current_song_id = result.get("current_song_id") or req.start_song_id or (req.queue[0] if req.queue else None)
+  if current_song_id is not None:
+    await edge_state.update_playback(
+      playing=True,
+      paused=False,
+      current_song_id=current_song_id,
+      position_sec=float(result.get("position_sec", req.start_at_sec)),
+      playback_tier=result.get("playback_tier") or "default_render_playback",
+      last_transition=result.get("last_transition"),
+    )
+  await edge_state.append_event(
+    {
+      "type": "default_autoplay_start",
+      "session_id": req.session_id,
+      "queue_count": len(req.queue),
+      "transition_count": len(req.transitions),
+    }
+  )
+  return {"ok": True, "result": result}
+
+
+@app.post("/autoplay/default/prefetch", dependencies=[Depends(_optional_auth)])
+async def default_autoplay_prefetch(req: DefaultAutoplayStartRequest) -> dict[str, Any]:
+  result = await _forward(
+    "default_autoplay_prefetch",
+    queue=req.queue,
+    transitions=req.transitions,
+    session_id=req.session_id,
+  )
+  return {"ok": bool(result.get("ok", True)), "result": result}
+
+
+@app.post("/autoplay/default/render", dependencies=[Depends(_optional_auth)])
+async def default_render_playback(req: DefaultRenderPlaybackRequest) -> dict[str, Any]:
+  result = await _forward(
+    "default_render_playback",
+    transition_plan=req.transition_plan,
+    to_song_id=req.to_song_id,
+    render_path=req.render_path,
+  )
+  await edge_state.update_playback(
+    playing=True,
+    paused=False,
+    current_song_id=result.get("current_song_id") or req.to_song_id,
+    position_sec=float(result.get("position_sec", 0.0)),
+    playback_tier=result.get("playback_tier") or "default_render_playback",
+    last_transition=result,
+  )
+  return {
+    "ok": True,
+    "actual_tier": result.get("playback_tier"),
+    "degraded": bool(result.get("degraded", False)),
+    "degrade_reason": result.get("degrade_reason"),
+    "result": result,
+  }
+
+
+@app.get("/autoplay/default/state", response_model=RKPlaybackState)
+async def default_autoplay_state() -> RKPlaybackState:
+  return await get_state()
 
 
 @app.post("/prefetch", dependencies=[Depends(_optional_auth)])

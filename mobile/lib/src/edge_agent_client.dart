@@ -84,6 +84,62 @@ class EdgeAgentClient {
     return _request(method: 'POST', path: '/play', body: body);
   }
 
+  Future<Map<String, dynamic>> defaultAutoplayStart({
+    required List<Object> queue,
+    required List<Map<String, dynamic>> transitions,
+    Object? startSongId,
+    double startAtSec = 0.0,
+    String? sessionId,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/start',
+      body: {
+        'queue': queue,
+        'transitions': transitions,
+        if (startSongId != null) 'start_song_id': startSongId,
+        'start_at_sec': startAtSec,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> defaultAutoplayPrefetch({
+    required List<Object> queue,
+    required List<Map<String, dynamic>> transitions,
+    String? sessionId,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/prefetch',
+      body: {
+        'queue': queue,
+        'transitions': transitions,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+      timeout: const Duration(minutes: 5),
+    );
+  }
+
+  Future<Map<String, dynamic>> defaultRenderPlayback({
+    required Map<String, dynamic> transitionPlan,
+    Object? toSongId,
+    String? renderPath,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/render',
+      body: {
+        'transition_plan': transitionPlan,
+        if (toSongId != null) 'to_song_id': toSongId,
+        if (renderPath != null && renderPath.isNotEmpty)
+          'render_path': renderPath,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
   Future<Map<String, dynamic>> pause() async {
     return _request(method: 'POST', path: '/pause');
   }

@@ -129,6 +129,29 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
             transition_id=msg.get("transition_id"),
         )
         return {"ok": True, **result}
+    if cmd == "default_autoplay_start":
+        result = engine.default_autoplay_start(
+            msg.get("queue") or [],
+            msg.get("transitions") or [],
+            start_song_id=msg.get("start_song_id"),
+            start_at_sec=float(msg.get("start_at_sec", 0.0)),
+            session_id=msg.get("session_id"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "default_autoplay_prefetch":
+        result = engine.default_autoplay_prefetch(
+            msg.get("queue") or [],
+            msg.get("transitions") or [],
+            session_id=msg.get("session_id"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "default_render_playback":
+        result = engine.default_render_playback(
+            msg.get("transition_plan") or {},
+            to_song_id=msg.get("to_song_id"),
+            render_path=msg.get("render_path"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "prewarm_beatmatch":
         result = engine.prewarm_beatmatch(
             msg["song_id"],

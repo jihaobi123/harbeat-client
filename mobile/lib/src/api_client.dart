@@ -674,8 +674,11 @@ class HarBeatApiClient {
   Future<Map<String, dynamic>> djPickByStyle({
     required String token,
     required String style,
-    required double targetDurationSec,
+    double? targetDurationSec,
     double minScore = 0.35,
+    String? mode,
+    double? bpmMin,
+    double? bpmMax,
   }) async {
     return await _request<Map<String, dynamic>>(
       method: 'POST',
@@ -683,8 +686,12 @@ class HarBeatApiClient {
       token: token,
       body: {
         'style': style,
-        'target_duration_sec': targetDurationSec,
+        if (targetDurationSec != null)
+          'target_duration_sec': targetDurationSec,
         'min_score': minScore,
+        if (mode != null && mode.isNotEmpty) 'mode': mode,
+        if (bpmMin != null) 'bpm_min': bpmMin,
+        if (bpmMax != null) 'bpm_max': bpmMax,
       },
     );
   }

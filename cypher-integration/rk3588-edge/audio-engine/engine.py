@@ -340,6 +340,7 @@ class AudioEngineMVP:
         self._fade_total_frames = 0
         self._active_tr: Transition | None = None
         self._eq_band_plan: dict | None = None
+        self._default_resume_after_render: dict | None = None
         self._last_transition_result: dict | None = None
         self._next_preloaded = False
         self._preload_requested: str | None = None
@@ -540,9 +541,55 @@ class AudioEngineMVP:
             return "stem_aware"
         if self._in_transition and self._active_tr and self._active_tr.style == "eq_band_mix":
             return "eq_band_mix"
+        if self._default_resume_after_render is not None:
+            return "default_render_playback"
         if not self._plan_enabled or not self._plan:
             return "basic"
         return "non_stem"
+
+    def _resolve_default_render_path(
+        self,
+        transition_plan: dict,
+        render_path: str | None = None,
+    ) -> Path | None:
+        candidates: list[Path] = []
+        for raw in (
+            render_path,
+            transition_plan.get("transition_render_path"),
+            transition_plan.get("render_path"),
+            transition_plan.get("transition_render_file"),
+        ):
+            if isinstance(raw, str) and raw.strip() and "://" not in raw:
+                candidates.append(Path(raw).expanduser())
+
+        default_meta = transition_plan.get("default_mix")
+        pair_id = transition_plan.get("pair_id")
+        if isinstance(default_meta, dict):
+            pair_id = pair_id or default_meta.get("pair_id")
+            for raw in (
+                default_meta.get("transition_render_path"),
+                default_meta.get("render_path"),
+            ):
+                if isinstance(raw, str) and raw.strip() and "://" not in raw:
+                    candidates.append(Path(raw).expanduser())
+        if pair_id:
+            pair_dir = CACHE_DIR / "default-mix" / "pairs" / str(pair_id)
+            candidates.extend(
+                [
+                    pair_dir / "transition_render.wav",
+                    pair_dir / "transition_render.mp3",
+                    pair_dir / "render.wav",
+                    pair_dir / "render.mp3",
+                ]
+            )
+
+        for path in candidates:
+            try:
+                if path.is_file():
+                    return path
+            except OSError:
+                continue
+        return None
 
     def _record_transition_result(self, result: dict) -> dict:
         self._last_transition_result = {
@@ -1055,11 +1102,246 @@ class AudioEngineMVP:
             "degrade_reason": None,
         })
 
+    def default_autoplay_prefetch(
+        self,
+        queue: list[int | str],
+        transitions: list[dict],
+        session_id: str | None = None,
+    ) -> dict:
+        queue_result = self.prefetch(list(queue or []), wait=False, load_stems=False)
+        render_ready = []
+        render_missing = []
+        for plan in transitions or []:
+            if not isinstance(plan, dict):
+                continue
+            pair_id = plan.get("pair_id") or (plan.get("default_mix") or {}).get("pair_id")
+            path = self._resolve_default_render_path(plan)
+            if path is not None:
+                render_ready.append({"pair_id": pair_id, "path": str(path)})
+            else:
+                render_missing.append(str(pair_id or "unknown"))
+        return {
+            "ok": True,
+            "session_id": session_id,
+            "queue": queue_result,
+            "render_ready": render_ready,
+            "render_missing": render_missing,
+        }
+
+    def default_autoplay_start(
+        self,
+        queue: list[int | str],
+        transitions: list[dict],
+        *,
+        start_song_id: int | str | None = None,
+        start_at_sec: float = 0.0,
+        session_id: str | None = None,
+    ) -> dict:
+        del transitions
+        song_id = start_song_id or (queue[0] if queue else None)
+        if song_id is None:
+            raise SongCacheError("default autoplay queue is empty", code=400)
+        result = self.play(song_id, start_at_sec)
+        result.update(
+            {
+                "ok": True,
+                "session_id": session_id,
+                "current_song_id": song_id,
+                "position_sec": start_at_sec,
+                "playback_tier": "default_render_playback",
+                "degraded": False,
+                "source": "default_autoplay_start",
+            }
+        )
+        return result
+
+    def default_render_playback(
+        self,
+        transition_plan: dict,
+        *,
+        to_song_id: int | str | None = None,
+        render_path: str | None = None,
+    ) -> dict:
+        if not isinstance(transition_plan, dict):
+            transition_plan = {}
+        default_meta = transition_plan.get("default_mix")
+        if not isinstance(default_meta, dict):
+            default_meta = {}
+        target = transition_plan.get("target") if isinstance(transition_plan.get("target"), dict) else {}
+        target_song_id = (
+            to_song_id
+            or target.get("song_id")
+            or transition_plan.get("to_song_id")
+            or default_meta.get("to_song_id")
+        )
+        if target_song_id is None:
+            raise SongCacheError("default_render_playback missing target song_id", code=400)
+
+        render = self._resolve_default_render_path(transition_plan, render_path)
+        to_at_sec = float(
+            transition_plan.get("to_at_sec")
+            or target.get("start_cue_sec")
+            or default_meta.get("to_at_sec")
+            or 0.0
+        )
+        resume_at_sec = float(
+            transition_plan.get("resume_at_sec")
+            or default_meta.get("resume_at_sec")
+            or (to_at_sec + float(transition_plan.get("duration_sec") or default_meta.get("duration_sec") or 0.0))
+        )
+        from_at_sec = float(
+            transition_plan.get("from_at_sec")
+            or transition_plan.get("start_in_prev")
+            or default_meta.get("from_at_sec")
+            or 0.0
+        )
+        duration_sec = float(
+            transition_plan.get("duration_sec")
+            or default_meta.get("duration_sec")
+            or max(0.0, resume_at_sec - to_at_sec)
+            or 0.0
+        )
+        pair_id = transition_plan.get("pair_id") or default_meta.get("pair_id")
+        tr_id = transition_plan.get("transition_id") or pair_id
+
+        if render is None:
+            play_result = self.manual_eq_band_mix(
+                transition_plan,
+                to_song_id=target_song_id,
+                to_at_sec=to_at_sec,
+                transition_id=str(tr_id) if tr_id else None,
+                fallback_style="blend",
+            )
+            play_result["degraded"] = True
+            play_result["degrade_reason"] = "missing_default_transition_render"
+            play_result["requested_tier"] = "default_render_playback"
+            return self._record_transition_result(play_result)
+
+        with self._lock:
+            active_pos_sec = self.active_deck.pos_sec if self.active_deck.audio is not None else from_at_sec
+            render_offset_sec = 0.0
+            if from_at_sec > 0.0 and active_pos_sec > from_at_sec:
+                # The mobile/UI trigger can arrive one polling tick late.  The
+                # render already contains Track1 audio starting at from_at_sec,
+                # so starting it from zero after that point repeats the tail.
+                # Skip the already-heard part and resume Track2 by the same
+                # offset so the rendered handoff stays continuous.
+                max_offset = max(0.0, duration_sec - 0.12) if duration_sec > 0.0 else 0.0
+                render_offset_sec = min(max(0.0, active_pos_sec - from_at_sec), max_offset)
+                resume_at_sec += render_offset_sec
+            deck = Deck()
+            deck.load(target_song_id, render_offset_sec, load_stems=False, audio_path=render)
+            stopped_reason = None
+            if self.active_deck.audio is None:
+                stopped_reason = "no_active_audio"
+            elif not self._playing:
+                stopped_reason = "engine_not_playing"
+            elif self._paused:
+                stopped_reason = "engine_paused"
+            if stopped_reason is not None:
+                self._ensure_stream()
+                self._active = "a"
+                self.deck_a = deck
+                self.deck_b.clear()
+                self._playing = True
+                self._paused = False
+                self._in_transition = False
+                self._plan_enabled = False
+                self._default_resume_after_render = {
+                    "song_id": target_song_id,
+                    "resume_at_sec": resume_at_sec,
+                }
+                return self._record_transition_result({
+                    "action": "default_render_playback",
+                    "transition_id": tr_id,
+                    "to_song_id": target_song_id,
+                    "render_path": str(render),
+                    "position_sec": round(render_offset_sec, 3),
+                    "planned_from_at_sec": round(from_at_sec, 3),
+                    "actual_from_at_sec": round(active_pos_sec, 3),
+                    "render_offset_sec": round(render_offset_sec, 3),
+                    "resume_at_sec": round(resume_at_sec, 3),
+                    "playback_tier": "default_render_playback",
+                    "degraded": True,
+                    "degrade_reason": stopped_reason,
+                })
+            tr = Transition(
+                from_song_id=self.active_deck.song_id or 0,
+                to_song_id=target_song_id,
+                from_at_sec=self.active_deck.pos_sec,
+                to_at_sec=render_offset_sec,
+                fade_sec=0.08,
+                transition_id=str(tr_id) if tr_id else None,
+                style="blend",
+                fallback_style="blend",
+            )
+            self._plan_enabled = False
+            self._install_inactive_deck(deck)
+            self._default_resume_after_render = {
+                "song_id": target_song_id,
+                "resume_at_sec": resume_at_sec,
+            }
+            self._start_transition_locked(tr)
+        return self._record_transition_result({
+            "action": "default_render_playback",
+            "transition_id": tr_id,
+            "to_song_id": target_song_id,
+            "render_path": str(render),
+            "planned_from_at_sec": round(from_at_sec, 3),
+            "actual_from_at_sec": round(active_pos_sec, 3),
+            "render_offset_sec": round(render_offset_sec, 3),
+            "resume_at_sec": round(resume_at_sec, 3),
+            "fade_sec": 0.08,
+            "to_at_sec": round(render_offset_sec, 3),
+            "playback_tier": "default_render_playback",
+            "degraded": False,
+            "degrade_reason": None,
+        })
+
     def _install_inactive_deck(self, deck: Deck) -> None:
         if self._active == "a":
             self.deck_b = deck
         else:
             self.deck_a = deck
+
+    def _resume_default_target_after_render_locked(self) -> bool:
+        spec = self._default_resume_after_render
+        if not spec:
+            return False
+        target_song_id = spec.get("song_id")
+        if target_song_id is None:
+            self._default_resume_after_render = None
+            return False
+        try:
+            resume_at_sec = float(spec.get("resume_at_sec") or 0.0)
+        except (TypeError, ValueError):
+            resume_at_sec = 0.0
+        try:
+            deck = Deck()
+            deck.load(target_song_id, resume_at_sec, load_stems=False)
+            self._apply_loudness_gain(deck, target_song_id)
+        except Exception as exc:
+            logger.warning("default render resume failed for %s: %s", target_song_id, exc)
+            self._default_resume_after_render = None
+            return False
+        self._active = "a"
+        self.deck_a = deck
+        self.deck_b.clear()
+        self._playing = True
+        self._paused = False
+        self._in_transition = False
+        self._eq_band_plan = None
+        self._default_resume_after_render = None
+        self._plan_enabled = False
+        self._last_transition_result = {
+            **(self._last_transition_result or {}),
+            "action": "default_render_resume",
+            "to_song_id": target_song_id,
+            "position_sec": resume_at_sec,
+            "playback_tier": "default_render_playback",
+            "degraded": False,
+        }
+        return True
 
     def _start_transition_locked(self, tr: Transition) -> None:
         self._active_tr = tr
@@ -2221,6 +2503,19 @@ class AudioEngineMVP:
                 main = self._read_with_solo(self.active_deck, frames)
                 main = self.active_deck.apply_eq(main)
                 if self.active_deck.audio is not None and self.active_deck.pos >= len(self.active_deck.audio):
+                    if self._default_resume_after_render is not None:
+                        if self._resume_default_target_after_render_locked():
+                            main = self._read_with_solo(self.active_deck, frames)
+                            main = self.active_deck.apply_eq(main)
+                            deck_for_fx = self.active_deck
+                            main = self._apply_stem_fx(main, deck_for_fx, frames)
+                            main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
+                            outdata[:] = self._apply_limiter(main, frames)
+                            return
+                        self._playing = False
+                        self._plan_enabled = False
+                        outdata.fill(0)
+                        return
                     # 播放到结尾时，尝试强制转场而不是直接停止
                     tr = self._scheduled_transition()
                     if tr and self._plan_enabled and not self._in_transition:

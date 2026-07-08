@@ -137,6 +137,19 @@ def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
         for stem in ("vocals", "drums", "bass", "other"):
             if stems.get(stem):
                 items.append({"song_id": song_id, "kind": stem, "info": stems[stem]})
+    for pair in manifest.get("default_mix_pairs") or manifest.get("pairs") or []:
+        if not isinstance(pair, dict):
+            continue
+        pair_id = pair.get("pair_id") or pair.get("id")
+        if not pair_id:
+            continue
+        files = pair.get("files") or {}
+        render = files.get("transition_render") or pair.get("transition_render")
+        if render:
+            items.append({"pair_id": pair_id, "kind": "transition_render", "info": render})
+        meta = files.get("transition_render_meta") or pair.get("transition_render_meta")
+        if meta:
+            items.append({"pair_id": pair_id, "kind": "transition_render_meta", "info": meta})
     return items
 
 
@@ -328,6 +341,16 @@ def _safe_song_dir(song_id: str) -> Path:
     return target
 
 
+def _safe_pair_dir(pair_id: str) -> Path:
+    if not pair_id.strip():
+        raise ValueError("empty pair_id")
+    cache_root = CACHE_DIR.resolve()
+    target = (CACHE_DIR / "default-mix" / "pairs" / pair_id).resolve()
+    if cache_root not in target.parents:
+        raise ValueError(f"invalid pair_id path: {pair_id}")
+    return target
+
+
 def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) -> None:
     curl = shutil.which("curl")
     if not curl:
@@ -368,15 +391,17 @@ async def _download_with_httpx(
 
 
 async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: asyncio.Semaphore) -> None:
-    song_id = str(item["song_id"])
+    song_id = str(item.get("song_id") or item.get("pair_id") or "")
     kind = str(item["kind"])
     info = item["info"]
     expected_sha = info.get("sha256")
     expected_size = int(info["size"]) if info.get("size") is not None else None
     url = _final_url(str(info["url"]))
-    out_dir = _safe_song_dir(song_id)
+    out_dir = _safe_pair_dir(str(item["pair_id"])) if "pair_id" in item else _safe_song_dir(song_id)
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = _choose_ext(kind, info, url)
+    if kind == "transition_render_meta":
+        ext = "json"
     final_path = out_dir / f"{kind}.{ext}"
 
     # legacy: original.wav may already exist from old runs; treat as valid for original

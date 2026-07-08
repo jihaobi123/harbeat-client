@@ -38,11 +38,13 @@ class SyncWorkerClient {
     required List<Map<String, dynamic>> tracks,
     String? planId,
     bool audioOnly = false,
+    List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
     final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
     final body = <String, dynamic>{
       'plan_id': planId ?? 'mobile-${DateTime.now().millisecondsSinceEpoch}',
       'tracks': syncTracks,
+      if (defaultMixPairs.isNotEmpty) 'default_mix_pairs': defaultMixPairs,
     };
     final resp = await http
         .post(
@@ -129,6 +131,7 @@ class SyncWorkerClient {
     Duration pollInterval = const Duration(seconds: 1),
     void Function(SyncStatus status)? onProgress,
     bool audioOnly = false,
+    List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
     final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
     final deadline = DateTime.now().add(timeout);
@@ -136,7 +139,11 @@ class SyncWorkerClient {
     var started = false;
     while (!started && DateTime.now().isBefore(deadline)) {
       try {
-        await startSync(tracks: syncTracks, planId: planId);
+        await startSync(
+          tracks: syncTracks,
+          planId: planId,
+          defaultMixPairs: defaultMixPairs,
+        );
         started = true;
       } on Exception catch (e) {
         final msg = e.toString();
