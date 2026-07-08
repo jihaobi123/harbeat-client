@@ -10,9 +10,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from sqlalchemy import text
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # Import the related mapper before LibrarySong is first inspected. The FastAPI
 # app does this through app.modules.models; standalone maintenance scripts need

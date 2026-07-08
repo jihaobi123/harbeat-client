@@ -7,15 +7,19 @@ import 'package:http/http.dart' as http;
 import 'models.dart';
 
 class HarBeatApiClient {
-  HarBeatApiClient({required String baseUrl}) : baseUrl = _normalizeBaseUrl(baseUrl);
+  HarBeatApiClient({required String baseUrl})
+    : baseUrl = _normalizeBaseUrl(baseUrl);
 
   final String baseUrl;
 
-  static String _normalizeBaseUrl(String raw) => raw.trim().replaceFirst(RegExp(r'/$'), '');
+  static String _normalizeBaseUrl(String raw) =>
+      raw.trim().replaceFirst(RegExp(r'/$'), '');
 
   Uri _uri(String path, [Map<String, String>? queryParameters]) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$baseUrl$normalizedPath').replace(queryParameters: queryParameters);
+    return Uri.parse(
+      '$baseUrl$normalizedPath',
+    ).replace(queryParameters: queryParameters);
   }
 
   Future<AuthPayload> login({
@@ -66,8 +70,9 @@ class HarBeatApiClient {
       path: '/api/library/songs',
       token: token,
     );
-    final songs = (data['songs'] as List<dynamic>? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final songs =
+        (data['songs'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
     return songs.map(LibrarySong.fromJson).toList();
   }
 
@@ -81,8 +86,9 @@ class HarBeatApiClient {
       token: token,
       queryParameters: {'q': query},
     );
-    final songs = (data['songs'] as List<dynamic>? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final songs =
+        (data['songs'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
     return songs.map(LibrarySong.fromJson).toList();
   }
 
@@ -96,8 +102,9 @@ class HarBeatApiClient {
       token: token,
       queryParameters: {'user_id': '$userId'},
     );
-    final playlists = (data['playlists'] as List<dynamic>? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final playlists =
+        (data['playlists'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
     return playlists.map(PlaylistSummary.fromJson).toList();
   }
 
@@ -123,8 +130,9 @@ class HarBeatApiClient {
       token: token,
       body: {'query': query},
     );
-    final songs = (data['songs'] as List<dynamic>? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final songs =
+        (data['songs'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>();
     return songs.map(FangpiSong.fromJson).toList();
   }
 
@@ -214,9 +222,8 @@ class HarBeatApiClient {
       path: '/api/fangpi/batch-search',
       token: token,
       body: {
-        'songs': tracks
-            .map((t) => {'title': t.title, 'artist': t.artist})
-            .toList(),
+        'songs':
+            tracks.map((t) => {'title': t.title, 'artist': t.artist}).toList(),
       },
       // Backend now runs concurrent (8-way) with 18s per-song cap. Worst case
       // for 30+ song playlists is ~30s; allow plenty of headroom.
@@ -299,9 +306,19 @@ class HarBeatApiClient {
     return LibrarySong.fromJson(data);
   }
 
-  Future<List<DiscoverSectionData>> discoverSongs({
-    required int userId,
+  Future<Map<String, dynamic>> getSongManifest({
+    required String token,
+    required String songId,
   }) async {
+    final data = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/manifest/song/$songId',
+      token: token,
+    );
+    return Map<String, dynamic>.from(data['manifest'] as Map);
+  }
+
+  Future<List<DiscoverSectionData>> discoverSongs({required int userId}) async {
     final data = await _request<Map<String, dynamic>>(
       method: 'POST',
       path: '/api/recommendations/discover',
@@ -341,10 +358,7 @@ class HarBeatApiClient {
     return MusicProfile.fromJson(data);
   }
 
-  Future<int> startSession({
-    required int userId,
-    required String mode,
-  }) async {
+  Future<int> startSession({required int userId, required String mode}) async {
     final data = await _request<Map<String, dynamic>>(
       method: 'POST',
       path: '/api/sessions/start',
@@ -452,10 +466,7 @@ class HarBeatApiClient {
     final data = await _request<Map<String, dynamic>>(
       method: 'POST',
       path: '/api/music/songs/$songId/process-style',
-      body: {
-        'styles': styles,
-        'quality_mode': qualityMode,
-      },
+      body: {'styles': styles, 'quality_mode': qualityMode},
     );
     return StyleProcessResult.fromJson(data);
   }
@@ -524,16 +535,15 @@ class HarBeatApiClient {
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
     final payload = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode < 200 || response.statusCode >= 300 || payload['code'] != 0) {
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        payload['code'] != 0) {
       throw Exception(payload['message']?.toString() ?? '上传失败');
     }
     return LibrarySong.fromJson(payload['data'] as Map<String, dynamic>);
   }
 
-  String streamUrl({
-    required String token,
-    required String songId,
-  }) {
+  String streamUrl({required String token, required String songId}) {
     return '$baseUrl/api/stream/$songId?token=$token';
   }
 
@@ -541,8 +551,11 @@ class HarBeatApiClient {
     required String token,
     required String songId,
     required String stemName,
+    String? format,
   }) {
-    return '$baseUrl/api/stream/$songId/stem/$stemName?token=$token';
+    final fmt =
+        format == null ? '' : '&format=${Uri.encodeQueryComponent(format)}';
+    return '$baseUrl/api/stream/$songId/stem/$stemName?token=$token$fmt';
   }
 
   Future<Map<String, dynamic>> separateStems({
@@ -556,18 +569,12 @@ class HarBeatApiClient {
     );
   }
 
-  String processedStreamUrl({
-    required String token,
-    required String filePath,
-  }) {
+  String processedStreamUrl({required String token, required String filePath}) {
     final filename = filePath.split('/').last;
     return '$baseUrl/api/stream/processed/${Uri.encodeComponent(filename)}?token=$token';
   }
 
-  String mixStreamUrl({
-    required String token,
-    required String filename,
-  }) {
+  String mixStreamUrl({required String token, required String filename}) {
     return '$baseUrl/api/stream/mixes/${Uri.encodeComponent(filename)}?token=$token';
   }
 
@@ -620,7 +627,9 @@ class HarBeatApiClient {
               .timeout(reqTimeout);
           break;
         case 'DELETE':
-          response = await http.delete(uri, headers: headers).timeout(reqTimeout);
+          response = await http
+              .delete(uri, headers: headers)
+              .timeout(reqTimeout);
           break;
         default:
           throw Exception('Unsupported method: $method');
@@ -640,7 +649,9 @@ class HarBeatApiClient {
       throw Exception('服务返回格式不正确');
     }
 
-    if (response.statusCode < 200 || response.statusCode >= 300 || payload['code'] != 0) {
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        payload['code'] != 0) {
       throw Exception(payload['message']?.toString() ?? '请求失败');
     }
 
@@ -648,18 +659,26 @@ class HarBeatApiClient {
   }
 
   // ---------------- DJ Control ----------------
-  Future<List<Map<String, dynamic>>> djListStyles({required String token}) async {
+  Future<List<Map<String, dynamic>>> djListStyles({
+    required String token,
+  }) async {
     final data = await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/styles', token: token,
+      method: 'GET',
+      path: '/api/dj/styles',
+      token: token,
     );
-    return (data['styles'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    return (data['styles'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
   }
 
   Future<Map<String, dynamic>> djPickByStyle({
     required String token,
     required String style,
-    required double targetDurationSec,
+    double? targetDurationSec,
     double minScore = 0.35,
+    String? mode,
+    double? bpmMin,
+    double? bpmMax,
   }) async {
     return await _request<Map<String, dynamic>>(
       method: 'POST',
@@ -667,29 +686,79 @@ class HarBeatApiClient {
       token: token,
       body: {
         'style': style,
-        'target_duration_sec': targetDurationSec,
+        if (targetDurationSec != null) 'target_duration_sec': targetDurationSec,
         'min_score': minScore,
+        if (mode != null && mode.isNotEmpty) 'mode': mode,
+        if (bpmMin != null) 'bpm_min': bpmMin,
+        if (bpmMax != null) 'bpm_max': bpmMax,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> djStyleBpmBuckets({
+    required String token,
+    required String style,
+    double minScore = 0.35,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/styles/$style/bpm-buckets',
+      token: token,
+      queryParameters: {'min_score': '$minScore'},
+    );
+  }
+
+  Future<Map<String, dynamic>> djStyleCandidates({
+    required String token,
+    required String style,
+    required double minBpm,
+    required double maxBpm,
+    double minScore = 0.35,
+    int limit = 80,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/styles/$style/candidates',
+      token: token,
+      queryParameters: {
+        'min_bpm': '$minBpm',
+        'max_bpm': '$maxBpm',
+        'min_score': '$minScore',
+        'limit': '$limit',
       },
     );
   }
 
   Future<List<String>> djSequencePresets({required String token}) async {
     final data = await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/sequence/presets', token: token,
+      method: 'GET',
+      path: '/api/dj/sequence/presets',
+      token: token,
     );
     return (data['presets'] as List<dynamic>? ?? const []).cast<String>();
   }
 
   /// Returns [{key, label_zh, desc_zh, scene}, ...] when backend supplies meta.
-  Future<List<Map<String, dynamic>>> djSequencePresetsMeta({required String token}) async {
+  Future<List<Map<String, dynamic>>> djSequencePresetsMeta({
+    required String token,
+  }) async {
     final data = await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/sequence/presets', token: token,
+      method: 'GET',
+      path: '/api/dj/sequence/presets',
+      token: token,
     );
     final meta = data['meta'];
     if (meta is List) return meta.cast<Map<String, dynamic>>();
     return (data['presets'] as List<dynamic>? ?? const [])
         .cast<String>()
-        .map((k) => <String, dynamic>{'key': k, 'label_zh': k, 'desc_zh': '', 'scene': 'generic'})
+        .map(
+          (k) => <String, dynamic>{
+            'key': k,
+            'label_zh': k,
+            'desc_zh': '',
+            'scene': 'generic',
+          },
+        )
         .toList();
   }
 
@@ -720,6 +789,111 @@ class HarBeatApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> djPrepareLivePool({
+    required String token,
+    required List<String> activeQueueSongIds,
+    String? style,
+    int targetReservePerBucket = 2,
+    List<String> includeBuckets = const [],
+    List<String> excludeSongIds = const [],
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/live/pool/prepare',
+      token: token,
+      body: {
+        'active_queue_song_ids': activeQueueSongIds,
+        if (style != null && style.isNotEmpty) 'style': style,
+        'target_reserve_per_bucket': targetReservePerBucket,
+        'include_buckets': includeBuckets,
+        'exclude_song_ids': excludeSongIds,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> djPlanTargetEnergyCut({
+    required String token,
+    required String currentSongId,
+    required double cursorSec,
+    required List<String> activeQueueSongIds,
+    required List<String> reservePoolSongIds,
+    required List<String> playedSongIds,
+    required List<String> blockedSongIds,
+    required List<String> excludeSongIds,
+    required List<String> cachedSongIds,
+    required List<String> syncingSongIds,
+    required int targetMin,
+    required int targetMax,
+    String? currentStyle,
+    bool preferCached = true,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/cut/plan',
+      token: token,
+      body: {
+        'strategy': 'target_energy_bucket',
+        'intent': 'target_energy_bucket',
+        'mode': 'preview',
+        'current_song_id': currentSongId,
+        'cursor_sec': cursorSec,
+        'active_queue_song_ids': activeQueueSongIds,
+        'reserve_pool_song_ids': reservePoolSongIds,
+        'played_song_ids': playedSongIds,
+        'blocked_song_ids': blockedSongIds,
+        'exclude_song_ids': excludeSongIds,
+        'cached_song_ids': cachedSongIds,
+        'syncing_song_ids': syncingSongIds,
+        'target_energy_bucket': {'min': targetMin, 'max': targetMax},
+        if (currentStyle != null && currentStyle.isNotEmpty)
+          'current_style': currentStyle,
+        'prefer_cached': preferCached,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> djPlanTargetStyleCut({
+    required String token,
+    required String currentSongId,
+    required double cursorSec,
+    required String targetStyle,
+    required List<String> activeQueueSongIds,
+    required List<String> styleReservePoolSongIds,
+    required List<String> playedSongIds,
+    required List<String> blockedSongIds,
+    required List<String> cachedSongIds,
+    required List<String> syncingSongIds,
+    String? currentStyle,
+    bool preferCached = true,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/cut/plan',
+      token: token,
+      body: {
+        'strategy': 'target_dance_style',
+        'intent': 'target_dance_style',
+        'mode': 'preview',
+        'current_song_id': currentSongId,
+        'cursor_sec': cursorSec,
+        'target_style': targetStyle,
+        'active_queue_song_ids': activeQueueSongIds,
+        'style_reserve_pool_song_ids': styleReservePoolSongIds,
+        'played_song_ids': playedSongIds,
+        'blocked_song_ids': blockedSongIds,
+        'exclude_song_ids': const [],
+        'cached_song_ids': cachedSongIds,
+        'syncing_song_ids': syncingSongIds,
+        if (currentStyle != null && currentStyle.isNotEmpty)
+          'current_style': currentStyle,
+        'prefer_cached': preferCached,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> djSequence({
     required String token,
     required List<String> songIds,
@@ -731,7 +905,8 @@ class HarBeatApiClient {
       token: token,
       body: {'song_ids': songIds, 'preset': preset},
     );
-    return (data['sequence'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    return (data['sequence'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
   }
 
   /// Auto-generate up to N candidate DJ sets from the picked songs.
@@ -761,15 +936,20 @@ class HarBeatApiClient {
 
   /// 5-bucket schema for energy chips/colors (cold/warm/mid/high/peak).
   /// Returns [{key, label_zh, color, lo, hi}, ...].
-  Future<List<Map<String, dynamic>>> djListEnergyBuckets({required String token}) async {
+  Future<List<Map<String, dynamic>>> djListEnergyBuckets({
+    required String token,
+  }) async {
     final data = await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/energy/buckets', token: token,
+      method: 'GET',
+      path: '/api/dj/energy/buckets',
+      token: token,
     );
-    return (data['buckets'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    return (data['buckets'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
   }
 
   /// v2 street-dance energy for a single song. Pass a `style` key from
-  /// {breaking, hiphop, popping, locking, house, krump, waacking, generic}
+  /// {breaking, hiphop, jazz, popping, locking, house, krump, waacking, generic}
   /// to get style-aware ranking; omit it for v1 legacy parity.
   /// Returns the StreetEnergy as a map (total/bucket/bucket_color/factors/...).
   Future<Map<String, dynamic>> djSongEnergyV2({
@@ -785,17 +965,24 @@ class HarBeatApiClient {
     );
   }
 
-  Future<Map<String, dynamic>> djListTransitionRules({required String token}) async {
+  Future<Map<String, dynamic>> djListTransitionRules({
+    required String token,
+  }) async {
     return await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/transitions/rules', token: token,
+      method: 'GET',
+      path: '/api/dj/transitions/rules',
+      token: token,
     );
   }
 
   Future<List<Map<String, dynamic>>> djListFx({required String token}) async {
     final data = await _request<Map<String, dynamic>>(
-      method: 'GET', path: '/api/dj/fx', token: token,
+      method: 'GET',
+      path: '/api/dj/fx',
+      token: token,
     );
-    return (data['fx'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    return (data['fx'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
   }
 
   String djFxAudioUrl(String key, {double? duration}) {
@@ -832,6 +1019,12 @@ class HarBeatApiClient {
     required String nextSongId,
     required double cursorSec,
     String? ruleKey,
+    String transitionMode = 'ordinary_xfade',
+    String eqMixUserMode = 'auto',
+    String? targetStyle,
+    String? mixPreset,
+    bool applyPhraseAlignment = false,
+    double? targetLufs,
   }) async {
     return await _request<Map<String, dynamic>>(
       method: 'POST',
@@ -842,6 +1035,59 @@ class HarBeatApiClient {
         'next_song_id': nextSongId,
         'cursor_sec': cursorSec,
         if (ruleKey != null) 'rule_key': ruleKey,
+        'transition_mode': transitionMode,
+        'eq_mix_user_mode': eqMixUserMode,
+        if (targetStyle != null) 'target_style': targetStyle,
+        if (mixPreset != null) 'mix_preset': mixPreset,
+        'apply_phrase_alignment': applyPhraseAlignment,
+        if (targetLufs != null) 'target_lufs': targetLufs,
+      },
+      timeout: const Duration(seconds: 45),
+    );
+  }
+
+  Future<Map<String, dynamic>> djMixEffectPresets({
+    required String token,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/mix_effects/presets',
+      token: token,
+    );
+  }
+
+  Future<Map<String, dynamic>> djMixEffectDecide({
+    required String token,
+    required String prevSongId,
+    required String nextSongId,
+    String userPreference = 'auto',
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/mix_effects/decide',
+      token: token,
+      body: {
+        'prev_song_id': prevSongId,
+        'next_song_id': nextSongId,
+        'user_preference': userPreference,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> djMixEffectSmartReorder({
+    required String token,
+    required List<String> songIds,
+    double bpmTolerance = 0.03,
+    bool preferEnergyFlow = true,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/dj/mix_effects/smart_reorder',
+      token: token,
+      body: {
+        'song_ids': songIds,
+        'bpm_tolerance': bpmTolerance,
+        'prefer_energy_flow': preferEnergyFlow,
       },
     );
   }

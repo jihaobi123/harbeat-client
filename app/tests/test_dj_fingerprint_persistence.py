@@ -44,6 +44,7 @@ class DjFingerprintPersistenceTests(unittest.TestCase):
                 dance_styles=[],
                 dance_style_scores={},
                 dance_style_status="none",
+                genre_profile={},
             )
             db = _FakeDb()
 
@@ -51,8 +52,9 @@ class DjFingerprintPersistenceTests(unittest.TestCase):
 
         self.assertIn("dj", song.music_features)
         self.assertEqual(song.music_features["dj"]["bpm"], 124.0)
-        self.assertEqual(song.dance_style_status, "ready")
+        self.assertEqual(song.dance_style_status, "completed")
         self.assertEqual(len(song.dance_styles), 7)
+        self.assertIn("style_evidence", song.genre_profile)
         self.assertEqual(set(song.dance_style_scores), {
             "breaking", "hiphop", "popping", "locking", "house", "krump", "waacking",
         })

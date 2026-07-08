@@ -1,4 +1,4 @@
-"""协议 P4/P5/P8 的 Pydantic 模型（骨架版）。"""
+﻿"""协议 P4/P5/P8 的 Pydantic 模型（骨架版）。"""
 
 from __future__ import annotations
 
@@ -35,33 +35,96 @@ class DeckEqRequest(BaseModel):
     hi_db: float = Field(default=0.0, ge=-12.0, le=12.0)
 
 
+class ApplyFilterRequest(BaseModel):
+    """Persistent per-deck filter for live mix effects."""
+
+    deck: Literal["a", "b", "active", "inactive"] = "active"
+    filter_type: Literal["lowpass", "highpass", "bypass"] = "bypass"
+    cutoff_hz: float = Field(default=18000.0, ge=20.0, le=21600.0)
+    q: float = Field(default=0.707, ge=0.1, le=10.0)
+
+
+class ApplyLoudnessNormRequest(BaseModel):
+    """Persistent per-deck loudness trim.
+
+    gain_db is the realtime replay-gain value produced by Jetson analysis. If
+    omitted, target_lufs is accepted for protocol compatibility and the engine
+    leaves current gain unchanged.
+    """
+
+    deck: Literal["a", "b", "active", "inactive"] = "active"
+    gain_db: Optional[float] = Field(default=None, ge=-8.0, le=8.0)
+    target_lufs: float = Field(default=-14.0, ge=-30.0, le=0.0)
+
+
 class XfadeRequest(BaseModel):
     transition_id: Optional[str] = None
     to_song_id: Union[int, str]
-    fade_sec: float = Field(default=4.0, ge=0.05, le=30.0)
+    fade_sec: float = Field(default=4.0, ge=0.05, le=32.0)
     to_at_sec: float = Field(default=0.0, ge=0.0)
-    # DJ + Spotify Mix 风格 preset，对应 Jetson transition_type / App 手动切歌。
+    # DJ + Mix effects style preset，对应 Jetson transition_type / App 手动切歌。
     style: Literal[
         "smooth", "power", "bass_swap", "echo_out", "filter", "cut", "slam",
         "fade", "rise", "blend", "wave", "melt", "vocal_handoff", "vocal_ducking",
         "drum_swap", "instrumental_only", "vocal_solo_intro", "echo_freeze",
+        "eq_band_mix",
     ] = "smooth"
     fallback_style: Optional[str] = None
     tempo_ratio: Optional[float] = None
     stem_curves: Optional[dict[str, Any]] = None
     eq_curves: Optional[dict[str, Any]] = None
+    transition_mode: Optional[Literal["ordinary_xfade", "eq_band_mix", "default_mix"]] = None
+    transition_plan: Optional[dict[str, Any]] = None
     phase_anchor_sec: Optional[float] = None
 
 
 class PrefetchRequest(BaseModel):
     """提前把候选歌曲的 PCM+stems 解码到 RK 内存，按键切歌即取即用。"""
 
-    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=8)
+    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    wait: bool = False
+    load_stems: bool = True
+
+
+class ValidateCacheRequest(BaseModel):
+    """Verify cached songs by decoding them in audio-engine before playback."""
+
+    song_ids: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    require_stems: bool = False
+
+
+class PrewarmBeatmatchRequest(BaseModel):
+    song_id: Union[int, str]
+    tempo_ratio: Optional[float] = None
+    tempo_multiplier: Optional[float] = None
+
+
+class BeatReinforceRequest(BaseModel):
+    start_sec: float = 0.0
+    end_sec: float = 0.0
+    beats: list[float] = Field(default_factory=list, max_length=256)
+    sample_key: int = Field(default=4, ge=1, le=9)
+    gain: float = Field(default=1.0, ge=0.0, le=8.0)
+    pattern: Literal["all", "half", "backbeat"] = "all"
 
 
 class LoadPlanRequest(BaseModel):
     mix_plan: dict[str, Any]
     manifest: dict[str, Any]
+
+
+class DefaultAutoplayStartRequest(BaseModel):
+    queue: list[Union[int, str]] = Field(default_factory=list, max_length=256)
+    transitions: list[dict[str, Any]] = Field(default_factory=list, max_length=255)
+    start_song_id: Optional[Union[int, str]] = None
+    start_at_sec: float = Field(default=0.0, ge=0.0)
+    session_id: Optional[str] = None
+
+
+class DefaultRenderPlaybackRequest(BaseModel):
+    transition_plan: dict[str, Any]
+    to_song_id: Optional[Union[int, str]] = None
+    render_path: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -81,11 +144,13 @@ class RKPlaybackState(BaseModel):
     paused: bool = False
     current_song_id: Optional[Union[int, str]] = None
     position_sec: float = 0.0
+    duration_sec: float = 0.0
     next_song_id: Optional[Union[int, str]] = None
     next_transition_in_sec: Optional[float] = None
     active_loops: list[int] = Field(default_factory=list)
     active_stem_fx: Optional[str] = None
-    playback_tier: Literal["basic", "non_stem", "stem_aware"] = "basic"
+    playback_tier: Literal["basic", "non_stem", "stem_aware", "eq_band_mix", "default_render_playback"] = "basic"
+    last_transition: Optional[dict[str, Any]] = None
 
 
 class DeviceInfo(BaseModel):

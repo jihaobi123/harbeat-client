@@ -37,10 +37,14 @@ class SyncWorkerClient {
   Future<Map<String, dynamic>> startSync({
     required List<Map<String, dynamic>> tracks,
     String? planId,
+    bool audioOnly = false,
+    List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
+    final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
     final body = <String, dynamic>{
       'plan_id': planId ?? 'mobile-${DateTime.now().millisecondsSinceEpoch}',
-      'tracks': tracks,
+      'tracks': syncTracks,
+      if (defaultMixPairs.isNotEmpty) 'default_mix_pairs': defaultMixPairs,
     };
     final resp = await http
         .post(
@@ -52,12 +56,17 @@ class SyncWorkerClient {
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /sync ${resp.statusCode}: ${resp.body}');
     }
-    return jsonDecode(resp.body) as Map<String, dynamic>;
+    final payload = jsonDecode(resp.body) as Map<String, dynamic>;
+    if (payload['ok'] == false) {
+      throw Exception('sync-worker busy: ${payload['error'] ?? resp.body}');
+    }
+    return payload;
   }
 
   Future<SyncStatus> getStatus() async {
-    final resp =
-        await http.get(_u('/status')).timeout(const Duration(seconds: 5));
+    final resp = await http
+        .get(_u('/status'))
+        .timeout(const Duration(seconds: 5));
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /status ${resp.statusCode}: ${resp.body}');
     }
@@ -66,10 +75,21 @@ class SyncWorkerClient {
 
   /// 询问 sync-worker：某首歌的 original.{mp3,wav,...} 是否已落盘。
   /// 用来在快路径里轮询：文件一存在就立刻让 RK 出声，不用等整个 sync 标 done。
-  Future<bool> cacheExists(String songId) async {
+  Future<bool> cacheExists(
+    String songId, {
+    String kind = 'original',
+    String? format,
+  }) async {
     try {
+      final formatQuery =
+          format == null ? '' : '&format=${Uri.encodeQueryComponent(format)}';
       final resp = await http
-          .get(_u('/cache/check?song_id=${Uri.encodeQueryComponent(songId)}'))
+          .get(
+            _u(
+              '/cache/check?song_id=${Uri.encodeQueryComponent(songId)}'
+              '&kind=${Uri.encodeQueryComponent(kind)}$formatQuery',
+            ),
+          )
           .timeout(const Duration(seconds: 2));
       if (resp.statusCode != 200) return false;
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -80,6 +100,18 @@ class SyncWorkerClient {
   }
 
   /// 健康探测：返回 true 表示 sync-worker 可达。
+  Future<Map<String, dynamic>> deleteSongCache(String songId) async {
+    final resp = await http
+        .delete(_u('/cache/song/${Uri.encodeComponent(songId)}'))
+        .timeout(const Duration(seconds: 10));
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw Exception(
+        'sync-worker delete cache ${resp.statusCode}: ${resp.body}',
+      );
+    }
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
   Future<bool> ping() async {
     try {
       await getStatus();
@@ -98,10 +130,46 @@ class SyncWorkerClient {
     Duration timeout = const Duration(minutes: 3),
     Duration pollInterval = const Duration(seconds: 1),
     void Function(SyncStatus status)? onProgress,
+    bool audioOnly = false,
+    List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
-    await startSync(tracks: tracks, planId: planId);
+    final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
     final deadline = DateTime.now().add(timeout);
     SyncStatus last = SyncStatus.empty();
+    var started = false;
+    while (!started && DateTime.now().isBefore(deadline)) {
+      try {
+        await startSync(
+          tracks: syncTracks,
+          planId: planId,
+          defaultMixPairs: defaultMixPairs,
+        );
+        started = true;
+      } on Exception catch (e) {
+        final msg = e.toString();
+        if (!msg.contains('sync-worker busy')) rethrow;
+        while (DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(pollInterval);
+          try {
+            last = await getStatus();
+            onProgress?.call(last);
+            if (!last.running) {
+              if (last.planId == planId) {
+                if (last.errors.isNotEmpty) {
+                  throw Exception('sync 失败: ${last.errors.join('; ')}');
+                }
+                return last;
+              }
+              break;
+            }
+          } on Exception catch (pollError) {
+            if (pollError.toString().contains('sync 失败')) rethrow;
+            // Keep waiting through transient status failures.
+          }
+        }
+      }
+    }
+    if (!started) throw TimeoutException('sync-worker busy timeout');
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(pollInterval);
       try {
@@ -120,6 +188,29 @@ class SyncWorkerClient {
       }
     }
     throw TimeoutException('sync 超时');
+  }
+  List<Map<String, dynamic>> _audioOnlyTracks(List<Map<String, dynamic>> tracks) {
+    return tracks.map((track) {
+      final out = Map<String, dynamic>.from(track);
+      final files = track['files'];
+      final original = files is Map ? files['original'] : null;
+      out['files'] = <String, dynamic>{
+        if (original is Map)
+          'original': Map<String, dynamic>.from(original)
+        else if (original != null)
+          'original': original,
+      };
+      final qualityFlags = out['qualityFlags'];
+      if (qualityFlags is Map) {
+        out['qualityFlags'] = <String, dynamic>{
+          ...Map<String, dynamic>.from(qualityFlags),
+          'has_stems': false,
+          'stem_model': null,
+        };
+      }
+      out['stemStatus'] = 'not_requested';
+      return out;
+    }).toList(growable: false);
   }
 }
 
@@ -145,12 +236,12 @@ class SyncStatus {
   final List<String> errors;
 
   factory SyncStatus.empty() => SyncStatus(
-        running: false,
-        total: 0,
-        downloaded: 0,
-        completed: 0,
-        percent: 0,
-      );
+    running: false,
+    total: 0,
+    downloaded: 0,
+    completed: 0,
+    percent: 0,
+  );
 
   factory SyncStatus.fromJson(Map<String, dynamic> json) {
     return SyncStatus(
@@ -161,9 +252,10 @@ class SyncStatus {
       percent: (json['percent'] as num?)?.toDouble() ?? 0,
       planId: json['plan_id']?.toString(),
       currentFile: json['current_file']?.toString(),
-      errors: (json['errors'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      errors:
+          (json['errors'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 }

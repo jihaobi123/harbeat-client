@@ -1,4 +1,4 @@
-"""音频引擎：双 deck + MixPlan 自动 crossfade + 9 键加花。"""
+﻿"""音频引擎：双 deck + MixPlan 自动 crossfade + 9 键加花。"""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import soundfile as sf
 
 from config import BLOCK_SIZE, CACHE_DIR, CYPHER_HOME, REQUIRE_STEMS_FOR_PLAY, SAMPLE_RATE, resolve_audio_device
 from dsp import Biquad
+from envelope_runner import eval_deck
 from mix_plan import NormalizedPlan, Transition, normalize_mix_plan
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,6 @@ SAMPLES_DIR = CYPHER_HOME / "samples"
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")
 STEM_AWARE_STYLES = {
     # 专业 DJ 转场（需要 stems）
-    "smooth",
-    "bass_swap",
-    "echo_out",
-    "echo_freeze",
-    "filter",
-    "slam",
     # 自定义转场（需要 stems）
     "drum_swap",
     "vocal_ducking",
@@ -43,7 +38,7 @@ STEM_AWARE_STYLES = {
 # 盘 IO（50-200ms 锁顿）。这是复刻 Spotify Mix 「按键即响」响应的关键：predecoded PCM。
 _PREFETCH_CACHE: dict[str, dict] = {}
 _PREFETCH_LOCK = threading.Lock()
-_PREFETCH_MAX = 4  # 最多同时备 4 首
+_PREFETCH_MAX = 128  # DJ set startup can preload the full ordered queue.
 # 5 个常见 DJ 加花音效（2026-05 更新）。文件需预先放在 ~/cypher/samples/ 下。
 # 名字使用加花上下文词，后续替换素材只需覆盖同名 wav。
 SAMPLE_FILES = {
@@ -60,6 +55,29 @@ PRELOAD_BEFORE_SEC = 30.0
 BEATMATCH_MAX_SHIFT = 0.06
 BEATMATCH_MIN_SHIFT = 0.005
 BEATMATCH_CACHE_MAX_FILES = 20
+V32_MIN_FADE_SEC = 6.0
+LOW_BAND_MIN_DB = -36.0
+LOW_BAND_MAX_DB = 12.0
+MID_BAND_MIN_DB = -24.0
+MID_BAND_MAX_DB = 12.0
+HIGH_BAND_MIN_DB = -24.0
+HIGH_BAND_MAX_DB = 12.0
+
+
+def _prefetch_cache_key(song_id: int | str, audio_path: Path | None = None) -> str:
+    if audio_path is None:
+        return str(song_id)
+    return f"{song_id}@{audio_path}"
+
+
+def _store_prefetch_cache(key: str, audio: np.ndarray, stems: dict[str, np.ndarray]) -> int:
+    with _PREFETCH_LOCK:
+        while len(_PREFETCH_CACHE) >= _PREFETCH_MAX:
+            drop = next(iter(_PREFETCH_CACHE))
+            _PREFETCH_CACHE.pop(drop)
+            logger.info("prefetch LRU drop: %s", drop)
+        _PREFETCH_CACHE[key] = {"audio": audio, "stems": stems}
+        return len(_PREFETCH_CACHE)
 
 
 class SongCacheError(Exception):
@@ -73,7 +91,8 @@ def _song_dir(song_id: int | str) -> Path:
 
 
 
-_ORIGINAL_EXTS = ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac")
+_ORIGINAL_EXTS = ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac")
+_STEM_EXTS = ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac")
 
 
 def _find_original_path(song_dir: Path) -> Path | None:
@@ -85,13 +104,22 @@ def _find_original_path(song_dir: Path) -> Path | None:
     return None
 
 
+def _find_stem_path(song_dir: Path, stem: str) -> Path | None:
+    """Locate a cached stem in any format the sync-worker can store."""
+    for ext in _STEM_EXTS:
+        p = song_dir / f"{stem}.{ext}"
+        if p.is_file():
+            return p
+    return None
+
+
 def check_song_cache(song_id: int | str, require_stems: bool = False) -> Path:
     song_dir = _song_dir(song_id)
     original = _find_original_path(song_dir)
     if original is None:
         raise SongCacheError(f"缺少 original.*: {song_dir}", code=409)
     if require_stems:
-        missing = [n for n in REQUIRED_STEMS if not (song_dir / f"{n}.wav").is_file()]
+        missing = [n for n in REQUIRED_STEMS if _find_stem_path(song_dir, n) is None]
         if missing:
             raise SongCacheError(f"缺少 stem: {missing}", code=409)
     return original
@@ -129,6 +157,7 @@ class Deck:
         # 3-band EQ：80Hz low-shelf / 1kHz peak / 8kHz high-shelf
         "eq_low_db", "eq_mid_db", "eq_hi_db",
         "_eq_lo", "_eq_mid", "_eq_hi",
+        "filter_type", "filter_cutoff_hz", "filter_q", "_manual_filter",
     )
 
     def __init__(self) -> None:
@@ -145,6 +174,10 @@ class Deck:
         self._eq_lo: Biquad = Biquad()
         self._eq_mid: Biquad = Biquad()
         self._eq_hi: Biquad = Biquad()
+        self.filter_type: str = "bypass"
+        self.filter_cutoff_hz: float = 18000.0
+        self.filter_q: float = 0.707
+        self._manual_filter: Biquad = Biquad()
 
     @property
     def pos_sec(self) -> float:
@@ -163,16 +196,21 @@ class Deck:
         for bq in (self._eq_lo, self._eq_mid, self._eq_hi):
             bq.reset()
             bq.set_bypass(True)
+        self.filter_type = "bypass"
+        self.filter_cutoff_hz = 18000.0
+        self.filter_q = 0.707
+        self._manual_filter.reset()
+        self._manual_filter.set_bypass(True)
 
     def set_eq(self, low_db: float, mid_db: float, hi_db: float,
                sr: float = float(SAMPLE_RATE)) -> tuple[float, float, float]:
-        """设置 3-band EQ（限幅 ±12 dB）。返回实际被采纳的 (low, mid, hi)。
+        """设置 3-band EQ。返回实际被采纳的 (low, mid, hi)。
 
         任一 band = 0 dB 时该段跳过 process（bypass），省下 CPU。
         """
-        low_db = max(-12.0, min(12.0, float(low_db)))
-        mid_db = max(-12.0, min(12.0, float(mid_db)))
-        hi_db = max(-12.0, min(12.0, float(hi_db)))
+        low_db = max(LOW_BAND_MIN_DB, min(LOW_BAND_MAX_DB, float(low_db)))
+        mid_db = max(MID_BAND_MIN_DB, min(MID_BAND_MAX_DB, float(mid_db)))
+        hi_db = max(HIGH_BAND_MIN_DB, min(HIGH_BAND_MAX_DB, float(hi_db)))
         self.eq_low_db = low_db
         self.eq_mid_db = mid_db
         self.eq_hi_db = hi_db
@@ -197,6 +235,34 @@ class Deck:
         chunk = self._eq_hi.process(chunk)
         return chunk
 
+    def set_filter(
+        self,
+        filter_type: str,
+        cutoff_hz: float,
+        q: float = 0.707,
+        sr: float = float(SAMPLE_RATE),
+    ) -> tuple[str, float, float]:
+        """Set a persistent lowpass/highpass/bypass filter for this deck."""
+        kind = (filter_type or "bypass").lower()
+        if kind not in ("lowpass", "highpass", "bypass"):
+            raise ValueError(f"invalid_filter_type: {filter_type}")
+        cutoff = max(20.0, min(sr * 0.45, float(cutoff_hz)))
+        q_value = max(0.1, min(10.0, float(q)))
+        self.filter_type = kind
+        self.filter_cutoff_hz = cutoff
+        self.filter_q = q_value
+        if kind == "bypass":
+            self._manual_filter.set_bypass(True)
+        elif kind == "lowpass":
+            self._manual_filter.set_lpf(sr, cutoff, q=q_value)
+        else:
+            self._manual_filter.set_hpf(sr, cutoff, q=q_value)
+        return kind, cutoff, q_value
+
+    def apply_filter(self, chunk: np.ndarray) -> np.ndarray:
+        """Apply the persistent deck filter, if enabled."""
+        return self._manual_filter.process(chunk)
+
     def eq_values(self) -> tuple[float, float, float]:
         return self.eq_low_db, self.eq_mid_db, self.eq_hi_db
 
@@ -218,24 +284,33 @@ class Deck:
         load_stems: bool = True,
         audio_path: Path | None = None,
     ) -> float:
-        key = str(song_id)
+        key = _prefetch_cache_key(song_id, audio_path)
         cached: dict | None = None
-        if audio_path is None:
-            with _PREFETCH_LOCK:
-                if key in _PREFETCH_CACHE:
-                    cached = _PREFETCH_CACHE.pop(key)
+        with _PREFETCH_LOCK:
+            if key in _PREFETCH_CACHE:
+                cached = _PREFETCH_CACHE.pop(key)
         if cached is not None and audio_path is None:
             self.audio = cached["audio"]
             self.stems = cached["stems"]
             logger.info("deck.load hit prefetch cache: %s (remain=%d)", song_id, len(_PREFETCH_CACHE))
+        elif cached is not None:
+            self.audio = cached["audio"]
+            self.stems = cached["stems"]
+            logger.info(
+                "deck.load hit path prefetch cache: %s (%s remain=%d)",
+                song_id,
+                audio_path,
+                len(_PREFETCH_CACHE),
+            )
         else:
             path = audio_path or check_song_cache(song_id, require_stems=REQUIRE_STEMS_FOR_PLAY and load_stems)
             self.audio = _load_wav_stereo(path)
             self.stems = {}
             if load_stems and audio_path is None:
+                song_dir = _song_dir(song_id)
                 for name in REQUIRED_STEMS:
-                    stem_path = _song_dir(song_id) / f"{name}.wav"
-                    if stem_path.is_file():
+                    stem_path = _find_stem_path(song_dir, name)
+                    if stem_path is not None:
                         self.stems[name] = _load_wav_stereo(stem_path)
         start_frame = int(max(0.0, start_at_sec) * SAMPLE_RATE)
         self.pos = min(start_frame, max(0, len(self.audio) - 1))
@@ -248,7 +323,7 @@ class Deck:
         chunk, self.pos = _read_segment(self.audio, self.pos, frames)
         if self.gain != 1.0:
             chunk = chunk * self.gain
-        return chunk
+        return self.apply_filter(chunk)
 
 
 class AudioEngineMVP:
@@ -264,6 +339,9 @@ class AudioEngineMVP:
         self._fade_frames_done = 0
         self._fade_total_frames = 0
         self._active_tr: Transition | None = None
+        self._eq_band_plan: dict | None = None
+        self._default_resume_after_render: dict | None = None
+        self._last_transition_result: dict | None = None
         self._next_preloaded = False
         self._preload_requested: str | None = None
         self._playing = False
@@ -290,6 +368,22 @@ class AudioEngineMVP:
         # 每个 deck 一段 biquad（LPF / HPF，按风格切换），系数每个 callback 重设。
         self._fx_filter_a: Biquad = Biquad()
         self._fx_filter_b: Biquad = Biquad()
+        # EQ-band mix uses the auto_dj_mix.py topology: split full-range MP3
+        # into low/mid/high bands, apply per-band ratio curves, then sum.
+        self._eq_band_filters: dict[str, dict[str, Biquad]] = {
+            "a": {
+                "low": Biquad(),
+                "mid_hpf": Biquad(),
+                "mid_lpf": Biquad(),
+                "high": Biquad(),
+            },
+            "b": {
+                "low": Biquad(),
+                "mid_hpf": Biquad(),
+                "mid_lpf": Biquad(),
+                "high": Biquad(),
+            },
+        }
         # echo: 250ms 单 tap 延迟 + 反馈，缓冲 0.6 sec 留余量
         self._echo_delay_samples: int = int(0.25 * SAMPLE_RATE)
         self._echo_buf_len: int = int(0.6 * SAMPLE_RATE)
@@ -314,6 +408,7 @@ class AudioEngineMVP:
         self._in_transition = False
         self._fade_frames_done = 0
         self._active_tr = None
+        self._eq_band_plan = None
         self._next_preloaded = False
         self._preload_requested = None
         self._transition_index += 1
@@ -322,6 +417,10 @@ class AudioEngineMVP:
         self._fx_filter_a.set_bypass(True)
         self._fx_filter_b.reset()
         self._fx_filter_b.set_bypass(True)
+        for filters in self._eq_band_filters.values():
+            for biquad in filters.values():
+                biquad.reset()
+                biquad.set_bypass(True)
         self._echo_buf.fill(0.0)
         self._echo_pos = 0
 
@@ -397,11 +496,17 @@ class AudioEngineMVP:
 
     def get_state(self) -> dict:
         with self._lock:
+            duration_sec = (
+                len(self.active_deck.audio) / SAMPLE_RATE
+                if self.active_deck.audio is not None
+                else 0.0
+            )
             return {
                 "playing": self._playing and not self._paused,
                 "paused": self._paused,
                 "current_song_id": self.active_deck.song_id,
                 "position_sec": round(self.active_deck.pos_sec, 3),
+                "duration_sec": round(duration_sec, 3),
                 "next_song_id": self._next_song_id(),
                 "next_transition_in_sec": self._next_transition_in_sec(),
                 "in_transition": self._in_transition,
@@ -410,6 +515,7 @@ class AudioEngineMVP:
                 "active_stem_solo": self._stem_solo,
                 "audio_xrun_count": self._xrun_count,
                 "playback_tier": self._playback_tier(),
+                "last_transition": dict(self._last_transition_result or {}),
             }
 
     def _stems_available(self, deck: Deck | None = None) -> bool:
@@ -433,13 +539,82 @@ class AudioEngineMVP:
             return "stem_aware"
         if self._in_transition and self._stems_available(self.inactive_deck):
             return "stem_aware"
+        if self._in_transition and self._active_tr and self._active_tr.style == "eq_band_mix":
+            return "eq_band_mix"
+        if self._default_resume_after_render is not None:
+            return "default_render_playback"
         if not self._plan_enabled or not self._plan:
             return "basic"
         return "non_stem"
 
-    def _resolve_style(self, requested_style: str) -> str:
+    def _resolve_default_render_path(
+        self,
+        transition_plan: dict,
+        render_path: str | None = None,
+    ) -> Path | None:
+        candidates: list[Path] = []
+        for raw in (
+            render_path,
+            transition_plan.get("transition_render_path"),
+            transition_plan.get("render_path"),
+            transition_plan.get("transition_render_file"),
+        ):
+            if isinstance(raw, str) and raw.strip() and "://" not in raw:
+                candidates.append(Path(raw).expanduser())
+
+        default_meta = transition_plan.get("default_mix")
+        pair_id = transition_plan.get("pair_id")
+        if isinstance(default_meta, dict):
+            pair_id = pair_id or default_meta.get("pair_id")
+            for raw in (
+                default_meta.get("transition_render_path"),
+                default_meta.get("render_path"),
+            ):
+                if isinstance(raw, str) and raw.strip() and "://" not in raw:
+                    candidates.append(Path(raw).expanduser())
+        if pair_id:
+            pair_dir = CACHE_DIR / "default-mix" / "pairs" / str(pair_id)
+            candidates.extend(
+                [
+                    pair_dir / "transition_render.wav",
+                    pair_dir / "transition_render.mp3",
+                    pair_dir / "render.wav",
+                    pair_dir / "render.mp3",
+                ]
+            )
+
+        for path in candidates:
+            try:
+                if path.is_file():
+                    return path
+            except OSError:
+                continue
+        return None
+
+    def _record_transition_result(self, result: dict) -> dict:
+        self._last_transition_result = {
+            "transition_id": result.get("transition_id"),
+            "action": result.get("action"),
+            "to_song_id": result.get("to_song_id"),
+            "fade_sec": result.get("fade_sec"),
+            "to_at_sec": result.get("to_at_sec"),
+            "style": result.get("style"),
+            "playback_tier": result.get("playback_tier"),
+            "degraded": bool(result.get("degraded", False)),
+            "degrade_reason": result.get("degrade_reason"),
+        }
+        return result
+
+    def _resolve_style(self, requested_style: str, tr: Transition | None = None) -> str:
         """Auto-downgrade stem-aware styles when stems are unavailable."""
         if requested_style in STEM_AWARE_STYLES and not self._stems_available():
+            if tr and tr.fallback_style:
+                fallback = str(tr.fallback_style)
+                logger.info(
+                    "style downgrade: %s -> %s (planned fallback; stems unavailable)",
+                    requested_style, fallback,
+                )
+                return fallback
             fallback_map = {
                 "bass_swap": "filter",
                 "vocal_ducking": "blend",
@@ -455,6 +630,19 @@ class AudioEngineMVP:
             )
             return fallback
         return requested_style
+
+    def _current_playback_tier(self) -> str:
+        return self._playback_tier()
+
+    @staticmethod
+    def _is_eq_band_transition(tr: Transition | None) -> bool:
+        if tr is None:
+            return False
+        return (
+            str(getattr(tr, "execution_mode", "") or "") == "eq_band_mix"
+            or str(getattr(tr, "style", "") or "") == "eq_band_mix"
+            or isinstance(getattr(tr, "transition_plan", None), dict)
+        )
 
     def _transition_handoff_ratio(self, tr: Transition) -> float:
         """Return the beat-aligned vocal handoff point for vocal_handoff."""
@@ -606,8 +794,46 @@ class AudioEngineMVP:
         ~/cypher/cache/{song_id}/original.wav，否则会抛 SongCacheError。
         style: 7 种 DJ 切歌风格，默认 smooth。
         """
+        safe_to_at_sec = float(max(0.0, to_at_sec))
+        safe_fade_sec = float(max(0.05, fade_sec))
+        requested_style = str(style or "smooth")
+
+        stopped_reason = None
         with self._lock:
+            if self.active_deck.song_id is not None and str(self.active_deck.song_id) == str(to_song_id):
+                raise SongCacheError(f"refusing self-transition: {to_song_id}", code=409)
             if self.active_deck.audio is None:
+                stopped_reason = "no_active_audio"
+            elif not self._playing:
+                stopped_reason = "engine_not_playing"
+            elif self._paused:
+                stopped_reason = "engine_paused"
+
+        if stopped_reason is not None:
+            logger.info(
+                "xfade fallback to play: reason=%s to=%s at=%.2fs",
+                stopped_reason,
+                to_song_id,
+                safe_to_at_sec,
+            )
+            play_result = self.play(to_song_id, safe_to_at_sec)
+            return self._record_transition_result({
+                "action": "play_fallback",
+                "reason": stopped_reason,
+                "transition_id": transition_id,
+                "to_song_id": to_song_id,
+                "fade_sec": safe_fade_sec,
+                "to_at_sec": safe_to_at_sec,
+                "style": requested_style,
+                "fallback_style": fallback_style,
+                "playback_tier": self._current_playback_tier(),
+                "degraded": True,
+                "degrade_reason": stopped_reason,
+                **play_result,
+            })
+
+        with self._lock:
+            if self.active_deck.audio is None or not self._playing or self._paused:
                 raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
             # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
             # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
@@ -621,10 +847,10 @@ class AudioEngineMVP:
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
                 from_at_sec=self.active_deck.pos_sec,
-                to_at_sec=float(max(0.0, to_at_sec)),
-                fade_sec=float(max(0.05, fade_sec)),
+                to_at_sec=safe_to_at_sec,
+                fade_sec=safe_fade_sec,
                 transition_id=transition_id,
-                style=str(style or "smooth"),
+                style=requested_style,
                 fallback_style=fallback_style,
                 tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
                 phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
@@ -635,17 +861,60 @@ class AudioEngineMVP:
 
         deck = Deck()
         deck.set_eq(*inactive_eq)
-        want_stems = style in STEM_AWARE_STYLES
+        want_stems = style in STEM_AWARE_STYLES or bool(stem_curves)
         # Beatmatched original renders cannot carry stems. Until we render
         # beatmatched stems as a bundle, stem-aware styles must load source
         # stems and leave tempo handling to cue selection.
         audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
-        deck.load(to_song_id, to_at_sec, load_stems=want_stems, audio_path=audio_path)
+        deck.load(to_song_id, safe_to_at_sec, load_stems=want_stems, audio_path=audio_path)
         self._apply_loudness_gain(deck, to_song_id)
 
         with self._lock:
+            stopped_reason = None
             if self.active_deck.audio is None:
-                raise SongCacheError("audio-engine 未在播放，不能 crossfade，请先 /play", code=400)
+                stopped_reason = "no_active_audio_after_load"
+            elif not self._playing:
+                stopped_reason = "engine_stopped_during_load"
+            elif self._paused:
+                stopped_reason = "engine_paused_during_load"
+            if stopped_reason is not None:
+                self._ensure_stream()
+                self._active = "a"
+                self.deck_a = deck
+                self.deck_b.clear()
+                self._playing = True
+                self._paused = False
+                self._in_transition = False
+                self._transition_index = 0
+                self._next_preloaded = False
+                self._preload_requested = None
+                self._one_shot_keys.clear()
+                self.stem_fx = None
+                self._stem_solo = None
+                self._plan_enabled = False
+                duration_sec = len(deck.audio) / SAMPLE_RATE if deck.audio is not None else 0.0
+                logger.info(
+                    "xfade fallback installed loaded deck: reason=%s to=%s at=%.2fs",
+                    stopped_reason,
+                    to_song_id,
+                    safe_to_at_sec,
+                )
+                return self._record_transition_result({
+                    "action": "play_fallback",
+                    "reason": stopped_reason,
+                    "transition_id": transition_id,
+                    "to_song_id": to_song_id,
+                    "song_id": to_song_id,
+                    "position_sec": safe_to_at_sec,
+                    "duration_sec": duration_sec,
+                    "fade_sec": safe_fade_sec,
+                    "to_at_sec": safe_to_at_sec,
+                    "style": requested_style,
+                    "fallback_style": fallback_style,
+                    "playback_tier": self._current_playback_tier(),
+                    "degraded": True,
+                    "degrade_reason": stopped_reason,
+                })
             # 如果 plan 已自动触发过渡 (via _maybe_preload_and_transition)，
             # 先清理掉，避免两个过渡抢同一对 Deck 导致 ALSA underrun。
             if self._in_transition:
@@ -658,10 +927,10 @@ class AudioEngineMVP:
                 from_song_id=self.active_deck.song_id or 0,
                 to_song_id=to_song_id,
                 from_at_sec=self.active_deck.pos_sec,
-                to_at_sec=float(max(0.0, to_at_sec)),
-                fade_sec=float(max(0.05, fade_sec)),
+                to_at_sec=safe_to_at_sec,
+                fade_sec=safe_fade_sec,
                 transition_id=transition_id,
-                style=str(style or "smooth"),
+                style=requested_style,
                 fallback_style=fallback_style,
                 tempo_ratio=float(tempo_ratio) if tempo_ratio is not None else None,
                 phase_anchor_sec=float(phase_anchor_sec) if phase_anchor_sec is not None else None,
@@ -672,24 +941,407 @@ class AudioEngineMVP:
             self._plan_enabled = False
             self._install_inactive_deck(deck)
             self._start_transition_locked(tr)
-        return {
+        return self._record_transition_result({
             "action": "crossfade",
             "transition_id": transition_id,
             "to_song_id": to_song_id,
             "fade_sec": tr.fade_sec,
             "to_at_sec": tr.to_at_sec,
-            "style": tr.style,
+            "style": self._resolve_style(tr.style, tr),
             "fallback_style": tr.fallback_style,
             "playback_tier": self._current_playback_tier(),
+            "degraded": self._resolve_style(tr.style, tr) != tr.style,
+            "degrade_reason": "missing_stems" if self._resolve_style(tr.style, tr) != tr.style else None,
+        })
+
+    def manual_eq_band_mix(
+        self,
+        transition_plan: dict,
+        *,
+        to_song_id: int | str | None = None,
+        fade_sec: float | None = None,
+        to_at_sec: float | None = None,
+        style: str | None = None,
+        fallback_style: str | None = None,
+        transition_id: str | None = None,
+    ) -> dict:
+        """Execute MP3-only deck A/B EQ band mix.
+
+        If the plan is malformed or the engine is stopped, fall back to the
+        ordinary manual_transition path so the live set never goes silent.
+        """
+        if not isinstance(transition_plan, dict):
+            transition_plan = {}
+        target = transition_plan.get("target") if isinstance(transition_plan.get("target"), dict) else {}
+        target_song_id = (
+            target.get("song_id")
+            or transition_plan.get("to_song_id")
+            or to_song_id
+        )
+        if target_song_id is None:
+            raise SongCacheError("eq_band_mix missing target song_id", code=400)
+
+        try:
+            safe_to_at_sec = float(
+                target.get("start_cue_sec")
+                if target.get("start_cue_sec") is not None
+                else transition_plan.get("to_at_sec", to_at_sec or 0.0)
+            )
+        except (TypeError, ValueError):
+            safe_to_at_sec = 0.0
+        try:
+            safe_fade_sec = float(
+                transition_plan.get("fade_sec")
+                or transition_plan.get("duration_sec")
+                or fade_sec
+                or 8.0
+            )
+        except (TypeError, ValueError):
+            safe_fade_sec = 8.0
+        safe_to_at_sec = max(0.0, safe_to_at_sec)
+        safe_fade_sec = max(V32_MIN_FADE_SEC, min(32.0, safe_fade_sec))
+        fallback = fallback_style or str(transition_plan.get("fallback_style") or style or "blend")
+        tr_id = transition_id or transition_plan.get("transition_id")
+
+        with self._lock:
+            if self.active_deck.song_id is not None and str(self.active_deck.song_id) == str(target_song_id):
+                raise SongCacheError(f"refusing self-transition: {target_song_id}", code=409)
+            stopped_reason = None
+            if self.active_deck.audio is None:
+                stopped_reason = "no_active_audio"
+            elif not self._playing:
+                stopped_reason = "engine_not_playing"
+            elif self._paused:
+                stopped_reason = "engine_paused"
+        if stopped_reason is not None:
+            logger.info("eq_band_mix fallback to play: reason=%s to=%s", stopped_reason, target_song_id)
+            play_result = self.play(target_song_id, safe_to_at_sec)
+            return self._record_transition_result({
+                "action": "play_fallback",
+                "reason": stopped_reason,
+                "transition_id": tr_id,
+                "to_song_id": target_song_id,
+                "fade_sec": safe_fade_sec,
+                "to_at_sec": safe_to_at_sec,
+                "style": "eq_band_mix",
+                "fallback_style": fallback,
+                "playback_tier": self._current_playback_tier(),
+                "degraded": True,
+                "degrade_reason": stopped_reason,
+                **play_result,
+            })
+
+        try:
+            deck = Deck()
+            deck.load(target_song_id, safe_to_at_sec, load_stems=False)
+            self._apply_loudness_gain(deck, target_song_id)
+        except Exception as exc:
+            logger.warning("eq_band_mix target load failed, fallback xfade: %s", exc)
+            return self.manual_transition(
+                target_song_id,
+                fade_sec=safe_fade_sec,
+                to_at_sec=safe_to_at_sec,
+                style=fallback,
+                transition_id=tr_id,
+                fallback_style=fallback,
+            )
+
+        with self._lock:
+            if self.active_deck.audio is None or not self._playing or self._paused:
+                self._ensure_stream()
+                self._active = "a"
+                self.deck_a = deck
+                self.deck_b.clear()
+                self._playing = True
+                self._paused = False
+                self._in_transition = False
+                self._eq_band_plan = None
+                return self._record_transition_result({
+                    "action": "play_fallback",
+                    "reason": "engine_stopped_during_eq_band_load",
+                    "transition_id": tr_id,
+                    "to_song_id": target_song_id,
+                    "fade_sec": safe_fade_sec,
+                    "to_at_sec": safe_to_at_sec,
+                    "style": "eq_band_mix",
+                    "playback_tier": self._current_playback_tier(),
+                    "degraded": True,
+                    "degrade_reason": "engine_stopped_during_eq_band_load",
+                })
+            if self._in_transition:
+                self._in_transition = False
+                self._fade_frames_done = 0
+                self._active_tr = None
+                self._eq_band_plan = None
+                self._next_preloaded = False
+                self._preload_requested = None
+            tr = Transition(
+                from_song_id=self.active_deck.song_id or 0,
+                to_song_id=target_song_id,
+                from_at_sec=self.active_deck.pos_sec,
+                to_at_sec=safe_to_at_sec,
+                fade_sec=safe_fade_sec,
+                transition_id=tr_id,
+                style="eq_band_mix",
+                fallback_style=fallback,
+            )
+            self._plan_enabled = False
+            self._install_inactive_deck(deck)
+            self._eq_band_plan = transition_plan
+            self._start_transition_locked(tr)
+        return self._record_transition_result({
+            "action": "crossfade",
+            "transition_id": tr_id,
+            "to_song_id": target_song_id,
+            "fade_sec": safe_fade_sec,
+            "to_at_sec": safe_to_at_sec,
+            "style": "eq_band_mix",
+            "strategy": transition_plan.get("strategy"),
+            "playback_tier": "eq_band_mix",
             "degraded": False,
             "degrade_reason": None,
+        })
+
+    def default_autoplay_prefetch(
+        self,
+        queue: list[int | str],
+        transitions: list[dict],
+        session_id: str | None = None,
+    ) -> dict:
+        queue_result = self.prefetch(list(queue or []), wait=False, load_stems=False)
+        render_ready = []
+        render_missing = []
+        for plan in transitions or []:
+            if not isinstance(plan, dict):
+                continue
+            pair_id = plan.get("pair_id") or (plan.get("default_mix") or {}).get("pair_id")
+            path = self._resolve_default_render_path(plan)
+            if path is not None:
+                render_ready.append({"pair_id": pair_id, "path": str(path)})
+            else:
+                render_missing.append(str(pair_id or "unknown"))
+        return {
+            "ok": True,
+            "session_id": session_id,
+            "queue": queue_result,
+            "render_ready": render_ready,
+            "render_missing": render_missing,
         }
+
+    def default_autoplay_start(
+        self,
+        queue: list[int | str],
+        transitions: list[dict],
+        *,
+        start_song_id: int | str | None = None,
+        start_at_sec: float = 0.0,
+        session_id: str | None = None,
+    ) -> dict:
+        del transitions
+        song_id = start_song_id or (queue[0] if queue else None)
+        if song_id is None:
+            raise SongCacheError("default autoplay queue is empty", code=400)
+        result = self.play(song_id, start_at_sec)
+        result.update(
+            {
+                "ok": True,
+                "session_id": session_id,
+                "current_song_id": song_id,
+                "position_sec": start_at_sec,
+                "playback_tier": "default_render_playback",
+                "degraded": False,
+                "source": "default_autoplay_start",
+            }
+        )
+        return result
+
+    def default_render_playback(
+        self,
+        transition_plan: dict,
+        *,
+        to_song_id: int | str | None = None,
+        render_path: str | None = None,
+    ) -> dict:
+        if not isinstance(transition_plan, dict):
+            transition_plan = {}
+        default_meta = transition_plan.get("default_mix")
+        if not isinstance(default_meta, dict):
+            default_meta = {}
+        target = transition_plan.get("target") if isinstance(transition_plan.get("target"), dict) else {}
+        target_song_id = (
+            to_song_id
+            or target.get("song_id")
+            or transition_plan.get("to_song_id")
+            or default_meta.get("to_song_id")
+        )
+        if target_song_id is None:
+            raise SongCacheError("default_render_playback missing target song_id", code=400)
+
+        render = self._resolve_default_render_path(transition_plan, render_path)
+        to_at_sec = float(
+            transition_plan.get("to_at_sec")
+            or target.get("start_cue_sec")
+            or default_meta.get("to_at_sec")
+            or 0.0
+        )
+        resume_at_sec = float(
+            transition_plan.get("resume_at_sec")
+            or default_meta.get("resume_at_sec")
+            or (to_at_sec + float(transition_plan.get("duration_sec") or default_meta.get("duration_sec") or 0.0))
+        )
+        from_at_sec = float(
+            transition_plan.get("from_at_sec")
+            or transition_plan.get("start_in_prev")
+            or default_meta.get("from_at_sec")
+            or 0.0
+        )
+        duration_sec = float(
+            transition_plan.get("duration_sec")
+            or default_meta.get("duration_sec")
+            or max(0.0, resume_at_sec - to_at_sec)
+            or 0.0
+        )
+        pair_id = transition_plan.get("pair_id") or default_meta.get("pair_id")
+        tr_id = transition_plan.get("transition_id") or pair_id
+
+        if render is None:
+            play_result = self.manual_eq_band_mix(
+                transition_plan,
+                to_song_id=target_song_id,
+                to_at_sec=to_at_sec,
+                transition_id=str(tr_id) if tr_id else None,
+                fallback_style="blend",
+            )
+            play_result["degraded"] = True
+            play_result["degrade_reason"] = "missing_default_transition_render"
+            play_result["requested_tier"] = "default_render_playback"
+            return self._record_transition_result(play_result)
+
+        with self._lock:
+            active_pos_sec = self.active_deck.pos_sec if self.active_deck.audio is not None else from_at_sec
+            render_offset_sec = 0.0
+            if from_at_sec > 0.0 and active_pos_sec > from_at_sec:
+                # The mobile/UI trigger can arrive one polling tick late.  The
+                # render already contains Track1 audio starting at from_at_sec,
+                # so starting it from zero after that point repeats the tail.
+                # Skip the already-heard part and resume Track2 by the same
+                # offset so the rendered handoff stays continuous.
+                max_offset = max(0.0, duration_sec - 0.12) if duration_sec > 0.0 else 0.0
+                render_offset_sec = min(max(0.0, active_pos_sec - from_at_sec), max_offset)
+                resume_at_sec += render_offset_sec
+            deck = Deck()
+            deck.load(target_song_id, render_offset_sec, load_stems=False, audio_path=render)
+            stopped_reason = None
+            if self.active_deck.audio is None:
+                stopped_reason = "no_active_audio"
+            elif not self._playing:
+                stopped_reason = "engine_not_playing"
+            elif self._paused:
+                stopped_reason = "engine_paused"
+            if stopped_reason is not None:
+                self._ensure_stream()
+                self._active = "a"
+                self.deck_a = deck
+                self.deck_b.clear()
+                self._playing = True
+                self._paused = False
+                self._in_transition = False
+                self._plan_enabled = False
+                self._default_resume_after_render = {
+                    "song_id": target_song_id,
+                    "resume_at_sec": resume_at_sec,
+                }
+                return self._record_transition_result({
+                    "action": "default_render_playback",
+                    "transition_id": tr_id,
+                    "to_song_id": target_song_id,
+                    "render_path": str(render),
+                    "position_sec": round(render_offset_sec, 3),
+                    "planned_from_at_sec": round(from_at_sec, 3),
+                    "actual_from_at_sec": round(active_pos_sec, 3),
+                    "render_offset_sec": round(render_offset_sec, 3),
+                    "resume_at_sec": round(resume_at_sec, 3),
+                    "playback_tier": "default_render_playback",
+                    "degraded": True,
+                    "degrade_reason": stopped_reason,
+                })
+            tr = Transition(
+                from_song_id=self.active_deck.song_id or 0,
+                to_song_id=target_song_id,
+                from_at_sec=self.active_deck.pos_sec,
+                to_at_sec=render_offset_sec,
+                fade_sec=0.08,
+                transition_id=str(tr_id) if tr_id else None,
+                style="blend",
+                fallback_style="blend",
+            )
+            self._plan_enabled = False
+            self._install_inactive_deck(deck)
+            self._default_resume_after_render = {
+                "song_id": target_song_id,
+                "resume_at_sec": resume_at_sec,
+            }
+            self._start_transition_locked(tr)
+        return self._record_transition_result({
+            "action": "default_render_playback",
+            "transition_id": tr_id,
+            "to_song_id": target_song_id,
+            "render_path": str(render),
+            "planned_from_at_sec": round(from_at_sec, 3),
+            "actual_from_at_sec": round(active_pos_sec, 3),
+            "render_offset_sec": round(render_offset_sec, 3),
+            "resume_at_sec": round(resume_at_sec, 3),
+            "fade_sec": 0.08,
+            "to_at_sec": round(render_offset_sec, 3),
+            "playback_tier": "default_render_playback",
+            "degraded": False,
+            "degrade_reason": None,
+        })
 
     def _install_inactive_deck(self, deck: Deck) -> None:
         if self._active == "a":
             self.deck_b = deck
         else:
             self.deck_a = deck
+
+    def _resume_default_target_after_render_locked(self) -> bool:
+        spec = self._default_resume_after_render
+        if not spec:
+            return False
+        target_song_id = spec.get("song_id")
+        if target_song_id is None:
+            self._default_resume_after_render = None
+            return False
+        try:
+            resume_at_sec = float(spec.get("resume_at_sec") or 0.0)
+        except (TypeError, ValueError):
+            resume_at_sec = 0.0
+        try:
+            deck = Deck()
+            deck.load(target_song_id, resume_at_sec, load_stems=False)
+            self._apply_loudness_gain(deck, target_song_id)
+        except Exception as exc:
+            logger.warning("default render resume failed for %s: %s", target_song_id, exc)
+            self._default_resume_after_render = None
+            return False
+        self._active = "a"
+        self.deck_a = deck
+        self.deck_b.clear()
+        self._playing = True
+        self._paused = False
+        self._in_transition = False
+        self._eq_band_plan = None
+        self._default_resume_after_render = None
+        self._plan_enabled = False
+        self._last_transition_result = {
+            **(self._last_transition_result or {}),
+            "action": "default_render_resume",
+            "to_song_id": target_song_id,
+            "position_sec": resume_at_sec,
+            "playback_tier": "default_render_playback",
+            "degraded": False,
+        }
+        return True
 
     def _start_transition_locked(self, tr: Transition) -> None:
         self._active_tr = tr
@@ -704,12 +1356,64 @@ class AudioEngineMVP:
         self._fx_filter_b.set_bypass(True)
         self._echo_buf.fill(0.0)
         self._echo_pos = 0
+        if self._is_eq_band_transition(tr):
+            self._lim_gain = 1.0
         logger.info(
-            "crossfade start %s -> %s (%.1fs)",
+            "crossfade start %s -> %s (%.1fs style=%s execution=%s)",
             tr.from_song_id,
             tr.to_song_id,
             tr.fade_sec,
+            tr.style,
+            tr.execution_mode,
         )
+
+    def _apply_eq_band_filter(self, deck_id: str, params: dict, audio: np.ndarray) -> np.ndarray:
+        filt = params.get("filter")
+        if not isinstance(filt, dict) or not filt.get("cutoff_hz"):
+            return audio
+        biquad = self._fx_filter_a if deck_id == "a" else self._fx_filter_b
+        kind = str(filt.get("type") or "").lower()
+        cutoff = float(filt.get("cutoff_hz") or 0.0)
+        if cutoff <= 0:
+            return audio
+        if kind in ("lowpass", "lpf"):
+            biquad.set_lpf(float(SAMPLE_RATE), cutoff, q=0.707)
+            return biquad.process(audio)
+        if kind in ("highpass", "hpf"):
+            biquad.set_hpf(float(SAMPLE_RATE), cutoff, q=0.707)
+            return biquad.process(audio)
+        return audio
+
+    def _read_eq_band_deck(self, deck: Deck, deck_plan: dict | None, beat: float, frames: int, deck_id: str) -> np.ndarray:
+        params = eval_deck(deck_plan, beat)
+        chunk = self._read_with_solo(deck, frames)
+        filters = self._eq_band_filters["a" if deck_id == "a" else "b"]
+        sr = float(SAMPLE_RATE)
+        filters["low"].set_lpf(sr, 250.0, q=0.707)
+        filters["mid_hpf"].set_hpf(sr, 250.0, q=0.707)
+        filters["mid_lpf"].set_lpf(sr, 4000.0, q=0.707)
+        filters["high"].set_hpf(sr, 4000.0, q=0.707)
+        dry = chunk
+        low = filters["low"].process(chunk.copy())
+        mid = filters["mid_lpf"].process(filters["mid_hpf"].process(chunk.copy()))
+        high = filters["high"].process(chunk.copy())
+        low_gain = self._db_to_ratio(params.get("low_db", 0.0))
+        mid_gain = self._db_to_ratio(params.get("mid_db", 0.0))
+        hi_gain = self._db_to_ratio(params.get("hi_db", 0.0))
+        common_gain = min(low_gain, mid_gain, hi_gain)
+        chunk = (
+            dry * common_gain
+            + low * max(0.0, low_gain - common_gain)
+            + mid * max(0.0, mid_gain - common_gain)
+            + high * max(0.0, hi_gain - common_gain)
+        )
+        chunk = self._apply_eq_band_filter(deck_id, params, chunk)
+        return chunk * max(0.0, min(1.5, float(params.get("fader", 1.0))))
+
+    @staticmethod
+    def _db_to_ratio(value: float) -> float:
+        db = max(-60.0, min(12.0, float(value)))
+        return float(10.0 ** (db / 20.0))
 
     def set_stem_solo(self, stem: str | None) -> dict:
         """持久 stem solo：只让某个 stem 出声，None = 恢复全轨。不影响 crossfade。"""
@@ -722,51 +1426,228 @@ class AudioEngineMVP:
         logger.info("stem_solo set to %s", stem)
         return {"stem": stem}
 
-    def prefetch(self, song_ids: list[int | str]) -> dict:
+    def prefetch(
+        self,
+        song_ids: list[int | str],
+        wait: bool = False,
+        load_stems: bool = True,
+    ) -> dict:
         """提前把候选歌曲的 wav+stems 解码到内存，让按键切歌不再走磁盘 IO。
 
-        非阻塞：每首歌起一个 daemon 线程读 5 个 wav，结果放到 _PREFETCH_CACHE。
+        wait=False：每首歌起一个 daemon 线程读 wav/stems，结果放到 _PREFETCH_CACHE。
+        wait=True：同步解码并只在全部成功/失败状态确定后返回，供 App 首曲前硬检查。
         缓存命中后 Deck.load() 直接 pop 出 numpy 数组（~微秒）而不是 sf.read（~百毫秒）。
         """
+        wanted: list[int | str] = []
+        seen: set[str] = set()
+        for sid in song_ids:
+            key = str(sid)
+            if key and key not in seen:
+                wanted.append(sid)
+                seen.add(key)
+
         scheduled: list[str] = []
         already: list[str] = []
-        for sid in song_ids:
+        ready: list[str] = []
+        failed: list[str] = []
+        results: list[dict] = []
+        for sid in wanted:
             key = str(sid)
             with _PREFETCH_LOCK:
                 if key in _PREFETCH_CACHE:
                     already.append(key)
+                    ready.append(key)
+                    results.append({"song_id": key, "ready": True, "already": True})
                     continue
+            if wait:
+                try:
+                    result = self._prefetch_one(sid, load_stems=load_stems)
+                    ready.append(key)
+                    results.append(result)
+                except Exception as exc:
+                    logger.warning("prefetch failed for %s: %s", sid, exc)
+                    failed.append(key)
+                    results.append({"song_id": key, "ready": False, "error": str(exc)})
+                continue
             threading.Thread(
                 target=self._do_prefetch,
                 args=(sid,),
+                kwargs={"load_stems": load_stems},
                 daemon=True,
                 name=f"prefetch-{key}",
             ).start()
             scheduled.append(key)
-        return {"scheduled": scheduled, "already": already, "cache_size": len(_PREFETCH_CACHE)}
+        return {
+            "all_ready": not failed if wait else True,
+            "wait": wait,
+            "load_stems": load_stems,
+            "ready": ready,
+            "failed": failed,
+            "scheduled": scheduled,
+            "already": already,
+            "cache_size": len(_PREFETCH_CACHE),
+            "results": results,
+        }
 
-    def _do_prefetch(self, song_id: int | str) -> None:
+    def _prefetch_one(self, song_id: int | str, load_stems: bool = True) -> dict:
         key = str(song_id)
-        try:
-            t0 = time.time()
-            path = check_song_cache(song_id, require_stems=False)
-            audio = _load_wav_stereo(path)
-            stems: dict[str, np.ndarray] = {}
+        t0 = time.time()
+        path = check_song_cache(song_id, require_stems=False)
+        audio = _load_wav_stereo(path)
+        stems: dict[str, np.ndarray] = {}
+        if load_stems:
+            song_dir = _song_dir(song_id)
             for name in REQUIRED_STEMS:
-                stem_path = _song_dir(song_id) / f"{name}.wav"
-                if stem_path.is_file():
+                stem_path = _find_stem_path(song_dir, name)
+                if stem_path is not None:
                     stems[name] = _load_wav_stereo(stem_path)
-            with _PREFETCH_LOCK:
-                # LRU：超出上限丢最早项
-                while len(_PREFETCH_CACHE) >= _PREFETCH_MAX:
-                    drop = next(iter(_PREFETCH_CACHE))
-                    _PREFETCH_CACHE.pop(drop)
-                    logger.info("prefetch LRU drop: %s", drop)
-                _PREFETCH_CACHE[key] = {"audio": audio, "stems": stems}
-            dt = (time.time() - t0) * 1000
-            logger.info("prefetch ok: %s in %.0fms (cache=%d)", song_id, dt, len(_PREFETCH_CACHE))
+        cache_size = _store_prefetch_cache(key, audio, stems)
+        dt = (time.time() - t0) * 1000
+        logger.info("prefetch ok: %s in %.0fms (cache=%d)", song_id, dt, cache_size)
+        return {
+            "song_id": key,
+            "ready": True,
+            "elapsed_ms": round(dt),
+            "duration_sec": round(len(audio) / SAMPLE_RATE if len(audio) else 0.0, 3),
+            "stems": sorted(stems.keys()),
+        }
+
+    def _do_prefetch(self, song_id: int | str, load_stems: bool = True) -> None:
+        try:
+            self._prefetch_one(song_id, load_stems=load_stems)
         except Exception as e:
             logger.warning("prefetch failed for %s: %s", song_id, e)
+
+    def validate_cache(self, song_ids: list[int | str], require_stems: bool = False) -> dict:
+        """Synchronously verify that cached songs are actually decodable."""
+        ready: list[str] = []
+        failed: list[str] = []
+        results: list[dict] = []
+        seen: set[str] = set()
+
+        for sid in song_ids:
+            key = str(sid)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            try:
+                t0 = time.time()
+                path = check_song_cache(sid, require_stems=require_stems)
+                audio = _load_wav_stereo(path)
+                stems_ready: list[str] = []
+                if require_stems:
+                    song_dir = _song_dir(sid)
+                    for name in REQUIRED_STEMS:
+                        stem_path = _find_stem_path(song_dir, name)
+                        if stem_path is None:
+                            raise SongCacheError(f"缺少 stem: {name}", code=409)
+                        _load_wav_stereo(stem_path)
+                        stems_ready.append(name)
+                duration_sec = len(audio) / SAMPLE_RATE if len(audio) else 0.0
+                dt = (time.time() - t0) * 1000
+                ready.append(key)
+                results.append(
+                    {
+                        "song_id": key,
+                        "ready": True,
+                        "path": str(path),
+                        "duration_sec": round(duration_sec, 3),
+                        "stems": stems_ready,
+                        "elapsed_ms": round(dt),
+                    }
+                )
+            except Exception as exc:
+                logger.warning("cache validation failed for %s: %s", sid, exc)
+                failed.append(key)
+                results.append(
+                    {
+                        "song_id": key,
+                        "ready": False,
+                        "error": str(exc),
+                    }
+                )
+
+        return {
+            "all_ready": not failed,
+            "ready": ready,
+            "failed": failed,
+            "results": results,
+        }
+
+    def prewarm_beatmatch(
+        self,
+        song_id: int | str,
+        tempo_ratio: float | None = None,
+        tempo_multiplier: float | None = None,
+    ) -> dict:
+        """Render the beatmatched intro before the live transition needs it.
+
+        Manual App transitions only have target song + tempo ratio, not a full
+        MixPlan transition, so we synthesize the small Transition object that
+        the existing rubberband cache path already understands.
+        """
+        ratio = tempo_multiplier if tempo_multiplier is not None else tempo_ratio
+        try:
+            safe_ratio = float(ratio) if ratio is not None else None
+        except (TypeError, ValueError):
+            safe_ratio = None
+        if safe_ratio is None or safe_ratio <= 0:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": True,
+                "reason": "missing_tempo_ratio",
+                "song_id": str(song_id),
+                "tempo_ratio": tempo_ratio,
+                "tempo_multiplier": tempo_multiplier,
+            }
+
+        tr = Transition(
+            from_song_id="prewarm",
+            to_song_id=song_id,
+            from_at_sec=0.0,
+            to_at_sec=0.0,
+            fade_sec=8.0,
+            tempo_ratio=safe_ratio,
+        )
+        normalized = self._beatmatch_time_ratio(tr)
+        if normalized is None:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": True,
+                "reason": "ratio_outside_safe_range_or_noop",
+                "song_id": str(song_id),
+                "tempo_ratio": safe_ratio,
+            }
+
+        before = self._beatmatched_audio_path(tr, render=False)
+        path = before or self._beatmatched_audio_path(tr, render=True)
+        if path is None:
+            return {
+                "supported": True,
+                "rendered": False,
+                "skipped": False,
+                "reason": "render_failed_or_rubberband_missing",
+                "song_id": str(song_id),
+                "tempo_ratio": normalized,
+            }
+
+        audio = _load_wav_stereo(path)
+        cache_key = _prefetch_cache_key(song_id, path)
+        cache_size = _store_prefetch_cache(cache_key, audio, {})
+
+        return {
+            "supported": True,
+            "rendered": before is None,
+            "skipped": False,
+            "song_id": str(song_id),
+            "tempo_ratio": normalized,
+            "path": str(path),
+            "prefetched": True,
+            "cache_key": cache_key,
+            "cache_size": cache_size,
+        }
 
     def _apply_loudness_gain(self, deck: Deck, song_id: int | str) -> None:
         """从 plan.track_meta 取 replay_gain_db 并套到 deck 上。"""
@@ -869,22 +1750,60 @@ class AudioEngineMVP:
         # 只渲染前 60 秒，大幅减少 rubberband 耗时（长曲从 80s → ~20s）
         trim_src = src
         trim_tmp = None
+        decode_tmp = None
         try:
-            info = sf.info(str(src))
+            # rubberband 2.x can be unreliable with compressed inputs on RK.
+            # Decode MP3/FLAC/M4A/etc. to a short PCM wav first so prewarm is
+            # deterministic and the live xfade never blocks on this conversion.
+            if src.suffix.lower() != ".wav":
+                ffmpeg = shutil.which("ffmpeg")
+                if not ffmpeg:
+                    logger.warning("beatmatch skip: ffmpeg CLI not found for compressed source %s", src)
+                    return None
+                decode_tmp = song_dir / f"original.decode60.{tag}.wav"
+                if not decode_tmp.is_file() or decode_tmp.stat().st_mtime < src.stat().st_mtime:
+                    subprocess.run(
+                        [
+                            ffmpeg,
+                            "-y",
+                            "-t",
+                            "60",
+                            "-i",
+                            str(src),
+                            "-vn",
+                            "-ac",
+                            "2",
+                            "-c:a",
+                            "pcm_f32le",
+                            "-ar",
+                            str(SAMPLE_RATE),
+                            str(decode_tmp),
+                        ],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=60,
+                    )
+                if decode_tmp.is_file():
+                    trim_src = decode_tmp
+                else:
+                    return None
+            info = sf.info(str(trim_src))
             if info.duration > 65:
-                trim_tmp = src.with_name(src.name.replace(".wav", ".trim60.wav"))
+                trim_tmp = song_dir / f"original.trim60.{tag}.wav"
                 if not trim_tmp.is_file() or trim_tmp.stat().st_mtime < src.stat().st_mtime:
                     ffmpeg = shutil.which("ffmpeg")
                     if ffmpeg:
                         subprocess.run(
-                            [ffmpeg, "-y", "-t", "60", "-i", str(src),
+                            [ffmpeg, "-y", "-t", "60", "-i", str(trim_src),
                              "-c:a", "pcm_f32le", "-ar", str(info.samplerate), str(trim_tmp)],
                             check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30,
                         )
                 if trim_tmp.is_file():
                     trim_src = trim_tmp
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("beatmatch source prepare failed for %s: %s", tr.to_song_id, exc)
+            return None
 
         tmp = out.with_suffix(out.suffix + ".tmp")
         cmd = [rubberband, "--ignore-clipping", "-t", f"{ratio:.6f}", str(trim_src), str(tmp)]
@@ -895,6 +1814,11 @@ class AudioEngineMVP:
             if trim_tmp is not None:
                 try:
                     trim_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            if decode_tmp is not None:
+                try:
+                    decode_tmp.unlink(missing_ok=True)
                 except OSError:
                     pass
             logger.info(
@@ -915,20 +1839,34 @@ class AudioEngineMVP:
                     trim_tmp.unlink(missing_ok=True)
                 except OSError:
                     pass
+            if decode_tmp is not None:
+                try:
+                    decode_tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
             logger.warning("beatmatch render failed for %s: %s", tr.to_song_id, exc)
             return None
 
     def _begin_transition(self, tr: Transition) -> None:
         if self.inactive_deck.song_id != tr.to_song_id:
             try:
-                want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
-                audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+                is_eq_band = self._is_eq_band_transition(tr)
+                want_stems = False if is_eq_band else ((tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves))
+                audio_path = None if is_eq_band or want_stems else self._beatmatched_audio_path(tr, render=False)
                 self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             except SongCacheError as exc:
                 logger.error("transition load failed: %s", exc)
                 return
             self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-        self._apply_beat_align(tr)
+        if self._is_eq_band_transition(tr):
+            self._eq_band_plan = dict(tr.transition_plan or {})
+            self._eq_band_plan.setdefault("target", {"song_id": tr.to_song_id, "start_cue_sec": tr.to_at_sec})
+            self._eq_band_plan.setdefault("fade_sec", tr.fade_sec)
+            self._eq_band_plan.setdefault("duration_sec", tr.fade_sec)
+            self._eq_band_plan.setdefault("to_at_sec", tr.to_at_sec)
+            tr.style = "eq_band_mix"
+        else:
+            self._apply_beat_align(tr)
         self._start_transition_locked(tr)
 
     def _apply_beat_align(self, tr: Transition) -> None:
@@ -975,8 +1913,9 @@ class AudioEngineMVP:
             deck = Deck()
             deck.set_eq(*inactive_eq)
             # Load stems if this is a stem-aware transition style
-            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
-            audio_path = None if want_stems else self._beatmatched_audio_path(tr, render=False)
+            is_eq_band = self._is_eq_band_transition(tr)
+            want_stems = False if is_eq_band else ((tr.style or "smooth") in STEM_AWARE_STYLES or bool(tr.stem_curves))
+            audio_path = None if is_eq_band or want_stems else self._beatmatched_audio_path(tr, render=False)
             deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems, audio_path=audio_path)
             self._apply_loudness_gain(deck, tr.to_song_id)
             with self._lock:
@@ -1028,6 +1967,11 @@ class AudioEngineMVP:
         if curve == "linear":
             return 1.0 - x, x
         return math.cos(x * math.pi / 2), math.sin(x * math.pi / 2)
+
+    @staticmethod
+    def _eq_band_equal_power_fader(progress: float) -> float:
+        x = min(1.0, max(0.0, float(progress)))
+        return math.sin(x * math.pi / 2)
 
     @staticmethod
     def _sin_ramp(progress: float, start: float, duration: float) -> float:
@@ -1188,6 +2132,107 @@ class AudioEngineMVP:
         # default smooth
         return {"full": cos_x}, {"full": sin_x}
 
+    @staticmethod
+    def _semantic_curve_value(curve: str, progress: float, *, deck: str) -> float:
+        x = min(1.0, max(0.0, progress))
+        if curve == "hold":
+            return 1.0
+        if curve == "linear_out":
+            return 1.0 - x
+        if curve == "linear_in":
+            return x
+        if curve == "out_at_break":
+            return 1.0 if x < 0.5 else 0.0
+        if curve == "in_at_break":
+            return 0.0 if x < 0.5 else 1.0
+        if curve == "in_late":
+            return 0.0 if x < 0.4 else min(1.0, (x - 0.4) / 0.6)
+        if curve == "in_very_late":
+            return 0.0 if x < 0.72 else min(1.0, (x - 0.72) / 0.28)
+        if curve == "out_early":
+            return max(0.0, 1.0 - x / 0.32)
+        if curve == "hold_then_out":
+            return 1.0 if x < 0.75 else max(0.0, 1.0 - (x - 0.75) / 0.25)
+        if curve == "swell_then_out":
+            return math.sin(x * math.pi) if x < 1.0 else 0.0
+        if curve == "kick_then_in":
+            return 1.0 if x < 0.08 else x
+        if curve == "duck_then_in":
+            return 0.45 + 0.55 * x
+        if curve == "pump":
+            base = 1.0 - x if deck == "prev" else x
+            return max(0.0, min(1.0, base * (0.85 + 0.15 * math.sin(2.0 * math.pi * x * 4.0))))
+        return 1.0 - x if deck == "prev" else x
+
+    @staticmethod
+    def _keyframe_curve_value(curve, progress: float, default: float) -> float:
+        x = min(1.0, max(0.0, progress))
+        if isinstance(curve, str):
+            return AudioEngineMVP._semantic_curve_value(curve, x, deck="next")
+        if not isinstance(curve, (list, tuple)) or not curve:
+            return default
+        if all(isinstance(v, (int, float)) for v in curve):
+            if len(curve) == 1:
+                return float(curve[0])
+            scaled = x * (len(curve) - 1)
+            i = int(math.floor(scaled))
+            if i >= len(curve) - 1:
+                return float(curve[-1])
+            frac = scaled - i
+            return float(curve[i]) * (1.0 - frac) + float(curve[i + 1]) * frac
+        points: list[tuple[float, float]] = []
+        for point in curve:
+            if isinstance(point, (list, tuple)) and len(point) >= 2:
+                try:
+                    points.append((float(point[0]), float(point[1])))
+                except (TypeError, ValueError):
+                    continue
+        if not points:
+            return default
+        points.sort(key=lambda p: p[0])
+        if x <= points[0][0]:
+            return points[0][1]
+        for (t0, v0), (t1, v1) in zip(points, points[1:]):
+            if x <= t1:
+                frac = (x - t0) / max(0.0001, t1 - t0)
+                return v0 * (1.0 - frac) + v1 * frac
+        return points[-1][1]
+
+    @classmethod
+    def _automation_stem_gains(cls, curves: dict | None, progress: float) -> tuple[dict, dict] | None:
+        if not isinstance(curves, dict):
+            return None
+        out: dict[str, dict[str, float]] = {"prev": {}, "next": {}}
+        for deck in ("prev", "next"):
+            deck_curves = curves.get(deck)
+            if not isinstance(deck_curves, dict):
+                return None
+            for stem in REQUIRED_STEMS:
+                curve = deck_curves.get(stem)
+                default = 1.0 - progress if deck == "prev" else progress
+                if isinstance(curve, str):
+                    value = cls._semantic_curve_value(curve, progress, deck=deck)
+                else:
+                    value = cls._keyframe_curve_value(curve, progress, default)
+                out[deck][stem] = max(0.0, min(1.0, float(value)))
+        return out["prev"], out["next"]
+
+    @classmethod
+    def _automation_eq_db(cls, curves: dict | None, key: str, progress: float) -> float | None:
+        if not isinstance(curves, dict):
+            return None
+        value = curves.get(key)
+        if value is None and key.endswith("_db"):
+            value = curves.get(key[:-3])
+        if value is None:
+            return None
+        db = cls._keyframe_curve_value(value, progress, 0.0)
+        if "low" in key:
+            return max(LOW_BAND_MIN_DB, min(LOW_BAND_MAX_DB, float(db)))
+        if "mid" in key:
+            return max(MID_BAND_MIN_DB, min(MID_BAND_MAX_DB, float(db)))
+        return max(HIGH_BAND_MIN_DB, min(HIGH_BAND_MAX_DB, float(db)))
+
     def _read_deck_styled(self, deck: Deck, frames: int, gains: dict) -> np.ndarray:
         """按 stem gain 表从 deck 读一块。gains 同时出现 stem 键和 'full' 时，
         如果 deck 有完整 4 个 stem 则走分豁路径；否则退化到整轨增益。"""
@@ -1198,7 +2243,7 @@ class AudioEngineMVP:
         if "full" in gains or not deck.stems:
             chunk, deck.pos = _read_segment(deck.audio, pos, frames)
             g = float(gains.get("full", max(gains.values()) if gains else 1.0))
-            return chunk * (g * deck.gain)
+            return deck.apply_filter(chunk * (g * deck.gain))
         # 分 stem 路径
         out = np.zeros((frames, 2), dtype=np.float32)
         new_pos = pos
@@ -1220,31 +2265,74 @@ class AudioEngineMVP:
         deck.pos = new_pos
         if deck.gain != 1.0:
             out *= deck.gain
-        return out
+        return deck.apply_filter(out)
+
+    def _deck_by_id(self, deck_id: str) -> tuple[str, Deck] | None:
+        did = (deck_id or "").lower()
+        if did == "a":
+            return "a", self.deck_a
+        if did == "b":
+            return "b", self.deck_b
+        if did == "active":
+            return ("a" if self.active_deck is self.deck_a else "b"), self.active_deck
+        if did == "inactive":
+            return ("a" if self.inactive_deck is self.deck_a else "b"), self.inactive_deck
+        return None
 
     def set_deck_eq(self, deck_id: str, low_db: float = 0.0,
                     mid_db: float = 0.0, hi_db: float = 0.0) -> dict:
         """DJ 风 3-band EQ。deck_id ∈ {'a', 'b', 'active', 'inactive'}。
         每个 band 限幅 ±12 dB；返回实际被采纳的值。"""
         with self._lock:
-            did = (deck_id or "").lower()
-            if did == "a":
-                deck = self.deck_a
-            elif did == "b":
-                deck = self.deck_b
-            elif did == "active":
-                deck = self.active_deck
-            elif did == "inactive":
-                deck = self.inactive_deck
-            else:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
                 return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
             lo, mi, hi = deck.set_eq(low_db, mid_db, hi_db)
             return {
                 "ok": True,
-                "deck": "a" if deck is self.deck_a else "b",
+                "deck": deck_name,
                 "low_db": lo,
                 "mid_db": mi,
                 "hi_db": hi,
+            }
+
+    def apply_filter(self, deck_id: str, filter_type: str,
+                     cutoff_hz: float, q: float = 0.707) -> dict:
+        """Apply a persistent realtime filter to a deck."""
+        with self._lock:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
+                return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
+            try:
+                kind, cutoff, q_value = deck.set_filter(filter_type, cutoff_hz, q)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "deck": deck_id}
+            return {
+                "ok": True,
+                "deck": deck_name,
+                "filter_type": kind,
+                "cutoff_hz": cutoff,
+                "q": q_value,
+            }
+
+    def apply_loudness_norm(self, deck_id: str, gain_db: float | None = None,
+                            target_lufs: float = -14.0) -> dict:
+        """Apply a persistent realtime loudness trim to a deck."""
+        with self._lock:
+            selected = self._deck_by_id(deck_id)
+            if selected is None:
+                return {"ok": False, "error": "invalid_deck_id", "deck": deck_id}
+            deck_name, deck = selected
+            if gain_db is not None:
+                deck.set_gain_db(gain_db)
+            return {
+                "ok": True,
+                "deck": deck_name,
+                "gain": deck.gain,
+                "gain_db": 20.0 * math.log10(deck.gain) if deck.gain > 0 else -120.0,
+                "target_lufs": float(target_lufs),
             }
 
     def trigger(self, key: int) -> dict:
@@ -1282,6 +2370,7 @@ class AudioEngineMVP:
             self.deck_a.clear()
             self.deck_b.clear()
             self._in_transition = False
+            self._eq_band_plan = None
             self._plan_enabled = False
             self._one_shot_keys.clear()
             self.loops.clear()
@@ -1344,7 +2433,7 @@ class AudioEngineMVP:
         chunk, deck.pos = _read_segment(buf, deck.pos, frames)
         if deck.gain != 1.0:
             chunk = chunk * deck.gain
-        return chunk
+        return deck.apply_filter(chunk)
 
     def _callback(self, outdata, frames, time_info, status) -> None:
         if status:
@@ -1355,11 +2444,38 @@ class AudioEngineMVP:
                 outdata.fill(0)
                 return
 
+            eq_band_output = False
             if self._in_transition and self._active_tr:
                 tr = self._active_tr
                 progress = self._fade_frames_done / max(1, self._fade_total_frames)
-                style = self._resolve_style(tr.style or "smooth")
-                if style in ("smooth", "blend"):
+                style = self._resolve_style(tr.style or "smooth", tr)
+                automation = self._automation_stem_gains(tr.stem_curves, progress)
+                if style == "eq_band_mix" and isinstance(self._eq_band_plan, dict):
+                    duration_beats = float(self._eq_band_plan.get("duration_beats") or 32.0)
+                    beat = max(0.0, min(duration_beats, progress * duration_beats))
+                    deck_a_plan = self._eq_band_plan.get("deck_a")
+                    deck_b_plan = self._eq_band_plan.get("deck_b")
+                    a = self._read_eq_band_deck(self.active_deck, deck_a_plan, beat, frames, "a")
+                    b = self._read_eq_band_deck(self.inactive_deck, deck_b_plan, beat, frames, "b")
+                    # Match the offline 5-strategy renderer: do not apply a
+                    # fixed master headroom cut when entering eq_band_mix.
+                    main = a + b
+                    eq_band_output = True
+                elif automation is not None and self._stems_available():
+                    sa, sb = automation
+                    a = self._read_deck_styled(self.active_deck, frames, sa)
+                    b = self._read_deck_styled(self.inactive_deck, frames, sb)
+                    prev_low = self._automation_eq_db(tr.eq_curves, "prev_low_db", progress)
+                    next_low = self._automation_eq_db(tr.eq_curves, "next_low_db", progress)
+                    if prev_low is not None:
+                        self.active_deck.set_eq(prev_low, self.active_deck.eq_mid_db, self.active_deck.eq_hi_db)
+                    if next_low is not None:
+                        self.inactive_deck.set_eq(next_low, self.inactive_deck.eq_mid_db, self.inactive_deck.eq_hi_db)
+                    a = self.active_deck.apply_eq(a)
+                    b = self.inactive_deck.apply_eq(b)
+                    a, b = self._apply_style_effects(style, progress, a, b, frames)
+                    main = a + b
+                elif style in ("smooth", "blend"):
                     a = self._read_with_solo(self.active_deck, frames)
                     a = self.active_deck.apply_eq(a)
                     b = self._read_with_solo(self.inactive_deck, frames)
@@ -1387,15 +2503,25 @@ class AudioEngineMVP:
                 main = self._read_with_solo(self.active_deck, frames)
                 main = self.active_deck.apply_eq(main)
                 if self.active_deck.audio is not None and self.active_deck.pos >= len(self.active_deck.audio):
+                    if self._default_resume_after_render is not None:
+                        if self._resume_default_target_after_render_locked():
+                            main = self._read_with_solo(self.active_deck, frames)
+                            main = self.active_deck.apply_eq(main)
+                            deck_for_fx = self.active_deck
+                            main = self._apply_stem_fx(main, deck_for_fx, frames)
+                            main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
+                            outdata[:] = self._apply_limiter(main, frames)
+                            return
+                        self._playing = False
+                        self._plan_enabled = False
+                        outdata.fill(0)
+                        return
                     # 播放到结尾时，尝试强制转场而不是直接停止
                     tr = self._scheduled_transition()
                     if tr and self._plan_enabled and not self._in_transition:
                         # 强制开始转场，即使预加载未完成
                         try:
-                            want_stems = (tr.style or "smooth") in STEM_AWARE_STYLES
-                            self.inactive_deck.load(tr.to_song_id, tr.to_at_sec, load_stems=want_stems)
-                            self._apply_loudness_gain(self.inactive_deck, tr.to_song_id)
-                            self._start_transition_locked(tr)
+                            self._begin_transition(tr)
                         except Exception as e:
                             import logging
                             logging.getLogger(__name__).warning("Force transition failed: %s", e)
@@ -1408,7 +2534,12 @@ class AudioEngineMVP:
             deck_for_fx = self.active_deck
             main = self._apply_stem_fx(main, deck_for_fx, frames)
             main = main + self._mix_loops(frames) + self._mix_one_shots(frames)
-            outdata[:] = self._apply_limiter(main, frames)
+            if eq_band_output:
+                self._lim_gain = 1.0
+                np.clip(main, -1.0, 1.0, out=main)
+                outdata[:] = main
+            else:
+                outdata[:] = self._apply_limiter(main, frames)
 
     def _apply_style_effects(self, style: str, progress: float,
                              a: np.ndarray, b: np.ndarray,

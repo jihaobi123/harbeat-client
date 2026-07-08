@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
@@ -72,6 +74,72 @@ def _range_response(file_path: str, file_size: int, content_type: str, request: 
             "Content-Length": str(file_size),
         },
     )
+
+
+def _stem_mp3_path(file_path: str) -> str:
+    root, _ext = os.path.splitext(file_path)
+    return f"{root}.harbeat-preview.mp3"
+
+
+def _ensure_mp3(file_path: str) -> str:
+    """Return a cached MP3 copy of a stem, creating it with ffmpeg if needed."""
+    out_path = _stem_mp3_path(file_path)
+    try:
+        src_mtime = os.path.getmtime(file_path)
+        if (
+            os.path.isfile(out_path)
+            and os.path.getsize(out_path) > 0
+            and os.path.getmtime(out_path) >= src_mtime
+        ):
+            return out_path
+    except OSError:
+        pass
+
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ffmpeg not available for stem mp3 export",
+        )
+
+    tmp_path = f"{out_path}.tmp"
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                file_path,
+                "-vn",
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                "-b:a",
+                "192k",
+                "-f",
+                "mp3",
+                tmp_path,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        os.replace(tmp_path, out_path)
+    except subprocess.CalledProcessError as exc:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        detail = (exc.stderr or b"").decode("utf-8", errors="ignore").strip()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"stem mp3 export failed: {detail or exc}",
+        ) from exc
+    return out_path
 
 
 def _get_user_from_request(request: Request, db: Session, token_param: str | None) -> User:
@@ -177,6 +245,7 @@ def stream_stem(
     stem_name: str,
     request: Request,
     token: str | None = Query(None),
+    format: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     """Stream a separated stem audio file."""
@@ -196,5 +265,12 @@ def stream_stem(
     if not file_path or not os.path.isfile(file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="stem file not found on disk")
 
+    requested_format = (format or "").lower().lstrip(".")
+    if requested_format == "mp3":
+        file_path = _ensure_mp3(file_path)
+        content_type = "audio/mpeg"
+    else:
+        content_type = "audio/wav"
+
     file_size = os.path.getsize(file_path)
-    return _range_response(file_path, file_size, "audio/wav", request)
+    return _range_response(file_path, file_size, content_type, request)

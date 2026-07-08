@@ -84,6 +84,62 @@ class EdgeAgentClient {
     return _request(method: 'POST', path: '/play', body: body);
   }
 
+  Future<Map<String, dynamic>> defaultAutoplayStart({
+    required List<Object> queue,
+    required List<Map<String, dynamic>> transitions,
+    Object? startSongId,
+    double startAtSec = 0.0,
+    String? sessionId,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/start',
+      body: {
+        'queue': queue,
+        'transitions': transitions,
+        if (startSongId != null) 'start_song_id': startSongId,
+        'start_at_sec': startAtSec,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<Map<String, dynamic>> defaultAutoplayPrefetch({
+    required List<Object> queue,
+    required List<Map<String, dynamic>> transitions,
+    String? sessionId,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/prefetch',
+      body: {
+        'queue': queue,
+        'transitions': transitions,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+      timeout: const Duration(minutes: 5),
+    );
+  }
+
+  Future<Map<String, dynamic>> defaultRenderPlayback({
+    required Map<String, dynamic> transitionPlan,
+    Object? toSongId,
+    String? renderPath,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/render',
+      body: {
+        'transition_plan': transitionPlan,
+        if (toSongId != null) 'to_song_id': toSongId,
+        if (renderPath != null && renderPath.isNotEmpty)
+          'render_path': renderPath,
+      },
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
   Future<Map<String, dynamic>> pause() async {
     return _request(method: 'POST', path: '/pause');
   }
@@ -121,6 +177,8 @@ class EdgeAgentClient {
     double? tempoRatio,
     Map<String, dynamic>? stemCurves,
     Map<String, dynamic>? eqCurves,
+    String? transitionMode,
+    Map<String, dynamic>? transitionPlan,
     double? phaseAnchorSec,
   }) async {
     final body = <String, dynamic>{
@@ -138,8 +196,22 @@ class EdgeAgentClient {
     if (tempoRatio != null) body['tempo_ratio'] = tempoRatio;
     if (stemCurves != null) body['stem_curves'] = stemCurves;
     if (eqCurves != null) body['eq_curves'] = eqCurves;
+    if (transitionMode != null) body['transition_mode'] = transitionMode;
+    if (transitionPlan != null) body['transition_plan'] = transitionPlan;
     if (phaseAnchorSec != null) body['phase_anchor_sec'] = phaseAnchorSec;
     return _request(method: 'POST', path: '/xfade', body: body);
+  }
+
+  Future<Map<String, dynamic>> loadPlan({
+    required Map<String, dynamic> mixPlan,
+    Map<String, dynamic> manifest = const <String, dynamic>{},
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/load_plan',
+      body: {'mix_plan': mixPlan, 'manifest': manifest},
+      timeout: const Duration(minutes: 10),
+    );
   }
 
   /// Phase 2: kick a background rubberband render so a future /xfade with
@@ -152,6 +224,7 @@ class EdgeAgentClient {
       method: 'POST',
       path: '/prewarm_beatmatch',
       body: {'song_id': songId, 'tempo_ratio': tempoRatio},
+      timeout: const Duration(minutes: 10),
     );
   }
 
@@ -159,11 +232,16 @@ class EdgeAgentClient {
   /// so the next /xfade lands instantly (no 300ms-2s file IO inside deck.load).
   /// Idempotent — songs already in cache are skipped. Best called once per
   /// upcoming song, well before the actual transition window.
-  Future<Map<String, dynamic>> prefetch({required List<Object> songIds}) async {
+  Future<Map<String, dynamic>> prefetch({
+    required List<Object> songIds,
+    bool wait = false,
+    bool loadStems = true,
+  }) async {
     return _request(
       method: 'POST',
       path: '/prefetch',
-      body: {'song_ids': songIds},
+      body: {'song_ids': songIds, 'wait': wait, 'load_stems': loadStems},
+      timeout: wait ? const Duration(minutes: 10) : null,
     );
   }
 
@@ -171,6 +249,31 @@ class EdgeAgentClient {
   /// Use right before /xfade when the planner flagged the prev or next song
   /// as rhythmically weak. [pattern] ∈ {all, half, backbeat}; [sampleKey] 1-5
   /// (4 = snare_crack is the typical reinforcement pick).
+  Future<Map<String, dynamic>> validateCache({
+    required List<Object> songIds,
+    bool requireStems = false,
+  }) async {
+    if (songIds.isEmpty) {
+      return {
+        'all_ready': true,
+        'ready': <String>[],
+        'failed': <String>[],
+        'results': <Map<String, dynamic>>[],
+      };
+    }
+    final data = await _request(
+      method: 'POST',
+      path: '/cache/validate',
+      body: {'song_ids': songIds, 'require_stems': requireStems},
+      timeout: const Duration(seconds: 120),
+    );
+    final result = data['result'];
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    return data;
+  }
+
   Future<Map<String, dynamic>> beatReinforce({
     required double startSec,
     required double endSec,
@@ -204,6 +307,7 @@ class EdgeAgentClient {
     required String path,
     Object? body,
     Map<String, String>? queryParameters,
+    Duration? timeout,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) {
@@ -221,12 +325,12 @@ class EdgeAgentClient {
         case 'GET':
           response = await http
               .get(uri, headers: headers)
-              .timeout(const Duration(seconds: 5));
+              .timeout(timeout ?? const Duration(seconds: 5));
           break;
         case 'POST':
           response = await http
               .post(uri, headers: headers, body: jsonEncode(body))
-              .timeout(const Duration(seconds: 10));
+              .timeout(timeout ?? const Duration(seconds: 10));
           break;
         default:
           throw Exception('Unsupported method: $method');

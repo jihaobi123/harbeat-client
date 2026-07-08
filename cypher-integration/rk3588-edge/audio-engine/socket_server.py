@@ -1,4 +1,4 @@
-"""Unix socket 服务：4 字节 big-endian 长度 + JSON。"""
+﻿"""Unix socket 服务：4 字节 big-endian 长度 + JSON。"""
 
 from __future__ import annotations
 
@@ -80,6 +80,23 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
             phase_anchor_sec=msg.get("phase_anchor_sec"),
         )
         return {"ok": True, **result}
+    if cmd == "apply_filter":
+        result = engine.apply_filter(
+            str(msg.get("deck", "active")),
+            str(msg.get("filter_type", "bypass")),
+            float(msg.get("cutoff_hz", 18000.0)),
+            float(msg.get("q", 0.707)),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "apply_loudness_norm":
+        raw_gain = msg.get("gain_db")
+        gain_db = None if raw_gain is None else float(raw_gain)
+        result = engine.apply_loudness_norm(
+            str(msg.get("deck", "active")),
+            gain_db=gain_db,
+            target_lufs=float(msg.get("target_lufs", -14.0)),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "stem_solo":
         stem = msg.get("stem")
         if stem in ("", "null", "none"):
@@ -88,8 +105,62 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **result}
     if cmd == "prefetch":
         raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
-        result = engine.prefetch(list(raw))
+        result = engine.prefetch(
+            list(raw),
+            wait=bool(msg.get("wait", False)),
+            load_stems=bool(msg.get("load_stems", True)),
+        )
         return {"ok": True, **result}
+    if cmd == "validate_cache":
+        raw = msg.get("song_ids") or ([msg["song_id"]] if "song_id" in msg else [])
+        result = engine.validate_cache(
+            list(raw),
+            require_stems=bool(msg.get("require_stems", False)),
+        )
+        return {"ok": True, **result}
+    if cmd == "xfade_eq_band_mix":
+        result = engine.manual_eq_band_mix(
+            msg.get("transition_plan") or {},
+            to_song_id=msg.get("to_song_id"),
+            fade_sec=msg.get("fade_sec"),
+            to_at_sec=msg.get("to_at_sec"),
+            style=msg.get("style"),
+            fallback_style=msg.get("fallback_style"),
+            transition_id=msg.get("transition_id"),
+        )
+        return {"ok": True, **result}
+    if cmd == "default_autoplay_start":
+        result = engine.default_autoplay_start(
+            msg.get("queue") or [],
+            msg.get("transitions") or [],
+            start_song_id=msg.get("start_song_id"),
+            start_at_sec=float(msg.get("start_at_sec", 0.0)),
+            session_id=msg.get("session_id"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "default_autoplay_prefetch":
+        result = engine.default_autoplay_prefetch(
+            msg.get("queue") or [],
+            msg.get("transitions") or [],
+            session_id=msg.get("session_id"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "default_render_playback":
+        result = engine.default_render_playback(
+            msg.get("transition_plan") or {},
+            to_song_id=msg.get("to_song_id"),
+            render_path=msg.get("render_path"),
+        )
+        return {"ok": bool(result.get("ok", True)), **result}
+    if cmd == "prewarm_beatmatch":
+        result = engine.prewarm_beatmatch(
+            msg["song_id"],
+            tempo_ratio=msg.get("tempo_ratio"),
+            tempo_multiplier=msg.get("tempo_multiplier"),
+        )
+        return {"ok": True, **result}
+    if cmd == "beat_reinforce":
+        return {"ok": False, "supported": False, "reason": "not_implemented", "code": 501}
     if cmd == "trigger":
         return {"ok": True, **engine.trigger(int(msg["key"]))}
     if cmd == "set_deck_eq":

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -50,7 +50,8 @@ class _HomePageState extends State<HomePage> {
   late EdgeAgentClient _edgeClient;
   late SyncWorkerClient _syncWorker;
   final AudioPlayer _player = AudioPlayer();
-  final TextEditingController _librarySearchController = TextEditingController();
+  final TextEditingController _librarySearchController =
+      TextEditingController();
 
   DashboardData? _data;
   List<LibrarySong> _displaySongs = const [];
@@ -83,9 +84,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _edgeClient = EdgeAgentClient(
-      baseUrl: widget.rkBaseUrl,
-    );
+    _edgeClient = EdgeAgentClient(baseUrl: widget.rkBaseUrl);
     _syncWorker = SyncWorkerClient(
       baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edgeClient.baseUrl),
     );
@@ -131,9 +130,7 @@ class _HomePageState extends State<HomePage> {
       _syncFromWidget();
     }
     if (oldWidget.rkBaseUrl != widget.rkBaseUrl) {
-      _edgeClient = EdgeAgentClient(
-        baseUrl: widget.rkBaseUrl,
-      );
+      _edgeClient = EdgeAgentClient(baseUrl: widget.rkBaseUrl);
       _syncWorker = SyncWorkerClient(
         baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(_edgeClient.baseUrl),
       );
@@ -168,41 +165,42 @@ class _HomePageState extends State<HomePage> {
     final rkCtrl = TextEditingController(text: widget.rkBaseUrl);
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('服务地址'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: apiCtrl,
-              decoration: const InputDecoration(
-                labelText: 'API 服务器',
-                hintText: 'http://8.136.120.255',
-                border: OutlineInputBorder(),
-              ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('服务地址'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: apiCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'API 服务器',
+                    hintText: 'http://8.136.120.255',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: rkCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'RK3588 Edge-Agent',
+                    hintText: '192.168.43.7:9000',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: rkCtrl,
-              decoration: const InputDecoration(
-                labelText: 'RK3588 Edge-Agent',
-                hintText: '192.168.43.7:9000',
-                border: OutlineInputBorder(),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('保存'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
     );
     if (result == true) {
       final api = apiCtrl.text.trim();
@@ -235,7 +233,8 @@ class _HomePageState extends State<HomePage> {
         msg = 'RK 不可达: ${state.error}  (地址=${widget.rkBaseUrl})';
         bg = Colors.red.shade700;
       } else {
-        msg = 'RK OK · playing=${state.playing} · pos=${state.positionSec.toStringAsFixed(1)}s · 地址=${widget.rkBaseUrl}';
+        msg =
+            'RK OK · playing=${state.playing} · pos=${state.positionSec.toStringAsFixed(1)}s · 地址=${widget.rkBaseUrl}';
       }
     } catch (e) {
       msg = 'RK 不可达: $e  (地址=${widget.rkBaseUrl})';
@@ -243,11 +242,13 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _testing = false);
     }
-    messenger.showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: bg,
-      duration: const Duration(seconds: 6),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: bg,
+        duration: const Duration(seconds: 6),
+      ),
+    );
   }
 
   /// 随机选一首歌 + 随机段落 + 随机音轨，在手机上试听 5 秒
@@ -264,9 +265,10 @@ class _HomePageState extends State<HomePage> {
     // 1) 探活 RK3588
     try {
       final state = await _edgeClient.getState();
-      rkStatus = state.error != null
-          ? 'RK 不可达: ${state.error}'
-          : 'RK OK (playing=${state.playing}, pos=${state.positionSec.toStringAsFixed(1)}s)';
+      rkStatus =
+          state.error != null
+              ? 'RK 不可达: ${state.error}'
+              : 'RK OK (playing=${state.playing}, pos=${state.positionSec.toStringAsFixed(1)}s)';
     } catch (e) {
       rkStatus = 'RK 不可达: $e';
     }
@@ -274,9 +276,7 @@ class _HomePageState extends State<HomePage> {
     // 2) 拿曲库
     final songs = _data?.songs ?? const <LibrarySong>[];
     if (songs.isEmpty) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('曲库为空，无法试听。$rkStatus'),
-      ));
+      messenger.showSnackBar(SnackBar(content: Text('曲库为空，无法试听。$rkStatus')));
       if (mounted) setState(() => _testing = false);
       return;
     }
@@ -289,7 +289,9 @@ class _HomePageState extends State<HomePage> {
         token: widget.session.token,
         songId: song.id,
       );
-    } catch (_) {/* 使用列表里的原始数据 */}
+    } catch (_) {
+      /* 使用列表里的原始数据 */
+    }
 
     // 4) 随机选段落
     double startSec = 0;
@@ -297,7 +299,8 @@ class _HomePageState extends State<HomePage> {
     if (detail.cuePoints.isNotEmpty) {
       final cue = detail.cuePoints[rand.nextInt(detail.cuePoints.length)];
       startSec = cue.time;
-      segLabel = cue.label.isEmpty ? 'Cue@${cue.time.toStringAsFixed(1)}s' : cue.label;
+      segLabel =
+          cue.label.isEmpty ? 'Cue@${cue.time.toStringAsFixed(1)}s' : cue.label;
     } else if (detail.duration > 10) {
       // 没有 cue 就随机丢到前 70%
       startSec = rand.nextDouble() * (detail.duration * 0.7);
@@ -311,16 +314,17 @@ class _HomePageState extends State<HomePage> {
       stemKey = stemNames[rand.nextInt(stemNames.length)];
     }
 
-    final url = stemKey == 'full'
-        ? widget.apiClient.streamUrl(
-            token: widget.session.token,
-            songId: detail.id,
-          )
-        : widget.apiClient.stemStreamUrl(
-            token: widget.session.token,
-            songId: detail.id,
-            stemName: stemKey,
-          );
+    final url =
+        stemKey == 'full'
+            ? widget.apiClient.streamUrl(
+              token: widget.session.token,
+              songId: detail.id,
+            )
+            : widget.apiClient.stemStreamUrl(
+              token: widget.session.token,
+              songId: detail.id,
+              stemName: stemKey,
+            );
 
     // 停手机本地播放，避免和 RK 重叠
     try {
@@ -333,19 +337,22 @@ class _HomePageState extends State<HomePage> {
         songId: detail.id,
         startAtSec: startSec,
       );
-      final ok = res['ok'] == true ||
+      final ok =
+          res['ok'] == true ||
           (res['result'] is Map && (res['result'] as Map)['ok'] == true);
       setState(() => _currentSong = detail);
 
-      messenger.showSnackBar(SnackBar(
-        duration: const Duration(seconds: 4),
-        backgroundColor: ok ? null : Colors.orange.shade700,
-        content: Text(
-          ok
-              ? '🔊 RK 试听「${detail.title} - ${detail.artist}」·段落:$segLabel · $rkStatus'
-              : 'RK 拒绝: $res （URL: $url）',
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 4),
+          backgroundColor: ok ? null : Colors.orange.shade700,
+          content: Text(
+            ok
+                ? '🔊 RK 试听「${detail.title} - ${detail.artist}」·段落:$segLabel · $rkStatus'
+                : 'RK 拒绝: $res （URL: $url）',
+          ),
         ),
-      ));
+      );
 
       // 5 秒后让 RK 暂停
       await Future<void>.delayed(const Duration(seconds: 5));
@@ -355,14 +362,17 @@ class _HomePageState extends State<HomePage> {
       } catch (_) {}
     } catch (e) {
       final msg = e.toString();
-      final hint = msg.contains('original.wav') || msg.contains('缺少')
-          ? ' (该曲未同步到 RK 缓存)'
-          : '';
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 6),
-        content: Text('RK 试听失败: $msg$hint'),
-      ));
+      final hint =
+          msg.contains('original.wav') || msg.contains('缺少')
+              ? ' (该曲未同步到 RK 缓存)'
+              : '';
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 6),
+          content: Text('RK 试听失败: $msg$hint'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _testing = false);
     }
@@ -399,7 +409,16 @@ class _HomePageState extends State<HomePage> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'opus', 'ncm'],
+      allowedExtensions: [
+        'mp3',
+        'flac',
+        'wav',
+        'ogg',
+        'aac',
+        'm4a',
+        'opus',
+        'ncm',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
 
@@ -467,11 +486,12 @@ class _HomePageState extends State<HomePage> {
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (context) => PlaylistDetailSheet(
-          playlist: detail,
-          librarySongs: _data?.songs ?? const [],
-          onPlayPlaylistSong: _playPlaylistSong,
-        ),
+        builder:
+            (context) => PlaylistDetailSheet(
+              playlist: detail,
+              librarySongs: _data?.songs ?? const [],
+              onPlayPlaylistSong: _playPlaylistSong,
+            ),
       );
     } catch (error) {
       setState(() {
@@ -484,11 +504,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _openSongDetail(LibrarySong song) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SongDetailPage(
-          apiClient: widget.apiClient,
-          session: widget.session,
-          song: song,
-        ),
+        builder:
+            (_) => SongDetailPage(
+              apiClient: widget.apiClient,
+              session: widget.session,
+              song: song,
+            ),
       ),
     );
     // 返回时同步一次列表，确保状态/分析结果是最新的
@@ -508,20 +529,23 @@ class _HomePageState extends State<HomePage> {
       _localError = null;
       _position = Duration.zero;
       // 用 Library 元数据时长作为初始 _duration（RK /state 目前不返回 duration_sec）
-      _duration = song.duration > 0
-          ? Duration(milliseconds: (song.duration * 1000).round())
-          : Duration.zero;
+      _duration =
+          song.duration > 0
+              ? Duration(milliseconds: (song.duration * 1000).round())
+              : Duration.zero;
       _rkPlaying = false;
       _prefetchPercent = null;
       _prefetchMessage = null;
     });
     _stopRkStatePolling();
 
-    // 1) 先试直接 /play；RK 缓存命中则立刻出声。
-    final firstTry = await _tryDirectPlay(song);
-    if (firstTry) {
-      _onRkPlaybackStarted(song, messenger);
-      return;
+    // 1) 只有目标 original.mp3 已经落盘时，才走直接 /play。
+    if (await _syncWorker.cacheExists(song.id, format: 'mp3')) {
+      final firstTry = await _tryDirectPlay(song);
+      if (firstTry) {
+        _onRkPlaybackStarted(song, messenger);
+        return;
+      }
     }
 
     // 2) 未命中：触发 sync（不等它跑完），同时 200ms 轮询 sync-worker /cache/check，
@@ -546,10 +570,12 @@ class _HomePageState extends State<HomePage> {
         _prefetchPercent = null;
         _prefetchMessage = null;
       });
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: Colors.red.shade700,
-        content: const Text('RK 播放失败'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          content: const Text('RK 播放失败'),
+        ),
+      );
     }
   }
 
@@ -574,7 +600,7 @@ class _HomePageState extends State<HomePage> {
             'format': 'mp3',
           },
         },
-      }
+      },
     ];
 
     // 启动 sync（不等它跑完），失败也不致命：可能是已经在跑
@@ -584,38 +610,50 @@ class _HomePageState extends State<HomePage> {
           tracks: tracks,
           planId: 'mobile-${song.id}',
         );
-      } catch (_) {/* already running 也算成功 */}
+      } catch (_) {
+        /* already running 也算成功 */
+      }
     }());
 
     final deadline = DateTime.now().add(const Duration(seconds: 8));
     while (DateTime.now().isBefore(deadline)) {
-      if (!mounted) return false;
-      // 调 sync-worker /cache/check 看 original.* 是否落盘
-      if (await _syncWorker.cacheExists(song.id)) {
-        // 命中 → 立刻 /play
-        if (await _tryDirectPlay(song)) {
-          if (mounted) {
-            setState(() {
-              _prefetchPercent = null;
-              _prefetchMessage = null;
-            });
-          }
-          return true;
-        }
+      if (await _pollCacheAndTryPlay(song, planId: 'mobile-${song.id}')) {
+        return true;
       }
-      // 同时刷一下 sync-worker 进度，在 UI 上反馈
-      try {
-        final st = await _syncWorker.getStatus();
-        if (mounted) {
-          setState(() {
-            _prefetchPercent = st.percent;
-            _prefetchMessage =
-                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
-          });
-        }
-      } catch (_) {}
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
+    return false;
+  }
+
+  Future<bool> _pollCacheAndTryPlay(
+    LibrarySong song, {
+    required String planId,
+  }) async {
+    if (!mounted) return false;
+    if (await _syncWorker.cacheExists(song.id, format: 'mp3')) {
+      if (await _tryDirectPlay(song)) {
+        if (mounted) {
+          setState(() {
+            _prefetchPercent = null;
+            _prefetchMessage = null;
+          });
+        }
+        return true;
+      }
+    }
+    try {
+      final st = await _syncWorker.getStatus();
+      if (mounted) {
+        setState(() {
+          _prefetchPercent =
+              st.running && st.planId != planId ? null : st.percent;
+          _prefetchMessage =
+              st.running && st.planId != planId
+                  ? '等待当前 RK 缓存任务完成…'
+                  : '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+        });
+      }
+    } catch (_) {}
     return false;
   }
 
@@ -648,7 +686,7 @@ class _HomePageState extends State<HomePage> {
             'format': 'mp3',
           },
         },
-      }
+      },
     ];
     try {
       await _syncWorker.syncAndWait(
@@ -659,8 +697,7 @@ class _HomePageState extends State<HomePage> {
           if (!mounted) return;
           setState(() {
             _prefetchPercent = st.percent;
-            _prefetchMessage =
-                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+            _prefetchMessage = '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
           });
         },
       );
@@ -677,11 +714,13 @@ class _HomePageState extends State<HomePage> {
         _prefetchPercent = null;
         _prefetchMessage = null;
       });
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 6),
-        content: Text('拉取到 RK 失败: $e'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 6),
+          content: Text('拉取到 RK 失败: $e'),
+        ),
+      );
       return false;
     }
   }
@@ -703,10 +742,12 @@ class _HomePageState extends State<HomePage> {
       _prefetchPercent = null;
       _prefetchMessage = null;
     });
-    messenger.showSnackBar(SnackBar(
-      content: Text('🔊 RK3588 播放: ${song.title} - ${song.artist}'),
-      duration: const Duration(seconds: 3),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('🔊 RK3588 播放: ${song.title} - ${song.artist}'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
     _startRkStatePolling();
   }
 
@@ -724,8 +765,7 @@ class _HomePageState extends State<HomePage> {
           final guard = _seekGuardUntil;
           final inGuard = guard != null && DateTime.now().isBefore(guard);
           if (!inGuard) {
-            _position =
-                Duration(milliseconds: (st.positionSec * 1000).round());
+            _position = Duration(milliseconds: (st.positionSec * 1000).round());
           }
           // 只有 RK 真的返回了 duration_sec>0 才覆盖；否则保留来自 Library 元数据的时长
           if (st.durationSec > 0) {
@@ -734,7 +774,8 @@ class _HomePageState extends State<HomePage> {
               _duration == Duration.zero &&
               _currentSong!.duration > 0) {
             _duration = Duration(
-                milliseconds: (_currentSong!.duration * 1000).round());
+              milliseconds: (_currentSong!.duration * 1000).round(),
+            );
           }
         });
       } catch (_) {
@@ -773,10 +814,12 @@ class _HomePageState extends State<HomePage> {
         }
         return;
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.red.shade700,
-          content: Text('RK 控制失败: $e'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade700,
+            content: Text('RK 控制失败: $e'),
+          ),
+        );
         return;
       }
     }
@@ -793,8 +836,9 @@ class _HomePageState extends State<HomePage> {
       // 乐观更新本地 position，开 1 秒防回弹窗，等 RK /state 在下一次轮询追上
       setState(() {
         _position = Duration(milliseconds: (value * 1000).round());
-        _seekGuardUntil =
-            DateTime.now().add(const Duration(milliseconds: 1000));
+        _seekGuardUntil = DateTime.now().add(
+          const Duration(milliseconds: 1000),
+        );
       });
       try {
         // 走 RK /seek，比重发 /play 快得多（不重新加载文件）
@@ -802,10 +846,7 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         // /seek 失败兜底走 /play start_at_sec（旧路径），避免完全失灵
         try {
-          await _edgeClient.play(
-            songId: _currentSong!.id,
-            startAtSec: value,
-          );
+          await _edgeClient.play(songId: _currentSong!.id, startAtSec: value);
         } catch (_) {}
       }
       return;
@@ -819,9 +860,10 @@ class _HomePageState extends State<HomePage> {
         token: widget.session.token,
         songId: song.id,
       );
-      final songs = (_data?.songs ?? const <LibrarySong>[])
-          .map((item) => item.id == song.id ? updated : item)
-          .toList();
+      final songs =
+          (_data?.songs ?? const <LibrarySong>[])
+              .map((item) => item.id == song.id ? updated : item)
+              .toList();
       setState(() {
         _data = DashboardData(
           profile: _data?.profile ?? widget.session.profile,
@@ -840,10 +882,14 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _deleteSong(LibrarySong song) async {
     try {
-      await widget.apiClient.deleteSong(token: widget.session.token, songId: song.id);
-      final songs = (_data?.songs ?? const <LibrarySong>[])
-          .where((item) => item.id != song.id)
-          .toList();
+      await widget.apiClient.deleteSong(
+        token: widget.session.token,
+        songId: song.id,
+      );
+      final songs =
+          (_data?.songs ?? const <LibrarySong>[])
+              .where((item) => item.id != song.id)
+              .toList();
       if (_currentSong?.id == song.id) {
         await _player.stop();
       }
@@ -878,13 +924,14 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               tooltip: '上传歌曲',
               onPressed: _uploading ? null : _pickAndUpload,
-              icon: _uploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.upload_file),
+              icon:
+                  _uploading
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.upload_file),
             ),
           IconButton(
             tooltip: 'RK3588 连接测试',
@@ -894,13 +941,14 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'RK3588 + 手机随机试听',
             onPressed: _testing ? null : _runRkRandomTest,
-            icon: _testing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.science_outlined),
+            icon:
+                _testing
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.science_outlined),
           ),
           IconButton(
             tooltip: '设置',
@@ -954,12 +1002,13 @@ class _HomePageState extends State<HomePage> {
                     onImportPressed: () async {
                       await Navigator.of(context).push<void>(
                         MaterialPageRoute(
-                          builder: (_) => PlaylistImportPage(
-                            apiClient: widget.apiClient,
-                            token: widget.session.token,
-                            userId: widget.session.profile.id,
-                            onImported: _refreshAll,
-                          ),
+                          builder:
+                              (_) => PlaylistImportPage(
+                                apiClient: widget.apiClient,
+                                token: widget.session.token,
+                                userId: widget.session.profile.id,
+                                onImported: _refreshAll,
+                              ),
                         ),
                       );
                     },
@@ -990,11 +1039,21 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (value) => setState(() => _selectedIndex = value),
+        onDestinationSelected:
+            (value) => setState(() => _selectedIndex = value),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.library_music_outlined), label: '曲库'),
-          NavigationDestination(icon: Icon(Icons.queue_music_outlined), label: '歌单'),
-          NavigationDestination(icon: Icon(Icons.graphic_eq_outlined), label: 'DJ Control'),
+          NavigationDestination(
+            icon: Icon(Icons.library_music_outlined),
+            label: '曲库',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.queue_music_outlined),
+            label: '歌单',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.graphic_eq_outlined),
+            label: 'DJ Control',
+          ),
         ],
       ),
     );
@@ -1030,15 +1089,24 @@ class OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final analyzed = songs.where((item) => item.analysisStatus == 'completed').length;
+    final analyzed =
+        songs.where((item) => item.analysisStatus == 'completed').length;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Card(
           child: ListTile(
-            leading: CircleAvatar(child: Text(profile.username.isEmpty ? '?' : profile.username[0].toUpperCase())),
+            leading: CircleAvatar(
+              child: Text(
+                profile.username.isEmpty
+                    ? '?'
+                    : profile.username[0].toUpperCase(),
+              ),
+            ),
             title: Text(profile.username),
-            subtitle: Text('${profile.danceStyle} · ${profile.level} · 喜欢 ${profile.favoriteStyle}'),
+            subtitle: Text(
+              '${profile.danceStyle} · ${profile.level} · 喜欢 ${profile.favoriteStyle}',
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -1060,7 +1128,11 @@ class OverviewTab extends StatelessWidget {
         SectionCard(
           title: '最近歌曲',
           child: Column(
-            children: songs.take(5).map((song) => SongSummaryTile(song: song)).toList(),
+            children:
+                songs
+                    .take(5)
+                    .map((song) => SongSummaryTile(song: song))
+                    .toList(),
           ),
         ),
       ],
@@ -1100,12 +1172,17 @@ class LibraryTab extends StatelessWidget {
             controller: controller,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: searching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                    )
-                  : null,
+              suffixIcon:
+                  searching
+                      ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                      : null,
               hintText: '搜索曲库中的歌曲或艺人',
               border: const OutlineInputBorder(),
             ),
@@ -1113,25 +1190,31 @@ class LibraryTab extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: songs.isEmpty
-              ? const Center(child: Text('曲库为空，先上传或下载歌曲'))
-              : ListView.separated(
-                  itemCount: songs.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final song = songs[index];
-                    return ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.music_note)),
-                      title: Text(song.title),
-                      subtitle: Text([
-                        song.artist,
-                        if (song.bpm != null) '${song.bpm!.toStringAsFixed(0)} BPM',
-                        song.analysisStatus,
-                      ].join(' · ')),
-                      onTap: () => _showSongActions(context, song),
-                    );
-                  },
-                ),
+          child:
+              songs.isEmpty
+                  ? const Center(child: Text('曲库为空，先上传或下载歌曲'))
+                  : ListView.separated(
+                    itemCount: songs.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final song = songs[index];
+                      return ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.music_note),
+                        ),
+                        title: Text(song.title),
+                        subtitle: Text(
+                          [
+                            song.artist,
+                            if (song.bpm != null)
+                              '${song.bpm!.toStringAsFixed(0)} BPM',
+                            song.analysisStatus,
+                          ].join(' · '),
+                        ),
+                        onTap: () => _showSongActions(context, song),
+                      );
+                    },
+                  ),
         ),
       ],
     );
@@ -1141,46 +1224,46 @@ class LibraryTab extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
-      builder: (context) => Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('详情'),
-            onTap: () async {
-              Navigator.pop(context);
-              await onDetails(song);
-            },
+      builder:
+          (context) => Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('详情'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await onDetails(song);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.play_arrow),
+                title: const Text('播放'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await onPlay(song);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.analytics_outlined),
+                title: const Text('分析 BPM / Key'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await onAnalyze(song);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('删除'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await onDelete(song);
+                },
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.play_arrow),
-            title: const Text('播放'),
-            onTap: () async {
-              Navigator.pop(context);
-              await onPlay(song);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.analytics_outlined),
-            title: const Text('分析 BPM / Key'),
-            onTap: () async {
-              Navigator.pop(context);
-              await onAnalyze(song);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline),
-            title: const Text('删除'),
-            onTap: () async {
-              Navigator.pop(context);
-              await onDelete(song);
-            },
-          ),
-        ],
-      ),
     );
   }
 }
-
 
 class PlaylistsTab extends StatelessWidget {
   const PlaylistsTab({
@@ -1213,11 +1296,16 @@ class PlaylistsTab extends StatelessWidget {
               final playlist = playlists[index];
               final selected = selectedPlaylist?.id == playlist.id;
               return Card(
-                color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
+                color:
+                    selected
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
                 child: ListTile(
                   leading: const CircleAvatar(child: Icon(Icons.queue_music)),
                   title: Text(playlist.name),
-                  subtitle: Text('${playlist.songCount} 首歌 · ${playlist.sourceType}'),
+                  subtitle: Text(
+                    '${playlist.songCount} 首歌 · ${playlist.sourceType}',
+                  ),
                   onTap: () => onOpen(playlist),
                 ),
               );
@@ -1269,11 +1357,13 @@ class PlaylistDetailSheet extends StatelessWidget {
           return ListTile(
             leading: CircleAvatar(child: Text('${song.orderIndex + 1}')),
             title: Text(song.title),
-            subtitle: Text([
-              song.artist,
-              if (song.bpm != null) '${song.bpm} BPM',
-              if (song.tags.isNotEmpty) song.tags.join(', '),
-            ].join(' · ')),
+            subtitle: Text(
+              [
+                song.artist,
+                if (song.bpm != null) '${song.bpm} BPM',
+                if (song.tags.isNotEmpty) song.tags.join(', '),
+              ].join(' · '),
+            ),
             trailing: playable ? const Icon(Icons.play_circle_outline) : null,
             onTap: playable ? () => onPlayPlaylistSong(song) : null,
           );
@@ -1328,9 +1418,10 @@ class _MiniPlayerState extends State<MiniPlayer> {
     final prefetchPercent = widget.prefetchPercent;
     final prefetchMessage = widget.prefetchMessage;
 
-    final maxSeconds = duration.inSeconds > 0
-        ? duration.inSeconds.toDouble()
-        : (song.duration > 0 ? song.duration.toDouble() : 1.0);
+    final maxSeconds =
+        duration.inSeconds > 0
+            ? duration.inSeconds.toDouble()
+            : (song.duration > 0 ? song.duration.toDouble() : 1.0);
     final livePosition =
         position.inMilliseconds.clamp(0, (maxSeconds * 1000).toInt()) / 1000.0;
     // 松手后的"latch"：在 _latchUntil 截止前 OR 直到 livePosition 追上 _latchTarget，
@@ -1374,14 +1465,25 @@ class _MiniPlayerState extends State<MiniPlayer> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(song.artist, style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          song.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          song.artist,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
                   IconButton(
                     onPressed: prefetching ? null : onToggle,
-                    icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
+                    icon: Icon(
+                      isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_fill,
+                    ),
                   ),
                 ],
               ),
@@ -1403,8 +1505,9 @@ class _MiniPlayerState extends State<MiniPlayer> {
                     _dragValue = null;
                     // 松手后短暂锁住 UI 显示在 value，直到 RK 轮询追上
                     _latchTarget = value;
-                    _latchUntil =
-                        DateTime.now().add(const Duration(milliseconds: 1500));
+                    _latchUntil = DateTime.now().add(
+                      const Duration(milliseconds: 1500),
+                    );
                   });
                   onSeek(value);
                 },

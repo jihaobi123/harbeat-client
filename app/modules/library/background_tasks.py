@@ -46,6 +46,7 @@ def apply_stem_analysis(song) -> None:
     )
     from app.modules.library.stem_analysis import analyze_stem_files
 
+    existing_vocal_events = list(getattr(song, "vocal_events", None) or [])
     result = analyze_stem_files(song.stems, original_path=song.source_path)
     song.stem_activity = result["stem_activity"]
     song.stem_activity_windows = result["stem_activity_windows"]
@@ -61,10 +62,13 @@ def apply_stem_analysis(song) -> None:
     windows = result.get("stem_activity_windows", [])
 
     # Vocal enter/exit events from stem activity curve
-    try:
-        song.vocal_events = _detect_vocal_events(windows)
-    except Exception:
-        song.vocal_events = []
+    if existing_vocal_events:
+        song.vocal_events = existing_vocal_events
+    else:
+        try:
+            song.vocal_events = _detect_vocal_events(windows)
+        except Exception:
+            song.vocal_events = []
 
     # Bass risk per window
     try:
@@ -84,7 +88,7 @@ def apply_stem_analysis(song) -> None:
 
 def apply_dj_fingerprint(db, song) -> None:
     """Persist explainable DJ fingerprint features and ranked dance styles."""
-    from app.modules.dj_control.dance_style import STYLE_PROFILES, score_song_combined
+    from app.modules.dj_control.dance_style import persist_multisource_style_evidence
     from app.modules.library.dj_feature_extractor import extract_dj_features
 
     features = extract_dj_features(song)
@@ -93,21 +97,7 @@ def apply_dj_fingerprint(db, song) -> None:
     song.music_features = music_features
     apply_dancefloor_profile(song)
 
-    ranked = []
-    scores = {}
-    for style_key in STYLE_PROFILES:
-        score, source, breakdown = score_song_combined(song, style_key)
-        scores[style_key] = round(score, 4)
-        ranked.append({
-            "style": style_key,
-            "score": round(score, 4),
-            "source": source,
-            "breakdown": breakdown,
-        })
-    ranked.sort(key=lambda item: item["score"], reverse=True)
-    song.dance_styles = ranked
-    song.dance_style_scores = scores
-    song.dance_style_status = "ready"
+    persist_multisource_style_evidence(song)
     db.add(song)
     db.commit()
 
@@ -147,6 +137,26 @@ def run_analysis_and_separation(song_id: str) -> None:
                 from app.modules.library.analysis import analyze_audio_file
 
                 result = analyze_audio_file(song.source_path)
+                if os.getenv("ENABLE_GPU_VOCAL_DETECTION", "false").lower() == "true":
+                    try:
+                        from app.modules.library.analysis_vocal_patch_gpu import patch_analysis_result_with_vocals
+
+                        force_refresh = os.getenv("FORCE_REFRESH_VOCAL", "false").lower() == "true"
+                        fast_mode = os.getenv("VOCAL_DETECTION_FAST", "true").lower() == "true"
+                        if force_refresh or not result.get("vocal_events"):
+                            result = patch_analysis_result_with_vocals(
+                                result,
+                                song.source_path,
+                                use_gpu=True,
+                                fast_mode=fast_mode,
+                            )
+                            logger.info(
+                                "[bg-analysis] GPU vocal detection done for %s: %d events",
+                                song_id,
+                                len(result.get("vocal_events", [])),
+                            )
+                    except Exception as exc:
+                        logger.warning("[bg-analysis] GPU vocal detection failed for %s: %s", song_id, exc)
                 song.bpm = result["bpm"]
                 song.duration = result["duration"]
                 song.key = result.get("key")
@@ -241,6 +251,16 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.info("[bg-analysis] genre classification ready for %s", song_id)
         except Exception:
             logger.exception("[bg-analysis] genre classification failed for %s (non-fatal)", song_id)
+            db.rollback()
+
+        # --- Phase 6: External style evidence enrichment ---
+        try:
+            from app.modules.library.external_metadata import run_enrich_song_external_metadata
+
+            run_enrich_song_external_metadata(db, song, force=False)
+            logger.info("[bg-analysis] external style evidence ready for %s", song_id)
+        except Exception:
+            logger.exception("[bg-analysis] external style evidence failed for %s (non-fatal)", song_id)
             db.rollback()
 
         # Mark completed regardless of stem separation outcome

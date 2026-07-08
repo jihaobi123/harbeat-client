@@ -28,9 +28,11 @@ import math
 from typing import Sequence
 
 from .energy_hiphop import compute_dance_energy
+from .default_mix import playlist_selector as default_playlist_selector
 
 
 PRESETS = [
+    "default",
     "battle_4rounds",
     "cypher_circle",
     "class_choreo",
@@ -44,6 +46,11 @@ PRESETS = [
 
 
 PRESET_META: dict[str, dict] = {
+    "default": {
+        "label_zh": "默认",
+        "desc_zh": "按 BPM / 调性 / 能量 / 低频相近性做 pairwise 自动排序。",
+        "scene": "default",
+    },
     "battle_4rounds": {
         "label_zh": "Battle 四轮制",
         "desc_zh": "暖场 → 8 进 4 → 4 进 2 → 决赛，阶梯上升 + 小起伏。",
@@ -202,6 +209,8 @@ def list_presets() -> list[dict]:
 
 
 def sequence_songs(songs: Sequence, preset: str = "battle_4rounds") -> list[dict]:
+    if preset == "default":
+        return default_playlist_selector.plan_default_sequence(songs)["sequence"]
     if preset not in PRESETS:
         preset = "battle_4rounds"
     enriched = []
@@ -233,3 +242,15 @@ def sequence_songs(songs: Sequence, preset: str = "battle_4rounds") -> list[dict
             "breakdown": {k: round(v, 4) for k, v in s["breakdown"].items()},
         })
     return result
+
+
+def sequence_songs_with_details(songs: Sequence, preset: str = "battle_4rounds") -> dict:
+    """Return sequence plus optional planner details for richer clients."""
+    if preset == "default":
+        return default_playlist_selector.plan_default_sequence(songs)
+    return {
+        "ordering_mode": preset,
+        "sequence": sequence_songs(songs, preset=preset),
+        "pair_scores": [],
+        "pair_breakdowns": [],
+    }

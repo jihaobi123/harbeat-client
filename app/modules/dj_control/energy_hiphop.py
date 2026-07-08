@@ -185,3 +185,69 @@ def compute_dance_energy(song) -> EnergyBreakdown:
         vocal_urgency=vu,
         tempo_factor=tf,
     )
+
+
+def _clamp(value: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, float(value)))
+
+
+def energy_bucket(score: float) -> str:
+    """Return the 10-point energy bucket label for a 0-100 score."""
+    value = _clamp(score, 0.0, 100.0)
+    if value >= 90.0:
+        return "90-100"
+    lo = int(value // 10) * 10
+    return f"{lo}-{lo + 10}"
+
+
+def get_dance_energy_profile(song) -> dict:
+    """Unified runtime energy profile for live target-energy cuts.
+
+    The score is normalized to 0-100 and intentionally computed server-side so
+    Flutter never has to infer energy locally.
+    """
+    eb = compute_dance_energy(song)
+    has_rich_features = bool(
+        getattr(song, "beat_points", None)
+        or getattr(song, "downbeats", None)
+        or getattr(song, "phrase_map", None)
+    )
+    source = "compute_dance_energy_v1"
+    score = eb.total * 100.0
+    if not has_rich_features and getattr(song, "energy", None) is not None:
+        score = _clamp(float(song.energy) * 100.0, 0.0, 100.0)
+        source = "fallback_library_energy"
+    score = round(_clamp(score, 0.0, 100.0), 2)
+
+    energy_curve = list(getattr(song, "energy_curve", None) or [])
+    intro = mid = outro = score
+    if energy_curve:
+        values = [
+            _clamp(float(item.get("energy", item.get("value", score / 100.0))) * 100.0, 0.0, 100.0)
+            for item in energy_curve
+            if isinstance(item, dict)
+        ]
+        if values:
+            n = len(values)
+            intro = round(sum(values[: max(1, n // 4)]) / max(1, len(values[: max(1, n // 4)])), 2)
+            mid_slice = values[n // 3: max(n // 3 + 1, (2 * n) // 3)]
+            mid = round(sum(mid_slice) / max(1, len(mid_slice)), 2)
+            tail = values[max(0, n - max(1, n // 4)):]
+            outro = round(sum(tail) / max(1, len(tail)), 2)
+
+    return {
+        "dance_energy_score": score,
+        "score": score,
+        "bucket": energy_bucket(score),
+        "components": {
+            "base_energy": _clamp(float(getattr(song, "energy", 0.5) or 0.5), 0.0, 1.0),
+            "bpm_factor": eb.tempo_factor,
+            "kick_punch": eb.kick_punch,
+            "snare_crack": eb.snare_crack,
+            "groove": eb.groove_tightness,
+            "low_mid": eb.low_mid_density,
+            "vocal_urgency": eb.vocal_urgency,
+        },
+        "curve": {"intro": intro, "mid": mid, "outro": outro},
+        "source": source,
+    }

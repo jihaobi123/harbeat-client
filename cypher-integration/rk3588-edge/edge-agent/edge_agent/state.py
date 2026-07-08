@@ -86,11 +86,13 @@ class EdgeState:
       "paused",
       "current_song_id",
       "position_sec",
+      "duration_sec",
       "next_song_id",
       "next_transition_in_sec",
       "active_loops",
       "active_stem_fx",
       "playback_tier",
+      "last_transition",
     ):
       if key in state:
         data[key] = state[key]

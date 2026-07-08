@@ -28,6 +28,7 @@ RK_TOKEN = os.environ.get("HARBEAT_RK_TOKEN") or os.environ.get("RKTOKEN", "")
 MAX_CONCURRENCY = int(os.environ.get("SYNC_MAX_CONCURRENCY", "4"))
 REQUEST_TIMEOUT = httpx.Timeout(connect=10.0, read=180.0, write=60.0, pool=10.0)
 CURL_MAX_TIME_SEC = int(os.environ.get("SYNC_CURL_MAX_TIME_SEC", "240"))
+VERIFY_FULL_CACHE = os.environ.get("SYNC_VERIFY_FULL", "0") == "1"
 
 app = FastAPI(title="Cypher Sync Worker", version="0.1.0")
 
@@ -109,8 +110,23 @@ def _manifest_from_body(body: dict[str, Any]) -> dict[str, Any]:
 
 def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    for track in manifest.get("tracks") or []:
-        song_id = track.get("song_id") or track.get("library_song_id") or track.get("id")
+    tracks = manifest.get("tracks")
+    if not isinstance(tracks, list):
+        # Accept a single-song manifest directly as a convenience. The mobile
+        # app normally wraps this in {"tracks": [...]}, but manual tests and
+        # relay tools often post the song manifest itself.
+        if isinstance(manifest.get("files"), dict):
+            tracks = [manifest]
+        else:
+            tracks = []
+    for track in tracks:
+        song_id = (
+            track.get("song_id")
+            or track.get("library_song_id")
+            or track.get("songId")
+            or track.get("librarySongId")
+            or track.get("id")
+        )
         if song_id is None:
             continue
         files = track.get("files") or {}
@@ -121,6 +137,19 @@ def _file_items(manifest: dict[str, Any]) -> list[dict[str, Any]]:
         for stem in ("vocals", "drums", "bass", "other"):
             if stems.get(stem):
                 items.append({"song_id": song_id, "kind": stem, "info": stems[stem]})
+    for pair in manifest.get("default_mix_pairs") or manifest.get("pairs") or []:
+        if not isinstance(pair, dict):
+            continue
+        pair_id = pair.get("pair_id") or pair.get("id")
+        if not pair_id:
+            continue
+        files = pair.get("files") or {}
+        render = files.get("transition_render") or pair.get("transition_render")
+        if render:
+            items.append({"pair_id": pair_id, "kind": "transition_render", "info": render})
+        meta = files.get("transition_render_meta") or pair.get("transition_render_meta")
+        if meta:
+            items.append({"pair_id": pair_id, "kind": "transition_render_meta", "info": meta})
     return items
 
 
@@ -182,10 +211,51 @@ def _sidecar(path: Path) -> Path:
 def _already_valid(path: Path, expected_sha: str | None, expected_size: int | None) -> bool:
     if not path.is_file():
         return False
+    stat = path.stat()
+    if VERIFY_FULL_CACHE and expected_sha:
+        return _sha256(path) == expected_sha
     if expected_sha and _sidecar(path).is_file():
-        if _sidecar(path).read_text(encoding="utf-8").strip() == expected_sha:
+        raw = _sidecar(path).read_text(encoding="utf-8").strip()
+        try:
+            meta = json.loads(raw)
+        except json.JSONDecodeError:
+            meta = {"sha256": raw}
+        if meta.get("converted_from_sha256") == expected_sha:
+            source_size = meta.get("converted_from_size")
+            if expected_size is not None and source_size is not None and int(source_size) != expected_size:
+                return False
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
             return True
-    if expected_size is not None and path.stat().st_size != expected_size:
+        if meta.get("sha256") == expected_sha:
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
+            return True
+    if _sidecar(path).is_file():
+        try:
+            meta = json.loads(_sidecar(path).read_text(encoding="utf-8").strip())
+        except (json.JSONDecodeError, OSError):
+            meta = {}
+        source_size = meta.get("converted_from_size")
+        if expected_size is not None and source_size is not None:
+            if int(source_size) != expected_size:
+                return False
+            sidecar_size = meta.get("size")
+            sidecar_mtime = meta.get("mtime_ns")
+            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
+                return False
+            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
+                return False
+            return True
+    if expected_size is not None and stat.st_size != expected_size:
         return False
     if expected_sha:
         return _sha256(path) == expected_sha
@@ -201,9 +271,7 @@ def _needs_wav_conversion(info: dict[str, Any]) -> bool:
 def _convert_to_wav(src: Path, dst: Path) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        logger.warning("ffmpeg not found; storing validated source bytes as %s", dst)
-        src.replace(dst)
-        return
+        raise RuntimeError("ffmpeg not found; cannot convert original audio to wav")
     tmp = dst.with_suffix(".wav.tmp")
     subprocess.run(
         [ffmpeg, "-y", "-i", str(src), "-ar", "44100", "-ac", "2", "-f", "wav", str(tmp)],
@@ -234,12 +302,53 @@ def _choose_ext(kind: str, info: dict, url: str) -> str:
     return "wav"
 
 
+_AUDIO_EXTS = ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac")
+
+
 def _find_existing_original(out_dir: Path) -> Path | None:
-    for ext in ("wav", "mp3", "flac", "m4a", "ogg", "opus", "aac"):
+    for ext in _AUDIO_EXTS:
         cand = out_dir / f"original.{ext}"
         if cand.is_file():
             return cand
     return None
+
+
+def _find_existing_asset(out_dir: Path, kind: str, required_format: str | None = None) -> Path | None:
+    if kind == "original":
+        fmt = (required_format or "").lower().lstrip(".")
+        if fmt in _AUDIO_EXTS:
+            cand = out_dir / f"original.{fmt}"
+            return cand if cand.is_file() else None
+        return _find_existing_original(out_dir)
+    if kind not in ("vocals", "drums", "bass", "other"):
+        return None
+    fmt = (required_format or "").lower().lstrip(".")
+    exts = (fmt,) if fmt in _AUDIO_EXTS else _AUDIO_EXTS
+    for ext in exts:
+        cand = out_dir / f"{kind}.{ext}"
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _safe_song_dir(song_id: str) -> Path:
+    if not song_id.strip():
+        raise ValueError("empty song_id")
+    cache_root = CACHE_DIR.resolve()
+    target = (CACHE_DIR / song_id).resolve()
+    if target == cache_root or cache_root not in target.parents:
+        raise ValueError(f"invalid song_id path: {song_id}")
+    return target
+
+
+def _safe_pair_dir(pair_id: str) -> Path:
+    if not pair_id.strip():
+        raise ValueError("empty pair_id")
+    cache_root = CACHE_DIR.resolve()
+    target = (CACHE_DIR / "default-mix" / "pairs" / pair_id).resolve()
+    if cache_root not in target.parents:
+        raise ValueError(f"invalid pair_id path: {pair_id}")
+    return target
 
 
 def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) -> None:
@@ -267,21 +376,37 @@ def _download_with_curl(url: str, path: Path, headers: dict[str, str] | None) ->
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
 
+async def _download_with_httpx(
+    client: httpx.AsyncClient,
+    url: str,
+    path: Path,
+    headers: dict[str, str] | None,
+) -> None:
+    async with client.stream("GET", url, headers=headers) as resp:
+        resp.raise_for_status()
+        with path.open("wb") as f:
+            async for chunk in resp.aiter_bytes():
+                if chunk:
+                    f.write(chunk)
+
+
 async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: asyncio.Semaphore) -> None:
-    song_id = str(item["song_id"])
+    song_id = str(item.get("song_id") or item.get("pair_id") or "")
     kind = str(item["kind"])
     info = item["info"]
     expected_sha = info.get("sha256")
     expected_size = int(info["size"]) if info.get("size") is not None else None
     url = _final_url(str(info["url"]))
-    out_dir = CACHE_DIR / song_id
+    out_dir = _safe_pair_dir(str(item["pair_id"])) if "pair_id" in item else _safe_song_dir(song_id)
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = _choose_ext(kind, info, url)
+    if kind == "transition_render_meta":
+        ext = "json"
     final_path = out_dir / f"{kind}.{ext}"
 
     # legacy: original.wav may already exist from old runs; treat as valid for original
     if kind == "original":
-        existing = _find_existing_original(out_dir)
+        existing = _find_existing_asset(out_dir, "original", ext)
         if existing and _already_valid(existing, expected_sha, expected_size):
             await state.mark_done()
             return
@@ -297,15 +422,10 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
         for attempt in range(1, 4):
             try:
                 try:
+                    await _download_with_httpx(client, url, tmp_path, req_headers)
+                except Exception as httpx_exc:
+                    logger.warning("%s/%s httpx download failed, fallback to curl: %r", song_id, kind, httpx_exc)
                     await asyncio.to_thread(_download_with_curl, url, tmp_path, req_headers)
-                except Exception as curl_exc:
-                    logger.warning("%s/%s curl download failed, fallback to httpx: %r", song_id, kind, curl_exc)
-                    async with client.stream("GET", url, headers=req_headers) as resp:
-                        resp.raise_for_status()
-                        with tmp_path.open("wb") as f:
-                            async for chunk in resp.aiter_bytes():
-                                if chunk:
-                                    f.write(chunk)
                 if expected_size is not None and tmp_path.stat().st_size != expected_size:
                     raise ValueError(f"size mismatch {song_id}/{kind}: got {tmp_path.stat().st_size}, want {expected_size}")
                 if expected_sha and _sha256(tmp_path) != expected_sha:
@@ -319,6 +439,7 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                 is_mp3 = head[:3] == b"ID3" or (
                     len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
                 )
+                source_size = tmp_path.stat().st_size
                 if final_path.suffix.lower() == ".wav" and is_mp3:
                     mp3_path = final_path.with_suffix(".mp3")
                     tmp_path.replace(mp3_path)
@@ -326,7 +447,17 @@ async def _download_one(client: httpx.AsyncClient, item: dict[str, Any], sem: as
                 else:
                     tmp_path.replace(final_path)
                 if expected_sha:
-                    _sidecar(final_path).write_text(expected_sha + "\n", encoding="utf-8")
+                    stat = final_path.stat()
+                    meta: dict[str, Any] = {
+                        "size": stat.st_size,
+                        "mtime_ns": stat.st_mtime_ns,
+                    }
+                    meta["source_size"] = source_size
+                    meta["sha256"] = expected_sha
+                    _sidecar(final_path).write_text(
+                        json.dumps(meta, ensure_ascii=False) + "\n",
+                        encoding="utf-8",
+                    )
                 await state.mark_done()
                 return
             except Exception as exc:
@@ -368,13 +499,15 @@ async def status() -> dict[str, Any]:
 
 
 @app.get("/cache/check")
-async def cache_check(song_id: str) -> dict[str, Any]:
-    out_dir = CACHE_DIR / song_id
+async def cache_check(song_id: str, kind: str = "original", format: str | None = None) -> dict[str, Any]:
+    out_dir = _safe_song_dir(song_id)
+    normalized_kind = (kind or "original").lower().lstrip(".")
+    requested_format = (format or "").lower().lstrip(".")
     if not out_dir.is_dir():
-        return {"ok": True, "exists": False}
-    found = _find_existing_original(out_dir)
+        return {"ok": True, "exists": False, "kind": normalized_kind, "format": requested_format or None}
+    found = _find_existing_asset(out_dir, normalized_kind, requested_format)
     if not found:
-        return {"ok": True, "exists": False}
+        return {"ok": True, "exists": False, "kind": normalized_kind, "format": requested_format or None}
     try:
         size = found.stat().st_size
     except OSError:
@@ -382,7 +515,20 @@ async def cache_check(song_id: str) -> dict[str, Any]:
     return {
         "ok": True,
         "exists": True,
+        "kind": normalized_kind,
+        "format": requested_format or None,
         "path": str(found),
         "size": size,
         "ext": found.suffix.lstrip("."),
     }
+
+
+@app.delete("/cache/song/{song_id}")
+async def delete_song_cache(song_id: str) -> dict[str, Any]:
+    out_dir = _safe_song_dir(song_id)
+    if not out_dir.exists():
+        return {"ok": True, "deleted": False, "song_id": song_id}
+    if not out_dir.is_dir():
+        raise ValueError(f"cache path is not a directory: {out_dir}")
+    shutil.rmtree(out_dir)
+    return {"ok": True, "deleted": True, "song_id": song_id}

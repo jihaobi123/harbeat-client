@@ -47,6 +47,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
   // 缓存拉取进度提示
   double? _prefetchPercent;
   String? _prefetchMessage;
+  bool _switchingSource = false;
 
   // 防止 /state 轮询在拖动后把进度条拽回
   DateTime? _seekGuardUntil;
@@ -94,12 +95,18 @@ class _SongDetailPageState extends State<SongDetailPage> {
 
   bool get _isPendingLike {
     final s = _song.analysisStatus.toLowerCase();
-    return s == 'pending' || s == 'running' || s == 'processing' || s == 'queued';
+    return s == 'pending' ||
+        s == 'running' ||
+        s == 'processing' ||
+        s == 'queued';
   }
 
   void _ensurePoller() {
     if (_isPendingLike) {
-      _poller ??= Timer.periodic(const Duration(seconds: 4), (_) => _refreshDetail());
+      _poller ??= Timer.periodic(
+        const Duration(seconds: 4),
+        (_) => _refreshDetail(),
+      );
     } else {
       _poller?.cancel();
       _poller = null;
@@ -160,10 +167,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
   /// 试一次直接 /play；命中返回 true。
   Future<bool> _tryDirectPlay({double startAtSec = 0.0}) async {
     try {
-      final res = await _edge.play(
-        songId: _song.id,
-        startAtSec: startAtSec,
-      );
+      final res = await _edge.play(songId: _song.id, startAtSec: startAtSec);
       return res['ok'] == true ||
           (res['result'] is Map && (res['result'] as Map)['ok'] == true);
     } catch (_) {
@@ -178,10 +182,12 @@ class _SongDetailPageState extends State<SongDetailPage> {
   /// 返回是否成功开始播放（出声）。
   Future<bool> _ensureLoaded({double startAtSec = 0.0}) async {
     // 1) 直接试 /play
-    if (await _tryDirectPlay(startAtSec: startAtSec)) {
-      _loaded = true;
-      _startStatePolling();
-      return true;
+    if (await _sync.cacheExists(_song.id, format: 'mp3')) {
+      if (await _tryDirectPlay(startAtSec: startAtSec)) {
+        _loaded = true;
+        _startStatePolling();
+        return true;
+      }
     }
 
     // 2) 触发 sync + 轮询 cache 落盘
@@ -189,33 +195,23 @@ class _SongDetailPageState extends State<SongDetailPage> {
       _prefetchPercent = 0;
       _prefetchMessage = '请求 RK 缓存…';
     });
-    final tracks = [
-      <String, dynamic>{
-        'song_id': _song.id,
-        'files': <String, dynamic>{
-          'original': <String, dynamic>{
-            'url': widget.apiClient.streamUrl(
-              token: widget.session.token,
-              songId: _song.id,
-            ),
-            'format': 'mp3',
-          },
-        },
-      }
-    ];
+    final manifest = await widget.apiClient.getSongManifest(
+      token: widget.session.token,
+      songId: _song.id,
+    );
+    final tracks = [_originalOnlyManifest(manifest)];
     unawaited(() async {
       try {
-        await _sync.startSync(
-          tracks: tracks,
-          planId: 'detail-${_song.id}',
-        );
-      } catch (_) {/* already running 也算成功 */}
+        await _sync.startSync(tracks: tracks, planId: 'detail-${_song.id}');
+      } catch (_) {
+        /* already running 也算成功 */
+      }
     }());
 
     final deadline = DateTime.now().add(const Duration(seconds: 8));
     while (DateTime.now().isBefore(deadline)) {
       if (!mounted) return false;
-      if (await _sync.cacheExists(_song.id)) {
+      if (await _sync.cacheExists(_song.id, format: 'mp3')) {
         if (await _tryDirectPlay(startAtSec: startAtSec)) {
           _loaded = true;
           if (mounted) {
@@ -233,8 +229,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
         if (mounted) {
           setState(() {
             _prefetchPercent = st.percent;
-            _prefetchMessage =
-                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+            _prefetchMessage = '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
           });
         }
       } catch (_) {}
@@ -251,8 +246,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
           if (!mounted) return;
           setState(() {
             _prefetchPercent = st.percent;
-            _prefetchMessage =
-                '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
+            _prefetchMessage = '正在拉取到 RK 缓存 ${st.percent.toStringAsFixed(0)}%';
           });
         },
       );
@@ -287,6 +281,32 @@ class _SongDetailPageState extends State<SongDetailPage> {
     return false;
   }
 
+  Map<String, dynamic> _originalOnlyManifest(Map<String, dynamic> manifest) {
+    final files = manifest['files'];
+    final original = files is Map ? files['original'] : null;
+    final out = Map<String, dynamic>.from(manifest);
+    final originalEntry =
+        original is Map
+            ? Map<String, dynamic>.from(original)
+            : <String, dynamic>{};
+    originalEntry['url'] = widget.apiClient.streamUrl(
+      token: widget.session.token,
+      songId: _song.id,
+    );
+    originalEntry['format'] = 'mp3';
+    out['files'] = <String, dynamic>{'original': originalEntry};
+    final qualityFlags = out['qualityFlags'];
+    if (qualityFlags is Map) {
+      out['qualityFlags'] = <String, dynamic>{
+        ...Map<String, dynamic>.from(qualityFlags),
+        'has_stems': false,
+        'stem_model': null,
+      };
+    }
+    out['stemStatus'] = 'not_requested';
+    return out;
+  }
+
   void _startStatePolling() {
     _statePoller?.cancel();
     _statePoller = Timer.periodic(const Duration(seconds: 1), (_) async {
@@ -299,18 +319,17 @@ class _SongDetailPageState extends State<SongDetailPage> {
           final guard = _seekGuardUntil;
           final inGuard = guard != null && DateTime.now().isBefore(guard);
           if (!inGuard) {
-            _position =
-                Duration(milliseconds: (st.positionSec * 1000).round());
+            _position = Duration(milliseconds: (st.positionSec * 1000).round());
           }
           if (st.durationSec > 0) {
-            _duration =
-                Duration(milliseconds: (st.durationSec * 1000).round());
+            _duration = Duration(milliseconds: (st.durationSec * 1000).round());
           } else if (_duration == Duration.zero && _song.duration > 0) {
-            _duration =
-                Duration(milliseconds: (_song.duration * 1000).round());
+            _duration = Duration(milliseconds: (_song.duration * 1000).round());
           }
         });
-      } catch (_) {/* 静默 */}
+      } catch (_) {
+        /* 静默 */
+      }
     });
   }
 
@@ -320,26 +339,67 @@ class _SongDetailPageState extends State<SongDetailPage> {
   /// 关键：调用 /stem_solo 之前必须保证目标 stem 的 .mp3 已经落盘到 RK，
   /// 否则 audio-engine 会抛 409（stem 未加载）。
   Future<void> _switchSource(String which) async {
+    if (_switchingSource) return;
     if (which == _activeSource && _loaded) return;
+    final previousSource = _activeSource;
     setState(() {
-      _activeSource = which;
+      _switchingSource = true;
       _error = null;
     });
     if (!_loaded) {
       // 首次加载：先把 original mp3 拉到 RK 让出声，stem 异步等。
       final ok = await _ensureLoaded(startAtSec: 0.0);
-      if (!ok) return;
+      if (!ok) {
+        if (mounted) setState(() => _switchingSource = false);
+        return;
+      }
     }
     // 任何切到 stem 的情况都要确保 stem 文件已落盘
     if (which != 'full') {
       final stemReady = await _ensureStemCached(which);
-      if (!stemReady) return;
+      if (!stemReady) {
+        if (mounted) setState(() => _activeSource = previousSource);
+        if (mounted) setState(() => _switchingSource = false);
+        return;
+      }
     }
     try {
+      if (which != 'full') {
+        final keepPlaying = _playing;
+        final startAtSec = _position.inMilliseconds / 1000.0;
+        final playResult = await _edge.play(
+          songId: _song.id,
+          startAtSec: startAtSec,
+        );
+        final ok =
+            playResult['ok'] == true ||
+            (playResult['result'] is Map &&
+                (playResult['result'] as Map)['ok'] == true);
+        if (!ok) {
+          throw Exception('RK reload did not return ok: $playResult');
+        }
+        if (!keepPlaying) {
+          await _edge.pause();
+        } else {
+          _startStatePolling();
+        }
+        if (mounted) {
+          setState(() {
+            _loaded = true;
+            _playing = keepPlaying;
+          });
+        }
+      }
       await _edge.stemSolo(which == 'full' ? null : which);
+      if (mounted) setState(() => _activeSource = which);
+      if (mounted) setState(() => _switchingSource = false);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '切换音轨失败: $e');
+      setState(() {
+        _activeSource = previousSource;
+        _switchingSource = false;
+        _error = '切换音轨失败: $e';
+      });
     }
   }
 
@@ -347,8 +407,9 @@ class _SongDetailPageState extends State<SongDetailPage> {
   /// 命中已有文件秒返回。
   Future<bool> _ensureStemCached(String stem) async {
     // 已经在缓存里 → 跳过
-    final preCheck =
-        await _checkStemFile(stem); // 通过 sync-worker /cache/check 不够，因为它只看 original
+    final preCheck = await _checkStemFile(
+      stem,
+    ); // 通过 sync-worker /cache/check 不够，因为它只看 original
     if (preCheck) return true;
 
     setState(() {
@@ -365,12 +426,13 @@ class _SongDetailPageState extends State<SongDetailPage> {
                 token: widget.session.token,
                 songId: _song.id,
                 stemName: stem,
+                format: 'mp3',
               ),
               'format': 'mp3',
             },
           },
         },
-      }
+      },
     ];
     try {
       await _sync.syncAndWait(
@@ -379,8 +441,22 @@ class _SongDetailPageState extends State<SongDetailPage> {
         timeout: const Duration(minutes: 2),
         onProgress: (st) {
           if (!mounted) return;
+          final expectedPlan = 'detail-${_song.id}-$stem';
+          final waitingOther =
+              st.running && st.planId != null && st.planId != expectedPlan;
+          final singleFileStarting = st.running && st.percent <= 0;
           setState(() {
-            _prefetchPercent = st.percent;
+            _prefetchPercent =
+                waitingOther || singleFileStarting ? null : st.percent;
+            if (waitingOther) {
+              _prefetchMessage =
+                  'Waiting for current sync: ${st.currentFile ?? st.planId}';
+              return;
+            }
+            if (singleFileStarting) {
+              _prefetchMessage = 'Downloading ${_sourceLabel(stem)}...';
+              return;
+            }
             _prefetchMessage =
                 '正在拉取 ${_sourceLabel(stem)} ${st.percent.toStringAsFixed(0)}%';
           });
@@ -404,11 +480,9 @@ class _SongDetailPageState extends State<SongDetailPage> {
     }
   }
 
-  /// sync-worker 的 /cache/check 当前只看 original.*。我们在 stem 是否已落盘上
-  /// 简单复用 syncAndWait 的"命中跳过"逻辑——syncAndWait 内部见 sha256/size 一致
-  /// 会直接 mark_done 并返回，不会重下载。所以这里直接返回 false 让上层去 syncAndWait
-  /// （第一次拉取会真下，后续命中会秒返回）。
-  Future<bool> _checkStemFile(String stem) async => false;
+  Future<bool> _checkStemFile(String stem) async {
+    return _sync.cacheExists(_song.id, kind: stem, format: 'mp3');
+  }
 
   Future<void> _togglePlay() async {
     try {
@@ -439,8 +513,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
     }
     setState(() {
       _position = target;
-      _seekGuardUntil =
-          DateTime.now().add(const Duration(milliseconds: 1000));
+      _seekGuardUntil = DateTime.now().add(const Duration(milliseconds: 1000));
     });
     try {
       await _edge.seek(sec);
@@ -486,8 +559,10 @@ class _SongDetailPageState extends State<SongDetailPage> {
               color: theme.colorScheme.errorContainer,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text(_error!,
-                    style: TextStyle(color: theme.colorScheme.onErrorContainer)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                ),
               ),
             ),
           ],
@@ -513,7 +588,10 @@ class _SongDetailPageState extends State<SongDetailPage> {
               children: [
                 _statusChip(theme),
                 if (_song.bpm != null)
-                  _infoChip(Icons.speed, '${_song.bpm!.toStringAsFixed(1)} BPM'),
+                  _infoChip(
+                    Icons.speed,
+                    '${_song.bpm!.toStringAsFixed(1)} BPM',
+                  ),
                 if ((_song.key ?? '').isNotEmpty)
                   _infoChip(Icons.music_note, '${_song.key}'),
                 if ((_song.camelotKey ?? '').isNotEmpty)
@@ -521,7 +599,10 @@ class _SongDetailPageState extends State<SongDetailPage> {
                 if (_song.duration > 0)
                   _infoChip(Icons.schedule, _formatDuration(_song.duration)),
                 if (_song.energy != null)
-                  _infoChip(Icons.bolt, '能量 ${_song.energy!.toStringAsFixed(2)}'),
+                  _infoChip(
+                    Icons.bolt,
+                    '能量 ${_song.energy!.toStringAsFixed(2)}',
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -624,12 +705,14 @@ class _SongDetailPageState extends State<SongDetailPage> {
   }
 
   Widget _buildPlayerCard(ThemeData theme) {
-    final total = _duration.inMilliseconds <= 0
-        ? Duration(seconds: _song.duration.toInt())
-        : _duration;
-    final value = total.inMilliseconds == 0
-        ? 0.0
-        : (_position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+    final total =
+        _duration.inMilliseconds <= 0
+            ? Duration(seconds: _song.duration.toInt())
+            : _duration;
+    final value =
+        total.inMilliseconds == 0
+            ? 0.0
+            : (_position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
     final prefetching = _prefetchPercent != null;
     return Card(
       child: Padding(
@@ -642,14 +725,16 @@ class _SongDetailPageState extends State<SongDetailPage> {
                 if (total.inMilliseconds > 0) {
                   setState(() {
                     _position = Duration(
-                        milliseconds: (v * total.inMilliseconds).toInt());
+                      milliseconds: (v * total.inMilliseconds).toInt(),
+                    );
                   });
                 }
               },
               onChangeEnd: (v) {
                 if (total.inMilliseconds > 0) {
-                  _seekTo(Duration(
-                      milliseconds: (v * total.inMilliseconds).toInt()));
+                  _seekTo(
+                    Duration(milliseconds: (v * total.inMilliseconds).toInt()),
+                  );
                 }
               },
             ),
@@ -722,8 +807,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
                 const SizedBox(width: 6),
                 Text('音轨切换', style: theme.textTheme.titleMedium),
                 const Spacer(),
-                if (!available)
-                  Text('未分轨', style: theme.textTheme.bodySmall),
+                if (!available) Text('未分轨', style: theme.textTheme.bodySmall),
               ],
             ),
             const SizedBox(height: 12),
@@ -735,9 +819,10 @@ class _SongDetailPageState extends State<SongDetailPage> {
                   ChoiceChip(
                     label: Text(_sourceLabel(s)),
                     selected: _activeSource == s,
-                    onSelected: (s == 'full' || available)
-                        ? (_) => _switchSource(s)
-                        : null,
+                    onSelected:
+                        !_switchingSource && (s == 'full' || available)
+                            ? (_) => _switchSource(s)
+                            : null,
                   ),
               ],
             ),
@@ -774,9 +859,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
             const SizedBox(height: 12),
             if (cues.isEmpty)
               Text(
-                _isPendingLike
-                    ? '正在分析，完成后将自动显示段落…'
-                    : '尚无段落标记。可点击「重新分析」生成。',
+                _isPendingLike ? '正在分析，完成后将自动显示段落…' : '尚无段落标记。可点击「重新分析」生成。',
                 style: theme.textTheme.bodySmall,
               )
             else
@@ -790,8 +873,10 @@ class _SongDetailPageState extends State<SongDetailPage> {
                       label: Text(
                         '${cue.label.isEmpty ? "Cue" : cue.label}  ${_formatDuration(cue.time)}',
                       ),
-                      onPressed: () =>
-                          _seekTo(Duration(milliseconds: (cue.time * 1000).toInt())),
+                      onPressed:
+                          () => _seekTo(
+                            Duration(milliseconds: (cue.time * 1000).toInt()),
+                          ),
                     ),
                 ],
               ),
@@ -836,9 +921,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
           Expanded(
             child: Text(
               v,
-              style: TextStyle(
-                fontFamily: mono ? 'monospace' : null,
-              ),
+              style: TextStyle(fontFamily: mono ? 'monospace' : null),
             ),
           ),
         ],

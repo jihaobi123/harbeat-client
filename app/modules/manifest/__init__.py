@@ -6,11 +6,13 @@ import hashlib
 import logging
 import os
 from typing import Any
+from urllib.parse import quote
 
 from app.shared.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+COMPUTE_SHA256 = os.environ.get("MANIFEST_COMPUTE_SHA256", "0") == "1"
 
 
 def _compute_sha256(path: str) -> str:
@@ -25,6 +27,12 @@ def _file_size(path: str) -> int:
     return os.path.getsize(path)
 
 
+def _maybe_sha256(path: str) -> str | None:
+    if not COMPUTE_SHA256:
+        return None
+    return _compute_sha256(path)
+
+
 def _format_from_path(path: str) -> str:
     ext = os.path.splitext(path)[1].lower().lstrip(".")
     return ext if ext else "wav"
@@ -33,7 +41,27 @@ def _format_from_path(path: str) -> str:
 def _asset_url(rel_path: str) -> str:
     """Build a downloadable URL for an asset file."""
     # rel_path is relative to upload_dir, e.g. "stems/htdemucs/song1/vocals.wav"
-    return f"/api/assets/{rel_path.lstrip('/')}"
+    normalized = rel_path.replace("\\", "/").lstrip("/")
+    return f"/api/assets/{quote(normalized, safe='/')}"
+
+
+def _asset_rel_path(path: str) -> str:
+    try:
+        return os.path.relpath(path, settings.upload_dir)
+    except ValueError:
+        logger.warning("asset is outside upload_dir or on another drive: %s", path)
+        return os.path.basename(path)
+
+
+def _stem_status_for_song(song, stems: dict[str, Any]) -> str:
+    explicit = getattr(song, "stem_status", None)
+    if explicit:
+        return explicit
+    if all(stems.get(name) for name in ("vocals", "drums", "bass", "other")):
+        return "ready"
+    if stems:
+        return "partial"
+    return "none"
 
 
 def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
@@ -46,11 +74,11 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
 
     # Original audio
     if song.source_path and os.path.isfile(song.source_path):
-        rel = os.path.relpath(song.source_path, settings.upload_dir)
+        rel = _asset_rel_path(song.source_path)
         files["original"] = {
-            "url": f"{base_url}/api/assets/{rel}",
+            "url": f"{base_url}{_asset_url(rel)}",
             "size": _file_size(song.source_path),
-            "sha256": _compute_sha256(song.source_path),
+            "sha256": _maybe_sha256(song.source_path),
             "format": _format_from_path(song.source_path),
         }
 
@@ -60,11 +88,11 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         for stem_name in ("vocals", "drums", "bass", "other"):
             stem_path = song.stems.get(stem_name)
             if stem_path and os.path.isfile(stem_path):
-                rel = os.path.relpath(stem_path, settings.upload_dir)
+                rel = _asset_rel_path(stem_path)
                 stems[stem_name] = {
-                    "url": f"{base_url}/api/assets/{rel}",
+                    "url": f"{base_url}{_asset_url(rel)}",
                     "size": _file_size(stem_path),
-                    "sha256": _compute_sha256(stem_path),
+                    "sha256": _maybe_sha256(stem_path),
                     "format": _format_from_path(stem_path),
                 }
     if stems:
@@ -178,6 +206,8 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["cue_points"] = song.cue_points
 
     return {
+        "song_id": song.id,
+        "library_song_id": song.id,
         "songId": song.id,
         "librarySongId": song.id,
         "title": song.title,
@@ -191,7 +221,7 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         "replayGainDb": (getattr(song, "loudness_profile", {}) or {}).get("replay_gain_db"),
         "qualityFlags": quality_flags,
         "analysisStatus": song.analysis_status,
-        "stemStatus": song.stem_status,
+        "stemStatus": _stem_status_for_song(song, stems),
     }
 
 
@@ -203,39 +233,17 @@ def build_playlist_manifest(
 ) -> dict[str, Any]:
     """Generate full manifest for a playlist (or mix plan's tracks)."""
     from app.modules.library.models import LibrarySong
+    from app.modules.playlists.models import PlaylistSong
 
-    if plan_id:
-        # Look up tracks from the stored mix plan
-        from app.modules.music.models import SongCue  # noqa: F401
-        # For mix plans, we need to look up which songs are in the plan
-        # The plan is stored in playlists, so we use the playlist's songs
-        pass
-
-    tracks = []
-    # Query all LibrarySongs associated with this playlist
-    # This assumes playlist_songs join table exists; adapt as needed
-    songs = db.query(LibrarySong).filter(
-        LibrarySong.id.in_(
-            # Subquery depends on actual schema; use playlist_songs if available
-            db.query(LibrarySong.id).join(
-                LibrarySong.song
-            ).filter(
-                LibrarySong.song.has(playlist_id=playlist_id)
-            )
-        )
-    ).all() if False else []  # placeholder — actual join depends on schema
-
-    if not songs:
-        # Fallback: query all ready LibrarySongs
-        songs = db.query(LibrarySong).filter(
-            LibrarySong.analysis_status.in_(["ready", "completed"])
-        ).limit(20).all()
-
-    for song in songs:
-        tracks.append(build_song_manifest(song, base_url=base_url))
-
+    songs = (
+        db.query(LibrarySong)
+        .join(PlaylistSong, PlaylistSong.song_id == LibrarySong.song_id)
+        .filter(PlaylistSong.playlist_id == playlist_id)
+        .order_by(PlaylistSong.order_index.asc(), PlaylistSong.id.asc())
+        .all()
+    )
     return {
         "planId": plan_id,
         "playlistId": playlist_id,
-        "tracks": tracks,
+        "tracks": [build_song_manifest(song, base_url=base_url) for song in songs],
     }

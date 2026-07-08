@@ -19,9 +19,10 @@ class TransitionDetail {
       style: json['style'] as String? ?? 'blend',
       startsInSec: (json['starts_in_sec'] as num?)?.toDouble() ?? 0,
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
-      tags: (json['tags'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      tags:
+          (json['tags'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 }
@@ -40,6 +41,7 @@ class LivePlaybackState {
     this.nextTransition,
     this.deckA,
     this.deckB,
+    this.lastTransition,
     this.error,
   });
 
@@ -55,6 +57,7 @@ class LivePlaybackState {
   final TransitionDetail? nextTransition;
   final Map<String, dynamic>? deckA;
   final Map<String, dynamic>? deckB;
+  final Map<String, dynamic>? lastTransition;
   final String? error;
 
   factory LivePlaybackState.fromJson(Map<String, dynamic> json) {
@@ -64,22 +67,27 @@ class LivePlaybackState {
       if (v is num) return v.toString();
       return v.toString();
     }
+
     return LivePlaybackState(
       playing: json['playing'] as bool? ?? false,
       currentSongId: _idToStr(json['current_song_id']),
       positionSec: (json['position_sec'] as num?)?.toDouble() ?? 0,
       durationSec: (json['duration_sec'] as num?)?.toDouble() ?? 0,
       nextSongId: _idToStr(json['next_song_id']),
-      nextTransitionInSec:
-          (json['next_transition_in_sec'] as num?)?.toDouble(),
+      nextTransitionInSec: (json['next_transition_in_sec'] as num?)?.toDouble(),
       playbackTier: json['playback_tier'] as String?,
       currentSection: json['current_section'] as String?,
       currentEnergy: (json['current_energy'] as num?)?.toDouble(),
-      nextTransition: json['next_transition'] is Map
-          ? TransitionDetail.fromJson(json['next_transition'])
-          : null,
+      nextTransition:
+          json['next_transition'] is Map
+              ? TransitionDetail.fromJson(json['next_transition'])
+              : null,
       deckA: json['deck_a'] as Map<String, dynamic>?,
       deckB: json['deck_b'] as Map<String, dynamic>?,
+      lastTransition:
+          json['last_transition'] is Map
+              ? Map<String, dynamic>.from(json['last_transition'] as Map)
+              : null,
     );
   }
 }
@@ -121,10 +129,12 @@ class LiveOverrideResponse {
     return LiveOverrideResponse(
       ok: json['ok'] as bool? ?? false,
       transition: TransitionDetail.fromJson(
-          json['transition'] as Map<String, dynamic>? ?? {}),
-      warnings: (json['warnings'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+        json['transition'] as Map<String, dynamic>? ?? {},
+      ),
+      warnings:
+          (json['warnings'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 }
@@ -141,11 +151,7 @@ class LiveIntentRequest {
   final double maxRisk;
 
   Map<String, dynamic> toJson() {
-    return {
-      'intent': intent,
-      'scope': scope,
-      'max_risk': maxRisk,
-    };
+    return {'intent': intent, 'scope': scope, 'max_risk': maxRisk};
   }
 }
 
@@ -167,9 +173,10 @@ class LiveIntentResponse {
       ok: json['ok'] as bool? ?? false,
       updatedPlan: json['updated_plan'] as Map<String, dynamic>?,
       explanation: json['explanation'] as String?,
-      warnings: (json['warnings'] as List<dynamic>? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      warnings:
+          (json['warnings'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 }

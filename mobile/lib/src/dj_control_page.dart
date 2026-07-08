@@ -11,7 +11,7 @@ import 'sync_worker_client.dart';
 
 // =========================================================================== //
 // DJ Control 4-step wizard (mobile) — RK3588 live playback
-//   1) 选歌 — 导入歌单 / Vibe 描述搜索 / 舞种+时长
+//   1) 选歌 — 导入歌单 / Vibe 描述搜索 / 舞种推荐
 //   2) 排歌 — 街舞场景能量曲线（贪心分配）
 //   3) 混音 — 7+11 现有方案 + BPM 差提示 + ▶ 开始混音播放
 //   4) 实时操作 — RK3588 播放中的切歌 + 加花 FX Pad，每首之间自动按 7/11 方案 xfade
@@ -96,26 +96,46 @@ class _DjControlPageState extends State<DjControlPage> {
   /// queue index has already advanced and any further trigger would be
   /// a cascading mistake.
   String? _lastXfadeToSongId;
+  int _liveSessionId = 0;
+  bool _liveStartInFlight = false;
 
-  /// Smart plan pre-fetched while the current track is within 30s of its
-  /// phrase-aligned exit. Lets us trigger the xfade exactly at the planned
-  /// outro/break boundary instead of guessing from "remaining ≤ Ns".
-  /// Keyed by the prev song id; cleared after the xfade fires or the queue
-  /// advances.
-  String? _smartPlanForSongId;
-  Map<String, dynamic>? _smartPlan;
-  bool _smartPlanInFlight = false;
+  final Set<String> _startupValidatedCacheIds = <String>{};
+  final Map<int, Map<String, dynamic>> _preparedTransitionPlans =
+      <int, Map<String, dynamic>>{};
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
+  String? _rkExecutionHint;
+  String? _lastTransitionDebug;
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
   bool _xfadeInFlight = false;
+  DateTime? _xfadeInFlightAt;
+  static const double _v32MinFadeSec = 6.0;
   Timer? _rkPoll;
 
   // Sync-worker: pulls Jetson wav into ~/cypher/cache/<song_id>/ on RK.
   // Without this, edge-agent /play and /xfade return HTTP 409 ('缺少 original.wav').
   late final SyncWorkerClient _sync;
   final Set<String> _prefetched = <String>{};
-  final Set<String> _prefetchInFlight = <String>{};
+  Map<String, List<String>> _reservePoolByBucket = const {};
+  Map<String, List<String>> _styleReservePoolByStyle = const {};
+  Map<String, Map<String, dynamic>> _liveEnergyProfiles = const {};
+  Map<String, String> _rkCacheStatus = const {};
+  Map<String, dynamic>? _targetEnergyPreview;
+  bool _targetEnergyLoading = false;
+  String? _targetEnergyBucketLabel;
+  final Set<String> _targetEnergyExcluded = <String>{};
+
+  // ---- Target style cut state ----
+  Map<String, dynamic>? _targetStylePreview;
+  bool _targetStyleLoading = false;
+  String? _selectedTargetStyle;
+
+  bool get _isDefaultPreset => _preset == 'default';
+
+  // ---- Startup sync state ----
+  /// True while the full live queue and reserve/style candidate pools are being
+  /// synced to RK before playback. Playback only starts after this becomes false.
+  bool _backgroundSyncInProgress = false;
 
   @override
   void initState() {
@@ -163,28 +183,112 @@ class _DjControlPageState extends State<DjControlPage> {
     super.dispose();
   }
 
+  bool get _editingActiveLive =>
+      _liveStarted || _backgroundSyncInProgress || _liveStartInFlight;
+
+  bool _isActiveLiveSession(int sessionId) =>
+      mounted && _liveSessionId == sessionId;
+
+  void _pauseRkBestEffort() {
+    // ignore: discarded_futures
+    () async {
+      try {
+        await widget.edgeClient.pause();
+      } catch (_) {
+        // Best effort only; starting a new set will pause again.
+      }
+    }();
+  }
+
+  int _resetLiveSessionForNewSet() {
+    _liveSessionId += 1;
+    _rkPoll?.cancel();
+    _rkPoll = null;
+    _liveStartInFlight = false;
+    _liveStarted = false;
+    _liveIdx = 0;
+    _isPlaying = false;
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _rkCurrentSongId = null;
+    _lastXfadeAt = null;
+    _lastXfadeSec = 0.0;
+    _lastXfadeToSongId = null;
+    _startupValidatedCacheIds.clear();
+    _preparedTransitionPlans.clear();
+    _cutInfo = null;
+    _activeRule = null;
+    _rkExecutionHint = null;
+    _lastTransitionDebug = null;
+    _lastXfadeFromIdx = -1;
+    _xfadeInFlight = false;
+    _xfadeInFlightAt = null;
+    _prefetched.clear();
+    _reservePoolByBucket = const {};
+    _styleReservePoolByStyle = const {};
+    _liveEnergyProfiles = const {};
+    _rkCacheStatus = const {};
+    _targetEnergyPreview = null;
+    _targetEnergyLoading = false;
+    _targetEnergyBucketLabel = null;
+    _targetEnergyExcluded.clear();
+    _targetStylePreview = null;
+    _targetStyleLoading = false;
+    _selectedTargetStyle = null;
+    _backgroundSyncInProgress = false;
+    return _liveSessionId;
+  }
+
   // ---------------- Selection helpers ---------------- //
   void _addSongs(Iterable<LibrarySong> songs) {
-    final ids = {for (final s in _picked) s.id};
-    final added = <LibrarySong>[];
+    final incomingIds = <String>{};
+    final incoming = <LibrarySong>[];
     for (final s in songs) {
-      if (!ids.contains(s.id)) {
-        ids.add(s.id);
-        added.add(s);
+      if (incomingIds.add(s.id)) {
+        incoming.add(s);
       }
     }
-    if (added.isEmpty) return;
+    if (incoming.isEmpty) return;
+    final replaceActiveLive = _editingActiveLive;
+    if (replaceActiveLive) _pauseRkBestEffort();
     setState(() {
-      _picked.addAll(added);
+      if (replaceActiveLive) {
+        _resetLiveSessionForNewSet();
+        _picked
+          ..clear()
+          ..addAll(incoming);
+      } else {
+        final ids = {for (final s in _picked) s.id};
+        for (final s in incoming) {
+          if (ids.add(s.id)) _picked.add(s);
+        }
+      }
       _sequence = const [];
       _autoSets = const [];
+      _activeSetPlans = const [];
       _selectedSetIdx = -1;
     });
   }
 
   void _removeSong(String id) {
+    final replaceActiveLive = _editingActiveLive;
+    if (replaceActiveLive) _pauseRkBestEffort();
     setState(() {
+      if (replaceActiveLive) _resetLiveSessionForNewSet();
       _picked.removeWhere((s) => s.id == id);
+      _sequence = const [];
+      _autoSets = const [];
+      _activeSetPlans = const [];
+      _selectedSetIdx = -1;
+    });
+  }
+
+  void _clearPicked() {
+    final replaceActiveLive = _editingActiveLive;
+    if (replaceActiveLive) _pauseRkBestEffort();
+    setState(() {
+      if (replaceActiveLive) _resetLiveSessionForNewSet();
+      _picked.clear();
       _sequence = const [];
       _autoSets = const [];
       _activeSetPlans = const [];
@@ -381,6 +485,173 @@ class _DjControlPageState extends State<DjControlPage> {
         .toList();
   }
 
+  LibrarySong? _songById(String id) {
+    for (final s in _picked) {
+      if (s.id == id) return s;
+    }
+    for (final s in widget.librarySongs) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  double? _liveEnergyScore(String songId) {
+    final live = _liveEnergyProfiles[songId];
+    final raw = live?['dance_energy_score'] ?? live?['score'];
+    if (raw is num) return raw.toDouble();
+    final v2 = _songEnergyV2[songId];
+    final v2Raw = v2?['dance_energy_score'];
+    if (v2Raw is num) return v2Raw.toDouble();
+    final total = v2?['total'];
+    if (total is num) return total.toDouble() * 100.0;
+    final song = _songById(songId);
+    final fallback = song?.energy;
+    return fallback == null ? null : fallback * 100.0;
+  }
+
+  List<String> _visibleTargetBuckets() {
+    final ordered = _orderedSongs();
+    final current = _liveIdx < ordered.length ? ordered[_liveIdx] : null;
+    final score = current == null ? null : _liveEnergyScore(current.id);
+    final center = score == null ? 6 : (score ~/ 10).clamp(0, 9);
+    final start = math.max(0, center - 2);
+    final end = math.min(9, center + 2);
+    return [
+      for (var i = start; i <= end; i++)
+        '${i * 10}-${i == 9 ? 100 : (i + 1) * 10}',
+    ];
+  }
+
+  List<String> _reserveSongIds() =>
+      _reservePoolByBucket.values
+          .expand((ids) => ids)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+  List<String> _styleReserveSongIds() =>
+      _styleReservePoolByStyle.values
+          .expand((ids) => ids)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+  String? _energyBucketForSongId(String songId) {
+    final liveBucket = _liveEnergyProfiles[songId]?['bucket'];
+    if (liveBucket != null) return liveBucket.toString();
+    final score = _liveEnergyScore(songId);
+    if (score == null) return null;
+    final clamped = score.clamp(0.0, 100.0).toDouble();
+    if (clamped >= 90.0) return '90-100';
+    final lo = (clamped ~/ 10) * 10;
+    return '$lo-${lo + 10}';
+  }
+
+  Map<String, List<String>> _targetCandidateIdsByBucket() {
+    final buckets = {for (final b in _visibleTargetBuckets()) b: <String>[]};
+    final ordered = _orderedSongs();
+    for (final song in ordered.skip(math.min(_liveIdx + 1, ordered.length))) {
+      final bucket = _energyBucketForSongId(song.id);
+      if (bucket != null && buckets.containsKey(bucket)) {
+        buckets[bucket]!.add(song.id);
+      }
+    }
+    _reservePoolByBucket.forEach((bucket, ids) {
+      final target = buckets[bucket];
+      if (target == null) return;
+      for (final id in ids) {
+        if (id.isNotEmpty && !target.contains(id)) target.add(id);
+      }
+    });
+    return buckets;
+  }
+
+  List<String> _cachedIds() =>
+      _rkCacheStatus.entries
+          .where((e) => e.value == 'ready')
+          .map((e) => e.key)
+          .toList();
+
+  List<String> _playedSongIds() {
+    final ordered = _orderedSongs();
+    return ordered.take(math.max(0, _liveIdx)).map((s) => s.id).toList();
+  }
+
+  void _setCacheStatus(String id, String status) {
+    if (!mounted || id.isEmpty) return;
+    setState(() {
+      _rkCacheStatus = {..._rkCacheStatus, id: status};
+    });
+  }
+
+  void _setCacheStatusForSession(int sessionId, String id, String status) {
+    if (!_isActiveLiveSession(sessionId) || id.isEmpty) return;
+    setState(() {
+      _rkCacheStatus = {..._rkCacheStatus, id: status};
+    });
+  }
+
+  Future<void> _prepareLivePoolForOrdered(
+    List<LibrarySong> ordered, [
+    int? sessionId,
+  ]) async {
+    if (ordered.isEmpty) return;
+    final currentScore = _liveEnergyScore(ordered.first.id) ?? 60.0;
+    final center = (currentScore ~/ 10).clamp(0, 9);
+    final include = <String>[
+      for (var i = math.max(0, center - 3); i <= math.min(9, center + 3); i++)
+        '${i * 10}-${i == 9 ? 100 : (i + 1) * 10}',
+    ];
+    final pool = await widget.apiClient.djPrepareLivePool(
+      token: widget.token,
+      activeQueueSongIds: ordered.map((s) => s.id).toList(),
+      style: _v2StyleForPreset(),
+      targetReservePerBucket: 2,
+      includeBuckets: include,
+      excludeSongIds: _playedSongIds(),
+    );
+    final rawReserve = pool['reserve_pool'];
+    final reserve = <String, List<String>>{};
+    if (rawReserve is Map) {
+      rawReserve.forEach((k, v) {
+        reserve[k.toString()] =
+            (v as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
+      });
+    }
+    final rawStyleReserve = pool['style_reserve_pool'];
+    final styleReserve = <String, List<String>>{};
+    if (rawStyleReserve is Map) {
+      rawStyleReserve.forEach((k, v) {
+        styleReserve[k.toString()] =
+            (v as List<dynamic>? ?? const []).map((e) => e.toString()).toList();
+      });
+    }
+    final profiles = <String, Map<String, dynamic>>{};
+    final rawProfiles = pool['energy_profiles'];
+    if (rawProfiles is Map) {
+      rawProfiles.forEach((k, v) {
+        if (v is Map) profiles[k.toString()] = Map<String, dynamic>.from(v);
+      });
+    }
+    if (sessionId == null) {
+      if (!mounted) return;
+    } else if (!_isActiveLiveSession(sessionId)) {
+      return;
+    }
+    setState(() {
+      _reservePoolByBucket = reserve;
+      _styleReservePoolByStyle = styleReserve;
+      _liveEnergyProfiles = profiles;
+    });
+  }
+
+  Future<void> _prepareLivePoolForSession(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    await _prepareLivePoolForOrdered(ordered, sessionId);
+  }
+
   /// Resolve the song_id to send to RK. RK's edge-agent accepts both `int`
   /// (catalog Song.id) and `str` (LibrarySong UUID). The sync worker caches
   /// to `~/cypher/cache/{UUID}/` so the UUID is the safer choice; we fall
@@ -426,6 +697,7 @@ class _DjControlPageState extends State<DjControlPage> {
     'instrumental_only',
     'vocal_solo_intro',
     'echo_freeze',
+    'eq_band_mix',
   };
 
   /// Map Jetson `mixer_rules.py` 的 7+11 rule_key 到 RK `XfadeRequest.style`。
@@ -463,6 +735,13 @@ class _DjControlPageState extends State<DjControlPage> {
     'neutral_fx_bridge': 'melt',
     'breakdown_reset': 'fade',
     'impact_slam_cut': 'slam',
+    // v3.2 section matcher strategies.
+    'section_match:standard_blend': 'eq_band_mix',
+    'section_match:energy_lift': 'eq_band_mix',
+    'section_match:energy_drop': 'eq_band_mix',
+    'section_match:tempo_compat': 'eq_band_mix',
+    'section_match:cross_style': 'eq_band_mix',
+    'section_match:fallback:standard_blend': 'eq_band_mix',
   };
 
   /// Per-rule minimum fade in seconds. The backend rule_key authoritatively
@@ -530,6 +809,415 @@ class _DjControlPageState extends State<DjControlPage> {
     return _rkStyle(rawRuleKey, fallback: fallback);
   }
 
+  bool _isEqBandPlan(Map<String, dynamic>? plan) {
+    if (plan == null) return false;
+    return plan['transition_mode']?.toString() == 'eq_band_mix' ||
+        plan['execution_mode']?.toString() == 'eq_band_mix' ||
+        plan['deck_a'] is Map ||
+        plan['deck_b'] is Map;
+  }
+
+  String? _cacheIdForSong(LibrarySong song) {
+    final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
+    if (id == null || id.trim().isEmpty) return null;
+    return id.trim();
+  }
+
+  Future<Map<String, dynamic>> _planSectionMatchTransition({
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+    String? ruleKey,
+    String? targetStyle,
+  }) async {
+    final plan = await widget.apiClient.djPlanTransition(
+      token: widget.token,
+      prevSongId: prev.id,
+      nextSongId: next.id,
+      cursorSec: cursorSec,
+      ruleKey: ruleKey,
+      transitionMode: 'section_match',
+      eqMixUserMode: 'auto',
+      targetStyle: targetStyle,
+      targetLufs: -14.0,
+    );
+    _assertRealSectionMatchPlan(plan, prev: prev, next: next);
+    return plan;
+  }
+
+  Future<Map<String, dynamic>> _planDefaultMixRenderTransition({
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+  }) async {
+    final plan = await widget.apiClient.djPlanTransition(
+      token: widget.token,
+      prevSongId: prev.id,
+      nextSongId: next.id,
+      cursorSec: cursorSec,
+      ruleKey: 'default_mix_auto',
+      transitionMode: 'default_mix',
+      eqMixUserMode: 'render',
+      targetLufs: -14.0,
+    );
+    final mode = plan['transition_mode']?.toString();
+    final execution = plan['execution_mode']?.toString();
+    final pairId = plan['pair_id']?.toString();
+    final renderUrl = plan['transition_render_url']?.toString();
+    if (mode != 'default_mix' ||
+        execution != 'default_render_playback' ||
+        pairId == null ||
+        pairId.isEmpty ||
+        renderUrl == null ||
+        renderUrl.isEmpty) {
+      throw Exception(
+        'Default mix render plan invalid for ${prev.title} -> ${next.title}: '
+        'mode=$mode execution=$execution pair=$pairId render=$renderUrl',
+      );
+    }
+    return plan;
+  }
+
+  double _v32FadeSec(Map<String, dynamic> plan, {double fallback = 6.0}) {
+    final rawRuleKey = plan['rule_key']?.toString() ?? '';
+    final rawDur =
+        (plan['duration_sec'] as num?)?.toDouble() ??
+        (plan['fade_sec'] as num?)?.toDouble() ??
+        fallback;
+    final ruleFloor = _minFadeForRule[rawRuleKey] ?? 0.05;
+    final v32Floor = _isEqBandPlan(plan) ? _v32MinFadeSec : 0.05;
+    return math
+        .max(math.max(ruleFloor, v32Floor), rawDur)
+        .clamp(0.05, 30.0)
+        .toDouble();
+  }
+
+  double _preplanCursorSec(LibrarySong prev) {
+    final duration = prev.duration;
+    if (duration <= 0) return 0.0;
+    return math.max(0.0, duration - 45.0);
+  }
+
+  void _assertRealSectionMatchPlan(
+    Map<String, dynamic> plan, {
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) {
+    final mode = plan['transition_mode']?.toString();
+    final execution = plan['execution_mode']?.toString();
+    final ruleKey = plan['rule_key']?.toString() ?? '';
+    final sectionMatch = plan['section_match'];
+    final fromAt = (plan['from_at_sec'] as num?)?.toDouble();
+    final toAt = (plan['to_at_sec'] as num?)?.toDouble();
+    final plannedNext =
+        _asStringMap(plan['target'])?['song_id']?.toString() ??
+        plan['to_song_id']?.toString() ??
+        plan['next_song_id']?.toString();
+    final isFallback =
+        sectionMatch is Map && sectionMatch['is_fallback'] == true;
+    if (mode != 'section_match' ||
+        execution != 'eq_band_mix' ||
+        !ruleKey.startsWith('section_match:') ||
+        sectionMatch is! Map ||
+        isFallback ||
+        fromAt == null ||
+        toAt == null ||
+        (plannedNext != null &&
+            plannedNext.isNotEmpty &&
+            plannedNext != next.id)) {
+      throw Exception(
+        'Jetson v3.2 section_match plan invalid for ${prev.title} -> ${next.title}: '
+        'mode=$mode execution=$execution rule=$ruleKey from=$fromAt to=$toAt',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> _prepareTransitionPlanForPair({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) async {
+    final canonical = _canonicalPlanFor(
+      transitionIndex: transitionIndex,
+      prev: prev,
+      next: next,
+    );
+    if (_isDefaultPreset) {
+      return await _planDefaultMixRenderTransition(
+        prev: prev,
+        next: next,
+        cursorSec: _preplanCursorSec(prev),
+      );
+    }
+    return await _planSectionMatchTransition(
+      prev: prev,
+      next: next,
+      cursorSec: _preplanCursorSec(prev),
+      ruleKey: canonical?['rule_key']?.toString(),
+    );
+  }
+
+  Future<void> _prepareAllTransitionPlansBeforePlay(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    _preparedTransitionPlans.clear();
+    if (ordered.length < 2) return;
+
+    for (var i = 0; i < ordered.length - 1; i++) {
+      if (!_isActiveLiveSession(sessionId)) return;
+      final prev = ordered[i];
+      final next = ordered[i + 1];
+      if (_isActiveLiveSession(sessionId)) {
+        setState(() {
+          _cutInfo =
+              'Preparing transition plans ${i + 1}/${ordered.length - 1}';
+        });
+      }
+      final plan = await _prepareTransitionPlanForPair(
+        transitionIndex: i,
+        prev: prev,
+        next: next,
+      );
+      _preparedTransitionPlans[i] = plan;
+    }
+  }
+
+  bool _preparedPlanMatchesPair(
+    Map<String, dynamic> plan,
+    LibrarySong prev,
+    LibrarySong next,
+  ) {
+    String? nestedSongId(Object? value) {
+      final map = _asStringMap(value);
+      return map?['song_id']?.toString();
+    }
+
+    final plannedPrev =
+        nestedSongId(plan['source']) ??
+        nestedSongId(plan['deck_a']) ??
+        _asStringMap(plan['default_mix'])?['from_song_id']?.toString() ??
+        plan['from_song_id']?.toString() ??
+        plan['prev_song_id']?.toString();
+    final plannedNext =
+        nestedSongId(plan['target']) ??
+        nestedSongId(plan['deck_b']) ??
+        _asStringMap(plan['default_mix'])?['to_song_id']?.toString() ??
+        plan['to_song_id']?.toString() ??
+        plan['next_song_id']?.toString();
+    if (plannedPrev != null &&
+        plannedPrev.isNotEmpty &&
+        plannedPrev != prev.id) {
+      return false;
+    }
+    if (plannedNext != null &&
+        plannedNext.isNotEmpty &&
+        plannedNext != next.id) {
+      return false;
+    }
+    return true;
+  }
+
+  Map<String, dynamic> _preparedTransitionPlanFor({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) {
+    final prepared = _preparedTransitionPlans[transitionIndex];
+    if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
+      final out = Map<String, dynamic>.from(prepared);
+      if (!_isDefaultPreset) {
+        _assertRealSectionMatchPlan(out, prev: prev, next: next);
+      }
+      return out;
+    }
+    throw Exception(
+      'Missing Jetson v3.2 section_match plan for ${prev.title} -> ${next.title}',
+    );
+  }
+
+  Future<Map<String, dynamic>> _ensurePreparedSectionMatchPlanFor({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+    String? targetStyle,
+  }) async {
+    final prepared = _preparedTransitionPlans[transitionIndex];
+    if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
+      final out = Map<String, dynamic>.from(prepared);
+      _assertRealSectionMatchPlan(out, prev: prev, next: next);
+      return out;
+    }
+    final canonical = _canonicalPlanFor(
+      transitionIndex: transitionIndex,
+      prev: prev,
+      next: next,
+    );
+    final plan = await _planSectionMatchTransition(
+      prev: prev,
+      next: next,
+      cursorSec: cursorSec,
+      ruleKey: canonical?['rule_key']?.toString(),
+      targetStyle: targetStyle,
+    );
+    _preparedTransitionPlans[transitionIndex] = plan;
+    return plan;
+  }
+
+  Future<Map<String, dynamic>> _ensurePreparedDefaultRenderPlanFor({
+    required int transitionIndex,
+    required LibrarySong prev,
+    required LibrarySong next,
+    required double cursorSec,
+  }) async {
+    final prepared = _preparedTransitionPlans[transitionIndex];
+    if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
+      return Map<String, dynamic>.from(prepared);
+    }
+    final plan = await _planDefaultMixRenderTransition(
+      prev: prev,
+      next: next,
+      cursorSec: cursorSec,
+    );
+    _preparedTransitionPlans[transitionIndex] = plan;
+    return plan;
+  }
+
+  double? _tempoRatioForPlan(Map<String, dynamic> plan) {
+    for (final key in const ['tempo_ratio', 'tempo_multiplier']) {
+      final raw = plan[key];
+      if (raw is num && raw > 0) return raw.toDouble();
+      final parsed = double.tryParse(raw?.toString() ?? '');
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    return null;
+  }
+
+  Future<void> _prewarmBeatmatchForPlan({
+    required LibrarySong target,
+    required Map<String, dynamic> plan,
+    int? sessionId,
+    required String stageLabel,
+  }) async {
+    if (_isEqBandPlan(plan)) return;
+    final ratio = _tempoRatioForPlan(plan);
+    if (ratio == null) return;
+    if (!_isCachePrepActive(sessionId)) return;
+    setState(() {
+      _cutInfo = '$stageLabel ${target.title}';
+    });
+    try {
+      await widget.edgeClient.prewarmBeatmatch(
+        songId: _rkIdForXfade(target),
+        tempoRatio: ratio,
+      );
+    } catch (_) {
+      // Beatmatch is an enhancement. If RK cannot pre-render this pair, the
+      // already prepared EQ/xfade plan still gives a safe transition.
+    }
+  }
+
+  Future<void> _prewarmPreparedTransitionPlansBeforePlay(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    if (ordered.length < 2) return;
+    for (var i = 0; i < ordered.length - 1; i++) {
+      if (!_isActiveLiveSession(sessionId)) return;
+      final plan = _preparedTransitionPlans[i];
+      if (plan == null) continue;
+      await _prewarmBeatmatchForPlan(
+        target: ordered[i + 1],
+        plan: plan,
+        sessionId: sessionId,
+        stageLabel: 'Prewarming beatmatch ${i + 1}/${ordered.length - 1}:',
+      );
+    }
+  }
+
+  void _installPreparedTargetCutPlans({
+    required int cutFromIndex,
+    required Map<String, dynamic> transition,
+    Map<String, dynamic>? followup,
+  }) {
+    final retained = <int, Map<String, dynamic>>{};
+    _preparedTransitionPlans.forEach((idx, plan) {
+      if (idx < cutFromIndex) {
+        retained[idx] = plan;
+      }
+    });
+    retained[cutFromIndex] = transition;
+    if (followup != null) {
+      retained[cutFromIndex + 1] = followup;
+    }
+    _preparedTransitionPlans
+      ..clear()
+      ..addAll(retained);
+  }
+
+  Future<Map<String, dynamic>> _edgeXfadeFromPlan({
+    required LibrarySong target,
+    required Map<String, dynamic> plan,
+    required double fadeSec,
+    required double toAtSec,
+    required String ruleKey,
+    String fallback = 'blend',
+  }) {
+    final targetRkId = _rkIdForXfade(target).toString();
+    if (_rkCurrentSongId != null && _rkCurrentSongId == targetRkId) {
+      throw Exception('Refusing self-transition to $targetRkId');
+    }
+    final isEqBand = _isEqBandPlan(plan);
+    final stemCurves = isEqBand ? null : plan['stem_curves'];
+    final eqCurves = isEqBand ? null : plan['eq_curves'];
+    final fallbackStyle = plan['fallback_style']?.toString();
+    Map<String, dynamic>? transitionPlan;
+    if (isEqBand) {
+      final targetId = _rkIdForXfade(target);
+      transitionPlan = Map<String, dynamic>.from(plan);
+      transitionPlan['fade_sec'] = fadeSec;
+      transitionPlan['duration_sec'] = fadeSec;
+      transitionPlan['to_at_sec'] = toAtSec;
+      transitionPlan['to_song_id'] = targetId;
+      transitionPlan['to_song'] = targetId;
+      final targetSpec =
+          _asStringMap(transitionPlan['target']) ?? <String, dynamic>{};
+      targetSpec['song_id'] = targetId;
+      targetSpec['start_cue_sec'] = toAtSec;
+      transitionPlan['target'] = targetSpec;
+    }
+    final requestStyle =
+        isEqBand
+            ? 'eq_band_mix'
+            : _plannedRkStyle(plan, ruleKey, fallback: fallback);
+    return widget.edgeClient.xfade(
+      toSongId: _rkIdForXfade(target),
+      fadeSec: fadeSec,
+      toAtSec: toAtSec,
+      style: transitionPlan == null ? requestStyle : requestStyle,
+      transitionId: plan['transition_id']?.toString(),
+      fallbackStyle:
+          fallbackStyle == null
+              ? null
+              : _rkStyle(fallbackStyle, fallback: fallback),
+      tempoRatio: isEqBand ? null : _tempoRatioForPlan(plan),
+      stemCurves:
+          stemCurves is Map<String, dynamic>
+              ? stemCurves
+              : (stemCurves is Map
+                  ? Map<String, dynamic>.from(stemCurves)
+                  : null),
+      eqCurves:
+          eqCurves is Map<String, dynamic>
+              ? eqCurves
+              : (eqCurves is Map ? Map<String, dynamic>.from(eqCurves) : null),
+      transitionMode: transitionPlan == null ? null : 'eq_band_mix',
+      transitionPlan: transitionPlan,
+      phaseAnchorSec: (plan['phase_anchor_sec'] as num?)?.toDouble(),
+    );
+  }
+
   String? _xfadeResultHint(Map<String, dynamic>? response) {
     if (response == null) return null;
     final result = _asStringMap(response['result']);
@@ -558,6 +1246,229 @@ class _DjControlPageState extends State<DjControlPage> {
       );
     }
     return parts.isEmpty ? null : parts.join(' / ');
+  }
+
+  String? _rkExecutionHintFromState(dynamic st) {
+    final last = st.lastTransition;
+    final parts = <String>[];
+    final tier = st.playbackTier?.toString();
+    if (tier != null && tier.isNotEmpty) {
+      parts.add('tier:$tier');
+    }
+    if (last is Map) {
+      final actualTier =
+          last['actual_tier']?.toString() ??
+          last['playback_tier']?.toString() ??
+          last['tier']?.toString();
+      final actualStyle =
+          last['actual_style']?.toString() ??
+          last['style']?.toString() ??
+          last['request_style']?.toString();
+      final degraded = last['degraded'] == true;
+      final reason = last['degrade_reason']?.toString();
+      if (actualTier != null &&
+          actualTier.isNotEmpty &&
+          !parts.contains('tier:$actualTier')) {
+        parts.add('actual:$actualTier');
+      }
+      if (actualStyle != null && actualStyle.isNotEmpty) {
+        parts.add('style:$actualStyle');
+      }
+      if (degraded) {
+        parts.add(
+          reason == null || reason.isEmpty ? 'degraded' : 'degraded:$reason',
+        );
+      }
+    }
+    return parts.isEmpty ? null : parts.join(' / ');
+  }
+
+  String _transitionDebugText({
+    required String trigger,
+    required LibrarySong from,
+    required LibrarySong to,
+    required Map<String, dynamic> plan,
+    Map<String, dynamic>? response,
+  }) {
+    String numText(Object? value, {int digits = 2}) {
+      final n =
+          value is num
+              ? value.toDouble()
+              : double.tryParse(value?.toString() ?? '');
+      return n == null ? '-' : n.toStringAsFixed(digits);
+    }
+
+    final strategy = _asStringMap(plan['transition_strategy']);
+    final auto = _asStringMap(plan['auto_strategy_selection']);
+    final section = _asStringMap(plan['section_match']);
+    final source = auto?['source']?.toString();
+    final strategyName =
+        strategy?['label_zh']?.toString() ??
+        strategy?['strategy']?.toString() ??
+        strategy?['key']?.toString() ??
+        auto?['strategy']?.toString();
+    final mode = plan['transition_mode']?.toString() ?? '-';
+    final execution = plan['execution_mode']?.toString() ?? '-';
+    final rule = plan['rule_key']?.toString() ?? '-';
+    final reason = section?['reason']?.toString();
+    final parts = <String>[
+      '$trigger: ${from.title} -> ${to.title}',
+      'cut ${numText(plan['from_at_sec'])}s -> ${numText(plan['to_at_sec'])}s',
+      'fade ${numText(plan['duration_sec'] ?? plan['fade_sec'], digits: 1)}s',
+      '$mode/$execution',
+      'rule:$rule',
+      if (strategyName != null && strategyName.isNotEmpty)
+        'strategy:$strategyName',
+      if (source != null && source.isNotEmpty) 'source:$source',
+      if (reason != null && reason.isNotEmpty) 'section:$reason',
+    ];
+    final rkHint = _xfadeResultHint(response);
+    if (rkHint != null) parts.add('RK:$rkHint');
+    return parts.join(' | ');
+  }
+
+  String? _currentPreparedTransitionDebug() {
+    if (!_liveStarted) return null;
+    final ordered = _orderedSongs();
+    if (_liveIdx < 0 || _liveIdx + 1 >= ordered.length) return null;
+    final plan = _preparedTransitionPlans[_liveIdx];
+    if (plan == null) return null;
+    try {
+      return _transitionDebugText(
+        trigger: 'prepared next',
+        from: ordered[_liveIdx],
+        to: ordered[_liveIdx + 1],
+        plan: plan,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<Map<String, dynamic>> _defaultPreparedTransitions() {
+    final ordered = _orderedSongs();
+    final out = <Map<String, dynamic>>[];
+    for (var i = 0; i < ordered.length - 1; i++) {
+      final prev = ordered[i];
+      final next = ordered[i + 1];
+      final plan = _preparedTransitionPlans[i];
+      if (plan == null || !_preparedPlanMatchesPair(plan, prev, next)) {
+        continue;
+      }
+      out.add(Map<String, dynamic>.from(plan));
+    }
+    return out;
+  }
+
+  List<Map<String, dynamic>> _defaultMixPairManifests() {
+    final pairs = <Map<String, dynamic>>[];
+    for (final plan in _defaultPreparedTransitions()) {
+      final embedded = _asStringMap(plan['default_mix_pair_manifest']);
+      if (embedded != null) {
+        pairs.add(embedded);
+        continue;
+      }
+      final pairId =
+          plan['pair_id']?.toString() ??
+          _asStringMap(plan['default_mix'])?['pair_id']?.toString();
+      final renderUrl = plan['transition_render_url']?.toString();
+      final metaUrl = plan['transition_render_meta_url']?.toString();
+      if (pairId == null ||
+          pairId.isEmpty ||
+          renderUrl == null ||
+          renderUrl.isEmpty) {
+        continue;
+      }
+      pairs.add({
+        'pair_id': pairId,
+        'files': {
+          'transition_render': {
+            'url': renderUrl,
+            'format': 'wav',
+            if (plan['transition_render_size'] is num)
+              'size': plan['transition_render_size'],
+          },
+          if (metaUrl != null && metaUrl.isNotEmpty)
+            'transition_render_meta': {'url': metaUrl, 'format': 'json'},
+        },
+      });
+    }
+    return pairs;
+  }
+
+  Future<void> _syncDefaultMixAssetsForSession(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    if (!_isDefaultPreset) return;
+    final pairs = _defaultMixPairManifests();
+    if (pairs.isEmpty) {
+      throw Exception('Default mix has no transition render resources');
+    }
+    final tracks = <Map<String, dynamic>>[];
+    for (final song in ordered) {
+      final id = _cacheIdForSong(song);
+      if (id == null || id.isEmpty) continue;
+      if (await _sync.cacheExists(id)) continue;
+      tracks.add(
+        _originalOnlyManifest(
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: id,
+          ),
+          id,
+        ),
+      );
+    }
+    if (!_isActiveLiveSession(sessionId)) return;
+    setState(() {
+      _cutInfo = 'Syncing default mix audio and renders to RK';
+    });
+    await _sync.syncAndWait(
+      tracks: tracks,
+      defaultMixPairs: pairs,
+      planId:
+          'default-mix-render-sync-${DateTime.now().millisecondsSinceEpoch}',
+      timeout: const Duration(hours: 2),
+      audioOnly: true,
+      onProgress: (st) {
+        if (!_isActiveLiveSession(sessionId)) return;
+        setState(() {
+          _cutInfo =
+              'Syncing default mix assets ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)';
+        });
+      },
+    );
+    await _ensurePlayableRkCacheIds(
+      ordered.map((song) => song.id).toList(growable: false),
+      sessionId: sessionId,
+      stageLabel: 'Validating default mix RK audio',
+    );
+  }
+
+  Future<Map<String, dynamic>> _edgeDefaultRenderFromPlan({
+    required LibrarySong target,
+    required Map<String, dynamic> plan,
+  }) {
+    final targetRkId = _rkIdForXfade(target);
+    if (_rkCurrentSongId != null && _rkCurrentSongId == targetRkId.toString()) {
+      throw Exception('Refusing self-transition to $targetRkId');
+    }
+    return widget.edgeClient
+        .defaultRenderPlayback(transitionPlan: plan, toSongId: targetRkId)
+        .then((response) {
+          final result = _asStringMap(response['result']) ?? response;
+          final degraded =
+              response['degraded'] == true || result['degraded'] == true;
+          if (degraded) {
+            final reason =
+                response['degrade_reason']?.toString() ??
+                result['degrade_reason']?.toString() ??
+                'unknown';
+            throw Exception('RK default render degraded: $reason');
+          }
+          return response;
+        });
   }
 
   Map<String, dynamic>? _canonicalPlanFor({
@@ -618,234 +1529,783 @@ class _DjControlPageState extends State<DjControlPage> {
   /// RK disk — sync-worker's response can race with the file write, and
   /// edge-agent's `/xfade` will 409 ("缺少 original.*") if it's invoked the
   /// instant the response lands but before fsync completes.
-  Future<void> _ensureRkCache(LibrarySong song, {String? statusPrefix}) async {
-    final id = song.id.isNotEmpty ? song.id : song.songId?.toString();
+  Future<void> _assertRkCacheReady(LibrarySong song) async {
+    final id = _cacheIdForSong(song);
     if (id == null || id.isEmpty) {
-      throw Exception('song ${song.title} 缺少 song_id，无法同步到 RK');
+      throw Exception('song ${song.title} missing song_id');
     }
-    if (_prefetched.contains(id)) {
-      // Re-verify: cache may have been evicted, partially written, or the
-      // earlier "prefetched" mark was set after a sync that never actually
-      // wrote `original.*`. Cheap (~50ms) compared to a 409 mid-set.
-      if (await _sync.cacheExists(id)) return;
-      _prefetched.remove(id);
-    }
-    if (_prefetchInFlight.contains(id)) {
-      while (_prefetchInFlight.contains(id)) {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      }
-      if (_prefetched.contains(id) && await _sync.cacheExists(id)) return;
-    }
-    _prefetchInFlight.add(id);
-    try {
-      final url = widget.apiClient.streamUrl(
-        token: widget.token,
-        songId: song.id,
+    if (_liveStarted && !_backgroundSyncInProgress) {
+      if (_startupValidatedCacheIds.contains(id)) return;
+      throw Exception(
+        'song ${song.title} was not validated before playback; refusing live cache check',
       );
-      Object? lastErr;
-      for (var attempt = 0; attempt < 2; attempt++) {
-        try {
-          await _sync.syncAndWait(
-            tracks: [
-              {
-                'song_id': id,
-                'files': {
-                  'original': {'url': url, 'format': 'mp3'},
-                },
-              },
-            ],
-            planId: 'dj-${DateTime.now().millisecondsSinceEpoch}-$id',
-            timeout: const Duration(minutes: 2),
-            onProgress: (st) {
-              if (!mounted) return;
-              setState(() {
-                _cutInfo =
-                    '${statusPrefix ?? '同步到 RK'} ${st.percent.toStringAsFixed(0)}%';
-              });
-            },
-          );
-          // syncAndWait returned ok — but sync-worker may still be flushing.
-          // Poll cacheExists for up to 5s before declaring success.
-          final deadline = DateTime.now().add(const Duration(seconds: 5));
-          while (DateTime.now().isBefore(deadline)) {
-            if (await _sync.cacheExists(id)) {
-              _prefetched.add(id);
-              return;
-            }
-            await Future<void>.delayed(const Duration(milliseconds: 200));
-          }
-          lastErr = Exception('sync 完成但 cache/check 仍未见 original.*');
-        } catch (e) {
-          lastErr = e;
-        }
+    }
+    await _waitForSyncWorkerIdleBeforeStartup();
+    await _ensurePlayableRkCacheIds([
+      id,
+    ], stageLabel: 'Checking RK playable cache');
+  }
+
+  // Playback-time background prefetch is disabled. Startup sync/decode is the
+  // only DJ cache preparation path.
+
+  List<String> _liveCacheQueueIds(
+    List<LibrarySong> ordered, {
+    int startIdx = 0,
+  }) {
+    final ids = <String>[];
+    void addId(String? id) {
+      if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
+    }
+
+    for (final s in ordered.skip(startIdx)) {
+      addId(s.id.isNotEmpty ? s.id : s.songId?.toString());
+    }
+    for (final id in _reserveSongIds()) {
+      addId(id);
+    }
+    for (final id in _styleReserveSongIds()) {
+      addId(id);
+    }
+    return ids;
+  }
+
+  Future<void> _waitForSyncWorkerIdleBeforeStartup() async {
+    final deadline = DateTime.now().add(const Duration(minutes: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      final st = await _sync.getStatus();
+      if (!st.running) return;
+      if (mounted) {
+        setState(() {
+          _cutInfo =
+              'Waiting RK sync ${st.completed}/${st.total} ${st.percent.toStringAsFixed(0)}%';
+        });
       }
-      throw lastErr ?? Exception('sync 失败（未知原因）');
-    } finally {
-      _prefetchInFlight.remove(id);
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw TimeoutException('RK sync-worker is still busy');
+  }
+
+  Future<void> _waitForSyncWorkerIdleForSession(int sessionId) async {
+    final deadline = DateTime.now().add(const Duration(minutes: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      if (!_isActiveLiveSession(sessionId)) return;
+      final st = await _sync.getStatus();
+      if (!st.running) return;
+      if (_isActiveLiveSession(sessionId)) {
+        setState(() {
+          _cutInfo =
+              'Waiting RK sync ${st.completed}/${st.total} ${st.percent.toStringAsFixed(0)}%';
+        });
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw TimeoutException('RK sync-worker is still busy');
+  }
+
+  bool _isCachePrepActive(int? sessionId) =>
+      sessionId == null ? mounted : _isActiveLiveSession(sessionId);
+
+  void _setCacheStatusMaybeSession(int? sessionId, String id, String status) {
+    if (sessionId == null) {
+      _setCacheStatus(id, status);
+    } else {
+      _setCacheStatusForSession(sessionId, id, status);
     }
   }
 
-  /// Background prefetch (fire-and-forget) for the next song so xfade is instant.
-  ///
-  /// Two layers:
-  ///   1. sync-worker pulls the wav from Jetson onto RK disk (file IO),
-  ///   2. edge-agent /prefetch decodes wav + 4 stems into audio-engine's
-  ///      in-memory cache so deck.load() during /xfade hits cache (no IO).
-  /// Without (2) every stem-aware rule (drop_swap / drum_only_bridge /
-  /// instrumental_bridge) blocks the xfade response 300ms-2s on file IO.
-  void _kickPrefetchNext() {
-    final ordered = _orderedSongs();
-    final i = _liveIdx + 1;
-    if (i < 0 || i >= ordered.length) return;
-    final s = ordered[i];
-    final id = s.id.isNotEmpty ? s.id : s.songId?.toString();
-    if (id == null ||
-        _prefetched.contains(id) ||
-        _prefetchInFlight.contains(id)) {
-      return;
+  Future<void> _waitForSyncWorkerIdleMaybeSession(int? sessionId) async {
+    if (sessionId == null) {
+      await _waitForSyncWorkerIdleBeforeStartup();
+    } else {
+      await _waitForSyncWorkerIdleForSession(sessionId);
     }
-    // ignore: discarded_futures
-    _ensureRkCache(s, statusPrefix: '预取下一首')
-        .then((_) async {
-          // Now that the wav is on RK disk, ask audio-engine to decode it +
-          // stems into memory so the next xfade is instant.
-          try {
-            await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(s)]);
-          } catch (_) {
-            /* best-effort */
-          }
-        })
-        .catchError((_) {});
   }
 
-  /// Live-mix-wide prefetch: while the first song plays, pull every remaining
-  /// track's wav onto RK disk **serially** so we don't fight Jetson's egress
-  /// bandwidth. This replaces the older "only fetch when remaining ≤ 30s"
-  /// path which raced the xfade trigger when a track was short or the user
-  /// hit a manual cut. Each track is followed by edge-agent /prefetch so the
-  /// audio-engine has the decoded wav + 4 stems in memory before xfade fires.
-  ///
-  /// Cancellation: when [_liveStarted] flips false (user left live mix) we
-  /// stop the loop on the next iteration. Errors per track are logged into
-  /// [_cutInfo] but never abort the loop — we still want #3 to be ready even
-  /// if #2 failed temporarily.
-  Future<void> _warmAllRemainingTracks(int startIdx) async {
-    final ordered = _orderedSongs();
-    for (var i = startIdx; i < ordered.length; i++) {
-      if (!mounted || !_liveStarted) return;
-      final s = ordered[i];
-      final id = s.id.isNotEmpty ? s.id : s.songId?.toString();
-      if (id == null || id.isEmpty) continue;
-      if (_prefetched.contains(id) && await _sync.cacheExists(id)) {
+  String _cacheIdForCandidate(String candidateId) {
+    final song = _songById(candidateId);
+    return song?.id.isNotEmpty == true ? song!.id : candidateId;
+  }
+
+  List<String> _uniqueNonEmptyIds(Iterable<String> ids) {
+    final out = <String>[];
+    for (final raw in ids) {
+      final id = raw.trim();
+      if (id.isNotEmpty && !out.contains(id)) out.add(id);
+    }
+    return out;
+  }
+
+  Future<void> _syncMissingCacheFilesForIds(
+    List<String> ids,
+    int? sessionId, {
+    required String stageLabel,
+  }) async {
+    final wanted = _uniqueNonEmptyIds(ids.map(_cacheIdForCandidate));
+    if (wanted.isEmpty) return;
+
+    final tracks = <Map<String, dynamic>>[];
+    var reused = 0;
+    for (var i = 0; i < wanted.length; i++) {
+      if (!_isCachePrepActive(sessionId)) return;
+      final id = wanted[i];
+      if (await _sync.cacheExists(id)) {
+        reused += 1;
         continue;
       }
-      try {
-        await _ensureRkCache(
-          s,
-          statusPrefix: '后台预取 ${i + 1}/${ordered.length}',
-        );
-        try {
-          await widget.edgeClient.prefetch(songIds: [_rkIdForXfade(s)]);
-        } catch (_) {
-          /* best-effort: file is on disk, decode is optional */
+
+      _prefetched.remove(id);
+      _setCacheStatusMaybeSession(sessionId, id, 'syncing');
+      if (_isCachePrepActive(sessionId)) {
+        setState(() {
+          final label = _songById(id)?.title ?? id;
+          _cutInfo =
+              '$stageLabel ${tracks.length + 1}: $label (reused $reused/${i + 1})';
+        });
+      }
+      tracks.add(
+        _originalOnlyManifest(
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: id,
+          ),
+          id,
+        ),
+      );
+    }
+
+    if (tracks.isEmpty || !_isCachePrepActive(sessionId)) return;
+    await _sync.syncAndWait(
+      tracks: tracks,
+      planId: 'dj-cache-sync-${DateTime.now().millisecondsSinceEpoch}',
+      timeout: const Duration(hours: 2),
+      audioOnly: true,
+      onProgress: (st) {
+        if (!_isCachePrepActive(sessionId)) return;
+        setState(() {
+          _cutInfo =
+              '$stageLabel ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)';
+        });
+      },
+    );
+  }
+
+  Future<List<String>> _validatePlayableRkCacheIds(
+    List<String> ids,
+    int? sessionId, {
+    required String stageLabel,
+  }) async {
+    final wanted = _uniqueNonEmptyIds(ids.map(_cacheIdForCandidate));
+    if (wanted.isEmpty) return const [];
+
+    final failed = <String>{};
+    const batchSize = 8;
+    for (var start = 0; start < wanted.length; start += batchSize) {
+      if (!_isCachePrepActive(sessionId)) return const [];
+      final end = math.min(start + batchSize, wanted.length);
+      final batch = wanted.sublist(start, end);
+      if (_isCachePrepActive(sessionId)) {
+        setState(() {
+          _cutInfo = '$stageLabel $end/${wanted.length}';
+        });
+      }
+      final result = await widget.edgeClient.validateCache(
+        songIds: batch.cast<Object>(),
+      );
+      final rawFailed = result['failed'];
+      if (rawFailed is List) {
+        failed.addAll(rawFailed.map((e) => e.toString()));
+      }
+      for (final id in batch) {
+        if (failed.contains(id)) {
+          _prefetched.remove(id);
+          _setCacheStatusMaybeSession(sessionId, id, 'failed');
+        } else {
+          _prefetched.add(id);
+          _setCacheStatusMaybeSession(sessionId, id, 'ready');
         }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _cutInfo = '后台预取 #${i + 1} 失败: $e';
-          });
-        }
-        // 继续拉下一首 — 某一首失败不应阻塞队列
       }
     }
-    if (mounted && _liveStarted) {
-      setState(() => _cutInfo = '✅ 所有曲目已就位');
+    return failed.toList();
+  }
+
+  Future<void> _ensurePlayableRkCacheIds(
+    List<String> ids, {
+    int? sessionId,
+    required String stageLabel,
+  }) async {
+    final wanted = _uniqueNonEmptyIds(ids.map(_cacheIdForCandidate));
+    if (wanted.isEmpty) return;
+
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (!_isCachePrepActive(sessionId)) return;
+      final failed = await _validatePlayableRkCacheIds(
+        wanted,
+        sessionId,
+        stageLabel: stageLabel,
+      );
+      if (failed.isEmpty) return;
+      if (attempt == 2) {
+        throw Exception(
+          'RK playable cache validation failed: ${failed.join(', ')}',
+        );
+      }
+
+      for (var i = 0; i < failed.length; i++) {
+        if (!_isCachePrepActive(sessionId)) return;
+        final id = failed[i];
+        _prefetched.remove(id);
+        _setCacheStatusMaybeSession(sessionId, id, 'syncing');
+        if (_isCachePrepActive(sessionId)) {
+          setState(() {
+            final label = _songById(id)?.title ?? id;
+            _cutInfo = 'Repairing RK cache ${i + 1}/${failed.length}: $label';
+          });
+        }
+        await _waitForSyncWorkerIdleMaybeSession(sessionId);
+        if (!_isCachePrepActive(sessionId)) return;
+        await _sync.deleteSongCache(id);
+        final manifest = await widget.apiClient.getSongManifest(
+          token: widget.token,
+          songId: id,
+        );
+        await _sync.syncAndWait(
+          tracks: [_originalOnlyManifest(manifest, id)],
+          planId: 'dj-cache-repair-${DateTime.now().millisecondsSinceEpoch}',
+          timeout: const Duration(hours: 2),
+          audioOnly: true,
+          onProgress: (st) {
+            if (!_isCachePrepActive(sessionId)) return;
+            setState(() {
+              _cutInfo =
+                  'Repairing RK cache ${i + 1}/${failed.length}: ${st.completed}/${st.total}';
+            });
+          },
+        );
+      }
     }
+  }
+
+  List<Object> _liveQueueDecodeIds(List<LibrarySong> ordered) {
+    final ids = <Object>[];
+    final seen = <String>{};
+    for (final song in ordered) {
+      final id = _rkIdForXfade(song);
+      if (seen.add(id.toString())) ids.add(id);
+    }
+    return ids;
+  }
+
+  Future<void> _prefetchLiveQueueBeforePlay(
+    List<LibrarySong> ordered,
+    int? sessionId,
+  ) async {
+    final ids = _liveQueueDecodeIds(ordered);
+    if (ids.isEmpty) return;
+    if (!_isCachePrepActive(sessionId)) return;
+    setState(() {
+      _cutInfo = 'Preloading RK audio engine ${ids.length} queued songs';
+    });
+    final response = await widget.edgeClient.prefetch(
+      songIds: ids,
+      wait: true,
+      loadStems: false,
+    );
+    final result = _asStringMap(response['result']) ?? response;
+    final failed = result['failed'];
+    if (failed is List && failed.isNotEmpty) {
+      throw Exception('RK prefetch failed: ${failed.join(', ')}');
+    }
+    final ready = result['ready'];
+    if (ready is List && ready.length < ids.length) {
+      throw Exception(
+        'RK prefetch incomplete: ${ready.length}/${ids.length} ready',
+      );
+    }
+  }
+
+  Future<void> _prefetchLiveTargetsBeforeCut(
+    List<LibrarySong> targets, {
+    int? sessionId,
+  }) async {
+    final ids = <Object>[];
+    final seen = <String>{};
+    for (final song in targets) {
+      final id = _rkIdForXfade(song);
+      if (seen.add(id.toString())) ids.add(id);
+    }
+    if (ids.isEmpty || !_isCachePrepActive(sessionId)) return;
+    final response = await widget.edgeClient.prefetch(
+      songIds: ids,
+      wait: true,
+      loadStems: false,
+    );
+    final result = _asStringMap(response['result']) ?? response;
+    final failed = result['failed'];
+    if (failed is List && failed.isNotEmpty) {
+      throw Exception('RK target prefetch failed: ${failed.join(', ')}');
+    }
+  }
+
+  Map<String, dynamic> _originalOnlyManifest(
+    Map<String, dynamic> manifest,
+    String songId,
+  ) {
+    final files = manifest['files'];
+    final original = files is Map ? files['original'] : null;
+    final originalEntry =
+        original is Map
+            ? Map<String, dynamic>.from(original)
+            : <String, dynamic>{};
+    originalEntry['url'] = widget.apiClient.streamUrl(
+      token: widget.token,
+      songId: songId,
+    );
+    originalEntry['format'] = 'mp3';
+    final out = Map<String, dynamic>.from(manifest);
+    out['files'] = <String, dynamic>{'original': originalEntry};
+    final qualityFlags = out['qualityFlags'];
+    if (qualityFlags is Map) {
+      out['qualityFlags'] = <String, dynamic>{
+        ...Map<String, dynamic>.from(qualityFlags),
+        'has_stems': false,
+        'stem_model': null,
+      };
+    }
+    out['stemStatus'] = 'not_requested';
+    return out;
+  }
+
+  Future<Map<String, dynamic>> _prepareTargetCutPreview({
+    required Map<String, dynamic> previewPlan,
+    required LibrarySong current,
+    required LibrarySong target,
+    required List<LibrarySong> ordered,
+    String? targetStyle,
+  }) async {
+    final sessionId = _liveSessionId;
+    if (!_isActiveLiveSession(sessionId)) return previewPlan;
+    final targetCacheId = _cacheIdForSong(target);
+    if (targetCacheId == null ||
+        !_startupValidatedCacheIds.contains(targetCacheId)) {
+      throw Exception('${target.title} was not prepared before playback');
+    }
+
+    setState(() {
+      _cutInfo = 'Preloading target cut: ${target.title}';
+    });
+    await _prefetchLiveTargetsBeforeCut([target], sessionId: sessionId);
+
+    final transition = await _planSectionMatchTransition(
+      prev: current,
+      next: target,
+      cursorSec: _position.inMilliseconds / 1000.0,
+      ruleKey: previewPlan['recommended_transition_hint']?.toString(),
+      targetStyle: targetStyle,
+    );
+    await _prewarmBeatmatchForPlan(
+      target: target,
+      plan: transition,
+      sessionId: sessionId,
+      stageLabel: 'Prewarming target transition:',
+    );
+
+    final prepared = Map<String, dynamic>.from(previewPlan);
+    prepared['prepared_transition'] = transition;
+    prepared['prepared_for_current_song_id'] = current.id;
+    prepared['prepared_target_song_id'] = target.id;
+
+    final originalNext =
+        _liveIdx + 1 < ordered.length ? ordered[_liveIdx + 1] : null;
+    if (originalNext != null && originalNext.id != target.id) {
+      setState(() {
+        _cutInfo = 'Preparing follow-up transition after ${target.title}';
+      });
+      await _prefetchLiveTargetsBeforeCut([originalNext], sessionId: sessionId);
+      final followup = await _planSectionMatchTransition(
+        prev: target,
+        next: originalNext,
+        cursorSec: _preplanCursorSec(target),
+        targetStyle: targetStyle,
+      );
+      await _prewarmBeatmatchForPlan(
+        target: originalNext,
+        plan: followup,
+        sessionId: sessionId,
+        stageLabel: 'Prewarming follow-up transition:',
+      );
+      prepared['prepared_followup_transition'] = followup;
+      prepared['prepared_followup_to_song_id'] = originalNext.id;
+    }
+    return prepared;
+  }
+
+  /// Sync the full live queue and all reserve/style candidates before playback.
+  /// This intentionally blocks the first song until RK has the complete pool.
+  // ignore: unused_element
+  Future<void> _syncAllLiveCandidatesBeforePlay(
+    List<LibrarySong> ordered,
+  ) async {
+    final ids = _liveCacheQueueIds(ordered, startIdx: 0);
+    if (ids.isEmpty) return;
+
+    await _waitForSyncWorkerIdleBeforeStartup();
+    await _syncMissingCacheFilesForIds(
+      ids,
+      null,
+      stageLabel: 'Syncing RK candidate pool',
+    );
+    await _ensurePlayableRkCacheIds(
+      ids,
+      stageLabel: 'Checking RK playable pool',
+    );
+    _startupValidatedCacheIds
+      ..clear()
+      ..addAll(ids);
+
+    await _prefetchLiveQueueBeforePlay(ordered, null);
+    if (mounted) {
+      setState(
+        () => _cutInfo = 'RK candidate pool is playable, starting playback',
+      );
+    }
+  }
+
+  Future<void> _syncMissingLiveCandidatesBeforePlay(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    final ids = _liveCacheQueueIds(ordered, startIdx: 0);
+    if (ids.isEmpty) return;
+
+    await _waitForSyncWorkerIdleForSession(sessionId);
+    if (!_isActiveLiveSession(sessionId)) return;
+    await _syncMissingCacheFilesForIds(
+      ids,
+      sessionId,
+      stageLabel: 'Syncing RK candidate pool',
+    );
+    if (!_isActiveLiveSession(sessionId)) return;
+    await _ensurePlayableRkCacheIds(
+      ids,
+      sessionId: sessionId,
+      stageLabel: 'Checking RK playable pool',
+    );
+    if (!_isActiveLiveSession(sessionId)) return;
+    _startupValidatedCacheIds
+      ..clear()
+      ..addAll(ids);
+    if (!_isActiveLiveSession(sessionId)) return;
+    if (_isActiveLiveSession(sessionId)) {
+      setState(() {
+        _cutInfo = 'RK candidate pool is playable';
+      });
+    }
+  }
+
+  Future<void> _startDefaultAutoplayOnRk(
+    List<LibrarySong> ordered,
+    int sessionId,
+  ) async {
+    if (ordered.isEmpty) return;
+    final queue = _liveQueueDecodeIds(ordered);
+    if (queue.isEmpty) return;
+    final transitions = _defaultPreparedTransitions();
+    await _syncDefaultMixAssetsForSession(ordered, sessionId);
+    if (!_isActiveLiveSession(sessionId)) return;
+    setState(() {
+      _cutInfo = 'Starting RK default autoplay branch';
+    });
+    final prefetchResponse = await widget.edgeClient.defaultAutoplayPrefetch(
+      queue: queue,
+      transitions: transitions,
+      sessionId: 'mobile-$sessionId',
+    );
+    final prefetchResult =
+        _asStringMap(prefetchResponse['result']) ?? prefetchResponse;
+    final missingRenders = prefetchResult['render_missing'];
+    if (missingRenders is List && missingRenders.isNotEmpty) {
+      throw Exception(
+        'RK default render resources missing: ${missingRenders.join(', ')}',
+      );
+    }
+    if (!_isActiveLiveSession(sessionId)) return;
+    await widget.edgeClient.defaultAutoplayStart(
+      queue: queue,
+      transitions: transitions,
+      startSongId: queue.first,
+      startAtSec: 0,
+      sessionId: 'mobile-$sessionId',
+    );
   }
 
   Future<void> _startLiveMix() async {
+    if (_liveStartInFlight) return;
+    _liveStartInFlight = true;
     final ordered = _orderedSongs();
-    if (ordered.isEmpty) return;
+    if (ordered.isEmpty) {
+      _liveStartInFlight = false;
+      return;
+    }
     final first = ordered.first;
     final rkId = _rkPlayId(first);
+    final sessionId = _liveSessionId + 1;
+    _rkPoll?.cancel();
+    _rkPoll = null;
+    try {
+      await widget.edgeClient.pause();
+    } catch (_) {
+      // Best-effort: a fresh DJ set must not inherit old RK playback.
+    }
     if (rkId == null) {
+      _liveStartInFlight = false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('首曲缺少 song_id，RK 无法识别')));
       return;
     }
     setState(() {
+      _resetLiveSessionForNewSet();
+      _liveSessionId = sessionId;
+      _liveStartInFlight = true;
       _liveStarted = true;
       _liveIdx = 0;
       _lastXfadeFromIdx = -1;
       _lastXfadeAt = null;
       _lastXfadeSec = 0.0;
       _lastXfadeToSongId = null;
-      _smartPlan = null;
-      _smartPlanForSongId = null;
+      _xfadeInFlightAt = null;
       _step = 3; // jump to 实时操作
-      _cutInfo = '正在同步首曲到 RK…';
+      _backgroundSyncInProgress = true;
+      _cutInfo = '正在检查 RK 候选池缓存，缺失歌曲同步完成后开始播放...';
+      _cutInfo = '正在同步全部候选池到 RK，完成后开始播放…';
     });
     try {
-      // 1) Make sure RK has the wav cached. Skips quickly if already cached.
-      await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
-      // 2) Tell edge-agent to start playback.
-      await widget.edgeClient.play(songId: rkId, startAtSec: 0);
-      if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
-      // 3) Warm up *every* remaining song serially in the background. Single
-      //    pipe to Jetson keeps egress simple; the loop survives per-track
-      //    failures so a transient miss on #2 doesn't starve #3+.
-      // ignore: discarded_futures
-      _warmAllRemainingTracks(1);
+      await _prepareLivePoolForSession(ordered, sessionId);
+      if (!_isActiveLiveSession(sessionId)) return;
+      await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+      if (!_isActiveLiveSession(sessionId)) return;
+      await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
+      if (!_isActiveLiveSession(sessionId)) return;
+      if (_isDefaultPreset) {
+        await _startDefaultAutoplayOnRk(ordered, sessionId);
+      } else {
+        await _prewarmPreparedTransitionPlansBeforePlay(ordered, sessionId);
+        if (!_isActiveLiveSession(sessionId)) return;
+        await _prefetchLiveQueueBeforePlay(ordered, sessionId);
+        if (!_isActiveLiveSession(sessionId)) return;
+        await widget.edgeClient.play(songId: rkId, startAtSec: 0);
+      }
+      if (_isActiveLiveSession(sessionId)) {
+        setState(() {
+          _liveStartInFlight = false;
+          _backgroundSyncInProgress = false;
+          _cutInfo = '▶ ${first.title}（候选池已全部在 RK 就绪）';
+        });
+      }
     } catch (e) {
       // Last-ditch retry: if play failed with 409 we may have missed the sync.
       if (_isMissingCacheError(e)) {
         try {
-          await _ensureRkCache(first, statusPrefix: '同步首曲到 RK');
-          await widget.edgeClient.play(songId: rkId, startAtSec: 0);
-          if (mounted) setState(() => _cutInfo = '▶ ${first.title}');
-          // ignore: discarded_futures
-          _warmAllRemainingTracks(1);
+          await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+          if (!_isActiveLiveSession(sessionId)) return;
+          await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
+          if (!_isActiveLiveSession(sessionId)) return;
+          if (_isDefaultPreset) {
+            await _startDefaultAutoplayOnRk(ordered, sessionId);
+          } else {
+            await _prewarmPreparedTransitionPlansBeforePlay(ordered, sessionId);
+            if (!_isActiveLiveSession(sessionId)) return;
+            await _prefetchLiveQueueBeforePlay(ordered, sessionId);
+            if (!_isActiveLiveSession(sessionId)) return;
+            await widget.edgeClient.play(songId: rkId, startAtSec: 0);
+          }
+          if (_isActiveLiveSession(sessionId)) {
+            setState(() {
+              _liveStartInFlight = false;
+              _backgroundSyncInProgress = false;
+              _cutInfo = '▶ ${first.title}（候选池已全部在 RK 就绪）';
+            });
+          }
         } catch (e2) {
-          if (mounted) {
+          if (_isActiveLiveSession(sessionId)) {
+            setState(() {
+              _liveStartInFlight = false;
+              _backgroundSyncInProgress = false;
+            });
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('RK 启动失败: $e2')));
           }
         }
       } else {
-        if (mounted) {
+        if (_isActiveLiveSession(sessionId)) {
+          setState(() {
+            _liveStartInFlight = false;
+            _backgroundSyncInProgress = false;
+          });
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('RK 启动失败: $e')));
         }
       }
     }
-    _startRkPolling();
+    if (_isActiveLiveSession(sessionId)) _startRkPolling(sessionId);
   }
 
-  void _startRkPolling() {
+  void _startRkPolling([int? sessionId]) {
+    final activeSessionId = sessionId ?? _liveSessionId;
     _rkPoll?.cancel();
     _rkPoll = Timer.periodic(const Duration(milliseconds: 600), (_) async {
-      if (!mounted) return;
+      if (!_isActiveLiveSession(activeSessionId)) return;
       try {
         final st = await widget.edgeClient.getState();
-        if (!mounted) return;
+        if (!_isActiveLiveSession(activeSessionId)) return;
         setState(() {
           _isPlaying = st.playing;
           _position = Duration(milliseconds: (st.positionSec * 1000).round());
           _duration = Duration(milliseconds: (st.durationSec * 1000).round());
           _rkCurrentSongId = st.currentSongId;
+          _rkExecutionHint = _rkExecutionHintFromState(st);
         });
-        _maybeAutoXfade();
+        if (_shouldRecoverEndedTrack(st)) {
+          // ignore: discarded_futures
+          _recoverEndedTrack();
+        } else {
+          _maybeAutoXfade();
+        }
       } catch (_) {
         /* swallow */
       }
     });
   }
 
-  Future<void> _maybeAutoXfade() async {
+  bool _shouldRecoverEndedTrack(dynamic st) {
+    if (_backgroundSyncInProgress) return false;
+    if (!_liveStarted || st.playing || _xfadeInFlight) return false;
+    if (_liveIdx == _lastXfadeFromIdx) return false;
+    final lastAttempt = _lastXfadeAt;
+    if (lastAttempt != null &&
+        DateTime.now().difference(lastAttempt) < const Duration(seconds: 5)) {
+      return false;
+    }
+    final ordered = _orderedSongs();
+    if (_liveIdx + 1 >= ordered.length) return false;
+    if (st.durationSec <= 0 || st.positionSec <= 5) return false;
+    return st.durationSec - st.positionSec <= 2.5;
+  }
+
+  Future<void> _recoverEndedTrack() async {
     if (_xfadeInFlight) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx + 1 >= ordered.length) return;
+    final prev = ordered[_liveIdx];
+    final next = ordered[_liveIdx + 1];
+
+    _xfadeInFlight = true;
+    _xfadeInFlightAt = DateTime.now();
+    try {
+      final plan =
+          _isDefaultPreset
+              ? await _ensurePreparedDefaultRenderPlanFor(
+                transitionIndex: _liveIdx,
+                prev: prev,
+                next: next,
+                cursorSec: _position.inMilliseconds / 1000.0,
+              )
+              : await _ensurePreparedSectionMatchPlanFor(
+                transitionIndex: _liveIdx,
+                prev: prev,
+                next: next,
+                cursorSec: _position.inMilliseconds / 1000.0,
+              );
+
+      final toAtSec = (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0;
+      final rawRuleKey = plan['rule_key']?.toString() ?? 'end_recovery';
+      final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
+      final nextRkId = _rkIdForXfade(next);
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
+
+      await _ensurePlayableRkCacheIds(
+        [next.id],
+        sessionId: _liveSessionId,
+        stageLabel: 'Repairing next song cache',
+      );
+
+      Map<String, dynamic> response;
+      try {
+        response =
+            _isDefaultPreset
+                ? await _edgeDefaultRenderFromPlan(target: next, plan: plan)
+                : await _edgeXfadeFromPlan(
+                  target: next,
+                  plan: plan,
+                  fadeSec: fadeSec,
+                  toAtSec: toAtSec,
+                  ruleKey: rawRuleKey,
+                  fallback: 'cut',
+                );
+      } catch (xfadeError) {
+        if (_isDefaultPreset) rethrow;
+        final playId = _rkPlayId(next);
+        if (playId == null) rethrow;
+        await widget.edgeClient.play(songId: playId, startAtSec: toAtSec);
+        response = <String, dynamic>{
+          'ok': true,
+          'result': <String, dynamic>{
+            'style': 'play',
+            'playback_tier': 'basic',
+            'degraded': true,
+            'degrade_reason': 'end_recovery_play_fallback',
+            'xfade_error': xfadeError.toString(),
+          },
+        };
+      }
+      final transitionDebug = _transitionDebugText(
+        trigger: 'end recovery',
+        from: prev,
+        to: next,
+        plan: plan,
+        response: response,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _lastXfadeFromIdx = _liveIdx;
+        _liveIdx += 1;
+        _activeRule = '$ruleLabel · end recovery';
+        _cutInfo = 'End recovery -> #${_liveIdx + 1} ${next.title}';
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = nextRkId.toString();
+        _lastTransitionDebug = transitionDebug;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cutInfo = 'End recovery failed: $e';
+          _lastXfadeAt = DateTime.now();
+          _lastXfadeSec = 0.0;
+        });
+      }
+    } finally {
+      _xfadeInFlight = false;
+      _xfadeInFlightAt = null;
+    }
+  }
+
+  Future<void> _maybeAutoXfade() async {
+    if (_backgroundSyncInProgress) return;
+    if (_xfadeInFlight) {
+      final started = _xfadeInFlightAt;
+      if (started != null &&
+          DateTime.now().difference(started) > const Duration(seconds: 8)) {
+        _xfadeInFlight = false;
+        _xfadeInFlightAt = null;
+      } else {
+        return;
+      }
+    }
     if (_liveIdx == _lastXfadeFromIdx) return;
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return;
@@ -877,75 +2337,25 @@ class _DjControlPageState extends State<DjControlPage> {
     final remainingSec =
         durationSec > 0 ? durationSec - positionSec : double.infinity;
 
-    // --- Smart plan pre-fetch ---
-    // When the track is within 30s of its end, fetch the phrase-aligned plan
-    // ahead of time so we know exactly when (from_at_sec) and how
-    // (to_at_sec / duration_sec / rule) to fire the xfade. Cached per song.
-    if (remainingSec <= 30.0 &&
-        _smartPlanForSongId != prev.id &&
-        !_smartPlanInFlight) {
-      _smartPlanInFlight = true;
-      try {
-        // Prefetch the next song's wav into RK cache while we plan.
-        // Then immediately ask audio-engine to decode it + stems into memory
-        // so the xfade response isn't blocked on file IO when it fires.
-        // ignore: discarded_futures
-        _ensureRkCache(next, statusPrefix: '预取下一首')
-            .then((_) async {
-              try {
-                await widget.edgeClient.prefetch(
-                  songIds: [_rkIdForXfade(next)],
-                );
-              } catch (_) {
-                /* best-effort */
-              }
-            })
-            .catchError((_) {});
-        final plan =
-            _canonicalPlanFor(
+    // --- Trigger decision ---
+    // Use the startup-prepared plan to fire at the phrase-aligned exit point.
+    // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
+    // miss a transition when the planner produced no usable exit.
+    final plan =
+        _isDefaultPreset
+            ? await _ensurePreparedDefaultRenderPlanFor(
               transitionIndex: _liveIdx,
               prev: prev,
               next: next,
-            ) ??
-            await widget.apiClient.djPlanTransition(
-              token: widget.token,
-              prevSongId: prev.id,
-              nextSongId: next.id,
+              cursorSec: positionSec,
+            )
+            : await _ensurePreparedSectionMatchPlanFor(
+              transitionIndex: _liveIdx,
+              prev: prev,
+              next: next,
               cursorSec: positionSec,
             );
-        if (!mounted) return;
-        setState(() {
-          _smartPlan = plan;
-          _smartPlanForSongId = prev.id;
-        });
-        // Phase 2: if the plan asks for a tempo align, kick a background
-        // rubberband render so xfade isn't blocked on it later.
-        final ratio = (plan['tempo_ratio'] as num?)?.toDouble();
-        final nextRkId = _rkIdForXfade(next);
-        if (ratio != null &&
-            (ratio - 1.0).abs() >= 0.005 &&
-            (ratio - 1.0).abs() <= 0.06) {
-          // ignore: discarded_futures
-          widget.edgeClient
-              .prewarmBeatmatch(songId: nextRkId, tempoRatio: ratio)
-              .catchError((_) => <String, dynamic>{});
-        }
-      } catch (_) {
-        // ignore — fall back to legacy trigger below
-      } finally {
-        _smartPlanInFlight = false;
-      }
-    }
-
-    // --- Trigger decision ---
-    // If we have a smart plan and the cursor has reached its exit point, fire.
-    // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
-    // miss a transition when the planner produced no usable exit.
-    final smart =
-        (_smartPlan != null && _smartPlanForSongId == prev.id)
-            ? _smartPlan
-            : null;
-    final smartExitAt = (smart?['from_at_sec'] as num?)?.toDouble();
+    final smartExitAt = (plan['from_at_sec'] as num?)?.toDouble();
     final bool shouldTrigger;
     if (smartExitAt != null && smartExitAt > 0) {
       // Belt-and-suspenders: even if the planner missed the moment (RK
@@ -965,34 +2375,11 @@ class _DjControlPageState extends State<DjControlPage> {
     final nextRkId = _rkIdForXfade(next);
 
     _xfadeInFlight = true;
+    _xfadeInFlightAt = DateTime.now();
     try {
-      await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
-
-      // Use the cached smart plan if we have one; otherwise fetch on the spot
-      // (legacy path).
-      Map<String, dynamic> plan =
-          smart ??
-          _canonicalPlanFor(
-            transitionIndex: _liveIdx,
-            prev: prev,
-            next: next,
-          ) ??
-          await widget.apiClient.djPlanTransition(
-            token: widget.token,
-            prevSongId: prev.id,
-            nextSongId: next.id,
-            cursorSec: positionSec,
-          );
-
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(plan, rawRuleKey, fallback: 'blend');
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
-      final rawDur =
-          (plan['duration_sec'] as num?)?.toDouble() ??
-          (plan['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
-      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
 
       // Phase-1: enter next song at the planned point (skips intro silence /
       // build-up). Falls back to 0 when the backend didn't provide one.
@@ -1003,15 +2390,11 @@ class _DjControlPageState extends State<DjControlPage> {
       // Phase-2: tempo align hint.
       final tempoRatio = (plan['tempo_ratio'] as num?)?.toDouble();
       final alignStrategy = plan['align_strategy']?.toString() ?? 'skip';
-      final transitionId = plan['transition_id']?.toString();
-      final fallbackStyle = plan['fallback_style']?.toString();
-      final phaseAnchorSec = (plan['phase_anchor_sec'] as num?)?.toDouble();
 
       // Phase 3.1 — surface stem strategy on cutInfo so the operator sees
       // when bass is actually being swapped vs faded. Highlight non-trivial
       // curves only (skip the "all linear" trivial case).
       final stemCurves = plan['stem_curves'];
-      final eqCurves = plan['eq_curves'];
       String? stemHint;
       if (stemCurves is Map) {
         final prev = stemCurves['prev'];
@@ -1031,79 +2414,25 @@ class _DjControlPageState extends State<DjControlPage> {
         if (highlights.isNotEmpty) stemHint = highlights.join('+');
       }
 
-      // Phase 2.5 — beat reinforcement. Fire-and-forget BEFORE xfade so the
-      // schedule is anchored against active_deck.pos_sec at the moment of
-      // crossfade start. RK drops events that slip >100ms past the clock.
-      final reinforceTags = <String>[];
-      final reinforce = plan['beat_reinforce'];
-      if (reinforce is Map) {
-        Future<void> _fireSide(String side) async {
-          final cfg = reinforce[side];
-          if (cfg is! Map) return;
-          final beatsRaw = cfg['beats'];
-          if (beatsRaw is! List || beatsRaw.isEmpty) return;
-          final beats = beatsRaw
-              .whereType<num>()
-              .map((n) => n.toDouble())
-              .toList(growable: false);
-          try {
-            await widget.edgeClient.beatReinforce(
-              startSec: (cfg['start_sec'] as num?)?.toDouble() ?? 0.0,
-              endSec: (cfg['end_sec'] as num?)?.toDouble() ?? 0.0,
-              beats: beats,
-              sampleKey: (cfg['sample_key'] as num?)?.toInt() ?? 4,
-              gain: (cfg['gain'] as num?)?.toDouble() ?? 1.0,
-              pattern: cfg['pattern']?.toString() ?? 'all',
-            );
-            reinforceTags.add(
-              '${side == "prev" ? "出" : "入"}加鼓×${beats.length}',
-            );
-          } catch (_) {
-            /* swallow — reinforcement is best-effort */
-          }
-        }
-
-        // Run sequentially so the second call sees up-to-date scheduler state.
-        await _fireSide('prev');
-        await _fireSide('next');
-      }
-
-      Future<Map<String, dynamic>> doXfade() => widget.edgeClient.xfade(
-        toSongId: nextRkId,
-        fadeSec: fadeSec,
-        toAtSec: toAtSec,
-        style: ruleKey,
-        transitionId: transitionId,
-        fallbackStyle:
-            fallbackStyle == null
-                ? null
-                : _rkStyle(fallbackStyle, fallback: 'blend'),
-        tempoRatio: tempoRatio,
-        stemCurves:
-            stemCurves is Map<String, dynamic>
-                ? stemCurves
-                : (stemCurves is Map
-                    ? Map<String, dynamic>.from(stemCurves)
-                    : null),
-        eqCurves:
-            eqCurves is Map<String, dynamic>
-                ? eqCurves
-                : (eqCurves is Map
-                    ? Map<String, dynamic>.from(eqCurves)
-                    : null),
-        phaseAnchorSec: phaseAnchorSec,
+      Future<Map<String, dynamic>> doXfade() =>
+          _isDefaultPreset
+              ? _edgeDefaultRenderFromPlan(target: next, plan: plan)
+              : _edgeXfadeFromPlan(
+                target: next,
+                plan: plan,
+                fadeSec: fadeSec,
+                toAtSec: toAtSec,
+                ruleKey: rawRuleKey,
+                fallback: 'blend',
+              );
+      final xfadeResponse = await doXfade();
+      final transitionDebug = _transitionDebugText(
+        trigger: 'auto',
+        from: prev,
+        to: next,
+        plan: plan,
+        response: xfadeResponse,
       );
-      Map<String, dynamic>? xfadeResponse;
-      try {
-        xfadeResponse = await doXfade();
-      } catch (e) {
-        if (_isMissingCacheError(e)) {
-          await _ensureRkCache(next, statusPrefix: '同步下一首到 RK');
-          xfadeResponse = await doXfade();
-        } else {
-          rethrow;
-        }
-      }
       if (!mounted) return;
       setState(() {
         _lastXfadeFromIdx = _liveIdx;
@@ -1119,9 +2448,6 @@ class _DjControlPageState extends State<DjControlPage> {
             '对速${alignStrategy == "match" ? "" : "(${alignStrategy})"} ×${tempoRatio.toStringAsFixed(3)}',
           );
         }
-        if (reinforceTags.isNotEmpty) {
-          tail.add(reinforceTags.join('+'));
-        }
         if (stemHint != null) {
           tail.add('stem:$stemHint');
         }
@@ -1134,10 +2460,8 @@ class _DjControlPageState extends State<DjControlPage> {
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRkId.toString();
-        _smartPlan = null;
-        _smartPlanForSongId = null;
+        _lastTransitionDebug = transitionDebug;
       });
-      _kickPrefetchNext();
     } catch (e) {
       // Failure cooldown: even if xfade failed (409 because the song finished
       // and active deck went away, or 503, etc.), don't hammer at every poll.
@@ -1152,6 +2476,7 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     } finally {
       _xfadeInFlight = false;
+      _xfadeInFlightAt = null;
     }
   }
 
@@ -1163,36 +2488,47 @@ class _DjControlPageState extends State<DjControlPage> {
       setState(() => _isPlaying = false);
       return;
     }
+    final prev = ordered[_liveIdx];
     final nextSong = ordered[next];
     final nextRk = _rkIdForXfade(nextSong);
     try {
-      await _ensureRkCache(nextSong, statusPrefix: '同步下一首到 RK');
-      // Hard cut via xfade w/ tiny fade.
-      Future<void> doCut() => widget.edgeClient.xfade(
-        toSongId: nextRk,
-        fadeSec: 0.4,
-        toAtSec: 0.0,
-        style: 'cut',
+      final plan = await _ensurePreparedSectionMatchPlanFor(
+        transitionIndex: _liveIdx,
+        prev: prev,
+        next: nextSong,
+        cursorSec: _position.inMilliseconds / 1000.0,
       );
-      try {
-        await doCut();
-      } catch (e) {
-        if (_isMissingCacheError(e)) {
-          await _ensureRkCache(nextSong, statusPrefix: '同步下一首到 RK');
-          await doCut();
-        } else {
-          rethrow;
-        }
-      }
+      final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
+      final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
+      final fadeSec = _v32FadeSec(plan, fallback: 6.0);
+      final response = await _edgeXfadeFromPlan(
+        target: nextSong,
+        plan: plan,
+        fadeSec: fadeSec,
+        toAtSec: (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0,
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
+      );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'next',
+        from: prev,
+        to: nextSong,
+        plan: plan,
+        response: response,
+      );
       setState(() {
         _liveIdx = next;
         _lastXfadeFromIdx = next - 1;
         _lastXfadeAt = DateTime.now();
-        _lastXfadeSec = 0.4;
+        _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = nextRk.toString();
-        _cutInfo = '手动跳到 #${next + 1}';
+        _lastTransitionDebug = transitionDebug;
+        final hint = _xfadeResultHint(response);
+        _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
+        _cutInfo =
+            '手动跳到 #${next + 1} · $ruleLabel'
+            '${hint == null ? "" : " · $hint"}';
       });
-      _kickPrefetchNext();
     } catch (e) {
       setState(() => _cutInfo = '跳曲失败: $e');
     }
@@ -1214,6 +2550,17 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _doCut(String strategy) async {
+    // Block cuts while startup is syncing the full candidate pool.
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('候选池正在同步到 RK，请等待同步完成后再切歌'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     final ordered = _orderedSongs();
     if (ordered.isEmpty) return;
     final current = ordered[_liveIdx];
@@ -1230,103 +2577,426 @@ class _DjControlPageState extends State<DjControlPage> {
         poolSongIds: pool,
       );
       final nextId = plan['next_song_id']?.toString();
-      final cutAt =
-          (plan['cut_at_sec'] as num?)?.toDouble() ??
-          _position.inMilliseconds / 1000.0;
       if (nextId == null) {
         setState(() => _cutInfo = '⏭ $strategy → 队尾，无下一首');
         return;
       }
-      // Resolve target song.
       final byId = {for (final s in _picked) s.id: s};
       final target =
           byId[nextId] ??
           ordered.firstWhere((s) => s.id == nextId, orElse: () => current);
       final targetRk = _rkIdForXfade(target);
       final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
-      await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
-
-      // Use 7+11 transition rules: plan transition from cut point.
-      final transition = await widget.apiClient.djPlanTransition(
-        token: widget.token,
-        prevSongId: current.id,
-        nextSongId: nextId,
-        cursorSec: cutAt,
+      final transitionIndex = inOrderIdx > _liveIdx ? inOrderIdx - 1 : _liveIdx;
+      final transition = await _ensurePreparedSectionMatchPlanFor(
+        transitionIndex: transitionIndex,
+        prev: current,
+        next: target,
+        cursorSec: _position.inMilliseconds / 1000.0,
       );
       final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final ruleKey = _plannedRkStyle(
-        transition,
-        rawRuleKey,
-        fallback: 'blend',
-      );
       final ruleLabel = transition['rule_label_zh']?.toString() ?? rawRuleKey;
-      final rawDur =
-          (transition['duration_sec'] as num?)?.toDouble() ??
-          (transition['fade_sec'] as num?)?.toDouble() ??
-          6.0;
-      final minFade = _minFadeForRule[rawRuleKey] ?? 0.05;
-      final fadeSec = math.max(minFade, rawDur).clamp(0.05, 30.0).toDouble();
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
 
-      Future<Map<String, dynamic>> doXfade() => widget.edgeClient.xfade(
-        toSongId: targetRk,
+      Future<Map<String, dynamic>> doXfade() => _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
         fadeSec: fadeSec,
         toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        style: ruleKey,
-        transitionId: transition['transition_id']?.toString(),
-        fallbackStyle:
-            transition['fallback_style'] == null
-                ? null
-                : _rkStyle(
-                  transition['fallback_style'].toString(),
-                  fallback: 'blend',
-                ),
-        tempoRatio: (transition['tempo_ratio'] as num?)?.toDouble(),
-        stemCurves:
-            transition['stem_curves'] is Map<String, dynamic>
-                ? transition['stem_curves'] as Map<String, dynamic>
-                : (transition['stem_curves'] is Map
-                    ? Map<String, dynamic>.from(
-                      transition['stem_curves'] as Map,
-                    )
-                    : null),
-        eqCurves:
-            transition['eq_curves'] is Map<String, dynamic>
-                ? transition['eq_curves'] as Map<String, dynamic>
-                : (transition['eq_curves'] is Map
-                    ? Map<String, dynamic>.from(transition['eq_curves'] as Map)
-                    : null),
-        phaseAnchorSec: (transition['phase_anchor_sec'] as num?)?.toDouble(),
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
       );
-      Map<String, dynamic>? xfadeResponse;
-      try {
-        xfadeResponse = await doXfade();
-      } catch (e) {
-        if (_isMissingCacheError(e)) {
-          await _ensureRkCache(target, statusPrefix: '同步切换目标到 RK');
-          xfadeResponse = await doXfade();
-        } else {
-          rethrow;
-        }
-      }
+      final xfadeResponse = await doXfade();
+      final transitionDebug = _transitionDebugText(
+        trigger: strategy,
+        from: current,
+        to: target,
+        plan: transition,
+        response: xfadeResponse,
+      );
       setState(() {
         if (inOrderIdx > _liveIdx) {
           _liveIdx = inOrderIdx;
         } else {
           _liveIdx = _liveIdx + 1;
         }
-        _lastXfadeFromIdx = _liveIdx - 1;
+        _lastXfadeFromIdx = transitionIndex;
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
         _lastXfadeToSongId = targetRk.toString();
+        _lastTransitionDebug = transitionDebug;
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         final xfadeHint = _xfadeResultHint(xfadeResponse);
         _cutInfo =
             '⏭ $strategy → ${target.title} · $ruleLabel'
             '${xfadeHint == null ? "" : " · $xfadeHint"}';
       });
-      _kickPrefetchNext();
     } catch (e) {
       setState(() => _cutInfo = '切歌失败: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> _sequenceWithInsertedNext(String targetId) {
+    final ordered = _orderedSongs();
+    final base =
+        _sequence.isNotEmpty
+            ? _sequence.map((e) => Map<String, dynamic>.from(e)).toList()
+            : ordered
+                .map(
+                  (s) => <String, dynamic>{
+                    'song_id': s.id,
+                    'target_energy':
+                        _liveEnergyScore(s.id) ?? (s.energy ?? 0.5) * 100,
+                    'actual_energy':
+                        _liveEnergyScore(s.id) ?? (s.energy ?? 0.5) * 100,
+                    'breakdown': <String, dynamic>{},
+                  },
+                )
+                .toList();
+    base.removeWhere((e) => e['song_id']?.toString() == targetId);
+    final insertAt = math.min(_liveIdx + 1, base.length);
+    base.insert(insertAt, {
+      'song_id': targetId,
+      'target_energy': _liveEnergyScore(targetId) ?? 0.0,
+      'actual_energy': _liveEnergyScore(targetId) ?? 0.0,
+      'breakdown': <String, dynamic>{},
+    });
+    for (var i = 0; i < base.length; i++) {
+      base[i]['position'] = i + 1;
+    }
+    return base;
+  }
+
+  void _insertTargetAsNext(LibrarySong target) {
+    if (!_picked.any((s) => s.id == target.id)) {
+      _picked.add(target);
+    }
+    if (_sequence.isEmpty) {
+      _picked.removeWhere((s) => s.id == target.id);
+      final insertAt = math.min(_liveIdx + 1, _picked.length);
+      _picked.insert(insertAt, target);
+    } else {
+      _sequence = _sequenceWithInsertedNext(target.id);
+    }
+    final reserve = <String, List<String>>{};
+    _reservePoolByBucket.forEach((bucket, ids) {
+      reserve[bucket] = ids.where((id) => id != target.id).toList();
+    });
+    _reservePoolByBucket = reserve;
+  }
+
+  Future<void> _previewTargetEnergyBucket(String label) async {
+    final ordered = _orderedSongs();
+    if (!_liveStarted || _liveIdx >= ordered.length) return;
+    final parts = label.split('-');
+    if (parts.length != 2) return;
+    final lo = int.tryParse(parts[0]);
+    final hi = int.tryParse(parts[1]);
+    if (lo == null || hi == null) return;
+    final current = ordered[_liveIdx];
+    setState(() {
+      _targetEnergyLoading = true;
+      _targetEnergyBucketLabel = label;
+      _targetEnergyPreview = null;
+      _cutInfo = '正在寻找 $label 能量区间的下一首…';
+    });
+    try {
+      final plan = await widget.apiClient.djPlanTargetEnergyCut(
+        token: widget.token,
+        currentSongId: current.id,
+        cursorSec: _position.inMilliseconds / 1000.0,
+        activeQueueSongIds:
+            ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
+        reservePoolSongIds: _reserveSongIds(),
+        playedSongIds: _playedSongIds(),
+        blockedSongIds:
+            _rkCacheStatus.entries
+                .where((e) => e.value == 'failed')
+                .map((e) => e.key)
+                .toList(),
+        excludeSongIds: _targetEnergyExcluded.toList(),
+        cachedSongIds: _cachedIds(),
+        syncingSongIds: const [],
+        targetMin: lo,
+        targetMax: hi,
+        currentStyle: _v2StyleForPreset(),
+      );
+      if (!mounted) return;
+      Map<String, dynamic> preparedPlan = plan;
+      final selected = plan['selected_song'];
+      if (selected is Map && selected['song_id'] != null) {
+        final target = _songById(selected['song_id'].toString());
+        if (target != null) {
+          preparedPlan = await _prepareTargetCutPreview(
+            previewPlan: plan,
+            current: current,
+            target: target,
+            ordered: ordered,
+          );
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _targetEnergyPreview = preparedPlan;
+        _cutInfo =
+            preparedPlan['selected_song'] == null
+                ? '未找到 $label 可用候选'
+                : '已准备 ${preparedPlan['selected_song']['title']}，可立即切歌';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = '目标能量预览失败: $e');
+    } finally {
+      if (mounted) setState(() => _targetEnergyLoading = false);
+    }
+  }
+
+  Future<void> _changeTargetEnergyCandidate() async {
+    final selected = _targetEnergyPreview?['selected_song'];
+    if (selected is Map && selected['song_id'] != null) {
+      _targetEnergyExcluded.add(selected['song_id'].toString());
+    }
+    final label = _targetEnergyBucketLabel;
+    if (label != null) await _previewTargetEnergyBucket(label);
+  }
+
+  void _cancelTargetEnergyPreview() {
+    setState(() {
+      _targetEnergyPreview = null;
+      _targetEnergyBucketLabel = null;
+      _targetEnergyExcluded.clear();
+    });
+  }
+
+  // =========================================================================
+  // Target Style Cut (风格切歌)
+  // =========================================================================
+
+  Future<void> _previewTargetStyle(String style) async {
+    final ordered = _orderedSongs();
+    if (!_liveStarted || _liveIdx >= ordered.length) return;
+    final current = ordered[_liveIdx];
+    setState(() {
+      _targetStyleLoading = true;
+      _selectedTargetStyle = style;
+      _targetStylePreview = null;
+      _cutInfo = '正在寻找 $style 风格的下一首…';
+    });
+    try {
+      final plan = await widget.apiClient.djPlanTargetStyleCut(
+        token: widget.token,
+        currentSongId: current.id,
+        cursorSec: _position.inMilliseconds / 1000.0,
+        targetStyle: style,
+        activeQueueSongIds:
+            ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
+        styleReservePoolSongIds: _styleReserveSongIds(),
+        playedSongIds: _playedSongIds(),
+        blockedSongIds:
+            _rkCacheStatus.entries
+                .where((e) => e.value == 'failed')
+                .map((e) => e.key)
+                .toList(),
+        cachedSongIds: _cachedIds(),
+        syncingSongIds: const [],
+        currentStyle: _v2StyleForPreset(),
+      );
+      if (!mounted) return;
+      Map<String, dynamic> preparedPlan = plan;
+      final selected = plan['selected_song'];
+      if (selected is Map && selected['song_id'] != null) {
+        final target = _songById(selected['song_id'].toString());
+        if (target != null) {
+          preparedPlan = await _prepareTargetCutPreview(
+            previewPlan: plan,
+            current: current,
+            target: target,
+            ordered: ordered,
+            targetStyle: style,
+          );
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _targetStylePreview = preparedPlan;
+        _cutInfo =
+            preparedPlan['selected_song'] == null
+                ? '未找到 $style 可用候选'
+                : '已准备 ${preparedPlan['selected_song']['title']}，可立即切歌';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = '目标风格预览失败: $e');
+    } finally {
+      if (mounted) setState(() => _targetStyleLoading = false);
+    }
+  }
+
+  Future<void> _confirmTargetStyleCut() async {
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Candidate pool is still syncing to RK. Please wait.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final plan = _targetStylePreview;
+    final selected = plan?['selected_song'];
+    if (plan == null || selected is! Map || selected['song_id'] == null) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx >= ordered.length) return;
+    final current = ordered[_liveIdx];
+    final targetId = selected['song_id'].toString();
+    final target = _songById(targetId);
+    if (target == null) {
+      setState(() => _cutInfo = 'Recommended song is not in the loaded pool.');
+      return;
+    }
+
+    try {
+      final transition = _asStringMap(plan['prepared_transition']);
+      if (transition == null ||
+          plan['prepared_for_current_song_id']?.toString() != current.id ||
+          plan['prepared_target_song_id']?.toString() != target.id) {
+        setState(
+          () =>
+              _cutInfo = 'Target style preview expired, please preview again.',
+        );
+        return;
+      }
+      final followup = _asStringMap(plan['prepared_followup_transition']);
+      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
+      final response = await _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
+        fadeSec: fadeSec,
+        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
+      );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'target style',
+        from: current,
+        to: target,
+        plan: transition,
+        response: response,
+      );
+      if (!mounted) return;
+      setState(() {
+        final cutFromIndex = _liveIdx;
+        _insertTargetAsNext(target);
+        _installPreparedTargetCutPlans(
+          cutFromIndex: cutFromIndex,
+          transition: transition,
+          followup: followup,
+        );
+        _liveIdx = cutFromIndex + 1;
+        _lastXfadeFromIdx = cutFromIndex;
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = _rkIdForXfade(target).toString();
+        _lastTransitionDebug = transitionDebug;
+        _activeRule =
+            '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
+        final hint = _xfadeResultHint(response);
+        _cutInfo =
+            'Target style cut -> ${target.title}${hint == null ? "" : " - $hint"}';
+        _targetStylePreview = null;
+        _selectedTargetStyle = null;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = 'Target style cut failed: $e');
+    }
+  }
+
+  void _cancelTargetStylePreview() {
+    setState(() {
+      _targetStylePreview = null;
+      _selectedTargetStyle = null;
+    });
+  }
+
+  Future<void> _confirmTargetEnergyCut() async {
+    if (_backgroundSyncInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Candidate pool is still syncing to RK. Please wait.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final plan = _targetEnergyPreview;
+    final selected = plan?['selected_song'];
+    if (plan == null || selected is! Map || selected['song_id'] == null) return;
+    final ordered = _orderedSongs();
+    if (_liveIdx >= ordered.length) return;
+    final current = ordered[_liveIdx];
+    final targetId = selected['song_id'].toString();
+    final target = _songById(targetId);
+    if (target == null) {
+      setState(() => _cutInfo = 'Recommended song is not in the loaded pool.');
+      return;
+    }
+
+    try {
+      final transition = _asStringMap(plan['prepared_transition']);
+      if (transition == null ||
+          plan['prepared_for_current_song_id']?.toString() != current.id ||
+          plan['prepared_target_song_id']?.toString() != target.id) {
+        setState(
+          () =>
+              _cutInfo = 'Target energy preview expired, please preview again.',
+        );
+        return;
+      }
+      final followup = _asStringMap(plan['prepared_followup_transition']);
+      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
+      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
+      final response = await _edgeXfadeFromPlan(
+        target: target,
+        plan: transition,
+        fadeSec: fadeSec,
+        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
+        ruleKey: rawRuleKey,
+        fallback: 'blend',
+      );
+      final transitionDebug = _transitionDebugText(
+        trigger: 'target energy',
+        from: current,
+        to: target,
+        plan: transition,
+        response: response,
+      );
+      if (!mounted) return;
+      setState(() {
+        final cutFromIndex = _liveIdx;
+        _insertTargetAsNext(target);
+        _installPreparedTargetCutPlans(
+          cutFromIndex: cutFromIndex,
+          transition: transition,
+          followup: followup,
+        );
+        _liveIdx = cutFromIndex + 1;
+        _lastXfadeFromIdx = cutFromIndex;
+        _lastXfadeAt = DateTime.now();
+        _lastXfadeSec = fadeSec;
+        _lastXfadeToSongId = _rkIdForXfade(target).toString();
+        _lastTransitionDebug = transitionDebug;
+        _activeRule =
+            '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
+        final hint = _xfadeResultHint(response);
+        _cutInfo =
+            'Target energy cut -> ${target.title}${hint == null ? "" : " - $hint"}';
+        _targetEnergyPreview = null;
+        _targetEnergyBucketLabel = null;
+        _targetEnergyExcluded.clear();
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cutInfo = 'Target energy cut failed: $e');
     }
   }
 
@@ -1390,6 +3060,13 @@ class _DjControlPageState extends State<DjControlPage> {
             onPlayPause: _togglePlay,
             onNext: _advanceLive,
             cutInfo: _cutInfo,
+            rkExecutionHint: _rkExecutionHint,
+            transitionDebug: _lastTransitionDebug,
+            preparedTransitionDebug: _currentPreparedTransitionDebug(),
+            energyScore:
+                _liveIdx < _orderedSongs().length
+                    ? _liveEnergyScore(_orderedSongs()[_liveIdx].id)
+                    : null,
           ),
         Expanded(child: _buildStepBody()),
         _StepFooter(
@@ -1412,11 +3089,7 @@ class _DjControlPageState extends State<DjControlPage> {
 
   Future<void> _onNext() async {
     if (_step == 2) {
-      if (!_liveStarted) {
-        await _startLiveMix();
-      } else {
-        setState(() => _step = 3);
-      }
+      await _startLiveMix();
       return;
     }
     setState(() => _step = _step + 1);
@@ -1434,11 +3107,7 @@ class _DjControlPageState extends State<DjControlPage> {
           picked: _picked,
           onAdd: _addSongs,
           onRemove: _removeSong,
-          onClear:
-              () => setState(() {
-                _picked.clear();
-                _sequence = const [];
-              }),
+          onClear: _clearPicked,
         );
       case 1:
         return _Step2Sequence(
@@ -1465,6 +3134,7 @@ class _DjControlPageState extends State<DjControlPage> {
           rules: _rules,
           picked: _picked,
           sequence: _sequence,
+          isDefaultPreset: _isDefaultPreset,
           canStart: _sequence.isNotEmpty,
           onStart: _startLiveMix,
         );
@@ -1473,9 +3143,32 @@ class _DjControlPageState extends State<DjControlPage> {
           ordered: _orderedSongs(),
           idx: _liveIdx,
           liveStarted: _liveStarted,
+          isDefaultPreset: _isDefaultPreset,
           fxItems: _fxItems,
           onCut: _doCut,
           onPlayFx: _playFx,
+          energyScore:
+              _liveIdx < _orderedSongs().length
+                  ? _liveEnergyScore(_orderedSongs()[_liveIdx].id)
+                  : null,
+          targetBuckets: _visibleTargetBuckets(),
+          targetCandidateIdsByBucket: _targetCandidateIdsByBucket(),
+          reservePoolByBucket: _reservePoolByBucket,
+          cacheStatus: _rkCacheStatus,
+          targetEnergyPreview: _targetEnergyPreview,
+          targetEnergyLoading: _targetEnergyLoading,
+          selectedTargetBucket: _targetEnergyBucketLabel,
+          onPreviewTargetBucket: _previewTargetEnergyBucket,
+          onConfirmTargetEnergy: _confirmTargetEnergyCut,
+          onChangeTargetEnergy: _changeTargetEnergyCandidate,
+          onCancelTargetEnergy: _cancelTargetEnergyPreview,
+          backgroundSyncInProgress: _backgroundSyncInProgress,
+          targetStylePreview: _targetStylePreview,
+          targetStyleLoading: _targetStyleLoading,
+          selectedTargetStyle: _selectedTargetStyle,
+          onPreviewTargetStyle: _previewTargetStyle,
+          onConfirmTargetStyle: _confirmTargetStyleCut,
+          onCancelTargetStyle: _cancelTargetStylePreview,
         );
     }
     return const SizedBox.shrink();
@@ -1616,6 +3309,10 @@ class _LiveMixBar extends StatelessWidget {
     required this.onPlayPause,
     required this.onNext,
     required this.cutInfo,
+    required this.rkExecutionHint,
+    required this.transitionDebug,
+    required this.preparedTransitionDebug,
+    required this.energyScore,
   });
   final List<LibrarySong> ordered;
   final int idx;
@@ -1626,6 +3323,10 @@ class _LiveMixBar extends StatelessWidget {
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
   final String? cutInfo;
+  final String? rkExecutionHint;
+  final String? transitionDebug;
+  final String? preparedTransitionDebug;
+  final double? energyScore;
 
   String _fmt(Duration d) {
     final s = d.inSeconds;
@@ -1674,7 +3375,7 @@ class _LiveMixBar extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
+                        color: Colors.white,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1683,23 +3384,31 @@ class _LiveMixBar extends StatelessWidget {
                       '下一首：${next?.title ?? '—'}',
                       style: const TextStyle(
                         fontSize: 10,
-                        color: const Color(0xFF555555),
+                        color: Color(0xFFBDBDBD),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (energyScore != null)
+                      Text(
+                        '当前能量：${energyScore!.round()}｜${_bucketFor(energyScore!)}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFFE85A2A),
+                        ),
+                      ),
                   ],
                 ),
               ),
               Text(
                 '${_fmt(position)}/${_fmt(duration)}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF1A1A1A)),
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
               IconButton(
                 icon: const Icon(
                   Icons.skip_next,
                   size: 24,
-                  color: Color(0xFF1A1A1A),
+                  color: Colors.white,
                 ),
                 onPressed: onNext,
                 padding: EdgeInsets.zero,
@@ -1733,9 +3442,44 @@ class _LiveMixBar extends StatelessWidget {
                 style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
               ),
             ),
+          if (rkExecutionHint != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'RK actual: $rkExecutionHint',
+                style: const TextStyle(fontSize: 10, color: Color(0xFF80CBC4)),
+              ),
+            ),
+          if (preparedTransitionDebug != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Next prepared plan: $preparedTransitionDebug',
+                style: const TextStyle(fontSize: 10, color: Color(0xFFFFF176)),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          if (transitionDebug != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Last executed plan: $transitionDebug',
+                style: const TextStyle(fontSize: 10, color: Color(0xFFB2FF59)),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  String _bucketFor(double score) {
+    final clamped = score.clamp(0.0, 100.0).toDouble();
+    if (clamped >= 90.0) return '90-100';
+    final lo = (clamped ~/ 10) * 10;
+    return '$lo-${lo + 10}';
   }
 }
 
@@ -1787,7 +3531,7 @@ class _Step1PickState extends State<_Step1Pick> {
             const SizedBox(width: 4),
             _modeBtn(1, '🔍 Vibe'),
             const SizedBox(width: 4),
-            _modeBtn(2, '🎭 舞种+时长'),
+            _modeBtn(2, '🎭 舞种推荐'),
           ],
         ),
         const SizedBox(height: 8),
@@ -2725,8 +4469,9 @@ class _StyleSource extends StatefulWidget {
 
 class _StyleSourceState extends State<_StyleSource> {
   List<Map<String, dynamic>> _styles = const [];
+  List<Map<String, dynamic>> _buckets = const [];
   String? _style;
-  double _minutes = 10;
+  Map<String, dynamic>? _bucket;
   bool _loading = false;
   String? _error;
   List<Map<String, dynamic>> _result = const [];
@@ -2742,25 +4487,79 @@ class _StyleSourceState extends State<_StyleSource> {
             _styles = s;
             if (s.isNotEmpty) _style = s.first['key'] as String;
           });
+          if (_style != null) _loadBuckets();
         })
         .catchError((e) {
           if (mounted) setState(() => _error = e.toString());
         });
   }
 
-  Future<void> _run() async {
+  Future<void> _loadBuckets() async {
     if (_style == null) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+      _bucket = null;
+      _result = const [];
+      _buckets = const [];
+    });
+    try {
+      Map<String, dynamic> r;
+      try {
+        r = await widget.api.djStyleBpmBuckets(
+          token: widget.token,
+          style: _style!,
+        );
+      } catch (_) {
+        r = await widget.api.djPickByStyle(
+          token: widget.token,
+          style: _style!,
+          mode: 'default',
+        );
+      }
+      final buckets =
+          (r['bpm_buckets'] as List<dynamic>? ?? const [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .where((e) => (e['count'] as num? ?? 0).toInt() > 0)
+              .toList();
+      setState(() {
+        _buckets = buckets;
+        if (buckets.isNotEmpty) _bucket = buckets.first;
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _run() async {
+    if (_style == null || _bucket == null) return;
     setState(() {
       _loading = true;
       _error = null;
       _result = const [];
     });
     try {
-      final r = await widget.api.djPickByStyle(
-        token: widget.token,
-        style: _style!,
-        targetDurationSec: _minutes * 60,
-      );
+      final minBpm = (_bucket!['min_bpm'] as num).toDouble();
+      final maxBpm = (_bucket!['max_bpm'] as num).toDouble();
+      Map<String, dynamic> r;
+      try {
+        r = await widget.api.djStyleCandidates(
+          token: widget.token,
+          style: _style!,
+          minBpm: minBpm,
+          maxBpm: maxBpm,
+        );
+      } catch (_) {
+        r = await widget.api.djPickByStyle(
+          token: widget.token,
+          style: _style!,
+          mode: 'default',
+          bpmMin: minBpm,
+          bpmMax: maxBpm,
+        );
+      }
       setState(
         () => _result = (r['songs'] as List).cast<Map<String, dynamic>>(),
       );
@@ -2769,6 +4568,21 @@ class _StyleSourceState extends State<_StyleSource> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _addResultSong(Map<String, dynamic> song) {
+    final id = song['song_id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final byId = {for (final s in widget.library) s.id: s};
+    final item = byId[id];
+    if (item != null) widget.onAdd([item]);
+  }
+
+  void _addAllResults() {
+    final ids = _result.map((e) => e['song_id'].toString()).toSet();
+    final byId = {for (final s in widget.library) s.id: s};
+    final picks = ids.map((id) => byId[id]).whereType<LibrarySong>();
+    widget.onAdd(picks);
   }
 
   @override
@@ -2781,7 +4595,7 @@ class _StyleSourceState extends State<_StyleSource> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              '按舞种 + 目标时长自动出歌（BPM/Phrase/Energy 匹配）。',
+              'Step 1 只选歌：先选舞种，再选 10 BPM 桶，候选进入已选池后再到 Step 2 排序。',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
             DropdownButton<String>(
@@ -2798,44 +4612,56 @@ class _StyleSourceState extends State<_StyleSource> {
                       ),
                     );
                   }).toList(),
-              onChanged: (v) => setState(() => _style = v),
+              onChanged: (v) {
+                setState(() => _style = v);
+                _loadBuckets();
+              },
             ),
-            Row(
-              children: [
-                const Text('目标时长', style: TextStyle(fontSize: 11)),
-                Expanded(
-                  child: Slider(
-                    value: _minutes,
-                    min: 1,
-                    max: 60,
-                    divisions: 59,
-                    label: '${_minutes.toInt()} 分',
-                    onChanged: (v) => setState(() => _minutes = v),
-                  ),
-                ),
-                Text(
-                  '${_minutes.toInt()} 分',
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ],
-            ),
+            if (_buckets.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'BPM 桶',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children:
+                    _buckets.map((b) {
+                      final active =
+                          identical(_bucket, b) ||
+                          (_bucket?['label']?.toString() ==
+                              b['label']?.toString());
+                      final label = b['label']?.toString() ?? '-';
+                      final count = (b['count'] as num? ?? 0).toInt();
+                      return ChoiceChip(
+                        label: Text('$label ($count)'),
+                        selected: active,
+                        onSelected: (_) {
+                          setState(() {
+                            _bucket = b;
+                            _result = const [];
+                          });
+                          _run();
+                        },
+                      );
+                    }).toList(),
+              ),
+            ],
             Row(
               children: [
                 ElevatedButton(
-                  onPressed: _loading || _style == null ? null : _run,
-                  child: Text(_loading ? '生成中...' : '生成候选'),
+                  onPressed:
+                      _loading || _style == null || _bucket == null
+                          ? null
+                          : _run,
+                  child: Text(_loading ? '加载中...' : '生成桶内候选'),
                 ),
                 const SizedBox(width: 6),
                 if (_result.isNotEmpty)
                   ElevatedButton(
-                    onPressed: () {
-                      final ids =
-                          _result.map((e) => e['song_id'].toString()).toSet();
-                      final byId = {for (final s in widget.library) s.id: s};
-                      final picks =
-                          ids.map((id) => byId[id]).whereType<LibrarySong>();
-                      widget.onAdd(picks);
-                    },
+                    onPressed: _addAllResults,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE85A2A),
                       foregroundColor: Colors.black,
@@ -2850,48 +4676,152 @@ class _StyleSourceState extends State<_StyleSource> {
                 style: const TextStyle(color: Colors.red, fontSize: 11),
               ),
             if (_result.isNotEmpty)
-              SizedBox(
-                height: 220,
-                child: ListView(
-                  children:
-                      _result.asMap().entries.map((entry) {
-                        final i = entry.key, s = entry.value;
-                        final score =
-                            ((s['score'] as num).toDouble() * 100).toInt();
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 24,
-                                child: Text(
-                                  '#${i + 1}',
+              Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 4),
+                child: Text(
+                  '候选歌单：${_style ?? '-'} · ${_bucket?['label'] ?? '-'}，可逐首加入；不想要的歌可在已选池删除。',
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ),
+            if (_result.isNotEmpty)
+              Column(
+                children:
+                    _result.asMap().entries.map((entry) {
+                      final i = entry.key, s = entry.value;
+                      final score =
+                          ((s['score'] as num).toDouble() * 100).toInt();
+                      final reasons =
+                          ((s['reason'] as List<dynamic>?) ??
+                                  (s['recommendation_reason']
+                                      as List<dynamic>?) ??
+                                  const [])
+                              .map((e) => e.toString())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                      final labels =
+                          (s['matched_labels'] as List<dynamic>? ?? const [])
+                              .map((e) => e.toString())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                      final breakdown =
+                          (s['score_breakdown'] as Map?)
+                              ?.cast<String, dynamic>() ??
+                          const <String, dynamic>{};
+                      String fmtPart(String key) {
+                        final v = breakdown[key];
+                        if (v is num) return '${(v * 100).round()}';
+                        return '-';
+                      }
+
+                      final finalScore =
+                          ((s['final_pick_score'] as num?)?.toDouble() ??
+                              (s['score'] as num?)?.toDouble() ??
+                              0.0) *
+                          100;
+                      final status =
+                          s['style_evidence_status']?.toString() ??
+                          'local_only';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  child: Text(
+                                    '#${i + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    '${s['title']} · ${s['artist']}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                Text(
+                                  '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM · ${s['camelot_key'] ?? '-'} ·$score',
                                   style: const TextStyle(
                                     fontSize: 10,
                                     color: Colors.grey,
                                   ),
                                 ),
-                              ),
-                              Expanded(
+                                TextButton(
+                                  onPressed: () => _addResultSong(s),
+                                  child: const Text(
+                                    '加入',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (labels.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 24,
+                                  top: 1,
+                                ),
                                 child: Text(
-                                  '${s['title']} · ${s['artist']}',
+                                  '标签 ${labels.take(3).join(' / ')}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Color(0xFF2E7D32),
+                                  ),
                                 ),
                               ),
-                              Text(
-                                '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM ·$score',
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24, top: 1),
+                              child: Text(
+                                '推荐指数 ${finalScore.round()}% · 多源状态 $status',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey,
+                                  fontSize: 9,
+                                  color: Color(0x99000000),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24, top: 1),
+                              child: Text(
+                                '证据 外部${fmtPart('external_platform_score')} 本地${fmtPart('local_fingerprint_score')} 人工${fmtPart('manual_style_score')} 可调${fmtPart('tunable_adjustment_score')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0x99000000),
+                                ),
+                              ),
+                            ),
+                            if (reasons.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 24,
+                                  top: 1,
+                                ),
+                                child: Text(
+                                  reasons.first,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Color(0x99000000),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
               ),
           ],
         ),
@@ -3420,10 +5350,13 @@ class _Step2Sequence extends StatelessWidget {
   }
 
   Widget _buildLegacyPresetSection(Map<String, LibrarySong> byId) {
+    final isDefault = selected == 'default';
     return Column(
       children: [
-        const Text(
-          '按街舞场景能量曲线贪心分配每一首歌位置；每行能量条按 v2 五档桶着色。混音方案仍走 7+11。',
+        Text(
+          isDefault
+              ? '默认模板只负责最终顺序：按 BPM / 调性 / 能量 / 低频相近性做 pairwise 排歌；切点和转场到 Step 3 再生成。'
+              : '按街舞场景能量曲线贪心分配每一首歌位置；每行能量条按 v2 五档桶着色。手动模板仍走原有混音链路。',
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
         const SizedBox(height: 6),
@@ -3486,7 +5419,13 @@ class _Step2Sequence extends StatelessWidget {
                 backgroundColor: const Color(0xFFE85A2A),
                 foregroundColor: Colors.black,
               ),
-              child: Text(loading ? '排序中...' : '按曲线排序 ${picked.length} 首'),
+              child: Text(
+                loading
+                    ? '排序中...'
+                    : (isDefault
+                        ? '执行默认排歌 ${picked.length} 首'
+                        : '按曲线排序 ${picked.length} 首'),
+              ),
             ),
             if (energyLoading) ...[
               const SizedBox(width: 8),
@@ -3551,8 +5490,10 @@ class _Step2Sequence extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      '排序结果 — 目标曲线 vs 实际能量',
+                    Text(
+                      isDefault
+                          ? '默认排歌结果 — BPM / 调性 / 低频连续性'
+                          : '排序结果 — 目标曲线 vs 实际能量',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
@@ -3584,6 +5525,21 @@ class _Step2Sequence extends StatelessWidget {
                           (v2['factors'] is Map)
                               ? (v2['factors'] as Map).cast<String, dynamic>()
                               : const <String, dynamic>{};
+                      final seqBreakdown =
+                          (entry['breakdown'] is Map)
+                              ? (entry['breakdown'] as Map)
+                                  .cast<String, dynamic>()
+                              : const <String, dynamic>{};
+                      final seqBpm = (seqBreakdown['bpm'] as num?)?.toDouble();
+                      final seqCamelot = seqBreakdown['camelot']?.toString();
+                      final bass =
+                          ((seqBreakdown['bass_strength'] as num?)
+                                  ?.toDouble() ??
+                              -1.0);
+                      final vocal =
+                          ((seqBreakdown['vocal_density'] as num?)
+                                  ?.toDouble() ??
+                              -1.0);
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Column(
@@ -3641,9 +5597,11 @@ class _Step2Sequence extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  hasV2
-                                      ? 'tgt $tgt · v1 $act · v2 $v2Pct  BPM ${bpm > 0 ? bpm.toStringAsFixed(0) : "—"}'
-                                      : 'tgt $tgt · v1 $act  (v2 待加载)',
+                                  isDefault
+                                      ? 'BPM ${seqBpm != null ? seqBpm.toStringAsFixed(1) : "—"} · Camelot ${seqCamelot ?? "—"} · bass ${bass >= 0 ? (bass * 100).round() : "—"} · vocal ${vocal >= 0 ? (vocal * 100).round() : "—"}'
+                                      : (hasV2
+                                          ? 'tgt $tgt · v1 $act · v2 $v2Pct  BPM ${bpm > 0 ? bpm.toStringAsFixed(0) : "—"}'
+                                          : 'tgt $tgt · v1 $act  (v2 待加载)'),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     color: Colors.grey,
@@ -3820,12 +5778,14 @@ class _Step3Mix extends StatelessWidget {
     required this.rules,
     required this.picked,
     required this.sequence,
+    required this.isDefaultPreset,
     required this.canStart,
     required this.onStart,
   });
   final Map<String, dynamic>? rules;
   final List<LibrarySong> picked;
   final List<Map<String, dynamic>> sequence;
+  final bool isDefaultPreset;
   final bool canStart;
   final VoidCallback onStart;
 
@@ -3843,9 +5803,11 @@ class _Step3Mix extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(10),
       children: [
-        const Text(
-          '混音采用现有 7 原生 + 11 分析型方案，并在跨度大时自动启用跨风格过渡。点 ▶ 开始混音播放后即进入实时切歌 / 加花。',
-          style: TextStyle(fontSize: 11, color: Colors.grey),
+        Text(
+          isDefaultPreset
+              ? '默认模式会为相邻歌曲逐对生成 default transition package，并在 RK 使用 default_render_playback 执行；切点和转场从这里开始准备。'
+              : '混音采用现有 7 原生 + 11 分析型方案，并在跨度大时自动启用跨风格过渡。点 ▶ 开始混音播放后即进入实时切歌 / 加花。',
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
         ),
         const SizedBox(height: 8),
         Center(
@@ -3876,7 +5838,9 @@ class _Step3Mix extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '相邻过渡（${sequence.length - 1} 段）',
+                    isDefaultPreset
+                        ? '默认相邻过渡（${sequence.length - 1} 段）'
+                        : '相邻过渡（${sequence.length - 1} 段）',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   ...List.generate(sequence.length - 1, (i) {
@@ -3998,23 +5962,56 @@ class _Step4Live extends StatelessWidget {
     required this.ordered,
     required this.idx,
     required this.liveStarted,
+    required this.isDefaultPreset,
     required this.fxItems,
     required this.onCut,
     required this.onPlayFx,
+    required this.energyScore,
+    required this.targetBuckets,
+    required this.targetCandidateIdsByBucket,
+    required this.reservePoolByBucket,
+    required this.cacheStatus,
+    required this.targetEnergyPreview,
+    required this.targetEnergyLoading,
+    required this.selectedTargetBucket,
+    required this.onPreviewTargetBucket,
+    required this.onConfirmTargetEnergy,
+    required this.onChangeTargetEnergy,
+    required this.onCancelTargetEnergy,
+    required this.backgroundSyncInProgress,
+    required this.targetStylePreview,
+    required this.targetStyleLoading,
+    required this.selectedTargetStyle,
+    required this.onPreviewTargetStyle,
+    required this.onConfirmTargetStyle,
+    required this.onCancelTargetStyle,
   });
   final List<LibrarySong> ordered;
   final int idx;
   final bool liveStarted;
+  final bool isDefaultPreset;
   final List<Map<String, dynamic>> fxItems;
   final Future<void> Function(String strategy) onCut;
   final Future<void> Function(String key) onPlayFx;
-
-  static const _groupOrder = ['hype', 'drop', 'drum'];
-  static const _groupTitle = {
-    'hype': '🚨 喊场',
-    'drop': '💥 Drop',
-    'drum': '🥁 节奏',
-  };
+  final double? energyScore;
+  final List<String> targetBuckets;
+  final Map<String, List<String>> targetCandidateIdsByBucket;
+  final Map<String, List<String>> reservePoolByBucket;
+  final Map<String, String> cacheStatus;
+  final Map<String, dynamic>? targetEnergyPreview;
+  final bool targetEnergyLoading;
+  final String? selectedTargetBucket;
+  final Future<void> Function(String bucket) onPreviewTargetBucket;
+  final Future<void> Function() onConfirmTargetEnergy;
+  final Future<void> Function() onChangeTargetEnergy;
+  final VoidCallback onCancelTargetEnergy;
+  final bool backgroundSyncInProgress;
+  final Map<String, dynamic>? targetStylePreview;
+  final bool targetStyleLoading;
+  final String? selectedTargetStyle;
+  final Future<void> Function(String style) onPreviewTargetStyle;
+  final Future<void> Function() onConfirmTargetStyle;
+  final VoidCallback onCancelTargetStyle;
 
   String _iconFor(String key) =>
       const {
@@ -4069,14 +6066,31 @@ class _Step4Live extends StatelessWidget {
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Phase-2 节奏对齐：outro 出歌、跳过 intro、按 7+11 衔接、BPM 接近时拉速对拍。',
+                Text(
+                  isDefaultPreset
+                      ? '默认模式会使用 default_mix 评分切点 + reference render，并在 RK 以 default_render_playback 执行；失败会直接报错。'
+                      : '系统会使用 v3.2 段落匹配 + EQ band mix；执行失败会显示错误，不再伪装成普通 xfade 成功。',
                   style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32)),
                 ),
+                if (energyScore != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '当前能量：${energyScore!.round()}｜${_bucketFor(energyScore!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFE85A2A),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
+        const SizedBox(height: 10),
+        _targetEnergyCard(),
+        const SizedBox(height: 10),
+        _targetStyleCard(),
         const SizedBox(height: 10),
         const Text(
           '✂️ 现场切歌',
@@ -4087,16 +6101,6 @@ class _Step4Live extends StatelessWidget {
           '⚡ 快切 fast_cut',
           '5 秒内寻找下一个 downbeat/beat，硬切到队列下一首。',
           'fast_cut',
-        ),
-        _cutBtn(
-          '🔥 升能量切 energy_up_cut',
-          '从已选池挑能量更高的歌替换后切。冲峰 / 喊大招用。',
-          'energy_up_cut',
-        ),
-        _cutBtn(
-          '❄️ 降能量切 energy_down_cut',
-          '挑能量更低的歌，让 cypher 喘口气。',
-          'energy_down_cut',
         ),
         const SizedBox(height: 14),
         const Text(
@@ -4161,14 +6165,400 @@ class _Step4Live extends StatelessWidget {
     );
   }
 
+  Widget _targetEnergyCard() {
+    final preview = targetEnergyPreview;
+    final selected = preview?['selected_song'];
+    return Card(
+      color: const Color(0x0A000000),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '🎯 能量切歌',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                if (targetEnergyLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '选择下一首目标能量段，系统会从后续队列和备选池推荐，确认后切歌。',
+              style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children:
+                  targetBuckets.map((bucket) {
+                    final ids =
+                        targetCandidateIdsByBucket[bucket] ?? const <String>[];
+                    final ready =
+                        ids.where((id) => cacheStatus[id] == 'ready').length;
+                    final syncing =
+                        ids.where((id) => cacheStatus[id] == 'syncing').length;
+                    final reserveCount =
+                        reservePoolByBucket[bucket]?.length ?? 0;
+                    final active = selectedTargetBucket == bucket;
+                    final label =
+                        '$bucket｜${ready > 0
+                            ? "可切 $ready"
+                            : syncing > 0
+                            ? "同步中"
+                            : ids.isNotEmpty
+                            ? "候选 ${ids.length}"
+                            : reserveCount > 0
+                            ? "备选 $reserveCount"
+                            : "搜索曲库"}';
+                    return OutlinedButton(
+                      onPressed:
+                          (targetEnergyLoading || backgroundSyncInProgress)
+                              ? null
+                              : () => onPreviewTargetBucket(bucket),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor:
+                            active ? Colors.black : const Color(0xFFE85A2A),
+                        backgroundColor:
+                            active
+                                ? const Color(0xFFE85A2A)
+                                : Colors.transparent,
+                        side: const BorderSide(color: Color(0xFFE85A2A)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        minimumSize: const Size(0, 0),
+                      ),
+                      child: Text(label, style: const TextStyle(fontSize: 10)),
+                    );
+                  }).toList(),
+            ),
+            if (preview != null) ...[
+              const SizedBox(height: 8),
+              if (selected is Map)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0x08000000),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '推荐：${selected['title'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${selected['artist'] ?? ''}｜能量 ${selected['energy_score'] ?? '-'}｜${selected['bucket'] ?? '-'}｜${_sourceLabel(selected['source'])}｜${_cacheLabel(selected['cache_status'])}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      if (preview['fallback'] == true &&
+                          preview['fallback_reason'] != null)
+                        Text(
+                          preview['fallback_reason'].toString(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFFE85A2A),
+                          ),
+                        ),
+                      ...((preview['reason'] as List<dynamic>? ?? const [])
+                          .take(4)
+                          .map(
+                            (r) => Text(
+                              '• $r',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          )),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  targetEnergyLoading
+                                      ? null
+                                      : onConfirmTargetEnergy,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE85A2A),
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 7,
+                                ),
+                              ),
+                              child: const Text(
+                                '确认切歌',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          OutlinedButton(
+                            onPressed:
+                                targetEnergyLoading
+                                    ? null
+                                    : onChangeTargetEnergy,
+                            child: const Text(
+                              '换一首',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          TextButton(
+                            onPressed: onCancelTargetEnergy,
+                            child: const Text(
+                              '取消',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  preview['fallback_reason']?.toString() ?? '没有可用候选',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _targetStyleCard() {
+    final preview = targetStylePreview;
+    final selected = preview?['selected_song'];
+
+    // Street dance / style targets.
+    const styles = [
+      {'key': 'breaking', 'label': 'Breaking', 'emoji': '🌪️'},
+      {'key': 'hiphop', 'label': 'Hip Hop', 'emoji': '🎤'},
+      {'key': 'jazz', 'label': 'Jazz', 'emoji': '🎷'},
+      {'key': 'popping', 'label': 'Popping', 'emoji': '⚡'},
+      {'key': 'locking', 'label': 'Locking', 'emoji': '🔒'},
+      {'key': 'house', 'label': 'House', 'emoji': '🏠'},
+      {'key': 'krump', 'label': 'Krump', 'emoji': '💥'},
+      {'key': 'waacking', 'label': 'Waacking', 'emoji': '💃'},
+    ];
+
+    return Card(
+      color: const Color(0x0A000000),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '🎨 风格切歌',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                if (targetStyleLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '选择目标舞种风格，系统会从队列和风格备选池推荐最匹配的歌曲。',
+              style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children:
+                  styles.map((style) {
+                    final key = style['key'] as String;
+                    final label = style['label'] as String;
+                    final emoji = style['emoji'] as String;
+                    final active = selectedTargetStyle == key;
+
+                    return OutlinedButton(
+                      onPressed:
+                          (targetStyleLoading || backgroundSyncInProgress)
+                              ? null
+                              : () => onPreviewTargetStyle(key),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor:
+                            active ? Colors.black : const Color(0xFF2196F3),
+                        backgroundColor:
+                            active
+                                ? const Color(0xFF2196F3)
+                                : Colors.transparent,
+                        side: const BorderSide(color: Color(0xFF2196F3)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        minimumSize: const Size(0, 0),
+                      ),
+                      child: Text(
+                        '$emoji $label',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  }).toList(),
+            ),
+            if (preview != null) ...[
+              const SizedBox(height: 8),
+              if (selected is Map)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0x08000000),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '推荐：${selected['title'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${selected['artist'] ?? ''}｜风格分 ${(selected['style_score'] as num?)?.toStringAsFixed(2) ?? '-'}｜${_sourceLabel(selected['source'])}｜${_cacheLabel(selected['cache_status'])}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      if (preview['fallback'] == true &&
+                          preview['fallback_reason'] != null)
+                        Text(
+                          preview['fallback_reason'].toString(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFFFF9800),
+                          ),
+                        ),
+                      if (preview['recommended_transition_hint'] != null)
+                        Text(
+                          '过渡策略: ${preview['recommended_transition_hint']}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF4CAF50),
+                          ),
+                        ),
+                      ...((preview['reason'] as List<dynamic>? ?? const [])
+                          .take(4)
+                          .map(
+                            (r) => Text(
+                              '• $r',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          )),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  targetStyleLoading
+                                      ? null
+                                      : onConfirmTargetStyle,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2196F3),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 7,
+                                ),
+                              ),
+                              child: const Text(
+                                '确认切歌',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          TextButton(
+                            onPressed: onCancelTargetStyle,
+                            child: const Text(
+                              '取消',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  preview['fallback_reason']?.toString() ?? '没有可用候选',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _bucketFor(double score) {
+    final clamped = score.clamp(0.0, 100.0).toDouble();
+    if (clamped >= 90.0) return '90-100';
+    final lo = (clamped ~/ 10) * 10;
+    return '$lo-${lo + 10}';
+  }
+
+  String _sourceLabel(Object? raw) {
+    final s = raw?.toString();
+    if (s == 'active_queue') return '主队列';
+    if (s == 'reserve_pool') return '备选池';
+    if (s == 'style_reserve_pool') return '风格池';
+    if (s == 'library') return '曲库扩展';
+    return s ?? '-';
+  }
+
+  String _cacheLabel(Object? raw) {
+    final s = raw?.toString();
+    if (s == 'ready') return '已缓存';
+    if (s == 'synchronizing') return '同步中';
+    if (s == 'missing') return '未缓存';
+    if (s == 'failed') return '同步失败';
+    return s ?? '-';
+  }
+
   Widget _cutBtn(String title, String desc, String strategy) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ElevatedButton(
-        onPressed: () => onCut(strategy),
+        onPressed: backgroundSyncInProgress ? null : () => onCut(strategy),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0x0A000000),
           foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0x05000000),
+          disabledForegroundColor: Colors.grey,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.all(10),
         ),
@@ -4181,7 +6571,7 @@ class _Step4Live extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              desc,
+              backgroundSyncInProgress ? '候选池同步到 RK 后启用...' : desc,
               style: const TextStyle(fontSize: 10, color: Colors.grey),
             ),
           ],
