@@ -59,6 +59,9 @@ def test_default_sequence_filters_bpm_incompatible_candidate():
     ordered_ids = [entry["song_id"] for entry in result["sequence"]]
     assert ordered_ids == ["steady_b", "steady_a"]
     assert all(pair["bpm_score"] > 0.0 for pair in result["pair_scores"])
+    assert result["default_mix_debug"]["start_track_id"] == "steady_b"
+    assert result["pair_scores"][0]["from_song_id"] == "steady_b"
+    assert result["pair_scores"][0]["to_song_id"] == "steady_a"
 
 
 def test_default_transition_scores_regions_then_aligns_to_grid():
@@ -74,6 +77,10 @@ def test_default_transition_scores_regions_then_aligns_to_grid():
     assert meta["cut_point_policy"]["transition_windows_role"] == "candidate_regions_only"
     assert meta["exit_candidate"]["score"] > 0.0
     assert meta["entry_candidate"]["score"] > 0.0
+    assert meta["exit_selection_reason"].startswith("exit:")
+    assert meta["entry_selection_reason"].startswith("entry:")
+    assert "beat_alignment_shift_ms" in meta
+    assert "vocal_penalty_score" in meta
     assert meta["alignment"]["from_anchor"] in {"downbeat", "beat", "raw"}
     assert meta["alignment"]["to_anchor"] in {"downbeat", "beat", "raw"}
     assert 171.2 <= plan["from_at_sec"] <= 186.7

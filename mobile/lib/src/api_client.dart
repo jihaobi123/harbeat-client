@@ -686,12 +686,45 @@ class HarBeatApiClient {
       token: token,
       body: {
         'style': style,
-        if (targetDurationSec != null)
-          'target_duration_sec': targetDurationSec,
+        if (targetDurationSec != null) 'target_duration_sec': targetDurationSec,
         'min_score': minScore,
         if (mode != null && mode.isNotEmpty) 'mode': mode,
         if (bpmMin != null) 'bpm_min': bpmMin,
         if (bpmMax != null) 'bpm_max': bpmMax,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> djStyleBpmBuckets({
+    required String token,
+    required String style,
+    double minScore = 0.35,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/styles/$style/bpm-buckets',
+      token: token,
+      queryParameters: {'min_score': '$minScore'},
+    );
+  }
+
+  Future<Map<String, dynamic>> djStyleCandidates({
+    required String token,
+    required String style,
+    required double minBpm,
+    required double maxBpm,
+    double minScore = 0.35,
+    int limit = 80,
+  }) async {
+    return await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/dj/styles/$style/candidates',
+      token: token,
+      queryParameters: {
+        'min_bpm': '$minBpm',
+        'max_bpm': '$maxBpm',
+        'min_score': '$minScore',
+        'limit': '$limit',
       },
     );
   }

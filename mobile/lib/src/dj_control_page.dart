@@ -1188,7 +1188,9 @@ class _DjControlPageState extends State<DjControlPage> {
       transitionPlan['target'] = targetSpec;
     }
     final requestStyle =
-        isEqBand ? 'eq_band_mix' : _plannedRkStyle(plan, ruleKey, fallback: fallback);
+        isEqBand
+            ? 'eq_band_mix'
+            : _plannedRkStyle(plan, ruleKey, fallback: fallback);
     return widget.edgeClient.xfade(
       toSongId: _rkIdForXfade(target),
       fadeSec: fadeSec,
@@ -1290,7 +1292,9 @@ class _DjControlPageState extends State<DjControlPage> {
   }) {
     String numText(Object? value, {int digits = 2}) {
       final n =
-          value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
+          value is num
+              ? value.toDouble()
+              : double.tryParse(value?.toString() ?? '');
       return n == null ? '-' : n.toStringAsFixed(digits);
     }
 
@@ -1369,7 +1373,10 @@ class _DjControlPageState extends State<DjControlPage> {
           _asStringMap(plan['default_mix'])?['pair_id']?.toString();
       final renderUrl = plan['transition_render_url']?.toString();
       final metaUrl = plan['transition_render_meta_url']?.toString();
-      if (pairId == null || pairId.isEmpty || renderUrl == null || renderUrl.isEmpty) {
+      if (pairId == null ||
+          pairId.isEmpty ||
+          renderUrl == null ||
+          renderUrl.isEmpty) {
         continue;
       }
       pairs.add({
@@ -1382,10 +1389,7 @@ class _DjControlPageState extends State<DjControlPage> {
               'size': plan['transition_render_size'],
           },
           if (metaUrl != null && metaUrl.isNotEmpty)
-            'transition_render_meta': {
-              'url': metaUrl,
-              'format': 'json',
-            },
+            'transition_render_meta': {'url': metaUrl, 'format': 'json'},
         },
       });
     }
@@ -1408,7 +1412,10 @@ class _DjControlPageState extends State<DjControlPage> {
       if (await _sync.cacheExists(id)) continue;
       tracks.add(
         _originalOnlyManifest(
-          await widget.apiClient.getSongManifest(token: widget.token, songId: id),
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: id,
+          ),
           id,
         ),
       );
@@ -1420,7 +1427,8 @@ class _DjControlPageState extends State<DjControlPage> {
     await _sync.syncAndWait(
       tracks: tracks,
       defaultMixPairs: pairs,
-      planId: 'default-mix-render-sync-${DateTime.now().millisecondsSinceEpoch}',
+      planId:
+          'default-mix-render-sync-${DateTime.now().millisecondsSinceEpoch}',
       timeout: const Duration(hours: 2),
       audioOnly: true,
       onProgress: (st) {
@@ -1446,22 +1454,21 @@ class _DjControlPageState extends State<DjControlPage> {
     if (_rkCurrentSongId != null && _rkCurrentSongId == targetRkId.toString()) {
       throw Exception('Refusing self-transition to $targetRkId');
     }
-    return widget.edgeClient.defaultRenderPlayback(
-      transitionPlan: plan,
-      toSongId: targetRkId,
-    ).then((response) {
-      final result = _asStringMap(response['result']) ?? response;
-      final degraded =
-          response['degraded'] == true || result['degraded'] == true;
-      if (degraded) {
-        final reason =
-            response['degrade_reason']?.toString() ??
-            result['degrade_reason']?.toString() ??
-            'unknown';
-        throw Exception('RK default render degraded: $reason');
-      }
-      return response;
-    });
+    return widget.edgeClient
+        .defaultRenderPlayback(transitionPlan: plan, toSongId: targetRkId)
+        .then((response) {
+          final result = _asStringMap(response['result']) ?? response;
+          final degraded =
+              response['degraded'] == true || result['degraded'] == true;
+          if (degraded) {
+            final reason =
+                response['degrade_reason']?.toString() ??
+                result['degrade_reason']?.toString() ??
+                'unknown';
+            throw Exception('RK default render degraded: $reason');
+          }
+          return response;
+        });
   }
 
   Map<String, dynamic>? _canonicalPlanFor({
@@ -1658,7 +1665,10 @@ class _DjControlPageState extends State<DjControlPage> {
       }
       tracks.add(
         _originalOnlyManifest(
-          await widget.apiClient.getSongManifest(token: widget.token, songId: id),
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: id,
+          ),
           id,
         ),
       );
@@ -4494,11 +4504,19 @@ class _StyleSourceState extends State<_StyleSource> {
       _buckets = const [];
     });
     try {
-      final r = await widget.api.djPickByStyle(
-        token: widget.token,
-        style: _style!,
-        mode: 'default',
-      );
+      Map<String, dynamic> r;
+      try {
+        r = await widget.api.djStyleBpmBuckets(
+          token: widget.token,
+          style: _style!,
+        );
+      } catch (_) {
+        r = await widget.api.djPickByStyle(
+          token: widget.token,
+          style: _style!,
+          mode: 'default',
+        );
+      }
       final buckets =
           (r['bpm_buckets'] as List<dynamic>? ?? const [])
               .map((e) => Map<String, dynamic>.from(e as Map))
@@ -4523,13 +4541,25 @@ class _StyleSourceState extends State<_StyleSource> {
       _result = const [];
     });
     try {
-      final r = await widget.api.djPickByStyle(
-        token: widget.token,
-        style: _style!,
-        mode: 'default',
-        bpmMin: (_bucket!['min_bpm'] as num).toDouble(),
-        bpmMax: (_bucket!['max_bpm'] as num).toDouble(),
-      );
+      final minBpm = (_bucket!['min_bpm'] as num).toDouble();
+      final maxBpm = (_bucket!['max_bpm'] as num).toDouble();
+      Map<String, dynamic> r;
+      try {
+        r = await widget.api.djStyleCandidates(
+          token: widget.token,
+          style: _style!,
+          minBpm: minBpm,
+          maxBpm: maxBpm,
+        );
+      } catch (_) {
+        r = await widget.api.djPickByStyle(
+          token: widget.token,
+          style: _style!,
+          mode: 'default',
+          bpmMin: minBpm,
+          bpmMax: maxBpm,
+        );
+      }
       setState(
         () => _result = (r['songs'] as List).cast<Map<String, dynamic>>(),
       );
@@ -4599,8 +4629,10 @@ class _StyleSourceState extends State<_StyleSource> {
                 runSpacing: 4,
                 children:
                     _buckets.map((b) {
-                      final active = identical(_bucket, b) ||
-                          (_bucket?['label']?.toString() == b['label']?.toString());
+                      final active =
+                          identical(_bucket, b) ||
+                          (_bucket?['label']?.toString() ==
+                              b['label']?.toString());
                       final label = b['label']?.toString() ?? '-';
                       final count = (b['count'] as num? ?? 0).toInt();
                       return ChoiceChip(
@@ -4655,104 +4687,129 @@ class _StyleSourceState extends State<_StyleSource> {
               Column(
                 children:
                     _result.asMap().entries.map((entry) {
-                        final i = entry.key, s = entry.value;
-                        final score =
-                            ((s['score'] as num).toDouble() * 100).toInt();
-                        final reasons =
-                            ((s['reason'] as List<dynamic>?) ??
-                                    (s['recommendation_reason']
-                                        as List<dynamic>?) ??
-                                    const [])
-                                .map((e) => e.toString())
-                                .where((e) => e.isNotEmpty)
-                                .toList();
-                        final labels =
-                            (s['matched_labels'] as List<dynamic>? ?? const [])
-                                .map((e) => e.toString())
-                                .where((e) => e.isNotEmpty)
-                                .toList();
-                        final breakdown =
-                            (s['score_breakdown'] as Map?)
-                                ?.cast<String, dynamic>() ??
-                            const <String, dynamic>{};
-                        String fmtPart(String key) {
-                          final v = breakdown[key];
-                          if (v is num) return '${(v * 100).round()}';
-                          return '-';
-                        }
+                      final i = entry.key, s = entry.value;
+                      final score =
+                          ((s['score'] as num).toDouble() * 100).toInt();
+                      final reasons =
+                          ((s['reason'] as List<dynamic>?) ??
+                                  (s['recommendation_reason']
+                                      as List<dynamic>?) ??
+                                  const [])
+                              .map((e) => e.toString())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                      final labels =
+                          (s['matched_labels'] as List<dynamic>? ?? const [])
+                              .map((e) => e.toString())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                      final breakdown =
+                          (s['score_breakdown'] as Map?)
+                              ?.cast<String, dynamic>() ??
+                          const <String, dynamic>{};
+                      String fmtPart(String key) {
+                        final v = breakdown[key];
+                        if (v is num) return '${(v * 100).round()}';
+                        return '-';
+                      }
 
-                        final finalScore =
-                            ((s['final_pick_score'] as num?)?.toDouble() ??
-                                (s['score'] as num?)?.toDouble() ??
-                                0.0) *
-                            100;
-                        final status =
-                            s['style_evidence_status']?.toString() ??
-                            'local_only';
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 24,
-                                    child: Text(
-                                      '#${i + 1}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      '${s['title']} · ${s['artist']}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM · ${s['camelot_key'] ?? '-'} ·$score',
+                      final finalScore =
+                          ((s['final_pick_score'] as num?)?.toDouble() ??
+                              (s['score'] as num?)?.toDouble() ??
+                              0.0) *
+                          100;
+                      final status =
+                          s['style_evidence_status']?.toString() ??
+                          'local_only';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  child: Text(
+                                    '#${i + 1}',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey,
                                     ),
                                   ),
-                                  TextButton(
-                                    onPressed: () => _addResultSong(s),
-                                    child: const Text(
-                                      '加入',
-                                      style: TextStyle(fontSize: 10),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (labels.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 24,
-                                    top: 1,
-                                  ),
+                                ),
+                                Expanded(
                                   child: Text(
-                                    '标签 ${labels.take(3).join(' / ')}',
+                                    '${s['title']} · ${s['artist']}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Color(0xFF2E7D32),
-                                    ),
+                                    style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
+                                Text(
+                                  '${(s['bpm'] as num?)?.toStringAsFixed(0) ?? '-'}BPM · ${s['camelot_key'] ?? '-'} ·$score',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _addResultSong(s),
+                                  child: const Text(
+                                    '加入',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (labels.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(
                                   left: 24,
                                   top: 1,
                                 ),
                                 child: Text(
-                                  '推荐指数 ${finalScore.round()}% · 多源状态 $status',
+                                  '标签 ${labels.take(3).join(' / ')}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24, top: 1),
+                              child: Text(
+                                '推荐指数 ${finalScore.round()}% · 多源状态 $status',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0x99000000),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24, top: 1),
+                              child: Text(
+                                '证据 外部${fmtPart('external_platform_score')} 本地${fmtPart('local_fingerprint_score')} 人工${fmtPart('manual_style_score')} 可调${fmtPart('tunable_adjustment_score')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0x99000000),
+                                ),
+                              ),
+                            ),
+                            if (reasons.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 24,
+                                  top: 1,
+                                ),
+                                child: Text(
+                                  reasons.first,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -4761,40 +4818,9 @@ class _StyleSourceState extends State<_StyleSource> {
                                   ),
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 24,
-                                  top: 1,
-                                ),
-                                child: Text(
-                                  '证据 外部${fmtPart('external_platform_score')} 本地${fmtPart('local_fingerprint_score')} 人工${fmtPart('manual_style_score')} 可调${fmtPart('tunable_adjustment_score')}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    color: Color(0x99000000),
-                                  ),
-                                ),
-                              ),
-                              if (reasons.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 24,
-                                    top: 1,
-                                  ),
-                                  child: Text(
-                                    reasons.first,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Color(0x99000000),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
+                          ],
+                        ),
+                      );
                     }).toList(),
               ),
           ],
@@ -5501,7 +5527,8 @@ class _Step2Sequence extends StatelessWidget {
                               : const <String, dynamic>{};
                       final seqBreakdown =
                           (entry['breakdown'] is Map)
-                              ? (entry['breakdown'] as Map).cast<String, dynamic>()
+                              ? (entry['breakdown'] as Map)
+                                  .cast<String, dynamic>()
                               : const <String, dynamic>{};
                       final seqBpm = (seqBreakdown['bpm'] as num?)?.toDouble();
                       final seqCamelot = seqBreakdown['camelot']?.toString();

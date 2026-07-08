@@ -79,6 +79,30 @@ def _analysis_status(song: LibrarySong) -> str:
     return "missing"
 
 
+def _analysis_completeness(song: LibrarySong) -> int:
+    checks = [
+        getattr(song, "bpm", None) is not None,
+        bool(getattr(song, "camelot_key", None) or getattr(song, "key", None)),
+        getattr(song, "energy", None) is not None,
+        bool(getattr(song, "beat_points", None)),
+        bool(getattr(song, "downbeats", None)),
+        bool(getattr(song, "phrase_map", None)),
+        bool(getattr(song, "transition_windows", None)),
+        bool((getattr(song, "music_features", None) or {}).get("dj")),
+    ]
+    return sum(1 for item in checks if item)
+
+
+def _status_rank(song: LibrarySong) -> int:
+    return {"completed": 0, "partial": 1, "missing": 2}.get(_analysis_status(song), 3)
+
+
+def _effective_bpm_range(payload: StylePickRequest) -> tuple[float | None, float | None]:
+    bpm_min = payload.bpm_min if payload.bpm_min is not None else payload.min_bpm
+    bpm_max = payload.bpm_max if payload.bpm_max is not None else payload.max_bpm
+    return bpm_min, bpm_max
+
+
 def _filter_and_sort_style_picks(
     picks: list[tuple[LibrarySong, float, dict]],
     *,
@@ -96,7 +120,8 @@ def _filter_and_sort_style_picks(
         filtered.sort(
             key=lambda item: (
                 abs(float(item[0].bpm or center) - center),
-                0 if _analysis_status(item[0]) == "completed" else 1,
+                _status_rank(item[0]),
+                -_analysis_completeness(item[0]),
                 -float(item[1] or 0.0),
                 (item[0].title or "").lower(),
             )
@@ -125,10 +150,11 @@ def pick_by_style_endpoint(
             min_score=payload.min_score,
         )
         buckets = _bpm_bucket_items(picks)
+        bpm_min, bpm_max = _effective_bpm_range(payload)
         picks = _filter_and_sort_style_picks(
             picks,
-            bpm_min=payload.bpm_min,
-            bpm_max=payload.bpm_max,
+            bpm_min=bpm_min,
+            bpm_max=bpm_max,
         )
     else:
         target_seconds = float(payload.target_duration_sec or 600.0)
@@ -168,6 +194,69 @@ def pick_by_style_endpoint(
         ],
         bpm_buckets=buckets,
     ))
+
+
+@router.get("/styles/{style}/bpm-buckets")
+def style_bpm_buckets_endpoint(
+    style: str,
+    min_score: float = 0.35,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if style not in dance_style.STYLE_PROFILES:
+        raise HTTPException(status_code=400, detail=f"unknown style: {style}")
+    songs = db.query(LibrarySong).filter(LibrarySong.user_id == current_user.id).all()
+    picks = dance_style.rank_songs_for_style(
+        songs,
+        style_key=style,
+        limit=500,
+        min_score=min_score,
+    )
+    return APIResponse(data={
+        "style": style,
+        "bpm_buckets": _bpm_bucket_items(picks),
+    })
+
+
+@router.get("/styles/{style}/candidates")
+def style_candidates_endpoint(
+    style: str,
+    min_bpm: float,
+    max_bpm: float,
+    min_score: float = 0.35,
+    limit: int = 80,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if style not in dance_style.STYLE_PROFILES:
+        raise HTTPException(status_code=400, detail=f"unknown style: {style}")
+    songs = db.query(LibrarySong).filter(LibrarySong.user_id == current_user.id).all()
+    picks = dance_style.rank_songs_for_style(
+        songs,
+        style_key=style,
+        limit=500,
+        min_score=min_score,
+    )
+    picks = _filter_and_sort_style_picks(picks, bpm_min=min_bpm, bpm_max=max_bpm)[: max(1, min(limit, 200))]
+    return APIResponse(data={
+        "style": style,
+        "bpm_bucket": f"{int(min_bpm)}-{int(max_bpm)}",
+        "songs": [
+            {
+                "song_id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "bpm": s.bpm,
+                "camelot_key": s.camelot_key,
+                "energy": s.energy,
+                "duration": s.duration,
+                "analysis_status": _analysis_status(s),
+                "analysis_completeness": _analysis_completeness(s),
+                "score": score,
+            }
+            for s, score, _evidence in picks
+        ],
+    })
 
 
 # --------------------------------------------------------------------------- #
@@ -229,6 +318,7 @@ def sequence_endpoint(
         ordering_mode=seq_result.get("ordering_mode"),
         pair_scores=seq_result.get("pair_scores") or [],
         pair_breakdowns=seq_result.get("pair_breakdowns") or [],
+        default_mix_debug=seq_result.get("default_mix_debug") or {},
     ))
 
 

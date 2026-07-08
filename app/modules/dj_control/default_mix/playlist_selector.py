@@ -15,6 +15,47 @@ from app.modules.dj_control.band_analysis import band_density, clamp01
 from app.modules.dj_control.energy_hiphop import compute_dance_energy
 
 
+CAM_MAJOR_TO_CAMELOT = {
+    "B": "1B",
+    "F#": "2B",
+    "Gb": "2B",
+    "Db": "3B",
+    "C#": "3B",
+    "Ab": "4B",
+    "G#": "4B",
+    "Eb": "5B",
+    "D#": "5B",
+    "Bb": "6B",
+    "A#": "6B",
+    "F": "7B",
+    "C": "8B",
+    "G": "9B",
+    "D": "10B",
+    "A": "11B",
+    "E": "12B",
+}
+
+CAM_MINOR_TO_CAMELOT = {
+    "Ab": "1A",
+    "G#": "1A",
+    "Eb": "2A",
+    "D#": "2A",
+    "Bb": "3A",
+    "A#": "3A",
+    "F": "4A",
+    "C": "5A",
+    "G": "6A",
+    "D": "7A",
+    "A": "8A",
+    "E": "9A",
+    "B": "10A",
+    "F#": "11A",
+    "Gb": "11A",
+    "C#": "12A",
+    "Db": "12A",
+}
+
+
 @dataclass(frozen=True)
 class TrackProfile:
     song: Any
@@ -27,6 +68,31 @@ class TrackProfile:
     energy: float
     bass_strength: float
     vocal_density: float
+
+
+def camelot_from_key(key: str | None, scale: str | None = None) -> str | None:
+    if not key:
+        return None
+    clean_key = str(key).strip()
+    clean_scale = (scale or "").lower().strip()
+    if not clean_scale:
+        lowered = clean_key.lower()
+        if "minor" in lowered or lowered.endswith(" min"):
+            clean_scale = "minor"
+        elif "major" in lowered or lowered.endswith(" maj"):
+            clean_scale = "major"
+        clean_key = (
+            clean_key.replace("minor", "")
+            .replace("major", "")
+            .replace("min", "")
+            .replace("maj", "")
+            .strip()
+        )
+    if clean_scale == "major":
+        return CAM_MAJOR_TO_CAMELOT.get(clean_key)
+    if clean_scale == "minor":
+        return CAM_MINOR_TO_CAMELOT.get(clean_key)
+    return None
 
 
 def build_track_profile(song: Any) -> TrackProfile:
@@ -49,16 +115,25 @@ def build_track_profile(song: Any) -> TrackProfile:
         or (getattr(song, "genre_profile", None) or {}).get("vocal_density")
         or bands["mid"]
     )
+    bass_strength = (
+        dj.get("bass_strength")
+        or dj.get("bass_dominance")
+        or dj.get("low_ratio")
+        or bands["low"]
+    )
+    key = getattr(song, "key", None)
+    scale = getattr(song, "scale", None) or getattr(song, "mode", None)
+    camelot = getattr(song, "camelot_key", None) or camelot_from_key(key, scale)
     return TrackProfile(
         song=song,
         song_id=str(getattr(song, "id", "")),
         title=str(getattr(song, "title", "")),
         artist=str(getattr(song, "artist", "")),
         bpm=float(bpm or 120.0),
-        camelot=getattr(song, "camelot_key", None),
-        key=getattr(song, "key", None),
+        camelot=camelot,
+        key=key,
         energy=clamp01(energy, 0.5),
-        bass_strength=clamp01(bands["low"], 0.5),
+        bass_strength=clamp01(bass_strength, 0.5),
         vocal_density=clamp01(vocal_density, 0.5),
     )
 
@@ -154,8 +229,8 @@ def choose_start_track(tracks: list[TrackProfile]) -> TrackProfile:
         tracks,
         key=lambda t: (
             abs(t.bpm - median_bpm) * 0.8
-            + abs(t.energy - 0.32) * 2.0
-            + t.vocal_density * 0.7
+            + abs(t.energy - 0.18) * 2.0
+            + t.vocal_density * 0.8
         ),
     )
 
@@ -186,6 +261,8 @@ def plan_default_sequence(songs: Sequence[Any]) -> dict[str, Any]:
             {
                 "from": current.song_id,
                 "to": chosen.song_id,
+                "from_song_id": current.song_id,
+                "to_song_id": chosen.song_id,
                 "from_title": current.title,
                 "to_title": chosen.title,
                 "from_bpm": round(current.bpm, 3),
@@ -218,4 +295,13 @@ def plan_default_sequence(songs: Sequence[Any]) -> dict[str, Any]:
         "sequence": sequence,
         "pair_scores": pair_details,
         "pair_breakdowns": pair_details,
+        "start_track_id": start.song_id,
+        "default_mix_debug": {
+            "start_track_id": start.song_id,
+            "start_track_reason": (
+                "choose_start_track: closest to median BPM, moderate-low energy target 0.18, "
+                "and lower vocal density."
+            ),
+            "pair_scores": pair_details,
+        },
     }

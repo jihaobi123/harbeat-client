@@ -23,6 +23,8 @@ class StylePickRequest(BaseModel):
     mode: str | None = None
     bpm_min: float | None = Field(default=None, ge=0, le=400)
     bpm_max: float | None = Field(default=None, ge=0, le=400)
+    min_bpm: float | None = Field(default=None, ge=0, le=400)
+    max_bpm: float | None = Field(default=None, ge=0, le=400)
 
 
 class BpmBucketItem(BaseModel):
@@ -79,6 +81,7 @@ class SequenceResponse(BaseModel):
     ordering_mode: str | None = None
     pair_scores: list[dict] = Field(default_factory=list)
     pair_breakdowns: list[dict] = Field(default_factory=list)
+    default_mix_debug: dict = Field(default_factory=dict)
 
 
 class TransitionPlanRequest(BaseModel):

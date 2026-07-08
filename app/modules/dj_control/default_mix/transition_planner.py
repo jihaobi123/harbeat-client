@@ -58,6 +58,31 @@ def plan_default_transition(
     from_at = alignment["from_at_sec"]
     to_at = alignment["to_at_sec"]
     pair_id = pair_id_for(prev_song, next_song, from_at, to_at)
+    exit_selection_reason = _selection_reason("exit", exit_choice)
+    entry_selection_reason = _selection_reason("entry", entry_choice)
+    beat_alignment_shift_ms = round(
+        (
+            abs(float(from_at) - float(exit_choice.get("time", from_at)))
+            + abs(float(to_at) - float(entry_choice.get("time", to_at)))
+        )
+        * 1000.0,
+        3,
+    )
+    phrase_anchor_used = any(
+        "phrase" in str(value).lower()
+        for value in (
+            exit_choice.get("source"),
+            entry_choice.get("source"),
+            alignment.get("from_anchor"),
+            alignment.get("to_anchor"),
+        )
+    )
+    entry_breakdown = entry_choice.get("breakdown") if isinstance(entry_choice.get("breakdown"), dict) else {}
+    vocal_penalty_score = round(
+        float(entry_breakdown.get("overlap_vocal_conflict") or 0.0)
+        + max(0.0, 1.0 - float(entry_breakdown.get("vocal_entry_sparsity") or 1.0)),
+        4,
+    )
     metadata = {
         "source": "default_mix_v2_scored_alignment",
         "pair_id": pair_id,
@@ -70,11 +95,17 @@ def plan_default_transition(
         "strategy_num": strategy_num,
         "strategy": strategy_name,
         "selection_reason": reason,
+        "exit_selection_reason": exit_selection_reason,
+        "entry_selection_reason": entry_selection_reason,
+        "phrase_anchor_used": phrase_anchor_used,
+        "beat_alignment_shift_ms": beat_alignment_shift_ms,
+        "vocal_penalty_score": vocal_penalty_score,
+        "energy_match_gain_db": None,
         "features1": prev_features,
         "features2": next_features,
         "cut_point_policy": {
-            "exit_source": exit_source(prev_song),
-            "entry_source": entry_source(next_song),
+            "exit_source": exit_choice.get("source") or exit_source(prev_song),
+            "entry_source": entry_choice.get("source") or entry_source(next_song),
             "transition_windows_role": "candidate_regions_only",
             "scoring": "exit/entry bar-level scorer with vocal, drum, energy and handoff features",
             "alignment": "nearest beat/downbeat plus local drum anchor refinement",
@@ -183,6 +214,10 @@ def attach_render_resources(
     default_meta["pair_id"] = pair_id
     default_meta["resume_at_sec"] = render_meta.get("resume_at_sec", default_meta.get("resume_at_sec"))
     default_meta["duration_sec"] = render_meta.get("duration_sec", default_meta.get("duration_sec"))
+    default_meta["energy_match_gain_db"] = render_meta.get(
+        "energy_match_gain_db",
+        default_meta.get("energy_match_gain_db"),
+    )
     out["resume_at_sec"] = default_meta.get("resume_at_sec")
     out["duration_sec"] = default_meta.get("duration_sec", out.get("duration_sec"))
     out["fade_sec"] = out.get("duration_sec")
@@ -456,6 +491,15 @@ def pair_id_for(prev_song: Any, next_song: Any, from_at: float, to_at: float) ->
 
 def _default_duration_for_strategy(strategy_num: int) -> float:
     return {1: 6.5, 2: 7.5, 3: 7.0, 4: 6.5, 5: 8.0}.get(int(strategy_num or 1), 6.5)
+
+
+def _selection_reason(role: str, choice: dict[str, Any]) -> str:
+    source = choice.get("source") or "unknown"
+    anchor = choice.get("anchor") or "raw"
+    score = choice.get("score")
+    if score is None:
+        return f"{role}: {source}/{anchor}"
+    return f"{role}: {source}/{anchor}, score={float(score):.4f}"
 
 
 def _feature_payload(song: Any, features: dict[str, float]) -> dict[str, Any]:
