@@ -1,0 +1,40 @@
+{
+  "name": "harbeat-functional-modules",
+  "version": "0.1.0",
+  "baseline_date": "2026-08-13",
+  "unified_branch": "delivery/functional-module-extraction-20260813",
+  "unified_tag": "functional-modules/v0.1.0",
+  "status": "extracted_tested_not_production_integrated",
+  "test_summary": {
+    "module_commands": 13,
+    "module_commands_passed": 13,
+    "tests": 106,
+    "tests_passed": 106
+  },
+  "modules": [
+    {"id": "observability-e2e", "tag": "module/observability-e2e/v0.1.0", "commit": "53e8736961a0cd8251a6c3f8c7ad5f016e8b2b02", "tests": 7},
+    {"id": "device-runtime", "tag": "module/device-runtime/v0.1.0", "commit": "c1fcbe9253356220f4affc6b467ffade13fa7a88", "tests": 20},
+    {"id": "library-catalog", "tag": "module/library-catalog/v0.1.0", "commit": "56d92b37a61bb9ed606d94f9f254ca575ba567db", "tests": 8},
+    {"id": "audio-preprocess", "tag": "module/audio-preprocess/v0.1.0", "commit": "2e1d50acabacca70327a1065523afad51023d677", "tests": 7},
+    {"id": "stem-separation", "tag": "module/stem-separation/v0.1.0", "commit": "e9e3f515ea80dbb6a78ba92a995c66ba3bae281a", "tests": 5},
+    {"id": "sequence-planner", "tag": "module/sequence-planner/v0.1.0", "commit": "3c32a7b826c8f3e8463a790c1c5b35cfaa259a5d", "tests": 5},
+    {"id": "transition-planner", "tag": "module/transition-planner/v0.1.0", "commit": "b276cff9193cd13b46e304a28232958c51f9f1d4", "tests": 4},
+    {"id": "transition-renderer", "tag": "module/transition-renderer/v0.1.0", "commit": "f903c5b22bb9d79f5f911b831558809fcd3253ca", "tests": 3},
+    {"id": "asset-sync", "tag": "module/asset-sync/v0.1.0", "commit": "d8a8c5a3aeca3154e14466c459573a0e562d6e5d", "tests": 6},
+    {"id": "transition-orchestrator", "tag": "module/transition-orchestrator/v0.1.0", "commit": "423a65e9b620ba4b54741edfb2a481bf9ee566ac", "tests": 5},
+    {"id": "audio-runtime", "tag": "module/audio-runtime/v0.1.0", "commit": "6223dddb8dfc01493a393b046c787e202a5177ed", "tests": 22},
+    {"id": "mobile-dj-control", "tag": "module/mobile-dj-control/v0.1.0", "commit": "16dadc03834d385012637b0c8978668d6b54e61e", "tests": 7},
+    {"id": "physical-input", "tag": "module/physical-input/v0.1.0", "commit": "bfd94afdd0af3774f77f5c6fb6953222974d005e", "tests": 7}
+  ],
+  "external_assets_not_in_git": [
+    "songs",
+    "stems",
+    "transition render WAV files",
+    "databases",
+    "model weights and caches",
+    "credentials and tokens",
+    "device configuration and backups",
+    "production caches"
+  ],
+  "production_replacement_applied": false
+}

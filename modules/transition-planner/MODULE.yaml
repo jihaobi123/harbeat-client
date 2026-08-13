@@ -36,7 +36,7 @@ public_functions:
   - plan_fast_cut_transition
   - plan_target_energy_transition
   - plan_target_style_transition
-health_check: python -m unittest discover modules/transition-planner/tests
+health_check: set PYTHONPATH to modules/transition-planner/src, then run python -m unittest discover modules/transition-planner/tests
 tests:
   - modules/transition-planner/tests/test_transition_planner.py
 deployment_boundary:

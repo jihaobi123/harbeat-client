@@ -21,5 +21,6 @@ RK playback.
 ## Test
 
 ```powershell
+$env:PYTHONPATH = "modules/transition-planner/src"
 py -m unittest discover modules/transition-planner/tests -v
 ```

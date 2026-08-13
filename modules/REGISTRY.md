@@ -23,6 +23,11 @@ module has replaced production code.
 Module branches remain `module/<module-name>`, and immutable rollback tags are
 `module/<module-name>/v0.1.0`.
 
+The complete 13-module baseline is available from branch
+`delivery/functional-module-extraction-20260813` and immutable tag
+`functional-modules/v0.1.0`. Its machine-readable inventory is
+`modules/BASELINE-v0.1.0.json`.
+
 ## Acceptance rules
 
 - Every accepted commit must be reachable from its module branch and tag.
