@@ -32,3 +32,10 @@ to `asset-sync`.
 ```powershell
 py -m unittest discover modules/library-catalog/tests -v
 ```
+
+## Deployed read-only checks
+
+The public Jetson gateway requires the mobile user session for catalog data.
+An anonymous `401` is expected and does not mean the catalog is empty. The
+module must be replayed with an authenticated session before production
+integration; credentials are never stored in this module.

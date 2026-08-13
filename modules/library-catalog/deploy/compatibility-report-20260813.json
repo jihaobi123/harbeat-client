@@ -1,0 +1,25 @@
+{
+  "module": "library-catalog",
+  "version": "0.1.0",
+  "status": "contract-accepted-authenticated-replay-required",
+  "observed_runtime": {
+    "jetson_health": "reachable",
+    "anonymous_library_songs": "401",
+    "anonymous_playlist_query": "404",
+    "public_openapi_catalog_paths": "not_exposed"
+  },
+  "accepted_behavior": [
+    "LibrarySong UUID is the only playback and manifest asset identity",
+    "Catalog Song integer is used only for playlist relations",
+    "missing mapping is reported instead of title/artist fallback",
+    "duplicate mapping is rejected",
+    "manifest identity must match the requested LibrarySong UUID"
+  ],
+  "production_changes_applied": false,
+  "integration_gate": [
+    "replay authenticated /api/library/songs from the logged-in phone session",
+    "replay authenticated /api/playlists/{id} and verify every row mapping",
+    "replay authenticated /api/manifest/song/{library_song_id}",
+    "verify one real song through mobile selection and RK playback before migration"
+  ]
+}
