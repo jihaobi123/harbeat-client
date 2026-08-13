@@ -15,7 +15,7 @@ module has replaced production code.
 | `transition-planner` | `0.1.0` | `module/transition-planner` | `b276cff9193cd13b46e304a28232958c51f9f1d4` | 4 | tested, pushed, accepted | Four plan entry points match current production planner; Jetson production replacement not applied |
 | `transition-renderer` | `0.1.0` | `module/transition-renderer` | `f903c5b22bb9d79f5f911b831558809fcd3253ca` | 3 | tested, pushed, accepted | v7 fast-cut and v9 normal WAV/meta paths pass; Jetson replacement not applied |
 | `asset-sync` | `0.1.0` | `module/asset-sync` | `d8a8c5a3aeca3154e14466c459573a0e562d6e5d` | 6 | tested, pushed, accepted | Manifest, cache, atomic download, cancellation and priority sync paths pass; RK SSH probe blocked by legacy KEX |
-| `transition-orchestrator` | `0.1.0` | `module/transition-orchestrator` | pending | 5 | extracted, local protocol tested | Pure plan/manifest validation, priority sync request and task state machine; production replacement not applied |
+| `transition-orchestrator` | `0.1.0` | `module/transition-orchestrator` | `423a65e9b620ba4b54741edfb2a481bf9ee566ac` | 5 | tested, pushed, accepted | Pure plan/manifest validation, priority sync request and task state machine; production replacement not applied |
 
 ## Acceptance rules
 
