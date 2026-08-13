@@ -1,0 +1,35 @@
+id: physical-input
+version: 0.1.0
+owners:
+  - rk3588
+purpose: Normalize MYKB E9s logical keys into explicit audio, navigation-event, and volume actions.
+inputs:
+  - logical key 0-9 or volume-up/down action
+  - press timestamp and HID source
+outputs:
+  - audio-engine trigger command
+  - edge-agent key_event notification
+  - local PCM volume adjustment
+runtime_dependencies:
+  - Python >= 3.10
+  - evdev for the deployed HID adapter
+  - httpx for the deployed edge-agent adapter
+data_dependencies: []
+models: []
+source_assets:
+  - cypher-integration/rk3588-edge/input-daemon/main.py
+  - cypher-integration/rk3588-edge/input-daemon/config.py
+  - cypher-integration/rk3588-edge/input-daemon/audio_socket.py
+replaces: []
+public_functions:
+  - route_logical_key
+  - encode_audio_trigger
+health_check: py -m pytest -q modules/physical-input/tests
+tests:
+  - modules/physical-input/tests/test_physical_input.py
+deployment_boundary:
+  - This module does not select songs, plan transitions, or control mobile UI.
+  - Keys 7-9 currently emit navigation events only; no deployed mobile consumer maps them to DJ cuts.
+  - Device discovery, HTTP, Unix socket, and amixer remain replaceable adapters.
+artifact_sha256: ea1c4ee6a2795163ae859064d89a2007f5f675adf3439a3c311fae68b4bbbb33
+rollback_artifact: git tag module/physical-input/v0.1.0

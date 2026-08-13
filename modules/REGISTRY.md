@@ -18,6 +18,7 @@ module has replaced production code.
 | `transition-orchestrator` | `0.1.0` | `module/transition-orchestrator` | `423a65e9b620ba4b54741edfb2a481bf9ee566ac` | 5 | tested, pushed, accepted | Pure plan/manifest validation, priority sync request and task state machine; production replacement not applied |
 | `audio-runtime` | `0.1.0` | `module/audio-runtime` | `6223dddb8dfc01493a393b046c787e202a5177ed` | 22 | tested, pushed, accepted | Real RK dual-deck engine, render prepare/schedule/sample-clock trigger/resume and socket contract; systemd replacement not applied |
 | `mobile-dj-control` | `0.1.0` | `module/mobile-dj-control` | `16dadc03834d385012637b0c8978668d6b54e61e` | 7 | tested, pushed, accepted | Pure Dart shared fast/energy/style confirm request and task recovery contract; Flutter integration not applied |
+| `physical-input` | `0.1.0` | `module/physical-input` | pending | 7 | extracted, local routing tested | MYKB key/SFX/volume routing fixed as pure contract; keys 7-9 lack a deployed mobile DJ action consumer |
 
 ## Acceptance rules
 

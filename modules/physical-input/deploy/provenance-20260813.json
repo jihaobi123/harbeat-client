@@ -1,0 +1,31 @@
+{
+  "module": "physical-input",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "device": "rk3588",
+  "production_changes_applied": false,
+  "source_sha256": {
+    "cypher-integration/rk3588-edge/input-daemon/main.py": "c38db1bea510420198dd99d867fed1ac9cc0199ab50f65290d9555f9f9b31ecf",
+    "cypher-integration/rk3588-edge/input-daemon/config.py": "60cfdb73885092fe4f83a6642b8c5f1e81030555d385df38a467dae694b7b9b1",
+    "cypher-integration/rk3588-edge/input-daemon/audio_socket.py": "25f3cab4dcdda67db10d42bdfbcdd01236cd71d88378fa3804d2c48e3bc0add1"
+  },
+  "verified_behaviors": [
+    "keys 1-5 map to matching SFX triggers",
+    "key 6 maps to vinyl-stop sample key 3",
+    "key 0 maps to pause/resume trigger",
+    "keys 7-9 emit navigation events without audio triggers",
+    "volume keys preserve direction and event notification",
+    "audio socket frame matches deployed protocol"
+  ],
+  "known_gaps": [
+    "production input-daemon defines KEY_MAP twice with identical values",
+    "mobile client has no deployed consumer mapping RK key events 7-9 to DJ cut actions"
+  ],
+  "local_regression": {
+    "module_tests": "7 passed",
+    "physical_hardware_opened": false,
+    "remote_changes": false
+  },
+  "artifact_sha256": "ea1c4ee6a2795163ae859064d89a2007f5f675adf3439a3c311fae68b4bbbb33",
+  "artifact_hash_scope": "src and tests files sorted by workspace-relative path; each line is lowercase file SHA256, two spaces, path; UTF-8 lines joined by LF with no trailing LF; SHA256 of resulting manifest"
+}
