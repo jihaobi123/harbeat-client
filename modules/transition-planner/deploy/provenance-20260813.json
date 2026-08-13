@@ -1,0 +1,58 @@
+{
+  "module": "transition-planner",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "jetson_service": "harbeat-api.service",
+  "jetson_working_directory": "/home/mark/harbeat",
+  "production_changes_applied": false,
+  "public_functions": [
+    "plan_default_transition",
+    "plan_fast_cut_transition",
+    "plan_target_energy_transition",
+    "plan_target_style_transition"
+  ],
+  "source_sha256_local": {
+    "app/modules/dj_control/default_mix/transition_planner.py": "9fc10423535269efc14ac7858f0527fdfed0ca096f96d31f9dd67678287af59c",
+    "app/modules/dj_control/band_analysis.py": "e2ee9e261d8090dabd4f40d35955358a1b30fa028c3d6dbb3958622a26356ef1",
+    "app/modules/dj_control/auto_mixer/feature_analyzer.py": "b377c7d7a97ed0f3e1335655b3e85f7a97249524872df13d4c2a40c9e88c371b",
+    "app/modules/dj_control/auto_mixer/strategy_selector.py": "939362f79ccc1a0a2b7de2cbf65e46f21e27eb08f970a2c1c0a43a86fd586c82",
+    "app/modules/dj_control/auto_mixer/mixing_strategies.py": "5cf0458da598a4b5db8085f7e592890227ae4cd538e52ae023c12266337cdb88",
+    "app/modules/dj_control/eq_transition_presets.py": "7b63cdb14ff093e4c0c6c62e287e210af4a6d8cd6a96abdd05b800b9831db944",
+    "app/modules/dj_control/eq_transition_strategy.py": "8e38978aa832a1f1e3160a362db16f0c941c078fd9ca89c4c6c27493139be5e1",
+    "app/modules/dj_control/mix_profile.py": "5c498c8d503380e9641ee3e20dda025af5577051a62707217978af9d43f5ee39",
+    "app/modules/dj_control/mixer_rules.py": "5e05f2f7c76d93af6d57c7350630614b88f80ed7ad7019f41ae9172edc0a1b28",
+    "app/modules/dj_control/transition_strategy.py": "79d0234d3b6e1e162ba1ffdf33629fade41760fb19f51ddb180908ab757ea986",
+    "app/modules/dj_control/spotify_mix/section_features.py": "7ac8e539e31de564780dd17ccee98780aed1318e93dfe091874e519417211c4c",
+    "app/modules/playlists/transition_planner.py": "0de76137966af7a1fdc3c7440fd56be92e63cc3fe6174c8063dacea4297709cc",
+    "app/modules/dj_set/section_energy.py": "a5dd5a85207d84c2b25cb27dc51eae23a47b65fbae730042be73eb4d63e3d0fd"
+  },
+  "jetson_core_sha256_verified": [
+    "app/modules/dj_control/default_mix/transition_planner.py",
+    "app/modules/dj_control/band_analysis.py",
+    "app/modules/dj_control/auto_mixer/feature_analyzer.py",
+    "app/modules/dj_control/auto_mixer/strategy_selector.py",
+    "app/modules/dj_control/auto_mixer/mixing_strategies.py",
+    "app/modules/dj_control/eq_transition_presets.py",
+    "app/modules/dj_control/eq_transition_strategy.py",
+    "app/modules/dj_control/transition_strategy.py"
+  ],
+  "jetson_compatibility_sha256_not_authoritative": [
+    "app/modules/dj_control/mix_profile.py",
+    "app/modules/dj_control/mixer_rules.py",
+    "app/modules/dj_control/spotify_mix/section_features.py",
+    "app/modules/playlists/transition_planner.py",
+    "app/modules/dj_set/section_energy.py"
+  ],
+  "parity": {
+    "four_public_plans_key_fields": true,
+    "production_replacement": false,
+    "note": "The extracted package uses local pure copies of compatibility helpers so fresh clone execution does not import the application package."
+  },
+  "read_only_probe": {
+    "service_active": true,
+    "working_directory": "/home/mark/harbeat",
+    "database_catalog_probe": "blocked by existing ORM model registration when queried outside full app startup"
+  },
+  "artifact_sha256": "d6a4ae35e5ef764a8d50e64e4ce12e00da9441ec5cea35f58b72b37a7369d0af",
+  "artifact_hash_scope": "sorted SHA256 manifest of src and tests files"
+}

@@ -1,0 +1,47 @@
+id: transition-planner
+version: 0.1.0
+owners:
+  - jetson
+purpose: Plan beat-aware transitions for default, fast-cut, target-energy, and target-style playback.
+inputs:
+  - two analyzed song objects or mappings
+  - live cursor and optional fast-cut execution window
+  - optional target energy/style constraints already resolved by selection
+outputs:
+  - serializable transition plan with exit/entry points
+  - beat/phrase alignment metadata and candidate scoring breakdown
+  - renderer-neutral duration and pair identity
+runtime_dependencies:
+  - Python >= 3.10
+  - optional librosa only for explicitly enabled legacy audio-window scoring
+data_dependencies:
+  - persisted beat, downbeat, phrase, energy, vocal, drum, band, and dj_structure_v2 fields
+models: []
+source_assets:
+  - app/modules/dj_control/default_mix/transition_planner.py
+  - app/modules/dj_control/band_analysis.py
+  - app/modules/dj_control/auto_mixer/feature_analyzer.py
+  - app/modules/dj_control/auto_mixer/strategy_selector.py
+  - app/modules/dj_control/auto_mixer/mixing_strategies.py
+  - app/modules/dj_control/eq_transition_presets.py
+  - app/modules/dj_control/mix_profile.py
+  - app/modules/dj_control/mixer_rules.py
+  - app/modules/dj_control/transition_strategy.py
+  - app/modules/dj_control/spotify_mix/section_features.py
+  - app/modules/playlists/transition_planner.py
+  - app/modules/dj_set/section_energy.py
+replaces: []
+public_functions:
+  - plan_default_transition
+  - plan_fast_cut_transition
+  - plan_target_energy_transition
+  - plan_target_style_transition
+health_check: python -m unittest discover modules/transition-planner/tests
+tests:
+  - modules/transition-planner/tests/test_transition_planner.py
+deployment_boundary:
+  - This module does not render WAV/meta.
+  - This module does not download or sync assets.
+  - This module does not call RK or select the next song.
+artifact_sha256: d6a4ae35e5ef764a8d50e64e4ce12e00da9441ec5cea35f58b72b37a7369d0af
+rollback_artifact: git tag module/transition-planner/v0.1.0

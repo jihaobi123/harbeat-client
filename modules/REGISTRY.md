@@ -12,6 +12,7 @@ module has replaced production code.
 | `audio-preprocess` | `0.1.0` | `module/audio-preprocess` | `237ee91b7336613ff1fae54c0567c78261c8f19a` | 7 | tested, pushed, accepted | 43/43 real Jetson payloads pass gate; production replacement not applied |
 | `stem-separation` | `0.1.0` | `module/stem-separation` | `e9e3f515ea80dbb6a78ba92a995c66ba3bae281a` | 5 | tested, pushed, accepted | 42/43 songs have four stems; one remains unprocessed |
 | `sequence-planner` | `0.1.0` | `module/sequence-planner` | `f54e38dfaad09e586d8d52fe3d95cdaa0f3650ae` | 5 | tested, pushed, accepted | 43 input, 30 default-compatible output in 168ms; production replacement not applied |
+| `transition-planner` | `0.1.0` | `module/transition-planner` | pending | 4 | extracted, local parity tested | Four plan entry points match current production planner; Jetson production replacement not applied |
 
 ## Acceptance rules
 
