@@ -13,12 +13,17 @@ from .transition_planner import (
     plan_target_energy_transition,
     plan_target_style_transition,
 )
+from .service import PlanningMode, PlanningRequest, TransitionPlanningService, validate_transition_plan
 
 __all__ = [
     "PLANNER_VERSION",
     "FAST_CUT_PLANNER_VERSION",
+    "PlanningMode",
+    "PlanningRequest",
+    "TransitionPlanningService",
     "plan_default_transition",
     "plan_fast_cut_transition",
     "plan_target_energy_transition",
     "plan_target_style_transition",
+    "validate_transition_plan",
 ]

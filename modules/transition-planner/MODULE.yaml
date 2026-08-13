@@ -1,5 +1,5 @@
 id: transition-planner
-version: 0.1.0
+version: 0.2.0
 owners:
   - jetson
 purpose: Plan beat-aware transitions for default, fast-cut, target-energy, and target-style playback.
@@ -36,12 +36,18 @@ public_functions:
   - plan_fast_cut_transition
   - plan_target_energy_transition
   - plan_target_style_transition
+  - TransitionPlanningService.plan
 health_check: python -m unittest discover modules/transition-planner/tests
 tests:
   - modules/transition-planner/tests/test_transition_planner.py
+  - modules/transition-planner/tests/test_service.py
 deployment_boundary:
   - This module does not render WAV/meta.
   - This module does not download or sync assets.
   - This module does not call RK or select the next song.
-artifact_sha256: d6a4ae35e5ef764a8d50e64e4ce12e00da9441ec5cea35f58b72b37a7369d0af
+clean_architecture:
+  - service.py owns typed mode dispatch and shared output validation
+  - transition_planner.py remains the behavior-compatible planning engine
+  - candidate generation, scoring, constraints and alignment split is v0.3 work
+artifact_sha256: 8ff95a8c9acf9d1a87348955b6000263866030926261dcd68492298495698a95
 rollback_artifact: git tag module/transition-planner/v0.1.0

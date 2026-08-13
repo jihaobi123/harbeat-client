@@ -1,5 +1,10 @@
 # Transition Planner
 
+Version `0.2.0` places the four behavior-compatible engines behind a typed
+`TransitionPlanningService`. It validates one shared render-plan contract and
+forbids degraded, fallback, or non-v2 output for manual cuts. The scoring math
+is unchanged; candidate/scoring decomposition remains controlled v0.3 work.
+
 This is the independently testable planning layer extracted from the deployed
 Jetson DJ control path. It keeps the same four plan entry points used by the
 current backend:
