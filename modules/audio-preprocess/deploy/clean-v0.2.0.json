@@ -1,0 +1,15 @@
+{
+  "module": "audio-preprocess",
+  "version": "0.2.0",
+  "baseline": "module/audio-preprocess/v0.1.0",
+  "source_sha256": "ffcd1be1474f284802b40eb4c109ab55ad41974d22c68d253ea112ad5bdf3520",
+  "changes": [
+    "introduced an AnalysisRepository persistence port",
+    "introduced a validation-first preprocessing use case",
+    "kept dj_structure_v2 scoring behavior unchanged",
+    "retained the song-object mutation entry point as a production adapter"
+  ],
+  "tests": {"passed": 10, "failed": 0},
+  "real_jetson_audio_parity_required": true,
+  "production_integration_applied": false
+}
