@@ -1,5 +1,6 @@
-"""Pure logical routing for RK physical controls."""
+"""Pure domain routing and explicit wire adapters for physical controls."""
 
-from .routing import InputAction, encode_audio_trigger, route_logical_key
+from .domain import ActionKind, InputAction, route_logical_key
+from .protocol import encode_audio_trigger
 
-__all__ = ["InputAction", "encode_audio_trigger", "route_logical_key"]
+__all__ = ["ActionKind", "InputAction", "encode_audio_trigger", "route_logical_key"]
