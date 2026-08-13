@@ -1,5 +1,9 @@
 # Physical Input
 
+Version `0.2.0` separates immutable key-routing rules (`domain.py`) from the
+RK audio socket wire adapter (`protocol.py`). `routing.py` is a named v0.1
+compatibility facade and contains no duplicate behavior.
+
 This module records the real MYKB E9s button semantics without requiring a
 keyboard, RK, Unix socket, or mixer during tests.
 

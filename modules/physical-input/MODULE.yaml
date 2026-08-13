@@ -1,5 +1,5 @@
 id: physical-input
-version: 0.1.0
+version: 0.2.0
 owners:
   - rk3588
 purpose: Normalize MYKB E9s logical keys into explicit audio, navigation-event, and volume actions.
@@ -31,5 +31,9 @@ deployment_boundary:
   - This module does not select songs, plan transitions, or control mobile UI.
   - Keys 7-9 currently emit navigation events only; no deployed mobile consumer maps them to DJ cuts.
   - Device discovery, HTTP, Unix socket, and amixer remain replaceable adapters.
-artifact_sha256: ea1c4ee6a2795163ae859064d89a2007f5f675adf3439a3c311fae68b4bbbb33
+clean_architecture:
+  - domain.py owns immutable action rules and validation
+  - protocol.py owns the audio socket wire format
+  - routing.py is an explicit v0.1 compatibility facade
+artifact_sha256: c95d6c6cfc2d7531f34b409ade70e7da918a85fec56988a7a8f6b16787353fa4
 rollback_artifact: git tag module/physical-input/v0.1.0

@@ -3,7 +3,8 @@ import struct
 
 import pytest
 
-from harbeat_physical_input import encode_audio_trigger, route_logical_key
+from harbeat_physical_input import ActionKind, InputAction, encode_audio_trigger, route_logical_key
+from harbeat_physical_input.routing import route_logical_key as legacy_route_logical_key
 
 
 def test_sfx_keys_trigger_same_sample_and_notify_edge():
@@ -26,7 +27,7 @@ def test_zero_routes_to_audio_pause_resume():
 def test_navigation_keys_are_event_only():
     for key in (7, 8, 9):
         action = route_logical_key(key)
-        assert action.kind == "navigation_event"
+        assert action.kind == ActionKind.NAVIGATION_EVENT
         assert action.audio_trigger_key is None
         assert action.notify_edge is True
 
@@ -47,3 +48,20 @@ def test_audio_trigger_wire_frame_matches_deployed_protocol():
     payload = json.loads(frame[4:].decode("utf-8"))
     assert size == len(frame) - 4
     assert payload == {"cmd": "trigger", "key": 3, "ts": 1.25}
+
+
+def test_v01_routing_import_remains_behavior_compatible():
+    assert legacy_route_logical_key(6) == route_logical_key(6)
+
+
+def test_invalid_action_shapes_are_rejected():
+    with pytest.raises(ValueError):
+        InputAction(7, ActionKind.NAVIGATION_EVENT, audio_trigger_key=2)
+    with pytest.raises(ValueError):
+        InputAction(100, ActionKind.VOLUME, volume_direction="up")
+
+
+@pytest.mark.parametrize("key,timestamp", [(-1, 1.0), (1, -1.0), (1, float("nan"))])
+def test_invalid_wire_values_are_rejected(key, timestamp):
+    with pytest.raises(ValueError):
+        encode_audio_trigger(key, timestamp)
