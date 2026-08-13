@@ -1,0 +1,42 @@
+{
+  "name": "harbeat-functional-modules",
+  "version": "0.2.0",
+  "release_date": "2026-08-13",
+  "base_tag": "functional-modules/v0.1.0",
+  "unified_branch": "delivery/functional-modules-clean-v0.2",
+  "unified_tag": "functional-modules/v0.2.0",
+  "status": "clean_boundaries_tested_not_production_integrated",
+  "production_integration_applied": false,
+  "production_replacement_applied": false,
+  "test_summary": {
+    "module_commands": 13,
+    "module_commands_passed": 13,
+    "tests": 146,
+    "tests_passed": 146
+  },
+  "modules": [
+    {"id":"observability-e2e","branch":"module/observability-e2e-clean-v0.2","tag":"module/observability-e2e/v0.2.0","commit":"886532d2dc1fc6afc5d43d3d800bbef90a343708","tests":9},
+    {"id":"device-runtime","branch":"module/device-runtime-clean-v0.2","tag":"module/device-runtime/v0.2.0","commit":"291d102c19a0dc8ee6182605eaa4ce560267c249","tests":22},
+    {"id":"library-catalog","branch":"module/library-catalog-clean-v0.2","tag":"module/library-catalog/v0.2.0","commit":"98e89dd02a726510279e14f14ee815b4ac838f7a","tests":12},
+    {"id":"audio-preprocess","branch":"module/audio-preprocess-clean-v0.2","tag":"module/audio-preprocess/v0.2.0","commit":"79c88d3f92b783b6216b9ddef6647b9d1774a5dc","tests":10},
+    {"id":"stem-separation","branch":"module/stem-separation-clean-v0.2","tag":"module/stem-separation/v0.2.0","commit":"e6b25eb96e831b94ca5be45f67e38cd2fa9edff6","tests":9},
+    {"id":"sequence-planner","branch":"module/sequence-planner-clean-v0.2","tag":"module/sequence-planner/v0.2.0","commit":"e380156bf22fef784960bdecbf9ff9fe62d90ad0","tests":7},
+    {"id":"transition-planner","branch":"module/transition-planner-clean-v0.2","tag":"module/transition-planner/v0.2.0","commit":"94c7fb6464b943daaf1bdebc7fd434e0df064b36","tests":7},
+    {"id":"transition-renderer","branch":"module/transition-renderer-clean-v0.2","tag":"module/transition-renderer/v0.2.0","commit":"bb2d676a1ca4996a28b6f8fb05ad6387b7b23d79","tests":6},
+    {"id":"asset-sync","branch":"module/asset-sync-clean-v0.2","tag":"module/asset-sync/v0.2.0","commit":"99e524f49bac3bfc8807eb938f9e79e6a7838bae","tests":9},
+    {"id":"transition-orchestrator","branch":"module/transition-orchestrator-clean-v0.2","tag":"module/transition-orchestrator/v0.2.0","commit":"1331b5b4594767ea20ea16b29b7b035913691d56","tests":7},
+    {"id":"audio-runtime","branch":"module/audio-runtime-clean-v0.2","tag":"module/audio-runtime/v0.2.0","commit":"d5f91ef765c925e07d07e218b0659c06bddbb85e","tests":25},
+    {"id":"mobile-dj-control","branch":"module/mobile-dj-control-clean-v0.2","tag":"module/mobile-dj-control/v0.2.0","commit":"2473f6677c7cacfc22bc9574ed6aa94e8da3046c","tests":11},
+    {"id":"physical-input","branch":"module/physical-input-clean-v0.2","tag":"module/physical-input/v0.2.0","commit":"c0334daff3f87006d149e91d921ece9635fe7abe","tests":12}
+  ],
+  "external_assets_not_in_git": [
+    "songs",
+    "stems",
+    "transition render WAV files",
+    "databases",
+    "model weights and caches",
+    "credentials and tokens",
+    "device configuration and backups",
+    "production caches"
+  ]
+}
