@@ -1,0 +1,35 @@
+{
+  "module": "asset-sync",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "device": "rk3588",
+  "production_changes_applied": false,
+  "source_sha256": {
+    "cypher-integration/rk3588-edge/sync-worker/main.py": "367d002f139774bc5a3c8f93a073bfa69e1a9fbb68d5ecd16d741fd94cfdd14d"
+  },
+  "api_contract": [
+    "POST /sync",
+    "POST /sync/cancel",
+    "GET /status",
+    "GET /cache/check",
+    "DELETE /cache/song/{song_id}"
+  ],
+  "verified_behaviors": [
+    "manifest expansion",
+    "size and SHA256 cache validation",
+    "pair renderer metadata invalidation",
+    "atomic part-file publication",
+    "priority sync replacement",
+    "cancellation",
+    "concurrent download deduplication",
+    "httpx to curl fallback"
+  ],
+  "read_only_probe": {
+    "rk_ssh": "blocked by RK SSH server offering only legacy diffie-hellman SHA1 key exchange",
+    "rk_service_sha": "not collected because SSH negotiation was blocked",
+    "local_production_source_test": "passed",
+    "remote_changes": false
+  },
+  "artifact_sha256": "04e1f8b9786078a05c2509534da09e0d6bf844d661751235ef00e5bcf826f673",
+  "artifact_hash_scope": "sorted SHA256 manifest of src and tests files"
+}

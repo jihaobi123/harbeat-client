@@ -1,0 +1,40 @@
+id: asset-sync
+version: 0.1.0
+owners:
+  - rk3588
+purpose: Download, verify, atomically publish, and cache song/render assets on RK.
+inputs:
+  - song and default_mix pair manifest
+  - asset URL, format, size, and optional SHA256
+  - priority and wait controls for sync-worker API
+outputs:
+  - verified local cache files
+  - /sync, /status, /cache/check, and /sync/cancel responses
+  - per-file transfer and verification timings
+runtime_dependencies:
+  - Python >= 3.10
+  - fastapi
+  - uvicorn
+  - httpx
+  - curl for transport fallback
+data_dependencies:
+  - RK CYPHER_HOME cache directory
+models: []
+source_assets:
+  - cypher-integration/rk3588-edge/sync-worker/main.py
+replaces: []
+public_endpoints:
+  - POST /sync
+  - POST /sync/cancel
+  - GET /status
+  - GET /cache/check
+  - DELETE /cache/song/{song_id}
+health_check: python -m pytest -q modules/asset-sync/tests
+tests:
+  - modules/asset-sync/tests/test_asset_sync.py
+deployment_boundary:
+  - This module does not choose songs or transition points.
+  - This module does not render audio.
+  - This module does not prepare or schedule RK playback.
+artifact_sha256: 04e1f8b9786078a05c2509534da09e0d6bf844d661751235ef00e5bcf826f673
+rollback_artifact: git tag module/asset-sync/v0.1.0
