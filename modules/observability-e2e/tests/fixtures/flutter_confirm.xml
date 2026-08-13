@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node text="" class="android.view.View" content-desc="能量切歌 推荐候选" clickable="false" enabled="true" bounds="[28,734][1053,845]">
+    <node text="" resource-id="harbeat:energy-confirm" class="android.widget.Button" content-desc="确认切歌" clickable="true" enabled="true" bounds="[88,734][559,784]" />
+    <node text="" resource-id="harbeat:energy-cancel" class="android.widget.Button" content-desc="取消" clickable="true" enabled="true" bounds="[816,734][992,784]" />
+  </node>
+</hierarchy>

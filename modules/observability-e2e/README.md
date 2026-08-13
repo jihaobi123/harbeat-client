@@ -46,4 +46,3 @@ py modules/observability-e2e/src/harbeat_observability/cli.py find-control `
 
 The command returns the current control bounds and center. A caller must dump a
 fresh frame immediately before tapping; stored coordinates are not reusable.
-
