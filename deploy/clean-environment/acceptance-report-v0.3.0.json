@@ -3,7 +3,7 @@
   "release": "0.3.0",
   "date": "2026-08-14",
   "module_baseline": "functional-modules/v0.2.0",
-  "status": "deployment_scaffold_local_acceptance",
+  "status": "deployment_scaffold_and_device_base_runtime_acceptance",
   "production_ready": false,
   "cleanup_authorized": false,
   "passed": {
@@ -16,12 +16,17 @@
     "python_wheel_build": "12/12",
     "wheelhouse_reproducible_hash": true,
     "legacy_runtime_path_scanner": true,
-    "release_excludes_build_artifacts": true
+    "release_excludes_build_artifacts": true,
+    "jetson_read_only_inventory": true,
+    "rk_read_only_inventory": true,
+    "jetson_python_3_10_wheel_imports": "12/12",
+    "rk_python_3_10_wheel_imports": "12/12",
+    "jetson_base_hardware": "JetPack R36.3, CUDA 12.2, cuDNN, FFmpeg",
+    "rk_base_hardware": "ALSA, ES8388, FFmpeg, udev"
   },
   "pending": {
-    "python_runtime_smoke": "requires Python 3.10 profile; workstation only has Python 3.13",
-    "jetson_base_image": "not run",
-    "rk_base_image": "not run",
+    "jetson_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
+    "rk_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
     "real_jetson_adapter": "not run",
     "real_rk_adapter": "not run",
     "mobile_jetson_rk_e2e": "not run",
@@ -42,5 +47,5 @@
     "wheel": "0.45.1",
     "target_runtime": "Python 3.10 profile on Jetson/RK as applicable"
   },
-  "next_gate": "Run inventory.py and deploy on clean Python 3.10 Jetson/RK base images before any old-environment cleanup."
+  "next_gate": "Build production adapters in isolated roots and run per-service health and smoke tests without taking over legacy ports or services."
 }

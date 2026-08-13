@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-14",
+  "mode": "read_only_remote_observation",
+  "device_role": "rk3588",
+  "identity": {
+    "hostname": "lubancat",
+    "address": "192.168.93.209",
+    "ssh": {
+      "status": "read_only_access",
+      "user": "cat"
+    }
+  },
+  "runtime": {
+    "kernel": "6.1.84",
+    "architecture": "aarch64",
+    "python": "3.10.12",
+    "disk_root": {
+      "device": "/dev/mmcblk1p2",
+      "size": "58G",
+      "used": "37G",
+      "available": "19G",
+      "used_percent": 67
+    }
+  },
+  "services": {
+    "edge_agent": {
+      "endpoint": "http://192.168.93.209:9000",
+      "health": "200_ok",
+      "state": "200_ok"
+    },
+    "sync_worker": {
+      "endpoint": "http://192.168.93.209:9100",
+      "status": "200_ok"
+    }
+  },
+  "hardware": {
+    "audio_devices": [
+      "rockchip-dp0",
+      "rockchip-hdmi0",
+      "rockchip-es8388"
+    ],
+    "ports_observed": [22, 9000, 9100]
+  },
+  "deployment_decision": {
+    "http_read_only_probe": "passed",
+    "python_3_10_wheel_import_smoke": "12/12",
+    "clean_environment_base_runtime": "passed_in_isolated_tmp_venv",
+    "legacy_service_modified": false,
+    "cleanup_authorized": false
+  }
+}

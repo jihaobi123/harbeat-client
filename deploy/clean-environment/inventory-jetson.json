@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-14",
+  "mode": "read_only_remote_observation",
+  "device_role": "jetson",
+  "identity": {
+    "hostname": "jetson",
+    "address": "100.87.142.21",
+    "lan_address_observed_on_device": "192.168.5.100",
+    "ssh_user": "mark",
+    "ssh": {
+      "status": "read_only_access"
+    }
+  },
+  "runtime": {
+    "os": "Ubuntu 22.04.5 LTS",
+    "kernel": "5.15.136-tegra",
+    "architecture": "aarch64",
+    "python": "3.10.12",
+    "jetpack": "R36.3",
+    "cuda_path": "/usr/local/cuda-12.2",
+    "disk_root": {
+      "device": "/dev/mmcblk0p1",
+      "size": "54G",
+      "used": "37G",
+      "available": "15G",
+      "used_percent": 71
+    }
+  },
+  "services": {
+    "legacy_harbeat_api": {
+      "unit": "harbeat-api.service",
+      "status": "active",
+      "health_local": "200_ok",
+      "health_via_100_87_142_21": "502_bad_gateway",
+      "source_path": "/home/mark/harbeat",
+      "classification": "legacy_reference_only"
+    }
+  },
+  "hardware": {
+    "gpu": "Orin (nvgpu)",
+    "ffmpeg": "/usr/bin/ffmpeg",
+    "ports_observed": [22, 80, 8000, 5432, 6379]
+  },
+  "deployment_decision": {
+    "python_3_10_runtime": "confirmed",
+    "gpu_base_runtime": "confirmed_present",
+    "python_3_10_wheel_import_smoke": "12/12",
+    "clean_environment_base_runtime": "passed_in_isolated_tmp_venv",
+    "legacy_service_modified": false,
+    "cleanup_authorized": false
+  }
+}
