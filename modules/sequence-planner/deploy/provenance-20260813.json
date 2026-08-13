@@ -1,0 +1,12 @@
+{
+  "module": "sequence-planner",
+  "captured_at": "2026-08-13",
+  "jetson_service": "harbeat-api.service",
+  "source_sha256": {
+    "app/modules/dj_control/default_mix/playlist_selector.py": "191bfaf9c52ebd7898ed99f8216f9d07e179a5cc2e5bfebaa4d1c1b5d89b14f0",
+    "app/modules/dj_control/sequencer.py": "5bad65c776aaa754f9de6827c7587eae1e8e65312cfdab7b885b2956b8af09e1",
+    "app/modules/dj_control/band_analysis.py": "e2ee9e261d8090dabd4f40d35955358a1b30fa028c3d6dbb3958622a26356ef1",
+    "app/modules/dj_control/energy_hiphop.py": "5899b0581a6de97331f76e33e14ab57c1aad4008546b9a4e3e9fc17ad0227673"
+  },
+  "production_changes_applied": false
+}

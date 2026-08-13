@@ -1,0 +1,31 @@
+id: sequence-planner
+version: 0.1.0
+owners:
+  - jetson
+purpose: Default pair-compatible ordering and street-dance target-energy sequencing.
+inputs:
+  - persisted song BPM, key, Camelot, energy, beat, phrase, and band summaries
+outputs:
+  - ordered song IDs
+  - target and actual energy per slot
+  - pair compatibility breakdowns
+runtime_dependencies:
+  - Python >= 3.10
+data_dependencies:
+  - precomputed LibrarySong analysis fields
+models: []
+source_assets:
+  - app/modules/dj_control/sequencer.py
+  - app/modules/dj_control/default_mix/playlist_selector.py
+  - app/modules/dj_control/energy_hiphop.py
+  - app/modules/dj_control/band_analysis.py
+replaces: []
+public_endpoints:
+  - GET /api/dj/sequence/presets
+  - POST /api/dj/sequence
+health_check: python -m unittest discover modules/sequence-planner/tests
+tests:
+  - modules/sequence-planner/tests/test_default_sequence.py
+  - modules/sequence-planner/tests/test_energy_curves.py
+artifact_sha256: pending
+rollback_artifact: git tag module/sequence-planner/v0.1.0
