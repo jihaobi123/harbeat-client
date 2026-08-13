@@ -1,0 +1,34 @@
+{
+  "module": "stem-separation",
+  "captured_at": "2026-08-13",
+  "jetson_working_directory": "/home/mark/harbeat",
+  "runtime": {
+    "python": "/home/mark/venvs/harbeat/bin/python",
+    "demucs_module": true,
+    "demucs_cli_on_path": false,
+    "ffmpeg": "/usr/bin/ffmpeg",
+    "model": "htdemucs"
+  },
+  "source_sha256_matching_local_and_jetson": {
+    "app/modules/library/background_tasks.py": "60c64d698287c8d0627b89969e9888dc49230ff9e11dfa72b270964ea54f1db5",
+    "app/modules/library/stem_analysis.py": "925f01e28d7710f55c3253e3ab88ed4b9d3dce812b04881b5e7d2722eec1a5c4"
+  },
+  "source_divergence_not_copied_as_authority": [
+    "app/modules/library/router.py",
+    "app/modules/playlists/service.py"
+  ],
+  "current_catalog_coverage": {
+    "total": 43,
+    "four_stems_ready": 42,
+    "partial": 0,
+    "none": 1,
+    "verified_stem_files": 168
+  },
+  "real_read_only_analysis": {
+    "complete": true,
+    "quality_in_range": true,
+    "activity_windows": 141,
+    "activity_keys": ["bass", "drums", "other", "vocals"]
+  },
+  "production_changes_applied": false
+}
