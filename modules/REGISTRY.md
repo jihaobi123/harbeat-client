@@ -13,6 +13,7 @@ module has replaced production code.
 | `stem-separation` | `0.1.0` | `module/stem-separation` | `e9e3f515ea80dbb6a78ba92a995c66ba3bae281a` | 5 | tested, pushed, accepted | 42/43 songs have four stems; one remains unprocessed |
 | `sequence-planner` | `0.1.0` | `module/sequence-planner` | `f54e38dfaad09e586d8d52fe3d95cdaa0f3650ae` | 5 | tested, pushed, accepted | 43 input, 30 default-compatible output in 168ms; production replacement not applied |
 | `transition-planner` | `0.1.0` | `module/transition-planner` | `b276cff9193cd13b46e304a28232958c51f9f1d4` | 4 | tested, pushed, accepted | Four plan entry points match current production planner; Jetson production replacement not applied |
+| `transition-renderer` | `0.1.0` | `module/transition-renderer` | pending | 3 | extracted, local renderer tested | v7 fast-cut and v9 normal WAV/meta paths pass; Jetson replacement not applied |
 
 ## Acceptance rules
 

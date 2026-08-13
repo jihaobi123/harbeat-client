@@ -1,0 +1,35 @@
+{
+  "module": "transition-renderer",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "jetson_service": "harbeat-api.service",
+  "jetson_working_directory": "/home/mark/harbeat",
+  "production_changes_applied": false,
+  "renderer_versions": {
+    "normal": "three_band_default_v9_fast_phase_window",
+    "fast_cut": "three_band_default_v7_standalone_curve_no_energy_floor"
+  },
+  "source_sha256": {
+    "app/modules/dj_control/default_mix/reference_renderer.py": "5d0d92e107af8245ac342e89b0baa76797bbae4344ec72eb61145c3245a4148a"
+  },
+  "jetson_source_sha256": {
+    "app/modules/dj_control/default_mix/reference_renderer.py": "5d0d92e107af8245ac342e89b0baa76797bbae4344ec72eb61145c3245a4148a"
+  },
+  "runtime_verified_on_jetson": {
+    "numpy": "1.26.4",
+    "librosa": "0.10.2.post1",
+    "soundfile": "0.13.1",
+    "scipy": "1.15.3"
+  },
+  "read_only_probe": {
+    "service_active": true,
+    "working_directory": "/home/mark/harbeat"
+  },
+  "parity": {
+    "source_file_matches_jetson": true,
+    "production_replacement": false,
+    "real_audio_behavior": "local-window WAV/meta output covered by synthetic WAV fixture; production source SHA and runtime dependencies read-only verified"
+  },
+  "artifact_sha256": "83c16b982d7a40ce09e50fe859f6f7375ce53066a2c1c8d83b0898835d5c919e",
+  "artifact_hash_scope": "sorted SHA256 manifest of src and tests files"
+}
