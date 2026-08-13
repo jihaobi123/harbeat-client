@@ -1,5 +1,9 @@
 # Device Runtime
 
+Version `0.2.0` makes legacy endpoint import an explicit adapter and clears the
+old session whenever an endpoint changes. `SessionBinding` prevents operations
+from a previous hotspot session or another RK from being recovered.
+
 This module is the device-side contract for mobile-to-RK control. It keeps the
 device identity stable while allowing the hotspot address to change.
 

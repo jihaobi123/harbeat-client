@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .endpoint import RkEndpoint
+from .migration import LegacyEndpointCandidate
 from .state import ConnectionProfile, DeviceIdentity, PlaybackState, parse_playback
 
 
@@ -67,6 +68,7 @@ class ConnectionTracker:
     self._snapshot = replace(
       self._snapshot,
       endpoint=normalized,
+      session_id=None,
       connected=False,
       verified=False,
       observed_at_ms=now_ms,
@@ -132,12 +134,8 @@ class ConnectionProfileStore:
 
   @staticmethod
   def migrate_legacy_url(raw_url: str) -> dict[str, Any]:
-    return {
-      "version": ConnectionProfileStore.VERSION,
-      "active_device_id": None,
-      "unverified_endpoint": RkEndpoint.parse(raw_url).url,
-      "profiles": [],
-    }
+    """Compatibility facade; new callers use LegacyEndpointCandidate directly."""
+    return LegacyEndpointCandidate.parse(raw_url).profile_store_payload(ConnectionProfileStore.VERSION)
 
   @staticmethod
   def encode(profiles: list[ConnectionProfile], active_device_id: str | None) -> str:
