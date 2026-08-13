@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["schema_version", "operation_id", "intent", "events", "result"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "operation_id": {"type": "string", "minLength": 1},
     "intent": {"enum": ["baseline_playback", "auto_transition", "fast_cut", "energy_cut", "style_cut", "physical_input"]},
     "events": {
@@ -15,7 +15,7 @@
         "required": ["source", "stage", "timestamp"],
         "properties": {
           "source": {"enum": ["mobile", "jetson", "rk-edge", "rk-sync", "rk-audio", "test"]},
-          "stage": {"type": "string", "minLength": 1},
+          "stage": {"enum": ["clicked", "target_selected", "planned", "rendered", "sync_started", "cache_ready", "prepared", "scheduled", "transition_started", "resumed", "completed", "failed"]},
           "timestamp": {"type": "string", "format": "date-time"},
           "details": {"type": "object"}
         },

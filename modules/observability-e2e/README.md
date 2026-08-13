@@ -1,5 +1,10 @@
 # Observability E2E
 
+Version `0.2.0` defines canonical cross-device sources and operation stages.
+Reports automatically calculate planning, rendering, sync, scheduling,
+transition and resume timings needed by the 12-second, 15-second and RK timing
+acceptance gates.
+
 This module provides the evidence layer required before HarBeat runtime code is
 extracted or deleted. It does not plan transitions, render audio, synchronize
 assets, or control playback by itself.

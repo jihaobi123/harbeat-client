@@ -1,0 +1,15 @@
+{
+  "module": "observability-e2e",
+  "version": "0.2.0",
+  "baseline": "module/observability-e2e/v0.1.0",
+  "source_sha256": "c6b455bed7cd5e3686188c07c3897057183300ba6fe9359e19eccc13b3f06e81",
+  "changes": [
+    "introduced canonical cross-device event sources and stages",
+    "validated event timestamps and names",
+    "computed standard planning, rendering, sync, schedule, transition and resume metrics",
+    "retained conservative secret redaction"
+  ],
+  "tests": {"passed": 9, "failed": 0},
+  "real_three_device_collection_required": true,
+  "production_integration_applied": false
+}

@@ -1,5 +1,5 @@
 id: observability-e2e
-version: 0.1.0
+version: 0.2.0
 owners:
   - all
 purpose: Safe deployment inventory, semantic Android UI control, and cross-device operation tracing.
@@ -29,5 +29,9 @@ tests:
   - modules/observability-e2e/tests/test_journal.py
   - modules/observability-e2e/tests/test_trace.py
   - modules/observability-e2e/tests/test_ui_semantics.py
-artifact_sha256: pending
+clean_architecture:
+  - events.py owns canonical cross-device source and stage names
+  - trace.py owns redaction, ordering and standard timing metrics
+  - adb, SSH and journal collection remain adapters
+artifact_sha256: c6b455bed7cd5e3686188c07c3897057183300ba6fe9359e19eccc13b3f06e81
 rollback_artifact: git tag module/observability-e2e/v0.1.0
