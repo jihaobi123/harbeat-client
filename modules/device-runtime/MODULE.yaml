@@ -34,5 +34,5 @@ tests:
   - modules/device-runtime/tests/test_operation.py
   - modules/device-runtime/tests/test_probe.py
   - modules/device-runtime/tests/test_reconnect.py
-artifact_sha256: pending
+artifact_sha256: 356f9b2055f79f11086271c2d72fec9ee01cadf9b052aa7fcb0cd5ab8f0ee66d
 rollback_artifact: git tag module/device-runtime/v0.1.0
