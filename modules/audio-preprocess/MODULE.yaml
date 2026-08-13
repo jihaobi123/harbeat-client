@@ -1,5 +1,5 @@
 id: audio-preprocess
-version: 0.1.0
+version: 0.2.0
 owners:
   - jetson
 purpose: Versioned offline audio analysis and planner-ready DJ structure candidates.
@@ -37,5 +37,11 @@ tests:
   - modules/audio-preprocess/tests/test_coverage.py
   - modules/audio-preprocess/tests/test_structure.py
   - modules/audio-preprocess/tests/test_version_gate.py
-artifact_sha256: 743e9183dac27420973c22a0e23f69b6a3adbc62df63f370d63f7f77d0898e5f
+  - modules/audio-preprocess/tests/test_service.py
+clean_architecture:
+  - dj_structure_v2.py owns the behavior-compatible analysis algorithm
+  - service.py owns validation and persistence orchestration
+  - AnalysisRepository is the only persistence port
+  - SQLAlchemy and background task code remain adapters
+artifact_sha256: ffcd1be1474f284802b40eb4c109ab55ad41974d22c68d253ea112ad5bdf3520
 rollback_artifact: git tag module/audio-preprocess/v0.1.0

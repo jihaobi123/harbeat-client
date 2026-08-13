@@ -1,5 +1,10 @@
 # Audio Preprocess
 
+Version `0.2.0` adds a persistence-neutral `PreprocessService`. Analysis output
+is validated before an `AnalysisRepository` can save it. The v0.1 song-object
+mutation entry point remains for production compatibility; candidate scoring
+math is intentionally unchanged in this refactor.
+
 This module preserves the deployed offline song-analysis capability. Its first
 independently accepted implementation is `dj_structure_v2`, the candidate data
 used by the default transition and fast-cut planners.
