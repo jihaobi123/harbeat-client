@@ -1,0 +1,40 @@
+id: transition-orchestrator
+version: 0.1.0
+owners:
+  - rk3588
+purpose: Validate and describe manual transition orchestration across planning, asset sync, RK preparation, and scheduling.
+inputs:
+  - transition plan with pair identity, source/target ids, timing, renderer and feature markers
+  - default mix pair manifest with render and metadata files
+  - current playback state and monotonic clock
+outputs:
+  - validated orchestration request
+  - priority pair-sync request
+  - idempotent task acceptance and state transitions
+  - timing/deadline and terminal error metadata
+runtime_dependencies:
+  - Python >= 3.10
+  - standard library only
+data_dependencies:
+  - renderer-neutral transition plan
+  - asset-sync pair manifest
+models: []
+source_assets:
+  - cypher-integration/rk3588-edge/edge-agent/main.py orchestration validation/state protocol
+  - cypher-integration/rk3588-edge/edge-agent/edge_agent/models.py request contract
+replaces: []
+public_functions:
+  - validate_request
+  - build_priority_sync_request
+  - accept_task
+  - transition_task
+  - public_task
+health_check: set PYTHONPATH to modules/transition-orchestrator/src, then run py -m pytest -q modules/transition-orchestrator/tests
+tests:
+  - modules/transition-orchestrator/tests/test_orchestrator.py
+deployment_boundary:
+  - This module does not select songs or transition points.
+  - This module does not render or download audio.
+  - This module does not read device files or call RK/audio-engine.
+artifact_sha256: cb2cfb099d3ff950446567e3b3b2db7ffb2ba0988f708991adf0f9960d7d475a
+rollback_artifact: git tag module/transition-orchestrator/v0.1.0

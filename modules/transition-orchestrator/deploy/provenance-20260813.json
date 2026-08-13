@@ -1,0 +1,33 @@
+{
+  "module": "transition-orchestrator",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "device": "rk3588",
+  "production_changes_applied": false,
+  "source_sha256": {
+    "cypher-integration/rk3588-edge/edge-agent/main.py": "ee4ba3519dc52525008b3e578d107c0392e7662586c5cfaf6ff6e511758af34e",
+    "cypher-integration/rk3588-edge/edge-agent/edge_agent/models.py": "3239894143f1ce7a2100410f85a1d306c98abe828e0b4cd855d89ac1c77a3fdc",
+    "cypher-integration/rk3588-edge/edge-agent/edge_agent/state.py": "dc18e34856d5ad480b18f8e003ca74cc5028b5248c468e57261c820fb85ace52"
+  },
+  "protocol_contract": [
+    "validated plan and pair manifest identity",
+    "verified v2 feature source and v7 renderer",
+    "priority pair-only sync request",
+    "accepted to scheduled/prewarmed/terminal state machine",
+    "stable request hash for idempotency"
+  ],
+  "verified_behaviors": [
+    "pair, source song, target song, renderer and feature marker mismatch rejection",
+    "degraded and incomplete manifest rejection",
+    "pair-only priority sync request construction",
+    "legal state transition enforcement",
+    "public task redaction and deadline reporting"
+  ],
+  "local_regression": {
+    "module_tests": "5 passed",
+    "edge_agent_tests": "13 passed",
+    "remote_changes": false
+  },
+  "artifact_sha256": "cb2cfb099d3ff950446567e3b3b2db7ffb2ba0988f708991adf0f9960d7d475a",
+  "artifact_hash_scope": "src and tests files sorted by workspace-relative path; each line is lowercase file SHA256, two spaces, path; UTF-8 lines joined by LF with no trailing LF; SHA256 of resulting manifest"
+}
