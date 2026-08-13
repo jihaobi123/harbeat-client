@@ -28,6 +28,7 @@ public_endpoints:
   - GET /state
 health_check: python -m unittest discover modules/device-runtime/tests
 tests:
+  - modules/device-runtime/tests/test_connection.py
   - modules/device-runtime/tests/test_endpoint.py
   - modules/device-runtime/tests/test_state.py
   - modules/device-runtime/tests/test_operation.py
