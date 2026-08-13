@@ -1,0 +1,15 @@
+{
+  "module": "transition-renderer",
+  "version": "0.2.0",
+  "baseline": "module/transition-renderer/v0.1.0",
+  "source_sha256": "dbedb424040bcb437fcbee0be716864ec7a880f4ee9908159b5faa57977ac5ed",
+  "changes": [
+    "introduced an explicit registered renderer policy",
+    "rejected unknown declared renderer versions",
+    "made missing-version v0.1 compatibility observable",
+    "kept v7 and v9 DSP output paths unchanged"
+  ],
+  "tests": {"passed": 6, "failed": 0},
+  "real_audio_parity_required_for_shared_dsp_refactor": true,
+  "production_integration_applied": false
+}

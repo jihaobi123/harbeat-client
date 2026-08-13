@@ -1,5 +1,9 @@
 # Transition Renderer
 
+Version `0.2.0` adds an explicit renderer policy registry. Declared unknown
+renderer versions are rejected instead of silently becoming v9. The v7 and v9
+DSP implementations and generated-audio behavior are intentionally unchanged.
+
 This module is the standalone local-window renderer extracted from the
 deployed Jetson path. It reads only the required regions of the two source
 audio files, aligns drum/onset phase, optionally applies a small overlap-only
