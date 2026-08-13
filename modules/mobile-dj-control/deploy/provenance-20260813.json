@@ -1,0 +1,28 @@
+{
+  "module": "mobile-dj-control",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "device": "mobile",
+  "production_changes_applied": false,
+  "source_sha256": {
+    "mobile/lib/src/live_models.dart": "3ffae6bc93ad4fd267210dce9b10de89c02a5aa965f18dba1be6f9a163897de1",
+    "mobile/lib/src/dj_control_page.dart": "eb0a50614c806c0427eea465772d21b89513a819496df8a49e04e4d8114ebffc",
+    "mobile/lib/src/edge_agent_client.dart": "9e7199ac1225460e9b74d13b8c09e67530f43fcc44b213821483a45fd8424b59"
+  },
+  "verified_behaviors": [
+    "fast, energy and style confirmations use one orchestration request shape",
+    "intent differences are limited to trigger and selected target",
+    "task committed and terminal classification",
+    "playback confirmation by transition id or resumed target",
+    "compact pending operation context"
+  ],
+  "local_regression": {
+    "module_tests": "7 passed",
+    "dart_analyze": "no issues",
+    "mobile_widget_tests": "5 passed",
+    "flutter_ui_integration": false,
+    "remote_changes": false
+  },
+  "artifact_sha256": "48264445d45d0ed2c3847aaea041d801e1993bf70f9141b450db38d377dce585",
+  "artifact_hash_scope": "lib and tests files sorted by workspace-relative path; each line is lowercase file SHA256, two spaces, path; UTF-8 lines joined by LF with no trailing LF; SHA256 of resulting manifest"
+}

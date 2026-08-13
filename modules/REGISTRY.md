@@ -17,6 +17,7 @@ module has replaced production code.
 | `asset-sync` | `0.1.0` | `module/asset-sync` | `d8a8c5a3aeca3154e14466c459573a0e562d6e5d` | 6 | tested, pushed, accepted | Manifest, cache, atomic download, cancellation and priority sync paths pass; RK SSH probe blocked by legacy KEX |
 | `transition-orchestrator` | `0.1.0` | `module/transition-orchestrator` | `423a65e9b620ba4b54741edfb2a481bf9ee566ac` | 5 | tested, pushed, accepted | Pure plan/manifest validation, priority sync request and task state machine; production replacement not applied |
 | `audio-runtime` | `0.1.0` | `module/audio-runtime` | `6223dddb8dfc01493a393b046c787e202a5177ed` | 22 | tested, pushed, accepted | Real RK dual-deck engine, render prepare/schedule/sample-clock trigger/resume and socket contract; systemd replacement not applied |
+| `mobile-dj-control` | `0.1.0` | `module/mobile-dj-control` | pending | 7 | extracted, local contract tested | Pure Dart shared fast/energy/style confirm request and task recovery contract; Flutter integration not applied |
 
 ## Acceptance rules
 
