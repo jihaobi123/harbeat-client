@@ -22,13 +22,18 @@
     "jetson_python_3_10_wheel_imports": "12/12",
     "rk_python_3_10_wheel_imports": "12/12",
     "jetson_base_hardware": "JetPack R36.3, CUDA 12.2, cuDNN, FFmpeg",
-    "rk_base_hardware": "ALSA, ES8388, FFmpeg, udev"
+    "rk_base_hardware": "ALSA, ES8388, FFmpeg, udev",
+    "jetson_shadow_business_adapters": "5/5",
+    "jetson_shadow_process_health": "5/5",
+    "rk_shadow_business_adapters": "3/3",
+    "rk_shadow_process_health": "4/4",
+    "legacy_rk_ports_preserved": true
   },
   "pending": {
     "jetson_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
     "rk_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
-    "real_jetson_adapter": "not run",
-    "real_rk_adapter": "not run",
+    "real_jetson_adapter": "shadow adapter passed; database, Demucs and real render parity pending",
+    "real_rk_adapter": "shadow adapter passed; real sync, schedule, audio and HID parity pending",
     "mobile_jetson_rk_e2e": "not run",
     "empty_device_rebuild": "not run",
     "rollback_drill_on_device": "not run"
@@ -47,5 +52,5 @@
     "wheel": "0.45.1",
     "target_runtime": "Python 3.10 profile on Jetson/RK as applicable"
   },
-  "next_gate": "Build production adapters in isolated roots and run per-service health and smoke tests without taking over legacy ports or services."
+  "next_gate": "Run old-versus-clean shadow comparisons with identical catalog, analyzed-song, plan, render and orchestration inputs."
 }

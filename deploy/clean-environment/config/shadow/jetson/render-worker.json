@@ -1,0 +1,1 @@
+{"schema_version":1,"service":"render-worker","profile":"jetson","mode":"shadow","state_root":"/tmp/harbeat-shadow/render-worker","asset_root":"/tmp/harbeat-shadow/assets"}

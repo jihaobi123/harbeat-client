@@ -1,0 +1,1 @@
+{"schema_version":1,"service":"input-daemon","profile":"rk3588","mode":"shadow","state_root":"/tmp/harbeat-shadow/input-daemon","asset_root":"/tmp/harbeat-shadow/assets","settings":{"edge_agent_url":"http://127.0.0.1:19000","audio_socket":"/tmp/harbeat-shadow-audio.sock","input_device":"/dev/input/by-id/harbeat-shadow-not-opened"}}

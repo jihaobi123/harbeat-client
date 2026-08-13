@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "services": {
+    "catalog-api": {"port": 18001, "state_root": "/tmp/harbeat-shadow/catalog-api"},
+    "analysis-worker": {"port": 18002, "state_root": "/tmp/harbeat-shadow/analysis-worker"},
+    "stem-worker": {"port": 18003, "state_root": "/tmp/harbeat-shadow/stem-worker"},
+    "planning-api": {"port": 18004, "state_root": "/tmp/harbeat-shadow/planning-api"},
+    "render-worker": {"port": 18005, "state_root": "/tmp/harbeat-shadow/render-worker"}
+  },
+  "asset_root": "/tmp/harbeat-shadow/assets",
+  "mode": "shadow"
+}

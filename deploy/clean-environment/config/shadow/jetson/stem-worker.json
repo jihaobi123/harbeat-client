@@ -1,0 +1,1 @@
+{"schema_version":1,"service":"stem-worker","profile":"jetson","mode":"shadow","state_root":"/tmp/harbeat-shadow/stem-worker","asset_root":"/tmp/harbeat-shadow/assets"}

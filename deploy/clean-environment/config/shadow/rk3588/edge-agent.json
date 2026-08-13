@@ -1,0 +1,1 @@
+{"schema_version":1,"service":"edge-agent","profile":"rk3588","mode":"shadow","state_root":"/tmp/harbeat-shadow/edge-agent","asset_root":"/tmp/harbeat-shadow/assets","settings":{"sync_worker_url":"http://127.0.0.1:19100","audio_socket":"/tmp/harbeat-shadow-audio.sock"}}

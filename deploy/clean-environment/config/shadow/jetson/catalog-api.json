@@ -1,0 +1,1 @@
+{"schema_version":1,"service":"catalog-api","profile":"jetson","mode":"shadow","state_root":"/tmp/harbeat-shadow/catalog-api","asset_root":"/tmp/harbeat-shadow/assets"}

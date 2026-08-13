@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "adapter_mode": "shadow",
+  "production_ready": false,
+  "services": {
+    "catalog-api": {"profile": "jetson", "modules": ["library-catalog"], "port": 18001},
+    "analysis-worker": {"profile": "jetson", "modules": ["audio-preprocess"], "port": 18002},
+    "stem-worker": {"profile": "jetson", "modules": ["stem-separation"], "port": 18003},
+    "planning-api": {"profile": "jetson", "modules": ["sequence-planner", "transition-planner"], "port": 18004},
+    "render-worker": {"profile": "jetson", "modules": ["transition-renderer"], "port": 18005},
+    "sync-worker": {"profile": "rk3588", "modules": ["asset-sync"], "port": 19100},
+    "edge-agent": {"profile": "rk3588", "modules": ["device-runtime", "transition-orchestrator"], "port": 19000},
+    "audio-engine": {"profile": "rk3588", "modules": ["audio-runtime"], "socket": "/tmp/harbeat-shadow-audio.sock"},
+    "input-daemon": {"profile": "rk3588", "modules": ["physical-input"]}
+  }
+}

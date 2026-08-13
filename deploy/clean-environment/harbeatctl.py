@@ -17,6 +17,7 @@ from typing import Any
 MODULE_ROOT = Path(__file__).resolve().parents[2] / "modules"
 DEPLOY_ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = DEPLOY_ROOT / "release-manifest.json"
+SERVICE_MANIFEST_PATH = DEPLOY_ROOT / "service-manifest.json"
 FORBIDDEN_MARKERS = (
     "/home/cat/cypher",
     "/home/cat/venvs",
@@ -70,10 +71,28 @@ def validate() -> dict[str, Any]:
     actual = module_ids()
     if expected != actual:
         raise DeploymentError(f"module registry mismatch: expected={sorted(expected)} actual={sorted(actual)}")
+    service_manifest = load_json(SERVICE_MANIFEST_PATH)
+    if service_manifest.get("schema_version") != 1:
+        raise DeploymentError("unsupported service manifest schema")
+    if service_manifest.get("production_ready") is not False or service_manifest.get("adapter_mode") != "shadow":
+        raise DeploymentError("v0.3 service adapters must remain shadow-only")
+    registered_services = service_manifest.get("services")
+    if not isinstance(registered_services, dict):
+        raise DeploymentError("service manifest is missing services")
     for profile_name in ("rk3588", "jetson"):
         profile = load_json(DEPLOY_ROOT / "profiles" / f"{profile_name}.json")
         if profile.get("profile") != profile_name or profile.get("schema_version") != 1:
             raise DeploymentError(f"invalid profile: {profile_name}")
+        expected_services = set(profile.get("services") or {})
+        actual_services = {
+            name for name, spec in registered_services.items()
+            if isinstance(spec, dict) and spec.get("profile") == profile_name
+        }
+        if expected_services != actual_services:
+            raise DeploymentError(
+                f"service registry mismatch for {profile_name}: "
+                f"expected={sorted(expected_services)} actual={sorted(actual_services)}"
+            )
     common = load_json(DEPLOY_ROOT / "config" / "common.example.json")
     if common.get("schema_version") != 1:
         raise DeploymentError("invalid common configuration")

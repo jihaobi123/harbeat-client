@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "date": "2026-08-14",
+  "mode": "shadow",
+  "production_ready": false,
+  "cleanup_authorized": false,
+  "local": {
+    "deployment_and_adapter_tests": "10 passed, 1 target-only skipped",
+    "profile_service_registry": "9/9",
+    "legacy_path_scan": "passed"
+  },
+  "jetson": {
+    "python": "3.10.12",
+    "business_adapter_tests": "5/5",
+    "process_health": "5/5",
+    "ports": [18001, 18002, 18003, 18004, 18005],
+    "legacy_service_modified": false
+  },
+  "rk3588": {
+    "python": "3.10.12",
+    "business_adapter_tests": "3/3",
+    "process_health": "4/4",
+    "ports": [19000, 19001, 19002, 19100],
+    "shadow_audio_socket": "/tmp/harbeat-shadow-audio.sock",
+    "legacy_ports_9000_9100_healthy_before_after": true,
+    "legacy_service_modified": false
+  },
+  "verified_capabilities": [
+    "catalog playlist identifier resolution",
+    "dj_structure_v2 analysis persistence gate",
+    "fast cut planning with v2 candidates",
+    "render and stem path containment",
+    "sync worker status and cache adapter",
+    "manual transition validation and idempotent acceptance",
+    "audio socket ping and lifecycle",
+    "physical key routing and wire frame"
+  ],
+  "not_yet_verified": [
+    "real PostgreSQL catalog repository adapter",
+    "real full-library analysis persistence",
+    "real Demucs four-stem output",
+    "real two-song render parity",
+    "shadow sync download over hotspot",
+    "shadow prepare and schedule without controlling production audio",
+    "Flutter adapter and three-device E2E"
+  ]
+}
