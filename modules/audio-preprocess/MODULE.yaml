@@ -1,0 +1,41 @@
+id: audio-preprocess
+version: 0.1.0
+owners:
+  - jetson
+purpose: Versioned offline audio analysis and planner-ready DJ structure candidates.
+inputs:
+  - original audio file
+  - persisted beat, downbeat, phrase, energy, and timbre analysis
+outputs:
+  - versioned analysis payload
+  - dj_structure_v2 exit and entry candidates
+  - coverage and quality report
+runtime_dependencies:
+  - Python 3.10.12
+  - numpy 1.26.4
+  - librosa 0.10.2.post1
+  - essentia 2.1-beta6-dev for full base analysis
+data_dependencies:
+  - library_songs.source_path
+  - library_songs.music_features
+  - library_songs.beat_points
+  - library_songs.downbeats
+  - library_songs.phrase_map
+models: []
+source_assets:
+  - app/modules/library/analysis.py
+  - app/modules/library/background_tasks.py
+  - app/modules/library/dj_feature_extractor.py
+  - app/modules/library/dj_structure_analysis.py
+  - app/modules/library/stem_analysis.py
+  - scripts/backfill_dj_structure.py
+replaces: []
+public_endpoints:
+  - POST /api/library/songs/{library_song_id}/analyze
+health_check: python -m unittest discover modules/audio-preprocess/tests
+tests:
+  - modules/audio-preprocess/tests/test_coverage.py
+  - modules/audio-preprocess/tests/test_structure.py
+  - modules/audio-preprocess/tests/test_version_gate.py
+artifact_sha256: pending
+rollback_artifact: git tag module/audio-preprocess/v0.1.0

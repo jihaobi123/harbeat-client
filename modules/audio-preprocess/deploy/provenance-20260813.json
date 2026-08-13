@@ -1,0 +1,27 @@
+{
+  "module": "audio-preprocess",
+  "captured_at": "2026-08-13",
+  "jetson_working_directory": "/home/mark/harbeat",
+  "jetson_service": "harbeat-api.service",
+  "service_active": true,
+  "dependencies": {
+    "python": "3.10.12",
+    "numpy": "1.26.4",
+    "librosa": "0.10.2.post1",
+    "essentia": "2.1-beta6-dev"
+  },
+  "source_sha256": {
+    "app/modules/library/background_tasks.py": "60c64d698287c8d0627b89969e9888dc49230ff9e11dfa72b270964ea54f1db5",
+    "app/modules/library/dj_structure_analysis.py": "198429d424cc932357e50b0d7a4d044e18a5548bd0ead71ed5a72bb301507f9a",
+    "app/modules/library/analysis.py": "0b00471e7cac6b85a0b24d0d6711904f4a2ee8035bb6d063dd690005b1b00afa",
+    "app/modules/library/dj_feature_extractor.py": "9e20a2420b045e73e249c457ccd0f09dcb2846d2a9a14da0265bd803ed2b2b38",
+    "app/modules/library/stem_analysis.py": "925f01e28d7710f55c3253e3ab88ed4b9d3dce812b04881b5e7d2722eec1a5c4"
+  },
+  "current_catalog_coverage": {
+    "total": 43,
+    "ready": 43,
+    "missing": 0,
+    "invalid": 0
+  },
+  "production_changes_applied": false
+}

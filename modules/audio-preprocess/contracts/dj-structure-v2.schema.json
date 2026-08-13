@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harbeat://modules/audio-preprocess/dj-structure-v2",
+  "title": "HarBeat DJ structure v2",
+  "type": "object",
+  "required": ["version", "source", "duration_sec", "beat_boundaries", "bar_boundaries", "phrase_boundaries", "phrase_change_boundaries", "track1_exit_candidates", "track2_entry_candidates", "limits"],
+  "properties": {
+    "version": {"const": "dj_structure_v2"},
+    "source": {"const": "harbeat_dj_structure_analysis_v2"},
+    "duration_sec": {"type": "number", "minimum": 0},
+    "beat_boundaries": {"type": "array", "items": {"type": "number", "minimum": 0}},
+    "bar_boundaries": {"type": "array", "items": {"type": "number", "minimum": 0}},
+    "phrase_boundaries": {"type": "array", "items": {"type": "number", "minimum": 0}},
+    "phrase_change_boundaries": {"type": "array", "items": {"type": "number", "minimum": 0}},
+    "track1_exit_candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate"}},
+    "track2_entry_candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate"}},
+    "limits": {"type": "object"}
+  },
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "required": ["time", "score", "audio_feature_source"],
+      "properties": {
+        "time": {"type": "number", "minimum": 0},
+        "score": {"type": "number"},
+        "audio_feature_source": {"const": "dj_structure_precomputed_window_v2"}
+      }
+    }
+  }
+}
