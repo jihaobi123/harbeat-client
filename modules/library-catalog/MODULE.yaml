@@ -1,0 +1,46 @@
+id: library-catalog
+version: 0.1.0
+owners:
+  - mobile
+  - jetson
+purpose: Library, playlist, and asset manifest contracts with explicit identifier mapping.
+inputs:
+  - library song summaries keyed by LibrarySong UUID
+  - playlist rows keyed by Catalog Song integer ID
+  - per-song asset manifests
+outputs:
+  - indexed catalog snapshot
+  - playlist tracks resolved to LibrarySong UUIDs
+  - validated RK asset manifests
+runtime_dependencies:
+  - Python >= 3.10
+data_dependencies:
+  - library_songs.id
+  - library_songs.song_id
+  - songs.id
+  - playlist_songs.song_id
+models: []
+source_assets:
+  - app/modules/library/models.py
+  - app/modules/library/schemas.py
+  - app/modules/library/service.py
+  - app/modules/playlists/models.py
+  - app/modules/playlists/schemas.py
+  - app/modules/playlists/service.py
+  - app/modules/manifest/__init__.py
+  - app/modules/manifest/router.py
+  - mobile/lib/src/models.dart
+  - mobile/lib/src/api_client.dart
+replaces: []
+public_endpoints:
+  - GET /api/library/songs
+  - GET /api/playlists
+  - GET /api/playlists/{playlist_id}
+  - GET /api/manifest/song/{library_song_id}
+health_check: python -m unittest discover modules/library-catalog/tests
+tests:
+  - modules/library-catalog/tests/test_catalog.py
+  - modules/library-catalog/tests/test_identity.py
+  - modules/library-catalog/tests/test_manifest.py
+artifact_sha256: pending
+rollback_artifact: git tag module/library-catalog/v0.1.0

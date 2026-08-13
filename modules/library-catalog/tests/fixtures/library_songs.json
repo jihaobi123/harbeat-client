@@ -1,0 +1,5 @@
+[
+  {"id":"lib-a","song_id":101,"title":"Track A","artist":"Artist A","duration":180.5,"analysis_status":"completed"},
+  {"id":"lib-b","song_id":102,"title":"Track B","artist":"Artist B","duration":210.0,"analysis_status":"completed"},
+  {"id":"lib-unmapped","song_id":null,"title":"Track C","artist":"Artist C","duration":190.0,"analysis_status":"pending"}
+]

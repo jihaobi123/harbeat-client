@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harbeat://modules/library-catalog/v0.1.0",
+  "title": "HarBeat library catalog snapshot",
+  "type": "object",
+  "required": ["version", "songs", "playlists"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "songs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["library_song_id", "title", "artist", "analysis_status"],
+        "additionalProperties": false,
+        "properties": {
+          "library_song_id": {"type": "string", "minLength": 1},
+          "catalog_song_id": {"type": ["integer", "null"], "minimum": 1},
+          "title": {"type": "string"},
+          "artist": {"type": "string"},
+          "duration_sec": {"type": "number", "minimum": 0},
+          "analysis_status": {"type": "string"},
+          "asset_status": {"enum": ["unknown", "missing", "ready"]}
+        }
+      }
+    },
+    "playlists": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["playlist_id", "name", "catalog_song_ids"],
+        "additionalProperties": false,
+        "properties": {
+          "playlist_id": {"type": "integer", "minimum": 1},
+          "name": {"type": "string"},
+          "catalog_song_ids": {"type": "array", "items": {"type": "integer", "minimum": 1}}
+        }
+      }
+    }
+  }
+}
