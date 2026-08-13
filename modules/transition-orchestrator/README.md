@@ -1,5 +1,10 @@
 # Transition Orchestrator
 
+Version `0.2.0` defines typed task states and explicit idempotent acceptance.
+Repeating the same transition request returns the existing task; reusing the
+same transition ID for different content is a structured conflict and never
+overwrites task state.
+
 This module is the protocol boundary for a manual transition. It validates a
 plan and its pair manifest, creates the priority sync request, accepts one
 operation idempotently, and records the state machine used by the RK edge

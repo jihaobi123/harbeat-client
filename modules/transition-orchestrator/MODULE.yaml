@@ -1,5 +1,5 @@
 id: transition-orchestrator
-version: 0.1.0
+version: 0.2.0
 owners:
   - rk3588
 purpose: Validate and describe manual transition orchestration across planning, asset sync, RK preparation, and scheduling.
@@ -27,6 +27,7 @@ public_functions:
   - validate_request
   - build_priority_sync_request
   - accept_task
+  - accept_or_reuse
   - transition_task
   - public_task
 health_check: set PYTHONPATH to modules/transition-orchestrator/src, then run py -m pytest -q modules/transition-orchestrator/tests
@@ -36,5 +37,9 @@ deployment_boundary:
   - This module does not select songs or transition points.
   - This module does not render or download audio.
   - This module does not read device files or call RK/audio-engine.
-artifact_sha256: cb2cfb099d3ff950446567e3b3b2db7ffb2ba0988f708991adf0f9960d7d475a
+clean_architecture:
+  - state.py owns typed states and legal transitions
+  - orchestrator.py owns validation, idempotency and public task views
+  - HTTP, persistence, sync and audio execution remain adapters
+artifact_sha256: c756e70f2174cfedc750b44510b216ad22f22cead055c01ee89e6befc2a93eaa
 rollback_artifact: git tag module/transition-orchestrator/v0.1.0

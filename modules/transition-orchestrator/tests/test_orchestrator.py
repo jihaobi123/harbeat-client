@@ -2,6 +2,7 @@ import pytest
 
 from harbeat_transition_orchestrator import (
     OrchestrationValidationError,
+    accept_or_reuse,
     accept_task,
     build_priority_sync_request,
     public_task,
@@ -121,3 +122,17 @@ def test_duplicate_acceptance_has_stable_hash_and_priority_pair_only():
     second = accept_task(valid(), now="later", deadline_epoch_sec=60.0)
     assert first["request_hash"] == second["request_hash"]
     assert build_priority_sync_request(valid())["default_mix_pairs"][0]["pair_id"] == "pair-a-b"
+
+
+def test_accept_or_reuse_is_idempotent_and_rejects_conflicting_payload():
+    request=valid(); existing=accept_task(request,now='first',deadline_epoch_sec=50.0)
+    reused,is_reused=accept_or_reuse(request,existing,now='second',deadline_epoch_sec=60.0)
+    assert is_reused is True; assert reused == existing
+    changed=dict(request); changed['to_song_id']='different'
+    with pytest.raises(OrchestrationValidationError,match='transition_id_conflict'):
+        accept_or_reuse(changed,existing,now='second',deadline_epoch_sec=60.0)
+
+
+def test_unknown_task_state_is_rejected_explicitly():
+    with pytest.raises(OrchestrationValidationError,match='invalid_state'):
+        transition_task({'state':'unknown'},'failed')
