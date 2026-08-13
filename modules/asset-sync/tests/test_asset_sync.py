@@ -1,5 +1,5 @@
 import asyncio
-import importlib.util
+import importlib
 import json
 import sys
 import types
@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "src" / "harbeat_asset_sync" / "sync_worker.py"
+sys.path.insert(0, str(ROOT / "src"))
 
 
 def _load():
@@ -32,11 +32,8 @@ def _load():
 
             stub.FastAPI = FastAPI
             sys.modules["fastapi"] = stub
-    spec = importlib.util.spec_from_file_location("asset_sync_worker", SOURCE)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+    import harbeat_asset_sync.sync_worker as module
+    return importlib.reload(module)
 
 
 def test_manifest_expands_songs_stems_and_pair_files():
