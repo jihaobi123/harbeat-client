@@ -37,5 +37,5 @@ tests:
   - modules/audio-preprocess/tests/test_coverage.py
   - modules/audio-preprocess/tests/test_structure.py
   - modules/audio-preprocess/tests/test_version_gate.py
-artifact_sha256: pending
+artifact_sha256: 743e9183dac27420973c22a0e23f69b6a3adbc62df63f370d63f7f77d0898e5f
 rollback_artifact: git tag module/audio-preprocess/v0.1.0
