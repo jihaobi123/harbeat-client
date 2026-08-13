@@ -1,5 +1,10 @@
 # Mobile DJ Control
 
+Version `0.2.0` adds a pure task lifecycle with explicit transition identity,
+pair stability, legal state changes and pending TTL. It does not use a global
+UI lock. Fast, energy and style continue to share one execution request and
+differ only in target selection and trigger metadata.
+
 This pure Dart module extracts the mobile contract that was previously buried
 inside `dj_control_page.dart`.
 
