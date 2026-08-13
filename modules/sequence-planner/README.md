@@ -1,5 +1,9 @@
 # Sequence Planner
 
+Version `0.2.0` moves preset compatibility into a versioned resolver. Unknown
+and v0.1 preset handling remains behavior-compatible but is now observable in
+`preset_resolution` instead of being a silent branch in the ordering code.
+
 This module only orders songs. It does not choose transition points, render
 audio, sync assets, or control RK playback.
 

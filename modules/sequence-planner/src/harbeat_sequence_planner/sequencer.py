@@ -29,20 +29,7 @@ from typing import Sequence
 
 from .energy_hiphop import compute_dance_energy
 from .default_mix import playlist_selector as default_playlist_selector
-
-
-PRESETS = [
-    "default",
-    "battle_4rounds",
-    "cypher_circle",
-    "class_choreo",
-    "showcase",
-    "battle_1v1_short",
-    "warmup_to_peak",
-    "wave",
-    "rise_fall",
-    "battle",
-]
+from .presets import PRESETS, resolve_preset
 
 
 PRESET_META: dict[str, dict] = {
@@ -209,10 +196,9 @@ def list_presets() -> list[dict]:
 
 
 def sequence_songs(songs: Sequence, preset: str = "battle_4rounds") -> list[dict]:
+    preset = resolve_preset(preset).resolved
     if preset == "default":
         return default_playlist_selector.plan_default_sequence(songs)["sequence"]
-    if preset not in PRESETS:
-        preset = "battle_4rounds"
     enriched = []
     for s in songs:
         eb = compute_dance_energy(s)
@@ -246,10 +232,18 @@ def sequence_songs(songs: Sequence, preset: str = "battle_4rounds") -> list[dict
 
 def sequence_songs_with_details(songs: Sequence, preset: str = "battle_4rounds") -> dict:
     """Return sequence plus optional planner details for richer clients."""
+    resolution = resolve_preset(preset)
+    preset = resolution.resolved
     if preset == "default":
         return default_playlist_selector.plan_default_sequence(songs)
     return {
         "ordering_mode": preset,
+        "preset_resolution": {
+            "requested": resolution.requested,
+            "resolved": resolution.resolved,
+            "compatibility_used": resolution.compatibility_used,
+            "reason": resolution.reason,
+        },
         "sequence": sequence_songs(songs, preset=preset),
         "pair_scores": [],
         "pair_breakdowns": [],
