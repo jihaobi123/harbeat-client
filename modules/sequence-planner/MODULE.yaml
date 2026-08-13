@@ -27,5 +27,5 @@ health_check: python -m unittest discover modules/sequence-planner/tests
 tests:
   - modules/sequence-planner/tests/test_default_sequence.py
   - modules/sequence-planner/tests/test_energy_curves.py
-artifact_sha256: pending
+artifact_sha256: c63d38b05db9aa7a38b395ccdbaa37968b087002c18b09b11f83c27a726d62c1
 rollback_artifact: git tag module/sequence-planner/v0.1.0
