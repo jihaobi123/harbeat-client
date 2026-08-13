@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "jetpack": "R36.3",
+  "torch": {
+    "version": "2.4.0a0+3bcc3cddb5.nv24.7",
+    "url": "https://developer.download.nvidia.com/compute/redist/jp/v60/pytorch/torch-2.4.0a0+3bcc3cddb5.nv24.07.16234504-cp310-cp310-linux_aarch64.whl",
+    "sha256": "c32f2ed4974bda537d99b858d156857c71eb1ec4202b50ba190cf1ad34a7dbec"
+  },
+  "torchaudio": {
+    "version": "2.4.0a0+69d4077",
+    "repository": "https://github.com/pytorch/audio.git",
+    "commit": "69d40773dc4ed86643820c21a8a880e4d074a46e",
+    "build": "BUILD_SOX=0 USE_FFMPEG=0 BUILD_CTC_DECODER=0 BUILD_RNNT=0 BUILD_RIR=0 BUILD_ALIGN=0",
+    "wheel_sha256": "541a3154e5f892bf174b9234f945205b33bbe66e7e60715220417e41b3026f14"
+  },
+  "demucs_model": {
+    "name": "htdemucs",
+    "file": "955717e8-8726e21a.th",
+    "url": "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th",
+    "sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4"
+  }
+}

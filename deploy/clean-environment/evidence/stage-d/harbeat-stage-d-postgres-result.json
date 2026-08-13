@@ -1,0 +1,22 @@
+{
+  "playlist_id": 1,
+  "resolved": 23,
+  "unresolved": 0,
+  "complete": true,
+  "songs": [
+    {
+      "id": "de625ac62dc4432e8500711fc9a54c51",
+      "title": "Do For Love",
+      "source_root_ok": true,
+      "v2_exit_candidates": 62,
+      "v2_entry_candidates": 20
+    },
+    {
+      "id": "b94f8f40ff244ad8b65926971c7d0b11",
+      "title": "Organ Donor (Afro Soul)",
+      "source_root_ok": true,
+      "v2_exit_candidates": 61,
+      "v2_entry_candidates": 28
+    }
+  ]
+}

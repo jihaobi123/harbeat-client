@@ -29,9 +29,9 @@ def create_jetson_app(config: AdapterConfig) -> FastAPI:
         }
 
     if config.service == "catalog-api":
-        _catalog_routes(app)
+        _catalog_routes(app, config)
     elif config.service == "analysis-worker":
-        _analysis_routes(app)
+        _analysis_routes(app, config)
     elif config.service == "planning-api":
         _planning_routes(app)
     elif config.service == "render-worker":
@@ -41,7 +41,7 @@ def create_jetson_app(config: AdapterConfig) -> FastAPI:
     return app
 
 
-def _catalog_routes(app: FastAPI) -> None:
+def _catalog_routes(app: FastAPI, config: AdapterConfig) -> None:
     from harbeat_library_catalog.models import LibrarySong, Playlist
     from harbeat_library_catalog.service import CatalogService
 
@@ -69,8 +69,32 @@ def _catalog_routes(app: FastAPI) -> None:
             "unresolved_catalog_song_ids": list(result.unresolved_catalog_song_ids),
         }
 
+    @app.get("/catalog/database/playlist/{playlist_id}")
+    def resolve_database_playlist(playlist_id: int) -> dict[str, Any]:
+        from .postgres import PostgresCatalogRepository, database_url_from_env
 
-def _analysis_routes(app: FastAPI) -> None:
+        try:
+            repository = PostgresCatalogRepository(database_url_from_env(), config.asset_root)
+            result = CatalogService(repository).resolve_playlist(playlist_id)
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "complete": result.complete,
+            "songs": [dataclasses.asdict(row) for row in result.songs],
+            "unresolved_catalog_song_ids": list(result.unresolved_catalog_song_ids),
+        }
+
+    @app.get("/catalog/database/song/{song_id}")
+    def load_database_song(song_id: str) -> dict[str, Any]:
+        from .postgres import PostgresCatalogRepository, database_url_from_env
+
+        try:
+            return PostgresCatalogRepository(database_url_from_env(), config.asset_root).load_song(song_id)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _analysis_routes(app: FastAPI, config: AdapterConfig) -> None:
     from harbeat_audio_preprocess.service import PreprocessService
 
     class RequestRepository:
@@ -99,6 +123,31 @@ def _analysis_routes(app: FastAPI) -> None:
             "payload": dict(result.payload),
             "features": repository.features,
             "reused": result.reused,
+        }
+
+    @app.post("/analysis/database/process")
+    def process_database_song(body: dict[str, Any]) -> dict[str, Any]:
+        from harbeat_audio_preprocess.dj_structure_v2 import analyze_song_dj_structure
+        from .postgres import (
+            PostgresCatalogRepository,
+            ShadowAnalysisRepository,
+            database_url_from_env,
+        )
+
+        song_id = str(body.get("song_id") or "")
+        try:
+            catalog = PostgresCatalogRepository(database_url_from_env(), config.asset_root)
+            repository = ShadowAnalysisRepository(catalog, config.state_root)
+            song = _song_namespace(repository.load_song(song_id))
+            service = PreprocessService(repository, lambda _song_id: analyze_song_dj_structure(song))
+            result = service.process(song_id, force=bool(body.get("force", False)))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "song_id": result.song_id,
+            "payload": dict(result.payload),
+            "reused": result.reused,
+            "persistence": "shadow_state_only",
         }
 
 
@@ -140,12 +189,20 @@ def _stem_routes(app: FastAPI, config: AdapterConfig) -> None:
     @app.post("/stems/separate")
     def separate(body: dict[str, Any]) -> dict[str, Any]:
         from harbeat_stem_separation import StemSeparationError, StemSeparator, separation_result
+        from harbeat_stem_separation.runner import SubprocessDemucsRunner
 
         audio_path = _contained_path(config.asset_root, body.get("audio_path"), must_exist=True)
         output_root = _contained_path(config.state_root, body.get("output_root"), must_exist=False)
+        model_repo = body.get("model_repo") or config.settings.get("model_repo")
+        runner = None
+        if model_repo:
+            runner = SubprocessDemucsRunner(
+                model_repo=_contained_directory(config.asset_root, model_repo),
+            )
         separator = StemSeparator(
             model=str(body.get("model") or "htdemucs"),
             timeout_sec=int(body.get("timeout_sec") or 120),
+            runner=runner,
         )
         try:
             stems = separator.separate(str(audio_path), str(output_root))
@@ -174,4 +231,11 @@ def _contained_path(root: Path, value: Any, *, must_exist: bool) -> Path:
         raise HTTPException(status_code=422, detail="path is outside configured root") from exc
     if must_exist and not path.is_file():
         raise HTTPException(status_code=422, detail="input file does not exist")
+    return path
+
+
+def _contained_directory(root: Path, value: Any) -> Path:
+    path = _contained_path(root, value, must_exist=False)
+    if not path.is_dir():
+        raise HTTPException(status_code=422, detail="directory does not exist")
     return path

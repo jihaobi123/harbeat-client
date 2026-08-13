@@ -2,9 +2,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from harbeat_stem_separation.separator import StemSeparationError, StemSeparator, separation_result
+from harbeat_stem_separation.runner import SubprocessDemucsRunner
 
 
 class FakeRunner:
@@ -14,6 +16,16 @@ class FakeRunner:
 
 
 class SeparatorTests(unittest.TestCase):
+  def test_subprocess_runner_uses_explicit_model_repository(self):
+    with tempfile.TemporaryDirectory() as td:
+      root=Path(td); source=root/'song.wav'; source.write_bytes(b'audio')
+      repository=root/'models'; repository.mkdir(); output=root/'out'
+      runner=SubprocessDemucsRunner(interpreter='python',model_repo=repository)
+      with patch('harbeat_stem_separation.runner.subprocess.run',return_value=SimpleNamespace(returncode=0)) as run:
+        runner.run(source,output,'htdemucs',120)
+      command=run.call_args.args[0]
+      self.assertEqual(command[command.index('--repo')+1],str(repository.resolve()))
+
   def test_reuses_complete_existing_output_without_invoking_demucs(self):
     with tempfile.TemporaryDirectory() as td:
       source=Path(td)/'song.wav'; source.write_bytes(b'audio')

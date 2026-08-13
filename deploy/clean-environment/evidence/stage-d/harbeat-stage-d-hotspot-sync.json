@@ -1,0 +1,112 @@
+{
+  "elapsed_sec": 0.3778765589959221,
+  "response": {
+    "ok": true,
+    "sync_started": true,
+    "sync_completed": true,
+    "plan_id": "stage-d-hotspot-sync-001",
+    "total": 2,
+    "manifest": {
+      "track_count": 0,
+      "asset_count": 2,
+      "complete_tracks": 0,
+      "missing": {}
+    },
+    "status": {
+      "running": false,
+      "plan_id": "stage-d-hotspot-sync-001",
+      "total": 2,
+      "downloaded": 2,
+      "completed": 2,
+      "current_file": null,
+      "percent": 100.0,
+      "errors": [],
+      "file_timings": {
+        "fc-0e13b539733697578fb6/transition_render": {
+          "kind": "transition_render",
+          "url_host": "192.168.93.236",
+          "expected_bytes": 573344,
+          "started_at": "2026-08-13T18:08:44.746393+00:00",
+          "attempts": 1,
+          "cached": false,
+          "complete": true,
+          "error": null,
+          "bytes": 573344,
+          "first_byte_sec": 0.0293,
+          "download_sec": 0.1702,
+          "verify_sec": 0.0019,
+          "total_sec": 0.205,
+          "transport": "httpx"
+        },
+        "fc-0e13b539733697578fb6/transition_render_meta": {
+          "kind": "transition_render_meta",
+          "url_host": "192.168.93.236",
+          "expected_bytes": 10081,
+          "started_at": "2026-08-13T18:08:44.749542+00:00",
+          "attempts": 1,
+          "cached": false,
+          "complete": true,
+          "error": null,
+          "bytes": 10081,
+          "first_byte_sec": 0.0286,
+          "download_sec": 0.0299,
+          "verify_sec": 0.0005,
+          "total_sec": 0.058,
+          "transport": "httpx"
+        }
+      }
+    }
+  },
+  "status": {
+    "running": false,
+    "plan_id": "stage-d-hotspot-sync-001",
+    "total": 2,
+    "downloaded": 2,
+    "completed": 2,
+    "current_file": null,
+    "percent": 100.0,
+    "errors": [],
+    "file_timings": {
+      "fc-0e13b539733697578fb6/transition_render": {
+        "kind": "transition_render",
+        "url_host": "192.168.93.236",
+        "expected_bytes": 573344,
+        "started_at": "2026-08-13T18:08:44.746393+00:00",
+        "attempts": 1,
+        "cached": false,
+        "complete": true,
+        "error": null,
+        "bytes": 573344,
+        "first_byte_sec": 0.0293,
+        "download_sec": 0.1702,
+        "verify_sec": 0.0019,
+        "total_sec": 0.205,
+        "transport": "httpx"
+      },
+      "fc-0e13b539733697578fb6/transition_render_meta": {
+        "kind": "transition_render_meta",
+        "url_host": "192.168.93.236",
+        "expected_bytes": 10081,
+        "started_at": "2026-08-13T18:08:44.749542+00:00",
+        "attempts": 1,
+        "cached": false,
+        "complete": true,
+        "error": null,
+        "bytes": 10081,
+        "first_byte_sec": 0.0286,
+        "download_sec": 0.0299,
+        "verify_sec": 0.0005,
+        "total_sec": 0.058,
+        "transport": "httpx"
+      }
+    }
+  },
+  "cache": {
+    "ok": true,
+    "exists": true,
+    "pair_id": "fc-0e13b539733697578fb6",
+    "kind": "default_mix_pair",
+    "path": "/tmp/harbeat-shadow-stage-d-rk/sync-worker/cache/default-mix/pairs/fc-0e13b539733697578fb6/transition_render.wav",
+    "reason": null
+  }
+}

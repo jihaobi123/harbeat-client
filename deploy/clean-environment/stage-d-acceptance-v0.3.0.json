@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "date": "2026-08-14",
+  "stage": "D",
+  "passed": true,
+  "production_ready": false,
+  "cleanup_authorized": false,
+  "catalog_and_analysis": {
+    "postgres_playlist_resolution": "23/23",
+    "full_library_v2_and_asset_audit": "43/43",
+    "shadow_recompute_sec": 95.187,
+    "shadow_recompute_candidates": "62 exit / 20 entry",
+    "production_database_unchanged": true
+  },
+  "planning_parity": {
+    "modes": ["default", "fast", "energy", "style"],
+    "equal_fields": ["pair_id", "from_at_sec", "to_at_sec", "duration_sec", "source"],
+    "all_equal": true
+  },
+  "render_parity": {
+    "pair_id": "fc-0e13b539733697578fb6",
+    "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+    "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+    "wav_byte_identical": true,
+    "max_abs_sample_diff": 0.0,
+    "duration_sec": 6.5,
+    "sample_rate": 44100,
+    "cold_clean_render_sec": 27.377,
+    "warm_unique_clean_render_sec": 2.571
+  },
+  "gpu_and_stems": {
+    "torch_cuda": true,
+    "cuda_device": "Orin",
+    "torchaudio_source_commit": "69d40773dc4ed86643820c21a8a880e4d074a46e",
+    "explicit_model_repository": true,
+    "isolated_home_and_cache": true,
+    "four_stems": "4/4",
+    "test_audio_duration_sec": 15.0,
+    "separation_sec": 10.609
+  },
+  "rk_shadow": {
+    "hotspot_sync_files": "2/2",
+    "hotspot_sync_sec": 0.378,
+    "sync_errors": 0,
+    "prepare_sec": 0.095,
+    "remaining_lead_sec": 10.029,
+    "trigger_error_ms": 0.002,
+    "repeat_schedule_idempotent": true,
+    "sounddevice_stream_opened": false,
+    "orchestration_accept_then_reuse": true,
+    "legacy_port_9000_healthy_before_after": true
+  },
+  "next_gate": "Stage E: switch one service at a time behind rollback switches, then run mobile and physical-input E2E."
+}

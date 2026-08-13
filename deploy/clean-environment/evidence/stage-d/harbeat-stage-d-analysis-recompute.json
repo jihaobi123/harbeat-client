@@ -1,0 +1,12 @@
+{
+  "elapsed_sec": 95.18710317276418,
+  "song_id": "de625ac62dc4432e8500711fc9a54c51",
+  "reused": false,
+  "version": "dj_structure_v2",
+  "exit_candidates": 62,
+  "entry_candidates": 20,
+  "shadow_override_exists": true,
+  "production_db_unchanged": true,
+  "before_sha256": "1bdab0a93cad20ddff728647b86772d14e6c98022d64f9c77468342cdcc41c62",
+  "after_sha256": "1bdab0a93cad20ddff728647b86772d14e6c98022d64f9c77468342cdcc41c62"
+}

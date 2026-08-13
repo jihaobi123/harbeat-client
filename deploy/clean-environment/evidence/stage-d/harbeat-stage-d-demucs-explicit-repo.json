@@ -1,0 +1,40 @@
+{
+  "elapsed_sec": 10.608592802658677,
+  "response": {
+    "status": "separated",
+    "model": "htdemucs",
+    "stems": {
+      "vocals": "/tmp/harbeat-shadow-stage-d-explicit/stem-worker/output/htdemucs/do_for_love_15s/vocals.wav",
+      "drums": "/tmp/harbeat-shadow-stage-d-explicit/stem-worker/output/htdemucs/do_for_love_15s/drums.wav",
+      "bass": "/tmp/harbeat-shadow-stage-d-explicit/stem-worker/output/htdemucs/do_for_love_15s/bass.wav",
+      "other": "/tmp/harbeat-shadow-stage-d-explicit/stem-worker/output/htdemucs/do_for_love_15s/other.wav"
+    },
+    "complete": true,
+    "error": null
+  },
+  "metrics": {
+    "vocals": {
+      "bytes": 2646044,
+      "duration_sec": 15.0,
+      "rms": 0.10098512381314158
+    },
+    "drums": {
+      "bytes": 2646044,
+      "duration_sec": 15.0,
+      "rms": 0.1292369458780921
+    },
+    "bass": {
+      "bytes": 2646044,
+      "duration_sec": 15.0,
+      "rms": 0.1791332341696705
+    },
+    "other": {
+      "bytes": 2646044,
+      "duration_sec": 15.0,
+      "rms": 0.0217321023461099
+    }
+  },
+  "model_repo": "/tmp/harbeat-stage-d-assets/models/demucs",
+  "isolated_home": "/tmp/harbeat-clean-home-stage-d",
+  "old_cache_referenced": false
+}

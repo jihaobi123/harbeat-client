@@ -1,0 +1,113 @@
+{
+  "all_equal": true,
+  "comparison": {
+    "default": {
+      "pair_id": {
+        "old": "00a4460f07993cd12296",
+        "new": "00a4460f07993cd12296",
+        "equal": true
+      },
+      "from_at_sec": {
+        "old": 225.744,
+        "new": 225.744,
+        "equal": true
+      },
+      "to_at_sec": {
+        "old": 3.667,
+        "new": 3.667,
+        "equal": true
+      },
+      "duration_sec": {
+        "old": 6.5,
+        "new": 6.5,
+        "equal": true
+      },
+      "source": {
+        "old": "default_mix_v2_scored_alignment",
+        "new": "default_mix_v2_scored_alignment",
+        "equal": true
+      }
+    },
+    "fast": {
+      "pair_id": {
+        "old": "fc-0e13b539733697578fb6",
+        "new": "fc-0e13b539733697578fb6",
+        "equal": true
+      },
+      "from_at_sec": {
+        "old": 11.029,
+        "new": 11.029,
+        "equal": true
+      },
+      "to_at_sec": {
+        "old": 27.494,
+        "new": 27.494,
+        "equal": true
+      },
+      "duration_sec": {
+        "old": 6.5,
+        "new": 6.5,
+        "equal": true
+      },
+      "source": {
+        "old": "default_mix_fast_cut_live_window_v2",
+        "new": "default_mix_fast_cut_live_window_v2",
+        "equal": true
+      }
+    },
+    "energy": {
+      "pair_id": {
+        "old": "te-062d7c26116d07b0132a",
+        "new": "te-062d7c26116d07b0132a",
+        "equal": true
+      },
+      "from_at_sec": {
+        "old": 5.968,
+        "new": 5.968,
+        "equal": true
+      },
+      "to_at_sec": {
+        "old": 27.494,
+        "new": 27.494,
+        "equal": true
+      },
+      "duration_sec": {
+        "old": 6.5,
+        "new": 6.5,
+        "equal": true
+      },
+      "source": {
+        "old": "target_energy_default_render",
+        "new": "target_energy_default_render",
+        "equal": true
+      }
+    },
+    "style": {
+      "pair_id": {
+        "old": "ts-94e725ee84b381630757",
+        "new": "ts-94e725ee84b381630757",
+        "equal": true
+      },
+      "from_at_sec": {
+        "old": 5.968,
+        "new": 5.968,
+        "equal": true
+      },
+      "to_at_sec": {
+        "old": 27.494,
+        "new": 27.494,
+        "equal": true
+      },
+      "duration_sec": {
+        "old": 6.5,
+        "new": 6.5,
+        "equal": true
+      },
+      "source": {
+        "old": "target_style_default_render",
+        "new": "target_style_default_render",
+        "equal": true
+      }
+    }
+  }
+}

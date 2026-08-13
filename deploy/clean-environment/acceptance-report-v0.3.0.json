@@ -27,13 +27,19 @@
     "jetson_shadow_process_health": "5/5",
     "rk_shadow_business_adapters": "3/3",
     "rk_shadow_process_health": "4/4",
-    "legacy_rk_ports_preserved": true
+    "legacy_rk_ports_preserved": true,
+    "stage_d_old_vs_clean_parity": "passed",
+    "full_library_v2_and_asset_audit": "43/43",
+    "real_demucs_explicit_clean_repo": "4/4",
+    "render_wav_byte_parity": true,
+    "rk_hotspot_pair_sync": "2/2",
+    "rk_shadow_prepare_schedule": "passed"
   },
   "pending": {
     "jetson_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
     "rk_base_image": "runtime preflight passed; reproducible empty-device image not yet built",
-    "real_jetson_adapter": "shadow adapter passed; database, Demucs and real render parity pending",
-    "real_rk_adapter": "shadow adapter passed; real sync, schedule, audio and HID parity pending",
+    "real_jetson_adapter": "stage D database, Demucs and render parity passed; production switch pending",
+    "real_rk_adapter": "stage D sync and schedule shadow parity passed; production switch pending",
     "mobile_jetson_rk_e2e": "not run",
     "empty_device_rebuild": "not run",
     "rollback_drill_on_device": "not run"
@@ -52,5 +58,5 @@
     "wheel": "0.45.1",
     "target_runtime": "Python 3.10 profile on Jetson/RK as applicable"
   },
-  "next_gate": "Run old-versus-clean shadow comparisons with identical catalog, analyzed-song, plan, render and orchestration inputs."
+  "next_gate": "Switch services one at a time behind rollback controls, then run mobile and physical-input E2E."
 }

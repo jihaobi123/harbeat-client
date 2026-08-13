@@ -20,6 +20,7 @@ class DemucsRunner(Protocol):
 @dataclass(frozen=True, slots=True)
 class SubprocessDemucsRunner:
     interpreter: str = sys.executable
+    model_repo: Path | None = None
 
     def run(self, source: Path, output_root: Path, model: str, timeout_sec: int) -> None:
         command = [
@@ -30,8 +31,13 @@ class SubprocessDemucsRunner:
             model,
             "-o",
             str(output_root),
-            str(source),
         ]
+        if self.model_repo is not None:
+            repository = self.model_repo.resolve()
+            if not repository.is_dir():
+                raise DemucsExecutionError(f"demucs model repository not found: {repository}")
+            command.extend(["--repo", str(repository)])
+        command.append(str(source))
         try:
             process = subprocess.run(
                 command,

@@ -1,0 +1,45 @@
+{
+  "sha256_equal": true,
+  "old_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+  "new_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+  "old": {
+    "sample_rate": 44100,
+    "frames": 286650,
+    "channels": 1,
+    "duration_sec": 6.5,
+    "peak": 0.97998046875,
+    "rms": 0.21855017356769355,
+    "rms_dbfs": -13.208976885343208,
+    "third_rms": [
+      0.21062881347656148,
+      0.23322314299691202,
+      0.21103310184871957
+    ]
+  },
+  "new": {
+    "sample_rate": 44100,
+    "frames": 286650,
+    "channels": 1,
+    "duration_sec": 6.5,
+    "peak": 0.97998046875,
+    "rms": 0.21855017356769355,
+    "rms_dbfs": -13.208976885343208,
+    "third_rms": [
+      0.21062881347656148,
+      0.23322314299691202,
+      0.21103310184871957
+    ]
+  },
+  "max_abs_sample_diff": 0.0,
+  "meta_parity": {
+    "pair_id": true,
+    "from_at_sec": true,
+    "to_at_sec": true,
+    "resume_at_sec": true,
+    "duration_sec": true,
+    "renderer_version": true,
+    "audio_feature_source": true,
+    "render_strategy": true
+  },
+  "meta_all_equal": true
+}
