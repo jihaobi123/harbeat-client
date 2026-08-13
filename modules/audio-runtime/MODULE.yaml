@@ -1,0 +1,53 @@
+id: audio-runtime
+version: 0.1.0
+owners:
+  - rk3588
+purpose: Execute cached default-render transitions on RK with dual decks, local sample-clock scheduling, and gapless target resume.
+inputs:
+  - cached original song audio
+  - cached transition_render.wav and transition_render_meta.json
+  - validated transition plan from transition-orchestrator
+  - Unix socket audio commands from edge-agent
+outputs:
+  - decoded PCM playback
+  - prepared, scheduled, transition and resume state
+  - trigger timing, playback tier and degradation metadata
+runtime_dependencies:
+  - Python >= 3.10
+  - numpy
+  - soundfile
+  - sounddevice
+data_dependencies:
+  - RK song cache
+  - RK default-mix pair cache
+models: []
+source_assets:
+  - cypher-integration/rk3588-edge/audio-engine/engine.py
+  - cypher-integration/rk3588-edge/audio-engine/socket_server.py
+  - cypher-integration/rk3588-edge/audio-engine/config.py
+  - cypher-integration/rk3588-edge/audio-engine/dsp.py
+  - cypher-integration/rk3588-edge/audio-engine/envelope_runner.py
+  - cypher-integration/rk3588-edge/audio-engine/mix_plan.py
+  - cypher-integration/rk3588-edge/audio-engine/filter_node.py
+  - cypher-integration/rk3588-edge/audio-engine/loudness_normalizer.py
+replaces: []
+public_commands:
+  - prepare_default_render
+  - schedule_default_render
+  - default_render_playback
+  - default_autoplay_start
+  - default_autoplay_prefetch
+  - state
+health_check: set PYTHONPATH to modules/audio-runtime/src, then run py -m pytest -q modules/audio-runtime/tests
+tests:
+  - modules/audio-runtime/tests/test_engine_envelopes.py
+  - modules/audio-runtime/tests/test_eq_band_mix_envelope.py
+  - modules/audio-runtime/tests/test_filter_node.py
+  - modules/audio-runtime/tests/test_loudness_normalizer.py
+  - modules/audio-runtime/tests/test_socket_contract.py
+deployment_boundary:
+  - This module does not select songs or transition points.
+  - This module does not render or download transition assets.
+  - This module does not expose mobile HTTP or physical key mapping.
+artifact_sha256: a548cff1f488192267e553bbb806e52d39600f468b15f3c27a6ccb8fa425fa11
+rollback_artifact: git tag module/audio-runtime/v0.1.0

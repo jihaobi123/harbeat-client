@@ -1,0 +1,36 @@
+{
+  "module": "audio-runtime",
+  "version": "0.1.0",
+  "captured_at": "2026-08-13",
+  "device": "rk3588",
+  "production_changes_applied": false,
+  "source_sha256": {
+    "cypher-integration/rk3588-edge/audio-engine/config.py": "0916c5e26b33d6ad4afa6964f6ba707e61aae0fd456d87748064c39e29f261b6",
+    "cypher-integration/rk3588-edge/audio-engine/dsp.py": "ffe7dfcb0176f64c92f424b55bca47e52735232d02fed28d6ce90a0affc847c2",
+    "cypher-integration/rk3588-edge/audio-engine/envelope_runner.py": "9ebcceb127012a45e87267478bef600d7fd0ffd599960f1ac443877ff5323e00",
+    "cypher-integration/rk3588-edge/audio-engine/mix_plan.py": "3e2327d3daa5ce5249ccb60853651a8a2162b6ae20cbacdf7e555824aebae9a8",
+    "cypher-integration/rk3588-edge/audio-engine/engine.py": "a6fc8ddf82eb4c8d0bc124b27ff475bc2d8346f43d005cbb2778bbc64e4f9dff",
+    "cypher-integration/rk3588-edge/audio-engine/socket_server.py": "6f6f3c3e1f8a6bf7ed24b78785a4ea71eda81a37a9ef270b351cab3e036584ba",
+    "cypher-integration/rk3588-edge/audio-engine/main.py": "e0cbd2ea7802e0863a7e26bac469f8625502ecb44e2cce5935b758f91bb9c78b",
+    "cypher-integration/rk3588-edge/audio-engine/filter_node.py": "10a9d91199c43bcbd9f973ea1fa88bc19d8c26ba7871eaea10a503497f2e2f54",
+    "cypher-integration/rk3588-edge/audio-engine/loudness_normalizer.py": "a8a81c0273562939a3a7224a503046e1eff846e605d020024e5a4eed13659cc3"
+  },
+  "verified_behaviors": [
+    "default render prepare and predecoded reuse",
+    "minimum lead rejection",
+    "local sample-clock trigger with measured error",
+    "gapless target resume without zero padding",
+    "v2/v7 fast-cut metadata acceptance",
+    "repeated pair schedule idempotency",
+    "EQ/filter/loudness and stem envelope regression",
+    "Unix socket command mapping"
+  ],
+  "local_regression": {
+    "production_baseline_tests": "21 passed",
+    "extracted_module_tests": "22 passed",
+    "physical_audio_output_opened": false,
+    "remote_changes": false
+  },
+  "artifact_sha256": "a548cff1f488192267e553bbb806e52d39600f468b15f3c27a6ccb8fa425fa11",
+  "artifact_hash_scope": "src and tests files sorted by workspace-relative path; each line is lowercase file SHA256, two spaces, path; UTF-8 lines joined by LF with no trailing LF; SHA256 of resulting manifest"
+}
