@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "created_date": "2026-08-13",
+  "policy": "Source and configuration archives exclude secrets, databases, media, models, caches, logs, backups, virtual environments, and Git objects.",
+  "devices": {
+    "mobile": {
+      "package": "com.example.mobile",
+      "version_name": "1.0.0",
+      "version_code": 1,
+      "apk_bytes": 117961901,
+      "apk_sha256": "6cb646c1fc50463594d6fac9b43d05619c89be3ab20635476c30f1411076f8be",
+      "private_preferences_sha256": "5b5ff96eae062b17d932df9cd9eedcd40fd430f512422770ab4a6480e504ac4e",
+      "git_storage": false
+    },
+    "jetson": {
+      "runtime_git_head": "79f288deb5f86081c7ba0d85432f7bb783abb05d",
+      "python": "3.10.12",
+      "pip_freeze_sha256": "f3183bfe0df60044591e597cb70be4e9a19fc87b3163f2700da0a5b63521576a",
+      "service": "harbeat-api.service",
+      "source_archive_bytes": 1129502,
+      "source_archive_sha256": "e564087c964e0a43be9c8e1491c59d86cf4af1d425be516fdedd56735f93e08e",
+      "git_storage": false
+    },
+    "rk3588": {
+      "runtime_git_head": "f9c6797ad7738a06f10f73133cacb5b9dc9c5850",
+      "python": "3.10.12",
+      "pip_freeze_sha256": "bca313ea928ec063bd4f20a52993658ef697eaaa5dd1244f847e3f167ada0cc7",
+      "services": [
+        "cypher-audio-engine.service",
+        "cypher-edge-agent.service",
+        "cypher-sync-worker.service",
+        "cypher-input-daemon.service"
+      ],
+      "source_archive_bytes": 260127,
+      "source_archive_sha256": "11a3ed888e17271d2c45b6f74f00a0c26f7335f9dc0210568d242fc382341389",
+      "git_storage": false
+    }
+  },
+  "recovery_gate": {
+    "archives_verified": true,
+    "archive_contents_checked_for_exclusions": true,
+    "production_files_deleted": false,
+    "production_files_moved": false
+  }
+}

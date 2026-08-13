@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harbeat.local/contracts/observability-e2e/acceptance-report.schema.json",
+  "title": "HarBeat operation acceptance report",
+  "type": "object",
+  "required": ["schema_version", "operation_id", "intent", "events", "result"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "intent": {"enum": ["baseline_playback", "auto_transition", "fast_cut", "energy_cut", "style_cut", "physical_input"]},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "stage", "timestamp"],
+        "properties": {
+          "source": {"enum": ["mobile", "jetson", "rk-edge", "rk-sync", "rk-audio", "test"]},
+          "stage": {"type": "string", "minLength": 1},
+          "timestamp": {"type": "string", "format": "date-time"},
+          "details": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["passed"],
+      "properties": {
+        "passed": {"type": "boolean"},
+        "error_code": {"type": ["string", "null"]},
+        "metrics": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
+

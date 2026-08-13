@@ -1,0 +1,33 @@
+id: observability-e2e
+version: 0.1.0
+owners:
+  - all
+purpose: Safe deployment inventory, semantic Android UI control, and cross-device operation tracing.
+inputs:
+  - deployment filesystem roots
+  - Android UIAutomator XML
+  - mobile, Jetson, and RK log lines
+outputs:
+  - redacted deployment inventory JSON
+  - normalized operation trace JSON
+  - end-to-end acceptance report JSON
+runtime_dependencies:
+  - Python >= 3.10
+  - adb for real Android runs
+  - ssh client for remote log collection
+data_dependencies: []
+models: []
+source_assets:
+  - modules/observability-e2e
+replaces:
+  - scripts/test_dj_control_modes_e2e.py after compatibility validation
+public_endpoints: []
+health_check: python -m unittest discover modules/observability-e2e/tests
+tests:
+  - modules/observability-e2e/tests/test_android.py
+  - modules/observability-e2e/tests/test_inventory.py
+  - modules/observability-e2e/tests/test_journal.py
+  - modules/observability-e2e/tests/test_trace.py
+  - modules/observability-e2e/tests/test_ui_semantics.py
+artifact_sha256: pending
+rollback_artifact: git tag module/observability-e2e/v0.1.0

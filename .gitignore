@@ -58,6 +58,10 @@ tmp_*.png
 tmp_*.xml
 *.apk
 
+# Private deployment baselines and device exports
+reports/baselines/*private*
+reports/baselines/*.tar.gz
+
 # External reference material
 _external/
 
