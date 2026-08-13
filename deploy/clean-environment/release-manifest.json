@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "module_baseline": "functional-modules/v0.2.0",
+  "production_ready": false,
+  "cleanup_authorized": false,
+  "python_modules": [
+    "asset-sync",
+    "audio-preprocess",
+    "audio-runtime",
+    "device-runtime",
+    "library-catalog",
+    "observability-e2e",
+    "physical-input",
+    "sequence-planner",
+    "stem-separation",
+    "transition-orchestrator",
+    "transition-planner",
+    "transition-renderer"
+  ],
+  "dart_modules": ["mobile-dj-control"],
+  "forbidden_source_prefixes": [
+    "/home/cat/cypher",
+    "/home/cat/venvs",
+    "/home/mark/harbeat",
+    "/home/mark/venvs"
+  ],
+  "required_acceptance": [
+    "fresh_clone_module_tests",
+    "wheel_build",
+    "clean_root_stage_verify",
+    "atomic_activate_rollback",
+    "real_jetson_integration",
+    "real_rk_integration",
+    "mobile_jetson_rk_e2e",
+    "empty_device_rebuild",
+    "rollback_drill"
+  ]
+}

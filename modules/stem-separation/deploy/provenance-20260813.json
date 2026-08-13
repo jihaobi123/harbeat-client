@@ -1,9 +1,9 @@
 {
   "module": "stem-separation",
   "captured_at": "2026-08-13",
-  "jetson_working_directory": "/home/mark/harbeat",
+  "jetson_working_directory": "legacy-device-recorded-only",
   "runtime": {
-    "python": "/home/mark/venvs/harbeat/bin/python",
+    "python": "legacy-device-recorded-only",
     "demucs_module": true,
     "demucs_cli_on_path": false,
     "ffmpeg": "/usr/bin/ffmpeg",

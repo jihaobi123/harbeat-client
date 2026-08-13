@@ -1,0 +1,10 @@
+# Baseline names only. Exact versions are pinned by the rk-base-image-v1 build.
+ffmpeg
+libsndfile1
+python3
+python3-venv
+git
+curl
+systemd
+alsa-utils
+udev

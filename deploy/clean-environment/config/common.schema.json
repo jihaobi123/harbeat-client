@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_root", "config_root", "state_root", "log_root", "asset_root", "secrets_file"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "release_root": {"type": "string", "pattern": "^/opt/harbeat/releases$"},
+    "config_root": {"type": "string", "pattern": "^/etc/harbeat$"},
+    "state_root": {"type": "string", "pattern": "^/var/lib/harbeat$"},
+    "log_root": {"type": "string", "pattern": "^/var/log/harbeat$"},
+    "asset_root": {"type": "string", "pattern": "^/srv/harbeat-assets$"},
+    "secrets_file": {"type": "string", "pattern": "^/etc/harbeat/secrets/runtime\\.env$"}
+  }
+}

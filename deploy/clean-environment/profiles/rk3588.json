@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "profile": "rk3588",
+  "platform": "linux-aarch64",
+  "services": {
+    "sync-worker": ["asset-sync"],
+    "edge-agent": ["device-runtime", "transition-orchestrator"],
+    "audio-engine": ["audio-runtime"],
+    "input-daemon": ["physical-input"]
+  },
+  "shared_assets": ["songs", "renders"],
+  "hardware_gates": ["network", "alsa", "audio_device", "input_device", "monotonic_clock"],
+  "production_adapter_status": "required"
+}

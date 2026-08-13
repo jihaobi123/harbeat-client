@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "date": "2026-08-14",
+  "module_baseline": "functional-modules/v0.2.0",
+  "status": "deployment_scaffold_local_acceptance",
+  "production_ready": false,
+  "cleanup_authorized": false,
+  "passed": {
+    "module_commands": "13/13",
+    "module_tests": "146/146",
+    "deployment_controller_tests": "3/3",
+    "clean_root_bootstrap_stage_verify": true,
+    "atomic_activate": true,
+    "rollback": true,
+    "python_wheel_build": "12/12",
+    "wheelhouse_reproducible_hash": true,
+    "legacy_runtime_path_scanner": true,
+    "release_excludes_build_artifacts": true
+  },
+  "pending": {
+    "python_runtime_smoke": "requires Python 3.10 profile; workstation only has Python 3.13",
+    "jetson_base_image": "not run",
+    "rk_base_image": "not run",
+    "real_jetson_adapter": "not run",
+    "real_rk_adapter": "not run",
+    "mobile_jetson_rk_e2e": "not run",
+    "empty_device_rebuild": "not run",
+    "rollback_drill_on_device": "not run"
+  },
+  "safety": {
+    "old_environment_modified": false,
+    "old_environment_deleted": false,
+    "production_services_restarted": false,
+    "production_integration_applied": false,
+    "cleanup_authorized": false
+  },
+  "wheel_builder": {
+    "python": "3.13.7 workstation builder only",
+    "build": "1.2.2.post1",
+    "setuptools": "81.0.0",
+    "wheel": "0.45.1",
+    "target_runtime": "Python 3.10 profile on Jetson/RK as applicable"
+  },
+  "next_gate": "Run inventory.py and deploy on clean Python 3.10 Jetson/RK base images before any old-environment cleanup."
+}

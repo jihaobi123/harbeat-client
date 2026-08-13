@@ -1,7 +1,7 @@
 {
   "module": "audio-preprocess",
   "captured_at": "2026-08-13",
-  "jetson_working_directory": "/home/mark/harbeat",
+  "jetson_working_directory": "legacy-device-recorded-only",
   "jetson_service": "harbeat-api.service",
   "service_active": true,
   "dependencies": {

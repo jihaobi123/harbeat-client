@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harbeat-stem-separation"
+version = "0.3.0"
+description = "HarBeat verified Demucs stem separation"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26,<2", "soundfile>=0.12.1,<1"]
+
+[project.scripts]
+harbeat-stem-separation = "harbeat_stem_separation.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

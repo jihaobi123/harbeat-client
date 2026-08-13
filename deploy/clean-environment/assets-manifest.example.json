@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "release": "0.3.0",
+  "assets": [],
+  "rules": {
+    "required_sha256": true,
+    "accepted_types": ["song", "stem", "model", "render", "database_export"],
+    "old_environment_copy_allowed": false,
+    "source_path_copy_allowed": false
+  }
+}

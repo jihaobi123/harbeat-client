@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "profile": "jetson",
+  "platform": "linux-aarch64-nvidia",
+  "services": {
+    "catalog-api": ["library-catalog"],
+    "analysis-worker": ["audio-preprocess"],
+    "stem-worker": ["stem-separation"],
+    "planning-api": ["sequence-planner", "transition-planner"],
+    "render-worker": ["transition-renderer"]
+  },
+  "shared_assets": ["songs", "stems", "models", "renders"],
+  "hardware_gates": ["network", "cuda", "gpu", "ffmpeg", "libsndfile"],
+  "production_adapter_status": "required"
+}

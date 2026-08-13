@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harbeat-audio-runtime"
+version = "0.3.0"
+description = "HarBeat RK audio runtime contracts and engine"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26,<2", "sounddevice>=0.4.6,<1", "soundfile>=0.12.1,<1"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
