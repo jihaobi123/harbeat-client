@@ -1,0 +1,16 @@
+{
+  "module": "audio-runtime",
+  "version": "0.2.0",
+  "baseline": "module/audio-runtime/v0.1.0",
+  "source_sha256": "f6810b43d5ca552c6dd73b2d06256300437f7c23e272db2961c6bfbb3fd34ef1",
+  "changes": [
+    "introduced one strict default-render command contract",
+    "validated prepare, schedule and immediate playback before engine mutation",
+    "made hardware engine exports lazy for pure-contract consumers",
+    "kept the real-time callback and sample-clock implementation unchanged"
+  ],
+  "tests": {"passed": 25, "failed": 0},
+  "physical_rk_audio_parity_required": true,
+  "trigger_error_gate_ms": 100,
+  "production_integration_applied": false
+}

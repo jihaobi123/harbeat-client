@@ -1,5 +1,10 @@
 # Audio Runtime
 
+Version `0.2.0` adds a pure command-contract layer before the real RK engine.
+Prepare, schedule and immediate playback now share strict pair/song/time
+validation. The real-time callback, sample clock and sounddevice path are not
+rewritten in this version.
+
 This module contains the currently deployed RK dual-deck audio engine and Unix
 socket command layer, extracted as a package. Internal imports are the only
 runtime code changes from the source copy.

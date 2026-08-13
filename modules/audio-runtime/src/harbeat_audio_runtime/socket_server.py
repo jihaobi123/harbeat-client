@@ -11,6 +11,7 @@ import threading
 from typing import Any
 
 from .config import AUDIO_SOCKET
+from .default_render_contract import validate_default_render_command
 from .engine import AudioEngineMVP, SongCacheError, engine
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,11 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         )
         return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "prepare_default_render":
+        validate_default_render_command(
+            cmd,
+            msg.get("transition_plan") or {},
+            requested_to_song_id=msg.get("to_song_id"),
+        )
         result = engine.prepare_default_render(
             msg.get("transition_plan") or {},
             to_song_id=msg.get("to_song_id"),
@@ -157,6 +163,11 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         )
         return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "default_render_playback":
+        validate_default_render_command(
+            cmd,
+            msg.get("transition_plan") or {},
+            requested_to_song_id=msg.get("to_song_id"),
+        )
         result = engine.default_render_playback(
             msg.get("transition_plan") or {},
             to_song_id=msg.get("to_song_id"),
@@ -164,11 +175,17 @@ def _handle_command(msg: dict[str, Any]) -> dict[str, Any]:
         )
         return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "schedule_default_render":
+        validated = validate_default_render_command(
+            cmd,
+            msg.get("transition_plan") or {},
+            requested_to_song_id=msg.get("to_song_id"),
+            min_lead_sec=msg.get("min_lead_sec", 1.5),
+        )
         result = engine.schedule_default_render(
             msg.get("transition_plan") or {},
             to_song_id=msg.get("to_song_id"),
             render_path=msg.get("render_path"),
-            min_lead_sec=float(msg.get("min_lead_sec", 1.5)),
+            min_lead_sec=validated.min_lead_sec,
         )
         return {"ok": bool(result.get("ok", True)), **result}
     if cmd == "prewarm_beatmatch":
