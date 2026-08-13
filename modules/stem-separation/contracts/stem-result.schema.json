@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harbeat://modules/stem-separation/v0.1.0",
+  "title": "HarBeat stem separation result",
+  "type": "object",
+  "required": ["status", "model", "stems", "complete"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {"enum": ["reused", "separated", "failed"]},
+    "model": {"const": "htdemucs"},
+    "complete": {"type": "boolean"},
+    "stems": {
+      "type": "object",
+      "required": ["vocals", "drums", "bass", "other"],
+      "properties": {
+        "vocals": {"type": "string", "minLength": 1},
+        "drums": {"type": "string", "minLength": 1},
+        "bass": {"type": "string", "minLength": 1},
+        "other": {"type": "string", "minLength": 1}
+      }
+    },
+    "error": {"type": ["string", "null"]}
+  }
+}

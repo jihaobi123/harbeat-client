@@ -1,0 +1,39 @@
+id: stem-separation
+version: 0.1.0
+owners:
+  - jetson
+purpose: Offline Demucs separation into four verified stems and stem activity analysis.
+inputs:
+  - original audio path
+  - optional existing stem paths
+outputs:
+  - vocals.wav
+  - drums.wav
+  - bass.wav
+  - other.wav
+  - completeness, reconstruction, and activity metadata
+runtime_dependencies:
+  - Python 3.10.12
+  - demucs installed in the deployment virtualenv
+  - numpy
+  - soundfile
+  - ffmpeg for optional preview export
+data_dependencies:
+  - original audio file
+  - htdemucs model cache on Jetson
+models:
+  - htdemucs
+source_assets:
+  - app/modules/library/stem_analysis.py
+  - app/modules/library/background_tasks.py
+  - app/modules/library/router.py
+  - app/modules/playlists/service.py stem runner behavior
+replaces: []
+public_endpoints:
+  - POST /api/library/songs/{library_song_id}/separate-stems
+health_check: python -m unittest discover modules/stem-separation/tests
+tests:
+  - modules/stem-separation/tests/test_analysis.py
+  - modules/stem-separation/tests/test_separator.py
+artifact_sha256: pending
+rollback_artifact: git tag module/stem-separation/v0.1.0
