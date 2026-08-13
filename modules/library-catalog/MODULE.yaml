@@ -42,5 +42,5 @@ tests:
   - modules/library-catalog/tests/test_catalog.py
   - modules/library-catalog/tests/test_identity.py
   - modules/library-catalog/tests/test_manifest.py
-artifact_sha256: pending
+artifact_sha256: 016f33004f5fff5e131f00ba62564d37234d3c36669f2ef769d861f6f265365d
 rollback_artifact: git tag module/library-catalog/v0.1.0

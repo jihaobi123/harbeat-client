@@ -8,7 +8,7 @@ module has replaced production code.
 |---|---|---|---|---:|---|---|
 | `observability-e2e` | `0.1.0` | `module/observability-e2e` | `53e8736961a0cd8251a6c3f8c7ad5f016e8b2b02` | 7 | tested, pushed, accepted | Read-only tools; no runtime replacement |
 | `device-runtime` | `0.1.0` | `module/device-runtime` | `523d0053c145a9e70541505308f44a555bcd742e` | 20 | tested, pushed, accepted | Adapter and dual-read migration still required |
-| `library-catalog` | `0.1.0` | `module/library-catalog` | pending final manifest commit | 8 | tested, pushed, pending immutable tag | Authenticated mobile replay still required |
+| `library-catalog` | `0.1.0` | `module/library-catalog` | `56d92b37a61bb9ed606d94f9f254ca575ba567db` | 8 | tested, pushed, accepted | Authenticated mobile replay still required |
 
 ## Acceptance rules
 
