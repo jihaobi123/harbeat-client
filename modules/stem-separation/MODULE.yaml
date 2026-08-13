@@ -35,5 +35,5 @@ health_check: python -m unittest discover modules/stem-separation/tests
 tests:
   - modules/stem-separation/tests/test_analysis.py
   - modules/stem-separation/tests/test_separator.py
-artifact_sha256: pending
+artifact_sha256: 67905e8de47b08ee58543063919513ca73f2a958ab36c148f95cf23e3307bad2
 rollback_artifact: git tag module/stem-separation/v0.1.0
