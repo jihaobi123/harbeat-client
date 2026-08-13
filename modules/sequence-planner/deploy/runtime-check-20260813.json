@@ -1,0 +1,12 @@
+{
+  "module": "sequence-planner",
+  "captured_at": "2026-08-13",
+  "input_library_songs": 43,
+  "output_sequence_songs": 30,
+  "pair_scores": 29,
+  "unique_output_ids": true,
+  "elapsed_ms": 168.41,
+  "audio_decode": false,
+  "interpretation": "13 songs were excluded from the default pair chain by the deployed BPM compatibility filter; they were not missing from the library.",
+  "production_changes_applied": false
+}

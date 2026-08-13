@@ -11,6 +11,7 @@ module has replaced production code.
 | `library-catalog` | `0.1.0` | `module/library-catalog` | `56d92b37a61bb9ed606d94f9f254ca575ba567db` | 8 | tested, pushed, accepted | Authenticated mobile replay still required |
 | `audio-preprocess` | `0.1.0` | `module/audio-preprocess` | `237ee91b7336613ff1fae54c0567c78261c8f19a` | 7 | tested, pushed, accepted | 43/43 real Jetson payloads pass gate; production replacement not applied |
 | `stem-separation` | `0.1.0` | `module/stem-separation` | `e9e3f515ea80dbb6a78ba92a995c66ba3bae281a` | 5 | tested, pushed, accepted | 42/43 songs have four stems; one remains unprocessed |
+| `sequence-planner` | `0.1.0` | `module/sequence-planner` | `128809c` | 5 | tested, pushed, pending immutable tag | 43 input, 30 default-compatible output in 168ms; production replacement not applied |
 
 ## Acceptance rules
 
