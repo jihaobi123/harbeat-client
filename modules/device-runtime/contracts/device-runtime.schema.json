@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harbeat://modules/device-runtime/v0.1.0",
+  "title": "HarBeat device runtime contract",
+  "type": "object",
+  "required": ["endpoint", "identity", "session", "operation"],
+  "additionalProperties": false,
+  "properties": {
+    "endpoint": {
+      "type": "string",
+      "pattern": "^https?://[^/:]+:[0-9]{1,5}$"
+    },
+    "identity": {
+      "type": "object",
+      "required": ["device_id"],
+      "additionalProperties": false,
+      "properties": {
+        "device_id": {"type": "string", "minLength": 1},
+        "model": {"type": "string"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "required": ["device_id", "session_id", "created_at_ms", "expires_at_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "device_id": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "minLength": 1},
+        "created_at_ms": {"type": "integer", "minimum": 0},
+        "expires_at_ms": {"type": "integer", "minimum": 1}
+      }
+    },
+    "operation": {
+      "type": "object",
+      "required": ["operation_id", "device_id", "session_id", "kind", "created_at_ms", "expires_at_ms", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 1},
+        "device_id": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "created_at_ms": {"type": "integer", "minimum": 0},
+        "expires_at_ms": {"type": "integer", "minimum": 1},
+        "status": {"enum": ["created", "submitted", "prepared", "scheduled", "completed", "failed", "expired"]}
+      }
+    }
+  }
+}

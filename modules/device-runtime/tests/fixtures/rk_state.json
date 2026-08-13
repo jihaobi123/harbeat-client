@@ -1,0 +1,15 @@
+{
+  "type": "playback_state",
+  "ts": 1786605902849,
+  "playing": false,
+  "paused": false,
+  "current_song_id": "song-redacted",
+  "position_sec": 302.702,
+  "duration_sec": 302.693,
+  "next_song_id": null,
+  "next_transition_in_sec": null,
+  "active_loops": [],
+  "active_stem_fx": null,
+  "playback_tier": "basic",
+  "scheduled_default_render": null
+}

@@ -1,0 +1,36 @@
+id: device-runtime
+version: 0.1.0
+owners:
+  - mobile
+  - rk
+purpose: Stable device identity, connection health, playback state, and compact operation references.
+inputs:
+  - RK endpoint supplied by pairing or local discovery
+  - health and playback state responses
+  - user operation intent
+outputs:
+  - normalized connection profile
+  - typed playback state
+  - short-lived operation reference
+  - classified connection result
+runtime_dependencies:
+  - Python >= 3.10
+  - Dart adapter to be integrated after contract acceptance
+data_dependencies: []
+models: []
+source_assets:
+  - modules/device-runtime
+replaces:
+  - mobile/lib/src/edge_agent_client.dart connection-state concerns after adapter validation
+  - mobile SharedPreferences full-plan persistence after migration validation
+public_endpoints:
+  - GET /health
+  - GET /state
+health_check: python -m unittest discover modules/device-runtime/tests
+tests:
+  - modules/device-runtime/tests/test_endpoint.py
+  - modules/device-runtime/tests/test_state.py
+  - modules/device-runtime/tests/test_operation.py
+  - modules/device-runtime/tests/test_reconnect.py
+artifact_sha256: pending
+rollback_artifact: git tag module/device-runtime/v0.1.0

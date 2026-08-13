@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "audio_ready": true,
+  "audio_socket": "/tmp/cypher-audio.sock",
+  "current_song_id": "song-redacted",
+  "plan_id": "plan-redacted",
+  "session_id": "session-redacted",
+  "sync_status": {"running": false, "completed": 2, "total": 2, "errors": []}
+}
