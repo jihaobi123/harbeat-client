@@ -38,3 +38,14 @@ py -m unittest discover modules/device-runtime/tests -v
 
 The implementation is standard-library-only so it can be tested from a fresh
 clone without installing the production mobile or RK environments.
+
+## Read-only deployed probe
+
+```powershell
+py modules/device-runtime/src/harbeat_device_runtime/cli.py `
+  http://127.0.0.1:19000 `
+  --output reports/device-runtime-probe.json
+```
+
+The report intentionally excludes the current song ID, session ID, sync URLs,
+tokens, render plans, and audio paths.

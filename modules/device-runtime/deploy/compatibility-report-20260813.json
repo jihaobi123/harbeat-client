@@ -1,0 +1,26 @@
+{
+  "module": "device-runtime",
+  "version": "0.1.0",
+  "status": "contract-compatible-with-adapter-required",
+  "observed_runtime": {
+    "health_endpoint": "/health",
+    "state_endpoint": "/state",
+    "health_has_session_id": true,
+    "health_has_device_id": false,
+    "state_has_playback_tier": true,
+    "state_has_scheduled_default_render": true
+  },
+  "accepted_behavior": [
+    "hotspot endpoint may change without changing stable device identity",
+    "legacy URL is migrated as unverified until paired identity is known",
+    "transient timeout preserves the last playback snapshot and marks it stale",
+    "old session and operation references expire by TTL",
+    "mobile persistence excludes full render plans and credentials"
+  ],
+  "production_changes_applied": false,
+  "production_adapter_gate": [
+    "expose paired device_id in a read-only RK identity response",
+    "add Dart storage adapter and dual-read migration",
+    "run mobile reconnect tests before replacing existing SharedPreferences keys"
+  ]
+}

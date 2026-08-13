@@ -32,6 +32,7 @@ tests:
   - modules/device-runtime/tests/test_endpoint.py
   - modules/device-runtime/tests/test_state.py
   - modules/device-runtime/tests/test_operation.py
+  - modules/device-runtime/tests/test_probe.py
   - modules/device-runtime/tests/test_reconnect.py
 artifact_sha256: pending
 rollback_artifact: git tag module/device-runtime/v0.1.0
