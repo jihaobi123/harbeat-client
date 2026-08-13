@@ -1,5 +1,9 @@
 # Library Catalog
 
+Version `0.2.0` adds an explicit `CatalogRepository` port and `CatalogService`.
+The domain no longer needs to know whether rows came from SQLAlchemy, HTTP, or
+a test fixture. Existing DTO parsing and identifier behavior remain compatible.
+
 This module separates three identifiers that the deployed code currently uses
 in different layers:
 

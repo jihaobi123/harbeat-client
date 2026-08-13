@@ -22,3 +22,11 @@ class ManifestTests(unittest.TestCase):
     raw["files"] = {}
     with self.assertRaises(ManifestError):
       AssetManifest.from_api(raw, "lib-a")
+
+  def test_rejects_non_hexadecimal_sha256(self):
+    raw=json.loads(FIXTURE.read_text(encoding='utf-8')); raw['files']['original']['sha256']='z'*64
+    with self.assertRaises(ManifestError): AssetManifest.from_api(raw,'lib-a')
+
+  def test_rejects_unknown_stem_name(self):
+    raw=json.loads(FIXTURE.read_text(encoding='utf-8')); raw['files']['stems']={'piano':raw['files']['original']}
+    with self.assertRaises(ManifestError): AssetManifest.from_api(raw,'lib-a')

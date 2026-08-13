@@ -1,0 +1,15 @@
+{
+  "module": "library-catalog",
+  "version": "0.2.0",
+  "baseline": "module/library-catalog/v0.1.0",
+  "source_sha256": "15fcd9ac5b55d2a273723b5e05fdb359a6e81fa77b390ea103384f869a60f4b8",
+  "changes": [
+    "introduced a database-neutral CatalogRepository port",
+    "introduced a playlist-resolution use-case service",
+    "kept explicit LibrarySong UUID playback identity",
+    "made SHA256 and stem-name manifest validation strict"
+  ],
+  "tests": {"passed": 12, "failed": 0},
+  "authenticated_production_replay_required": true,
+  "production_integration_applied": false
+}
