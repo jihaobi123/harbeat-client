@@ -26,6 +26,26 @@
 | 手机控制 | mobile-dj-control | 三种手动切歌共享请求、任务恢复和播放确认 | 7 | 否 |
 | 实体输入 | physical-input | 九键 SFX、暂停、导航事件和旋钮路由 | 7 | 否 |
 
+### 2.1 按用户功能反查模块
+
+| 你看到或操作的功能 | 主功能模块 | 同时依赖的支撑模块 |
+|---|---|---|
+| 导入歌曲、查看曲库和歌单 | `library-catalog` | `audio-preprocess`、`stem-separation` |
+| 歌曲分轨 | `stem-separation` | `audio-preprocess`、`library-catalog` |
+| 歌曲鼓点、段落、能量和候选点分析 | `audio-preprocess` | `library-catalog` |
+| 自动排歌和能量走势 | `sequence-planner` | `library-catalog`、`audio-preprocess` |
+| 正常自动接歌 | `transition-planner` + `transition-renderer` | `asset-sync`、`transition-orchestrator`、`audio-runtime` |
+| 手机点击快切 | `mobile-dj-control` + `transition-planner` | `transition-renderer`、`asset-sync`、`transition-orchestrator`、`audio-runtime` |
+| 能量切歌预览和确认 | `mobile-dj-control` | 确认后与快切使用同一组转场模块 |
+| 风格切歌预览和确认 | `mobile-dj-control` | 确认后与快切使用同一组转场模块 |
+| RK 下载歌曲或混音包 | `asset-sync` | `library-catalog` 提供 manifest |
+| RK 真正发声、混音和到点切换 | `audio-runtime` | `transition-orchestrator` 提交任务 |
+| 手机连接 RK、重连和进度状态 | `device-runtime` | `mobile-dj-control` |
+| 三个实体模块、按键、SFX 和旋钮 | `physical-input` | `audio-runtime`；导航键还需要手机 adapter |
+| 手机/RK/Jetson 联调和日志定位 | `observability-e2e` | 读取其他模块状态，不参与播放 |
+
+最容易混淆的三个名称：`transition-planner` 负责“决定怎么接”，`transition-renderer` 负责“生成实际衔接音频”，`transition-orchestrator` 负责“确保资源准备完成并命令 RK 到点执行”。
+
 ## 3. 目标架构调用链
 
 ```text
