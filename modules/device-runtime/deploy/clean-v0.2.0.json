@@ -1,0 +1,14 @@
+{
+  "module": "device-runtime",
+  "version": "0.2.0",
+  "baseline": "module/device-runtime/v0.1.0",
+  "source_sha256": "f83e900f39f0275c3d9dd3e8df9df506c2dbb5d32064d1ed95429488c7b9c4af",
+  "changes": [
+    "moved legacy URL import behind an explicit migration adapter",
+    "cleared the previous session whenever the hotspot endpoint changes",
+    "bound pending operations to device id, session id and TTL"
+  ],
+  "tests": {"passed": 22, "failed": 0},
+  "flutter_adapter_integration_required": true,
+  "production_integration_applied": false
+}
