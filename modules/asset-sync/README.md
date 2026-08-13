@@ -1,5 +1,10 @@
 # Asset Sync
 
+Version `0.2.0` extracts cache validation and atomic publication into a pure
+core used by the current worker. HTTP, curl and FastAPI remain transport
+adapters; weak-network retry behavior is intentionally unchanged in this
+refactor.
+
 This module is the deployed RK sync-worker extracted as an independent
 component. It expands song and default-mix manifests, downloads only declared
 assets, validates size and SHA256 when supplied, writes through `.part` files,
