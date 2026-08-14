@@ -16,16 +16,22 @@ for module_src in (REPO_ROOT / "modules").glob("*/src"):
 
 from adapters.config import AdapterConfig, RK_SERVICES
 from adapters.rk_app import create_rk_app
+from adapters.operation_executor import HttpOperationPorts
+from adapters.operation_store import JsonOperationStore
+from harbeat_transition_orchestrator import TransitionOperationExecutor
 
 
 def config(service: str, root: Path) -> AdapterConfig:
     settings = {
-        "sync-worker": {"jetson_base_url": "http://127.0.0.1:18000"},
+        "sync-worker": {"jetson_base_url": "http://127.0.0.1:18000", "runtime_home": str(root / "runtime")},
         "edge-agent": {
             "sync_worker_url": "http://127.0.0.1:19100",
             "audio_socket": str(root / "audio.sock"),
+            "runtime_home": str(root / "runtime"),
+            "planning_api_url": "http://127.0.0.1:19020",
+            "render_worker_url": "http://127.0.0.1:19030",
         },
-        "audio-engine": {"audio_socket": str(root / "audio.sock")},
+        "audio-engine": {"audio_socket": str(root / "audio.sock"), "runtime_home": str(root / "runtime")},
         "input-daemon": {
             "edge_agent_url": "http://127.0.0.1:19000",
             "audio_socket": str(root / "audio.sock"),
@@ -176,6 +182,97 @@ class RkAdapterTests(unittest.TestCase):
             self.assertEqual(second_client.get(f"/v1/transition-operations/{operation_id}").status_code, 200)
             cancelled = second_client.delete(f"/v1/transition-operations/{operation_id}")
             self.assertEqual(cancelled.json()["status"], "cancelled")
+
+    def test_operation_executor_uses_one_plan_render_sync_and_schedule_chain(self):
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cfg = config("edge-agent", root)
+            payloads = []
+            plan = {
+                "pair_id": "pair-a-b",
+                "from_song_id": "song-a",
+                "to_song_id": "song-b",
+                "from_at_sec": 15.0,
+                "to_at_sec": 12.0,
+                "duration_sec": 4.0,
+                "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+                "default_mix": {
+                    "pair_id": "pair-a-b",
+                    "from_song_id": "song-a",
+                    "to_song_id": "song-b",
+                    "from_at_sec": 15.0,
+                    "to_at_sec": 12.0,
+                    "duration_sec": 4.0,
+                    "audio_feature_source": "dj_structure_precomputed_window_v2",
+                    "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+                },
+            }
+            pair_manifest = {
+                "pair_id": "pair-a-b",
+                "audio_feature_source": "dj_structure_precomputed_window_v2",
+                "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+                "files": {
+                    "transition_render": {"url": "/render/artifacts/pair-a-b/transition_render.wav"},
+                    "transition_render_meta": {"url": "/render/artifacts/pair-a-b/transition_render.json"},
+                },
+            }
+
+            def fake_request(method, url, json=None, timeout=None):
+                payloads.append((method, url, json))
+                if url.endswith("/planning/database/transition"):
+                    return Response(plan)
+                if url.endswith("/render/database/transition"):
+                    return Response({"pair_manifest": pair_manifest, "pair_id": "pair-a-b"})
+                if url.endswith("/render/database/song/song-b/manifest"):
+                    return Response({"song_id": "song-b", "files": {"original": {"url": "/render/database/song/song-b/original"}}})
+                if url.endswith("/sync"):
+                    return Response({"ok": True, "sync_completed": True, "status": {"completed": 2, "total": 2, "errors": []}})
+                raise AssertionError(url)
+
+            store = JsonOperationStore(root / "operations.json")
+            operation, _ = store.create_or_reuse({
+                "device_id": "rk3588-01",
+                "session_id": "set-12345678",
+                "intent": "style",
+                "target_song_id": "song-b",
+                "request_id": "request-12345678",
+            })
+            operation_id = operation["operation_id"]
+            states = iter([
+                {"ok": True, "playing": True, "paused": False, "current_song_id": "song-a", "next_song_id": "song-b", "position_sec": 3.0},
+                {"ok": True, "last_transition": {"transition_id": operation_id, "action": "default_render_playback"}},
+                {"ok": True, "current_song_id": "song-b", "position_sec": 16.0, "last_transition": {"transition_id": operation_id, "action": "default_render_playback"}},
+            ])
+
+            def fake_audio(_path, command):
+                if command["cmd"] == "state":
+                    return next(states)
+                return {"ok": True, "action": command["cmd"]}
+
+            with patch("adapters.operation_executor.httpx.request", side_effect=fake_request), patch(
+                "adapters.operation_executor._audio_command", side_effect=fake_audio
+            ):
+                result = TransitionOperationExecutor(
+                    store, HttpOperationPorts(cfg), poll_interval_sec=0.0
+                ).execute(operation_id)
+
+            self.assertEqual(result["status"], "succeeded", result)
+            self.assertEqual(result["plan"]["transition_id"], operation_id)
+            self.assertEqual(result["sync"]["completed"], 2)
+            self.assertEqual(sum(url.endswith("/sync") for _, url, _ in payloads), 2)
+            planning = next(body for _, url, body in payloads if url.endswith("/planning/database/transition"))
+            self.assertEqual(planning["mode"], "fast")
+            self.assertEqual(planning["options"]["min_exit_sec"], 15.0)
 
     def test_all_rk_services_are_registered_and_shadow_only(self):
         with tempfile.TemporaryDirectory() as directory:

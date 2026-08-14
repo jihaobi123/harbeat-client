@@ -6,7 +6,9 @@ import json
 import os
 import socket
 import struct
+import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -51,11 +53,12 @@ def _health_route(app: FastAPI, config: AdapterConfig) -> None:
 
 
 def _sync_worker_app(config: AdapterConfig) -> FastAPI:
-    os.environ["CYPHER_HOME"] = str(config.state_root)
+    runtime_home = Path(str(config.settings["runtime_home"]))
+    os.environ["CYPHER_HOME"] = str(runtime_home)
     os.environ["JETSON_BASE_URL"] = str(config.settings["jetson_base_url"])
     module = importlib.import_module("harbeat_asset_sync.sync_worker")
-    module.CYPHER_HOME = config.state_root
-    module.CACHE_DIR = config.state_root / "cache"
+    module.CYPHER_HOME = runtime_home
+    module.CACHE_DIR = runtime_home / "cache"
     wrapper = FastAPI(title="HarBeat clean sync-worker", version="0.3.0")
 
     @wrapper.get("/health")
@@ -68,6 +71,16 @@ def _sync_worker_app(config: AdapterConfig) -> FastAPI:
 
 def _audio_engine_app(config: AdapterConfig) -> FastAPI:
     socket_path = str(config.settings["audio_socket"])
+    runtime_home = Path(str(config.settings["runtime_home"]))
+    os.environ["CYPHER_HOME"] = str(runtime_home)
+    from harbeat_audio_runtime import config as audio_config
+    from harbeat_audio_runtime import engine as audio_engine
+
+    audio_config.CYPHER_HOME = runtime_home
+    audio_config.CACHE_DIR = runtime_home / "cache"
+    audio_engine.CYPHER_HOME = runtime_home
+    audio_engine.CACHE_DIR = runtime_home / "cache"
+    audio_engine.SAMPLES_DIR = runtime_home / "samples"
     from harbeat_audio_runtime.socket_server import AudioSocketServer
 
     server = AudioSocketServer(socket_path=socket_path)
@@ -102,6 +115,13 @@ def _edge_routes(app: FastAPI, config: AdapterConfig) -> None:
     tasks: dict[str, dict[str, Any]] = {}
     from .operation_store import JsonOperationStore
     operation_store = JsonOperationStore(config.state_root / "transition-operations.json")
+    operation_executor = None
+    if bool(config.settings.get("operation_executor_enabled")):
+        from harbeat_transition_orchestrator import TransitionOperationExecutor
+        from .operation_executor import HttpOperationPorts
+
+        operation_executor = TransitionOperationExecutor(operation_store, HttpOperationPorts(config))
+    app.state.operation_threads = []
 
     def normalize(body: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -146,6 +166,15 @@ def _edge_routes(app: FastAPI, config: AdapterConfig) -> None:
         except OrchestrationValidationError as exc:
             status = 409 if exc.code == "request_id_conflict" else 422
             raise HTTPException(status_code=status, detail={"code": exc.code, "detail": exc.detail}) from exc
+        if operation_executor is not None and not reused:
+            thread = threading.Thread(
+                target=operation_executor.execute,
+                args=(operation["operation_id"],),
+                daemon=True,
+                name=f"transition-operation-{operation['operation_id'][:8]}",
+            )
+            app.state.operation_threads.append(thread)
+            thread.start()
         return {"reused": reused, "operation": operation}
 
     @app.get("/v1/transition-operations/{operation_id}")

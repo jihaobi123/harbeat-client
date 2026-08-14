@@ -46,6 +46,18 @@ ORDERED_STAGES = (
     OperationStage.RESUMED,
 )
 
+DETAIL_FIELDS = {
+    OperationStage.SOURCE_SNAPSHOT: "source_snapshot",
+    OperationStage.PLANNED: "plan",
+    OperationStage.RENDERED_OR_REUSED: "render",
+    OperationStage.TARGET_AUDIO_READY: "target_audio",
+    OperationStage.PAIR_SYNCED: "sync",
+    OperationStage.PREPARED: "prepare",
+    OperationStage.SCHEDULED: "schedule",
+    OperationStage.EXECUTING: "execution",
+    OperationStage.RESUMED: "result",
+}
+
 
 def validate_operation_request(value: Mapping[str, Any]) -> dict[str, Any]:
     try:
@@ -90,8 +102,11 @@ def new_operation(
         "source_snapshot": None,
         "plan": None,
         "render": None,
+        "target_audio": None,
         "sync": None,
+        "prepare": None,
         "schedule": None,
+        "execution": None,
         "result": None,
         "error": None,
         "events": [{"stage": OperationStage.ACCEPTED.value, "at": now}],
@@ -119,7 +134,7 @@ def advance_operation(
     out["stage"] = target.value
     out["updated_at"] = now
     if details:
-        out[target.value] = copy.deepcopy(dict(details))
+        out[DETAIL_FIELDS[target]] = copy.deepcopy(dict(details))
     out["events"] = [*list(out.get("events") or []), {"stage": target.value, "at": now}]
     if target is OperationStage.RESUMED:
         out["status"] = "succeeded"

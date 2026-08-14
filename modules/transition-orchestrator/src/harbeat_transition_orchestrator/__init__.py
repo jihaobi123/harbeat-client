@@ -22,6 +22,7 @@ from .operation import (
     public_operation,
     validate_operation_request,
 )
+from .executor import OperationExecutionError, TransitionOperationExecutor
 
 __all__ = [
     "OrchestrationValidationError",
@@ -39,6 +40,8 @@ __all__ = [
     "operation_request_hash",
     "public_operation",
     "validate_operation_request",
+    "OperationExecutionError",
+    "TransitionOperationExecutor",
     "build_priority_sync_request",
     "public_task",
     "transition_task",

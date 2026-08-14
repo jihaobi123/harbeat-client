@@ -1,5 +1,6 @@
 param(
-    [string]$Output = "$env:TEMP\harbeat-wheelhouse-v0.3"
+    [string]$Output = "$env:TEMP\harbeat-wheelhouse-v0.4",
+    [string]$Release = "0.4.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +28,7 @@ if ($failed.Count -gt 0) {
 
 $manifest = @{
     schema_version = 1
-    release = "0.3.0"
+    release = $Release
     builder = @{
         python = (& $python --version).Trim()
         setuptools = "81.0.0"

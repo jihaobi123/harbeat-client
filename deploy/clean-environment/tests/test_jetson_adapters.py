@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -221,6 +221,29 @@ class JetsonAdapterTests(unittest.TestCase):
                 "output_root": str(output),
             })
             self.assertEqual(outside.status_code, 422)
+
+    def test_render_worker_publishes_verified_target_original_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            assets = root / "assets"
+            assets.mkdir()
+            source = assets / "song-b.wav"
+            source.write_bytes(b"RIFF-target-audio")
+            repository = Mock()
+            repository.load_song.return_value = {"id": "song-b", "source_path": str(source)}
+            client = TestClient(create_jetson_app(config("render-worker", root)))
+
+            with patch("adapters.postgres.database_url_from_env", return_value="postgresql://shadow"), patch(
+                "adapters.postgres.PostgresCatalogRepository", return_value=repository
+            ):
+                manifest = client.get("/render/database/song/song-b/manifest")
+                artifact = client.get("/render/database/song/song-b/original")
+
+            self.assertEqual(manifest.status_code, 200, manifest.text)
+            original = manifest.json()["files"]["original"]
+            self.assertEqual(original["size"], len(b"RIFF-target-audio"))
+            self.assertEqual(len(original["sha256"]), 64)
+            self.assertEqual(artifact.content, b"RIFF-target-audio")
 
 
 if __name__ == "__main__":

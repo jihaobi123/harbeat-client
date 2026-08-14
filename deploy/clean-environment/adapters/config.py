@@ -70,14 +70,29 @@ class AdapterConfig:
         if not isinstance(settings, dict):
             raise AdapterConfigError("settings must be an object")
         required_settings = {
-            "sync-worker": ("jetson_base_url",),
-            "edge-agent": ("sync_worker_url", "audio_socket"),
-            "audio-engine": ("audio_socket",),
+            "sync-worker": ("jetson_base_url", "runtime_home"),
+            "edge-agent": ("sync_worker_url", "audio_socket", "runtime_home"),
+            "audio-engine": ("audio_socket", "runtime_home"),
             "input-daemon": ("edge_agent_url", "audio_socket", "input_device"),
         }.get(service, ())
         missing = [name for name in required_settings if not str(settings.get(name) or "").strip()]
         if missing:
             raise AdapterConfigError(f"missing service settings: {', '.join(missing)}")
+        if service == "edge-agent" and bool(settings.get("operation_executor_enabled")):
+            operation_missing = [
+                name for name in ("planning_api_url", "render_worker_url")
+                if not str(settings.get(name) or "").strip()
+            ]
+            if operation_missing:
+                raise AdapterConfigError(
+                    f"missing operation executor settings: {', '.join(operation_missing)}"
+                )
+        for name in ("runtime_home",):
+            if name in settings:
+                runtime_path = _absolute_path(settings[name], name)
+                if any(marker in runtime_path.as_posix() for marker in FORBIDDEN_MARKERS):
+                    raise AdapterConfigError(f"legacy path is forbidden: {runtime_path}")
+                settings[name] = str(runtime_path)
         return cls(service, profile, mode, state_root, asset_root, dict(settings))
 
     @classmethod

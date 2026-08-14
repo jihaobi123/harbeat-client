@@ -187,6 +187,11 @@ def _planning_routes(app: FastAPI, config: AdapterConfig) -> None:
 
 
 def _render_routes(app: FastAPI, config: AdapterConfig) -> None:
+    def load_database_song(song_id: str) -> dict[str, Any]:
+        from .postgres import PostgresCatalogRepository, database_url_from_env
+
+        return PostgresCatalogRepository(database_url_from_env(), config.asset_root).load_song(song_id)
+
     def render_pair(previous: Any, next_song: Any, plan: dict[str, Any]) -> dict[str, Any]:
         from harbeat_transition_renderer import DefaultRenderError, ensure_reference_render
 
@@ -231,6 +236,36 @@ def _render_routes(app: FastAPI, config: AdapterConfig) -> None:
         path = _contained_artifact(config.state_root / "pairs", pair_id, name)
         return FileResponse(path)
 
+    @app.get("/render/database/song/{song_id}/manifest")
+    def target_song_manifest(song_id: str) -> dict[str, Any]:
+        try:
+            song = load_database_song(song_id)
+            source = Path(str(song.get("source_path") or ""))
+            return {
+                "song_id": song_id,
+                "files": {
+                    "original": _artifact_spec(
+                        song_id,
+                        source,
+                        f"/render/database/song/{song_id}/original",
+                    ),
+                },
+            }
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/render/database/song/{song_id}/original")
+    def target_song_original(song_id: str) -> FileResponse:
+        try:
+            song = load_database_song(song_id)
+            source = Path(str(song.get("source_path") or ""))
+            if not source.is_file():
+                raise ValueError("song source is missing")
+            source.resolve().relative_to(config.asset_root.resolve())
+            return FileResponse(source)
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=404, detail="artifact not found") from exc
+
 
 def _render_pair_manifest(result: dict[str, Any]) -> dict[str, Any]:
     pair_id = str(result.get("pair_id") or "")
@@ -258,7 +293,7 @@ def _artifact_spec(pair_id: str, path: Path, public_name: str) -> dict[str, Any]
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return {
-        "url": f"/render/artifacts/{pair_id}/{public_name}",
+        "url": public_name if public_name.startswith("/") else f"/render/artifacts/{pair_id}/{public_name}",
         "size": path.stat().st_size,
         "sha256": digest.hexdigest(),
         "format": path.suffix.lstrip("."),
