@@ -40,7 +40,14 @@ def lock_rows(path: Path) -> dict[str, str]:
     return rows
 
 
-def audit(role: str) -> dict:
+def target_validation() -> dict:
+    path = EVIDENCE / "r2-target-venv-validation-20260814.json"
+    if not path.is_file():
+        return {"roles": {}, "module_wheelhouse_verified_on_both_targets": False}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def audit(role: str, validation: dict) -> dict:
     inventory_role = "rk" if role == "rk3588" else role
     inventory = EVIDENCE / f"r1-{inventory_role}-inventory-current.json"
     installed = freeze_rows(inventory)
@@ -51,29 +58,34 @@ def audit(role: str) -> dict:
         for name, version in requested.items()
         if name in installed and installed[name] != version
     }
+    target = dict(validation.get("roles", {}).get(role) or {})
     return {
         "role": role,
         "locked": requested,
         "system_python_missing": missing,
         "system_python_version_mismatch": mismatched,
         "system_python_matches_lock": not missing and not mismatched,
-        "clean_venv_created": False,
+        "clean_venv_created": bool(target.get("clean_venv_created")),
+        "clean_venv_validation": target,
         "policy": "System Python is evidence only and is never accepted as the clean service environment.",
     }
 
 
 def main() -> int:
+    validation = target_validation()
     report = {
         "schema_version": 1,
         "audit": "r1-r2-runtime-dependency-gap",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "roles": {role: audit(role) for role in ("rk3588", "jetson")},
+        "roles": {role: audit(role, validation) for role in ("rk3588", "jetson")},
         "module_wheelhouse": {
             "uri": "external://harbeat-device-backups/20260814/wheelhouse-r3",
             "module_wheels": 12,
-            "verified_on_target_python_3_10": False,
+            "verified_on_target_python_3_10": bool(
+                validation.get("module_wheelhouse_verified_on_both_targets")
+            ),
         },
-        "r2_target_runtime_ready": False,
+        "r2_target_runtime_ready": bool(validation.get("r2_device_acceptance_passed")),
         "cleanup_authorized": False,
     }
     output = EVIDENCE / "r1-r2-runtime-dependency-gap-20260814.json"

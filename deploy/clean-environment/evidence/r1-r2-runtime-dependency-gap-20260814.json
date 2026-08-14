@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "audit": "r1-r2-runtime-dependency-gap",
-  "created_at": "2026-08-14T06:33:37.840604+00:00",
+  "created_at": "2026-08-14T07:21:49.284390+00:00",
   "roles": {
     "rk3588": {
       "role": "rk3588",
@@ -31,7 +31,25 @@
         }
       },
       "system_python_matches_lock": false,
-      "clean_venv_created": false,
+      "clean_venv_created": true,
+      "clean_venv_validation": {
+        "clean_venv": "/tmp/harbeat-clean-r2-20260814-rk",
+        "clean_venv_created": true,
+        "module_wheel_imports": "12/12",
+        "pip_check": "passed",
+        "python": "3.10",
+        "numpy": "1.26.4",
+        "soundfile": "0.13.1",
+        "sounddevice": "0.4.6",
+        "fastapi": "0.116.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.35.0",
+        "sounddevice_count": 11,
+        "ffmpeg": "6.1-rockchip",
+        "unix_audio_socket_ping": true,
+        "real_audio_playback_30m": false,
+        "prepare_schedule_20_of_20": false
+      },
       "policy": "System Python is evidence only and is never accepted as the clean service environment."
     },
     "jetson": {
@@ -73,14 +91,33 @@
         }
       },
       "system_python_matches_lock": false,
-      "clean_venv_created": false,
+      "clean_venv_created": true,
+      "clean_venv_validation": {
+        "clean_venv": "/tmp/harbeat-clean-r2-20260814-jetson-v2",
+        "clean_venv_created": true,
+        "module_wheel_imports": "12/12",
+        "pip_check": "passed",
+        "python": "3.10.12",
+        "architecture": "aarch64",
+        "torch": "2.4.0a0+3bcc3cddb5.nv24.07",
+        "torch_sha256": "c32f2ed4974bda537d99b858d156857c71eb1ec4202b50ba190cf1ad34a7dbec",
+        "torchaudio": "2.4.0a0+69d4077",
+        "torchaudio_sha256": "541a3154e5f892bf174b9234f945205b33bbe66e7e60715220417e41b3026f14",
+        "demucs": "4.0.1",
+        "cuda_available": true,
+        "cuda_device": "Orin",
+        "cuda_tensor_smoke": true,
+        "ffmpeg": "4.4.2-0ubuntu0.22.04.1",
+        "demucs_model": "955717e8-8726e21a.th",
+        "demucs_model_sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4"
+      },
       "policy": "System Python is evidence only and is never accepted as the clean service environment."
     }
   },
   "module_wheelhouse": {
     "uri": "external://harbeat-device-backups/20260814/wheelhouse-r3",
     "module_wheels": 12,
-    "verified_on_target_python_3_10": false
+    "verified_on_target_python_3_10": true
   },
   "r2_target_runtime_ready": false,
   "cleanup_authorized": false

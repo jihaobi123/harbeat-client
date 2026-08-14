@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "profile": "rk3588",
+  "source": "external://harbeat-device-backups/20260814/third-party-rk3588-locked",
+  "artifacts": [
+    {
+      "name": "annotated_types-0.8.0-py3-none-any.whl",
+      "bytes": 13427,
+      "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"
+    },
+    {
+      "name": "anyio-4.14.2-py3-none-any.whl",
+      "bytes": 125813,
+      "sha256": "9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494"
+    },
+    {
+      "name": "certifi-2026.7.22-py3-none-any.whl",
+      "bytes": 136983,
+      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+    },
+    {
+      "name": "cffi-2.1.1-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+      "bytes": 218652,
+      "sha256": "5a59cc1c4442bc3d5c703bf720b51138d0bfc173618807c9ee2490a7541dd3d9"
+    },
+    {
+      "name": "click-8.4.2-py3-none-any.whl",
+      "bytes": 119243,
+      "sha256": "e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76"
+    },
+    {
+      "name": "exceptiongroup-1.3.1-py3-none-any.whl",
+      "bytes": 16740,
+      "sha256": "a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598"
+    },
+    {
+      "name": "fastapi-0.116.1-py3-none-any.whl",
+      "bytes": 95631,
+      "sha256": "c46ac7c312df840f0c9e220f7964bada936781bc4e2e6eb71f1c4d7553786565"
+    },
+    {
+      "name": "h11-0.16.0-py3-none-any.whl",
+      "bytes": 37515,
+      "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"
+    },
+    {
+      "name": "httpcore-1.0.9-py3-none-any.whl",
+      "bytes": 78784,
+      "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+    },
+    {
+      "name": "httpx-0.28.1-py3-none-any.whl",
+      "bytes": 73517,
+      "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+    },
+    {
+      "name": "idna-3.18-py3-none-any.whl",
+      "bytes": 65455,
+      "sha256": "7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2"
+    },
+    {
+      "name": "numpy-1.26.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "bytes": 14219016,
+      "sha256": "d209d8969599b27ad20994c8e41936ee0964e6da07478d6c35016bc386b66ad4"
+    },
+    {
+      "name": "pycparser-3.0-py3-none-any.whl",
+      "bytes": 48172,
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"
+    },
+    {
+      "name": "pydantic-2.13.4-py3-none-any.whl",
+      "bytes": 472262,
+      "sha256": "45a282cde31d808236fd7ea9d919b128653c8b38b393d1c4ab335c62924d9aba"
+    },
+    {
+      "name": "pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "bytes": 1974958,
+      "sha256": "bb63e0198ca18aad131c089b9204c23079c3afa95487e561f4c522d519e55aba"
+    },
+    {
+      "name": "sounddevice-0.4.6-py3-none-any.whl",
+      "bytes": 31705,
+      "sha256": "5de768ba6fe56ad2b5aaa2eea794b76b73e427961c95acad2ee2ed7f866a4b20"
+    },
+    {
+      "name": "soundfile-0.13.1-py2.py3-none-manylinux_2_28_aarch64.whl",
+      "bytes": 1235729,
+      "sha256": "9c9e855f5a4d06ce4213f31918653ab7de0c5a8d8107cd2427e44b42df547deb"
+    },
+    {
+      "name": "starlette-0.47.3-py3-none-any.whl",
+      "bytes": 72991,
+      "sha256": "89c0778ca62a76b826101e7c709e70680a1699ca7da6b44d38eb0a7e61fe4b51"
+    },
+    {
+      "name": "typing_extensions-4.16.0-py3-none-any.whl",
+      "bytes": 45571,
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+    },
+    {
+      "name": "typing_inspection-0.4.4-py3-none-any.whl",
+      "bytes": 14750,
+      "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
+    },
+    {
+      "name": "uvicorn-0.35.0-py3-none-any.whl",
+      "bytes": 66406,
+      "sha256": "197535216b25ff9b785e29a0b79199f55222193d47f820816e7da751e9bc8d4a"
+    }
+  ]
+}
