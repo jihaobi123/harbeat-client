@@ -4,10 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "harbeat-audio-preprocess"
-version = "0.3.0"
-description = "HarBeat offline DJ structure analysis contracts"
+version = "0.4.0"
+description = "HarBeat raw-audio and planner-ready DJ analysis"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.26,<2"]
+dependencies = [
+  "numpy>=1.26,<2",
+]
+
+[project.optional-dependencies]
+analysis = [
+  "essentia==2.1b6.dev0",
+  "librosa==0.10.2.post1",
+  "pyloudnorm==0.2.0",
+  "soundfile==0.13.1",
+]
+
+[project.scripts]
+harbeat-analyze-audio = "harbeat_audio_preprocess.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

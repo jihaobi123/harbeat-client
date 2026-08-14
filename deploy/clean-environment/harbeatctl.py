@@ -18,6 +18,12 @@ MODULE_ROOT = Path(__file__).resolve().parents[2] / "modules"
 DEPLOY_ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = DEPLOY_ROOT / "release-manifest.json"
 SERVICE_MANIFEST_PATH = DEPLOY_ROOT / "service-manifest.json"
+DELETE_ACCEPTANCE_PATH = (
+    DEPLOY_ROOT
+    / "evidence"
+    / "stage-f"
+    / "clean-core-v0.5.0-pre-delete-acceptance-20260815.json"
+)
 FORBIDDEN_MARKERS = (
     "/home/cat/cypher",
     "/home/cat/venvs",
@@ -56,8 +62,18 @@ def manifest() -> dict[str, Any]:
         raise DeploymentError("unsupported release manifest schema")
     if value.get("production_ready") is not False:
         raise DeploymentError("clean core release cannot be marked production-ready")
-    if value.get("cleanup_authorized") is not False:
-        raise DeploymentError("cleanup must remain unauthorized before device acceptance")
+    cleanup_authorized = value.get("cleanup_authorized")
+    if not isinstance(cleanup_authorized, bool):
+        raise DeploymentError("cleanup_authorized must be boolean")
+    if cleanup_authorized:
+        if value.get("legacy_files_delete_authorized") is not True:
+            raise DeploymentError("legacy file deletion is not authorized")
+        acceptance = load_json(DELETE_ACCEPTANCE_PATH)
+        if (
+            acceptance.get("result") != "passed"
+            or acceptance.get("release") != value.get("release")
+        ):
+            raise DeploymentError("pre-delete device acceptance is missing or does not match release")
     return value
 
 
@@ -116,7 +132,7 @@ def validate() -> dict[str, Any]:
         "python_module_count": len(value["python_modules"]),
         "dart_module_count": len(value["dart_modules"]),
         "production_ready": False,
-        "cleanup_authorized": False,
+        "cleanup_authorized": value["cleanup_authorized"],
     }
 
 

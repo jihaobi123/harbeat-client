@@ -27,6 +27,7 @@ separation is complete.
 
 - Reuse existing `htdemucs/<source-stem-name>/*.wav` files.
 - Invoke the deployment interpreter with `python -m demucs -n htdemucs`.
+- For reproducible offline use, pass `--model-repo /srv/harbeat-assets/models/demucs`.
 - Use an ASCII-safe temporary input when a source path is not safe for the
   model runner, then copy verified outputs to the canonical stem directory.
 - Validate all four files after the process exits.

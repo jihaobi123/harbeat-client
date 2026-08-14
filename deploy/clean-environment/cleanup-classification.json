@@ -7,8 +7,8 @@
     "production_ready": false,
     "legacy_runtime_quarantine_authorized": true,
     "legacy_runtime_disable_authorized": true,
-    "legacy_files_delete_authorized": false,
-    "cleanup_authorized": false
+    "legacy_files_delete_authorized": true,
+    "cleanup_authorized": true
   },
   "entries": [
     {
@@ -68,23 +68,23 @@
     },
     {
       "target": "jetson:/home/mark/harbeat",
-      "classification": "quarantine",
-      "reason": "Legacy source and configuration; keep until clean release acceptance and rollback drill pass."
+      "classification": "delete",
+      "reason": "Legacy source is externally snapshotted and clean-core v0.5.0 acceptance passed."
     },
     {
       "target": "jetson:/home/mark/venvs/harbeat",
-      "classification": "quarantine",
-      "reason": "Legacy Python environment; never copy packages into the clean release."
+      "classification": "delete",
+      "reason": "Legacy Python environment is not referenced by clean-core v0.5.0."
     },
     {
       "target": "rk:/home/cat/cypher",
-      "classification": "quarantine",
-      "reason": "Legacy runtime and cache; keep until clean release acceptance and rollback drill pass."
+      "classification": "delete",
+      "reason": "Legacy runtime is externally snapshotted and clean-core v0.5.0 acceptance passed."
     },
     {
       "target": "rk:/home/cat/venvs/edge",
-      "classification": "quarantine",
-      "reason": "Legacy Python environment; never copy packages into the clean release."
+      "classification": "delete",
+      "reason": "Legacy Python environment is not referenced by clean-core v0.5.0."
     },
     {
       "target": "rk:harbeat-audio-restore.service",
@@ -118,8 +118,13 @@
     },
     {
       "target": "external:D:/work/harbeat-device-backups/20260814/wheelhouse-core-v0.4.2",
+      "classification": "quarantine",
+      "reason": "Superseded clean core internal wheelhouse."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/wheelhouse-core-v0.5.0-final",
       "classification": "retain",
-      "reason": "Canonical clean core internal wheelhouse used by both deployed releases."
+      "reason": "Canonical clean-core v0.5.0 internal wheelhouse for both devices."
     },
     {
       "target": "feature:mobile-resource-pull-prewarm-sync-scheduling",

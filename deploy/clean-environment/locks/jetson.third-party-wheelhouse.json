@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "profile": "jetson",
-  "source": "external://harbeat-device-backups/20260814/third-party-jetson-locked",
+  "source": "external://harbeat-device-backups/20260814/third-party-jetson-locked-v5",
   "artifacts": [
     {
       "name": "annotated_types-0.8.0-py3-none-any.whl",
@@ -67,6 +67,11 @@
       "name": "einops-0.8.2-py3-none-any.whl",
       "bytes": 65638,
       "sha256": "54058201ac7087911181bfec4af6091bb59380360f069276601256a76af08193"
+    },
+    {
+      "name": "essentia-2.1b6.dev0-cp310-cp310-linux_aarch64.whl",
+      "bytes": 7233529,
+      "sha256": "74fb82fa8098809066f5093034fe7143356277ab24a70fd388925e5b6c094941"
     },
     {
       "name": "exceptiongroup-1.3.1-py3-none-any.whl",
@@ -224,6 +229,11 @@
       "sha256": "bb63e0198ca18aad131c089b9204c23079c3afa95487e561f4c522d519e55aba"
     },
     {
+      "name": "pyloudnorm-0.2.0-py3-none-any.whl",
+      "bytes": 10879,
+      "sha256": "9bb69afb904f59d007a7f9ba3d75d16fb8aeef35c44d6df822a9f192d69cf13f"
+    },
+    {
       "name": "pyyaml-6.0.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
       "bytes": 740646,
       "sha256": "b30236e45cf30d2b8e7b3e85881719e98507abed1011bf463a8fa23e9c3e98a8"
@@ -247,6 +257,11 @@
       "name": "scipy-1.15.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
       "bytes": 35547617,
       "sha256": "263961f658ce2165bbd7b99fa5135195c3a12d9bef045345016b8b50c315cb82"
+    },
+    {
+      "name": "six-1.17.0-py2.py3-none-any.whl",
+      "bytes": 11050,
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
     },
     {
       "name": "sounddevice-0.5.5-py3-none-any.whl",

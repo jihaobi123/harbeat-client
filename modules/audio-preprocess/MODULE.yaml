@@ -1,13 +1,13 @@
 id: audio-preprocess
-version: 0.2.0
+version: 0.4.0
 owners:
   - jetson
 purpose: Versioned offline audio analysis and planner-ready DJ structure candidates.
 inputs:
   - original audio file
-  - persisted beat, downbeat, phrase, energy, and timbre analysis
+  - optional title and artist metadata
 outputs:
-  - versioned analysis payload
+  - BPM, beat, downbeat, key, Camelot, phrase, energy, loudness, groove, and transition-window analysis
   - dj_structure_v2 exit and entry candidates
   - coverage and quality report
 runtime_dependencies:
@@ -15,6 +15,8 @@ runtime_dependencies:
   - numpy 1.26.4
   - librosa 0.10.2.post1
   - essentia 2.1-beta6-dev for full base analysis
+  - pyloudnorm 0.2.0
+  - soundfile 0.13.1
 data_dependencies:
   - library_songs.source_path
   - library_songs.music_features
@@ -38,7 +40,10 @@ tests:
   - modules/audio-preprocess/tests/test_structure.py
   - modules/audio-preprocess/tests/test_version_gate.py
   - modules/audio-preprocess/tests/test_service.py
+  - modules/audio-preprocess/tests/test_pipeline.py
 clean_architecture:
+  - base_analysis.py is the exact 2026-08-15 Jetson algorithm snapshot and owns raw-audio feature extraction
+  - pipeline.py validates base output and produces dj_structure_v2 without the legacy App
   - dj_structure_v2.py owns the behavior-compatible analysis algorithm
   - service.py owns validation and persistence orchestration
   - AnalysisRepository is the only persistence port

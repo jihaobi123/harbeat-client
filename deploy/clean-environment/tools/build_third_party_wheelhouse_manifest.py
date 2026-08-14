@@ -22,6 +22,7 @@ def main() -> int:
     parser.add_argument("--profile", required=True, choices=("rk3588", "jetson"))
     parser.add_argument("--wheelhouse", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--source")
     args = parser.parse_args()
 
     wheelhouse = args.wheelhouse.resolve()
@@ -37,7 +38,7 @@ def main() -> int:
     payload = {
         "schema_version": 1,
         "profile": args.profile,
-        "source": f"external://harbeat-device-backups/20260814/third-party-{args.profile}-locked",
+        "source": args.source or f"external://harbeat-device-backups/20260814/third-party-{args.profile}-locked",
         "artifacts": artifacts,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

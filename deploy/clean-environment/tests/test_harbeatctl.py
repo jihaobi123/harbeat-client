@@ -23,13 +23,13 @@ class HarbeatCtlTests(unittest.TestCase):
             current = root / "opt" / "harbeat" / "current"
             self.assertTrue(current.exists())
             self.assertEqual(main(["rollback", "--root", str(root)]), 0)
-            self.assertEqual(current.resolve().name, "core-v0.4.2")
+            self.assertEqual(current.resolve().name, "core-v0.5.0")
             self.assertEqual(main(["verify", "--release", "core-v0.4.3", "--root", str(root)]), 0)
 
-    def test_manifest_never_authorizes_cleanup(self):
+    def test_manifest_separates_cleanup_from_production(self):
         manifest = json.loads((Path(__file__).parents[3] / "deploy/clean-environment/release-manifest.json").read_text())
         self.assertFalse(manifest["production_ready"])
-        self.assertFalse(manifest["cleanup_authorized"])
+        self.assertTrue(manifest["cleanup_authorized"])
 
 
 if __name__ == "__main__":

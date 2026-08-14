@@ -1,12 +1,12 @@
 param(
-    [string]$Wheelhouse = "$env:TEMP\harbeat-wheelhouse-v030-final-20260814"
+    [string]$Wheelhouse = "$env:TEMP\harbeat-wheelhouse-v030-final-20260814",
+    [string]$Venv = "$env:TEMP\harbeat-wheel-install-v030-verify"
 )
 
 $ErrorActionPreference = "Stop"
-$venv = Join-Path $env:TEMP "harbeat-wheel-install-v030-verify"
-$python = Join-Path $venv "Scripts\python.exe"
+$python = Join-Path $Venv "Scripts\python.exe"
 if (-not (Test-Path $python)) {
-    py -m venv $venv
+    py -m venv $Venv
 }
 
 $wheels = @(Get-ChildItem $Wheelhouse -Filter "*.whl" | Select-Object -ExpandProperty FullName)
@@ -37,5 +37,8 @@ import harbeat_transition_planner
 import harbeat_transition_renderer
 print("12 wheel imports ok")
 '@
-& $python -c $code
+$code | & $python -
 if ($LASTEXITCODE -ne 0) { throw "Wheel import smoke test failed" }
+
+& $python -m pip check
+if ($LASTEXITCODE -ne 0) { throw "Wheel dependency check failed" }

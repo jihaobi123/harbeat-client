@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "release": "core-v0.5.0",
+  "result": "passed",
+  "raw_audio_analysis": {
+    "songs": 3,
+    "require_essentia": true,
+    "fallback": false,
+    "results": [
+      {"bpm": 107.0, "key": "D major", "camelot": "10B", "exit_candidates": 61, "entry_candidates": 31},
+      {"bpm": 95.4, "key": "D# minor", "camelot": "2A", "exit_candidates": 61, "entry_candidates": 31},
+      {"bpm": 110.9, "key": "C# minor", "camelot": "12A", "exit_candidates": 61, "entry_candidates": 28}
+    ]
+  },
+  "transition": {
+    "plan_runs": 20,
+    "plan_deterministic": true,
+    "plan_sha256": "c00aec826f9e9e46d2d52c2e7e78c2b4e3d1403dda5573e00d8fcd75ef363a0f",
+    "render_runs": 5,
+    "render_wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+    "render_output_deterministic": true,
+    "audio_feature_source": "dj_structure_precomputed_window_v2",
+    "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+    "fallback": false,
+    "degraded": false
+  },
+  "stem_separation": {
+    "source_duration_sec": 15,
+    "model": "htdemucs",
+    "explicit_model_repository": "/srv/harbeat-assets/models/demucs",
+    "model_sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4",
+    "complete_stems": 4
+  },
+  "jetson": {
+    "wheel_imports": "12/12",
+    "pip_check": "passed",
+    "cuda_available": true,
+    "cuda_device": "Orin",
+    "demucs": "4.0.1"
+  },
+  "rk3588": {
+    "wheel_imports": "12/12",
+    "pip_check": "passed",
+    "audio_device_count": 11,
+    "es8388_card_present": true,
+    "ffmpeg": "6.1",
+    "monotonic_clock": true
+  },
+  "preservation": {
+    "snapshot_files": 299,
+    "snapshot_bytes": 3914548,
+    "snapshot_manifest_sha256": "e9e7a43a0199e73b6777c6b041bf9c9f58833378b92e3005f5e40929d3a75f9e",
+    "secrets_migrated_to_root_only_clean_path": true
+  },
+  "deferred": [
+    "phone resource pipeline",
+    "hotspot retry and prewarm",
+    "full automatic/fast/energy/style product E2E"
+  ]
+}

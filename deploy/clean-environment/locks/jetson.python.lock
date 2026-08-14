@@ -1,6 +1,9 @@
 python==3.10
+essentia==2.1b6.dev0
 numpy==1.26.4
 librosa==0.10.2.post1
+pyloudnorm==0.2.0
+six==1.17.0
 soundfile==0.13.1
 scipy==1.15.3
 demucs==4.0.1

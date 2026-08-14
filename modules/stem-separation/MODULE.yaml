@@ -37,10 +37,11 @@ tests:
   - modules/stem-separation/tests/test_separator.py
   - modules/stem-separation/tests/test_cli.py
 public_commands:
-  - python -m harbeat_stem_separation AUDIO_PATH OUTPUT_ROOT
+  - python -m harbeat_stem_separation AUDIO_PATH OUTPUT_ROOT --model-repo /srv/harbeat-assets/models/demucs
 clean_architecture:
   - separator.py owns separation and verified atomic publication
   - runner.py owns the external Demucs process adapter
   - cli.py owns standalone input/output handling
+  - production CLI accepts an explicit offline model repository and does not require a user cache
 artifact_sha256: 701f8e0dd3333201ed0d26e8fe6528a4850d891d23648436508b503d6d67a66a
 rollback_artifact: git tag module/stem-separation/v0.1.0

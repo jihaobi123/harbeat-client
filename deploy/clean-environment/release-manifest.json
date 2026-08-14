@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "release": "core-v0.4.2",
+  "release": "core-v0.5.0",
   "module_baseline": "functional-modules/v0.2.0",
-  "core_baseline": "clean-core/v0.4.1",
+  "core_baseline": "clean-core/v0.5.0",
   "production_ready": false,
-  "cleanup_authorized": false,
+  "legacy_files_delete_authorized": true,
+  "cleanup_authorized": true,
   "core_transition_algorithm_accepted": true,
   "resource_pipeline_v2_required": true,
   "python_modules": [
@@ -36,7 +37,11 @@
     "real_rk_hardware_smoke",
     "core_transition_algorithm",
     "atomic_activate_rollback",
-    "legacy_runtime_isolation"
+    "legacy_runtime_isolation",
+    "raw_audio_analysis_from_originals",
+    "explicit_offline_demucs_four_stem",
+    "pre_delete_snapshot_sha256",
+    "root_only_secret_migration"
   ],
   "deferred_acceptance": [
     "mobile_jetson_rk_resource_pipeline_v2",
