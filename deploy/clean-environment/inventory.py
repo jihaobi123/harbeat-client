@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import platform
 import shutil
@@ -19,6 +20,27 @@ def command_output(command: list[str]) -> str | None:
     except (OSError, subprocess.SubprocessError):
         return None
     return result.stdout.strip() or None
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def executable_inventory(name: str, version_args: list[str]) -> dict | None:
+    executable = shutil.which(name)
+    if executable is None:
+        return None
+    path = Path(executable).resolve()
+    return {
+        "path": str(path),
+        "sha256": file_sha256(path),
+        "version": command_output([str(path), *version_args]),
+        "dpkg_owner": command_output(["dpkg-query", "-S", str(path)]),
+    }
 
 
 def local_inventory(root: Path) -> dict:
@@ -42,6 +64,10 @@ def local_inventory(root: Path) -> dict:
         ),
         "python_executable": command_output(["python3", "-c", "import sys; print(sys.executable)"]),
         "python_packages": command_output(["python3", "-m", "pip", "freeze", "--all"]),
+        "executables": {
+            "ffmpeg": executable_inventory("ffmpeg", ["-version"]),
+            "ffprobe": executable_inventory("ffprobe", ["-version"]),
+        },
         "cuda": command_output(["bash", "-lc", "command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=name,driver_version --format=csv,noheader || true"]),
         "jetson_release": command_output(["bash", "-lc", "test -r /etc/nv_tegra_release && cat /etc/nv_tegra_release || true"]),
         "audio_devices": command_output(["bash", "-lc", "command -v aplay >/dev/null && aplay -l || true"]),

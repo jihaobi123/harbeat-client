@@ -50,6 +50,8 @@ def tracked_files() -> list[Path]:
         "inventory-jetson.json",
         "evidence/r1-rk-inventory-current.json",
         "evidence/r1-jetson-inventory-current.json",
+        "evidence/r1-exact-system-package-locks-20260814.json",
+        "evidence/r1-recovery-bundles-20260814.json",
         "release-manifest.json",
         "service-manifest.json",
         "acceptance-report-v0.3.0.json",
@@ -75,6 +77,9 @@ def main() -> int:
     rk_profile = load_json(DEPLOY / "profiles" / "rk3588.json")
     jetson_profile = load_json(DEPLOY / "profiles" / "jetson.json")
     acceptance = load_json(DEPLOY / "acceptance-report-v0.3.0.json")
+    exact_locks = load_json(DEPLOY / "evidence" / "r1-exact-system-package-locks-20260814.json")
+    exact_lock_roles = exact_locks.get("roles", {})
+    recovery_bundles = load_json(DEPLOY / "evidence" / "r1-recovery-bundles-20260814.json")
     result = {
         "schema_version": 1,
         "audit": "r1-base-environment",
@@ -105,8 +110,27 @@ def main() -> int:
             "rk_python_imports": acceptance.get("passed", {}).get("rk_python_3_10_wheel_imports"),
             "jetson_python_imports": acceptance.get("passed", {}).get("jetson_python_3_10_wheel_imports"),
         },
+        "exact_system_package_locks": {
+            role: {
+                "complete": value.get("complete", False),
+                "missing": value.get("missing", []),
+                "resolved_executables": [
+                    {
+                        "name": item.get("name"),
+                        "path": item.get("path"),
+                        "sha256": item.get("sha256"),
+                    }
+                    for item in value.get("resolved_executables", [])
+                ],
+            }
+            for role, value in exact_lock_roles.items()
+        },
         "gates": {
             "tracked_manifests_complete": not missing,
+            "exact_system_package_locks_complete": bool(exact_lock_roles) and all(
+                value.get("complete", False) for value in exact_lock_roles.values()
+            ),
+            "external_recovery_bundles_verified": recovery_bundles.get("passed", False),
             "clean_deployment_scaffold_verified": acceptance.get("passed", {}).get("clean_root_bootstrap_stage_verify"),
             "base_image_built": False,
             "empty_device_restore": False,

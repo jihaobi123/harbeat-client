@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "audit": "r1-exact-system-package-locks",
+  "created_at": "2026-08-14T05:54:19.156803+00:00",
+  "roles": {
+    "rk3588": {
+      "role": "rk3588",
+      "inventory": "deploy\\clean-environment\\evidence\\r1-rk-inventory-current.json",
+      "requested": [
+        "ffmpeg",
+        "libsndfile1",
+        "python3",
+        "python3-venv",
+        "git",
+        "curl",
+        "systemd",
+        "alsa-utils",
+        "udev"
+      ],
+      "resolved": [
+        {
+          "package": "libsndfile1:arm64",
+          "version": "1.0.31-2ubuntu0.2",
+          "architecture": "arm64"
+        },
+        {
+          "package": "python3",
+          "version": "3.10.6-1~22.04.1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "python3-venv",
+          "version": "3.10.6-1~22.04.1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "git",
+          "version": "1:2.34.1-1ubuntu1.17",
+          "architecture": "arm64"
+        },
+        {
+          "package": "curl",
+          "version": "7.81.0-1ubuntu1.25",
+          "architecture": "arm64"
+        },
+        {
+          "package": "systemd",
+          "version": "249.11-0ubuntu3.21",
+          "architecture": "arm64"
+        },
+        {
+          "package": "alsa-utils",
+          "version": "1.2.6-1ubuntu1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "udev",
+          "version": "249.11-0ubuntu3.21",
+          "architecture": "arm64"
+        }
+      ],
+      "resolved_executables": [
+        {
+          "name": "ffmpeg",
+          "source": "device-executable",
+          "path": "/usr/bin/ffmpeg",
+          "sha256": "b364566aa0ae4912ac7a3f1a6ea0ed5eb34bf66eadf7001dbf968fff9fcbd64a",
+          "version": "ffmpeg version 6.1 Copyright (c) 2000-2023 the FFmpeg developers\nbuilt with gcc 11 (Ubuntu 11.4.0-1ubuntu1~22.04)\nconfiguration: --prefix=/usr --enable-gpl --enable-version3 --enable-libdrm --enable-rkmpp --enable-rkrga\nlibavutil      58. 29.100 / 58. 29.100\nlibavcodec     60. 31.102 / 60. 31.102\nlibavformat    60. 16.100 / 60. 16.100\nlibavdevice    60.  3.100 / 60.  3.100\nlibavfilter     9. 12.100 /  9. 12.100\nlibswscale      7.  5.100 /  7.  5.100\nlibswresample   4. 12.100 /  4. 12.100\nlibpostproc    57.  3.100 / 57.  3.100",
+          "dpkg_owner": null
+        }
+      ],
+      "missing": [],
+      "complete": true
+    },
+    "jetson": {
+      "role": "jetson",
+      "inventory": "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json",
+      "requested": [
+        "ffmpeg",
+        "libsndfile1",
+        "python3",
+        "python3-venv",
+        "git",
+        "curl",
+        "systemd",
+        "cuda-runtime",
+        "cudnn"
+      ],
+      "resolved": [
+        {
+          "package": "ffmpeg",
+          "version": "7:4.4.2-0ubuntu0.22.04.1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "libsndfile1:arm64",
+          "version": "1.0.31-2ubuntu0.2",
+          "architecture": "arm64"
+        },
+        {
+          "package": "python3",
+          "version": "3.10.6-1~22.04.1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "python3-venv",
+          "version": "3.10.6-1~22.04.1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "git",
+          "version": "1:2.34.1-1ubuntu1.17",
+          "architecture": "arm64"
+        },
+        {
+          "package": "curl",
+          "version": "7.81.0-1ubuntu1.23",
+          "architecture": "arm64"
+        },
+        {
+          "package": "systemd",
+          "version": "249.11-0ubuntu3.20",
+          "architecture": "arm64"
+        },
+        {
+          "package": "cuda-runtime-12-2",
+          "version": "12.2.12-1",
+          "architecture": "arm64"
+        },
+        {
+          "package": "libcudnn8",
+          "version": "8.9.4.25-1+cuda12.2",
+          "architecture": "arm64"
+        }
+      ],
+      "resolved_executables": [],
+      "missing": [],
+      "complete": true
+    }
+  },
+  "policy": "A missing baseline package blocks base-image acceptance; no fallback package is substituted."
+}

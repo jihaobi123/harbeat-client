@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "audit": "r1-external-recovery-bundles",
+  "created_at": "2026-08-14T06:02:21.899679+00:00",
+  "bundles": [
+    {
+      "role": "jetson",
+      "archive_uri": "external://harbeat-device-backups/20260814/accepted/jetson-recovery-20260814T060027Z.tar.gz",
+      "size_bytes": 43114694,
+      "sha256": "9be64b92b60211a3ecc4cc960be7c7d8377634263db74029be42a0bae3de71c8",
+      "manifest_sha256": "9be64b92b60211a3ecc4cc960be7c7d8377634263db74029be42a0bae3de71c8",
+      "sha256_matches": true,
+      "entry_count": 354,
+      "forbidden_entries": [],
+      "readable": true,
+      "remote_mutation": false
+    },
+    {
+      "role": "rk3588",
+      "archive_uri": "external://harbeat-device-backups/20260814/accepted/rk3588-recovery-20260814T060004Z.tar.gz",
+      "size_bytes": 83431528,
+      "sha256": "b1906850b3c569276c4ba25a6f3c7c4d2bd19be3ab7e5f680a53b44fad5bcd66",
+      "manifest_sha256": "b1906850b3c569276c4ba25a6f3c7c4d2bd19be3ab7e5f680a53b44fad5bcd66",
+      "sha256_matches": true,
+      "entry_count": 349,
+      "forbidden_entries": [],
+      "readable": true,
+      "remote_mutation": false
+    }
+  ],
+  "passed": true,
+  "whole_disk_image_created": false,
+  "empty_device_restore_tested": false,
+  "cleanup_authorized": false
+}

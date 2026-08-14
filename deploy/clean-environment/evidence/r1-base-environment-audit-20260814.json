@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "audit": "r1-base-environment",
-  "created_at": "2026-08-14T05:42:59.109582+00:00",
-  "source_commit": "7d49ccd42400c1e2fcc152195aa3d5aa4eac8035",
+  "created_at": "2026-08-14T06:02:22.026361+00:00",
+  "source_commit": "b3eaacf7950a8c7e0c14658eea14fc27de6f6f5e",
   "host": {
     "platform": "Windows-11-10.0.26200-SP0",
     "python": "3.13.7"
@@ -18,8 +18,10 @@
     "deploy\\clean-environment\\locks\\build-tools.lock": "e2686d8fe2992d06db8cc9615afdc31e557d2dde26499c4e5188bbd2a8d0a4be",
     "deploy\\clean-environment\\inventory-rk.json": "e13aeaa7517a78b530d95694c4a40eb854e9e39f0d2f1bdabab56d9e6e67e985",
     "deploy\\clean-environment\\inventory-jetson.json": "83c9b9f6fb8c8dd81a0cec169732f5225101290858b32bb899079520e3e5c49b",
-    "deploy\\clean-environment\\evidence\\r1-rk-inventory-current.json": "1faf101d38b85ccd3b9dc7e3696e70336df4173f8b26bfbe45def1d12d0a52b9",
-    "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json": "131db2733b6a80ecc0022521253bdf1ab74c2b708156e06bfec4bda54f86c3f5",
+    "deploy\\clean-environment\\evidence\\r1-rk-inventory-current.json": "2c69db4e5cdb594c5f23479977883802fadbd128c4b787e4507b76db82f3e34c",
+    "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json": "094d6684ea81f4e53cf62304c842f0e52779f71a2c671af6d3b40d437a84eeb2",
+    "deploy\\clean-environment\\evidence\\r1-exact-system-package-locks-20260814.json": "415c117fc4734053b41d75900dbb1c5d1bb4607e04f1569381eb56bc9dc02efe",
+    "deploy\\clean-environment\\evidence\\r1-recovery-bundles-20260814.json": "2b0628b34ee0bf1d7223c6385c2fa8d153dbf3130fe7e3e712a84ce4c88273d1",
     "deploy\\clean-environment\\release-manifest.json": "a15173f03806ee71f213e5f01959c2f2df41ea2eba98ff30af0c49c18a6995fb",
     "deploy\\clean-environment\\service-manifest.json": "ef6ff3bdc73877fc09d160da7051fd3945fedd8a66f02804df8848eee9cf9f29",
     "deploy\\clean-environment\\acceptance-report-v0.3.0.json": "8588e0c8f3c7c55a37713723c907fabf566a061033a0ea3f4480d9414cd9b323"
@@ -67,8 +69,28 @@
     "rk_python_imports": "12/12",
     "jetson_python_imports": "12/12"
   },
+  "exact_system_package_locks": {
+    "rk3588": {
+      "complete": true,
+      "missing": [],
+      "resolved_executables": [
+        {
+          "name": "ffmpeg",
+          "path": "/usr/bin/ffmpeg",
+          "sha256": "b364566aa0ae4912ac7a3f1a6ea0ed5eb34bf66eadf7001dbf968fff9fcbd64a"
+        }
+      ]
+    },
+    "jetson": {
+      "complete": true,
+      "missing": [],
+      "resolved_executables": []
+    }
+  },
   "gates": {
     "tracked_manifests_complete": true,
+    "exact_system_package_locks_complete": true,
+    "external_recovery_bundles_verified": true,
     "clean_deployment_scaffold_verified": true,
     "base_image_built": false,
     "empty_device_restore": false,
