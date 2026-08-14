@@ -116,3 +116,11 @@ def test_executor_fails_explicitly_when_no_target_is_available():
     assert result["status"] == "failed"
     assert result["error"]["stage"] == "source_snapshot"
     assert result["error"]["code"] == "target_song_unavailable"
+
+
+def test_executor_keeps_a_cancelled_operation_cancelled():
+    store = Store(operation())
+    store.operation["status"] = "cancelled"
+    store.operation["stage"] = "cancelled"
+    result = TransitionOperationExecutor(store, Ports(), poll_interval_sec=0.0).execute("operation-1234")
+    assert result["status"] == "cancelled"

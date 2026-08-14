@@ -183,6 +183,23 @@ class RkAdapterTests(unittest.TestCase):
             cancelled = second_client.delete(f"/v1/transition-operations/{operation_id}")
             self.assertEqual(cancelled.json()["status"], "cancelled")
 
+    def test_operation_store_rejects_a_second_active_request_for_the_same_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = JsonOperationStore(Path(directory) / "operations.json")
+            store.create_or_reuse({
+                "device_id": "rk3588-01",
+                "session_id": "set-12345678",
+                "intent": "fast",
+                "request_id": "request-12345678",
+            })
+            with self.assertRaisesRegex(Exception, "operation_in_progress"):
+                store.create_or_reuse({
+                    "device_id": "rk3588-01",
+                    "session_id": "set-12345678",
+                    "intent": "fast",
+                    "request_id": "request-87654321",
+                })
+
     def test_operation_executor_uses_one_plan_render_sync_and_schedule_chain(self):
         class Response:
             def __init__(self, payload):

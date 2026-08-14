@@ -39,6 +39,15 @@ class JsonOperationStore:
                 if existing.get("request_hash") != request_hash:
                     raise OrchestrationValidationError("request_id_conflict")
                 return public_operation(existing), True
+            for existing in payload["operations"].values():
+                if (
+                    existing.get("status") == "active"
+                    and existing.get("device_id") == normalized["device_id"]
+                    and existing.get("session_id") == normalized["session_id"]
+                ):
+                    raise OrchestrationValidationError(
+                        "operation_in_progress", existing.get("operation_id")
+                    )
             operation = new_operation(
                 normalized,
                 operation_id=str(uuid.uuid4()),

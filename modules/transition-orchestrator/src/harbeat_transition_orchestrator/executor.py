@@ -102,6 +102,9 @@ class TransitionOperationExecutor:
             self.store.advance(operation_id, "scheduled", scheduled)
             return self._monitor(operation_id, target_song_id)
         except OperationExecutionError as exc:
+            current = self.store.get(operation_id)
+            if current is not None and current.get("status") != "active":
+                return current
             return self.store.fail(
                 operation_id,
                 failed_stage=exc.stage,
