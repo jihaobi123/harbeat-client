@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "release": "core-v0.5.0",
+  "result": "passed",
+  "legacy_cleanup": {
+    "jetson_source_present": false,
+    "jetson_venv_present": false,
+    "jetson_legacy_units": 0,
+    "rk_source_present": false,
+    "rk_venv_present": false,
+    "rk_legacy_units": 0,
+    "old_release_present": false,
+    "forbidden_text_references": 0
+  },
+  "installed_release": {
+    "jetson_current": "/opt/harbeat/releases/core-v0.5.0",
+    "rk_current": "/opt/harbeat/releases/core-v0.5.0",
+    "wheel_imports": "12/12",
+    "pip_check": "passed"
+  },
+  "raw_audio_analysis": {
+    "elapsed_sec": 78.342,
+    "bpm": 107.0,
+    "key": "D major",
+    "camelot": "10B",
+    "key_engine": "essentia",
+    "beat_engine": "essentia_rhythmextractor2013",
+    "fallback": false,
+    "exit_candidates": 61,
+    "entry_candidates": 31,
+    "structure_version": "dj_structure_v2"
+  },
+  "transition": {
+    "plan_runs": 20,
+    "plan_deterministic": true,
+    "render_runs": 5,
+    "render_output_deterministic": true,
+    "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+    "standalone_cold_render_sec": 3.693,
+    "audio_feature_source": "dj_structure_precomputed_window_v2",
+    "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+    "fallback": false,
+    "degraded": false
+  },
+  "stem_separation": {
+    "source_duration_sec": 15,
+    "model": "htdemucs",
+    "explicit_model_repository": true,
+    "complete_stems": 4
+  },
+  "hardware": {
+    "jetson_cuda": "Orin",
+    "jetson_nas_mounted": true,
+    "jetson_root_usage": "63%",
+    "rk_audio_devices": 11,
+    "rk_es8388": true,
+    "rk_audio_restore_active": true,
+    "rk_root_usage": "55%"
+  },
+  "production_ready": false,
+  "reason_not_production_ready": "phone and weak-hotspot resource pipeline is deferred to the new backend"
+}
+
