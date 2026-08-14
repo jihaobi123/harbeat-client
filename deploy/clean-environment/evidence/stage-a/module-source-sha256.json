@@ -1,0 +1,1488 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-14T15:48:21.357411+00:00",
+  "root": "D:\\work\\harbeat-clean-core-v0.4\\modules",
+  "excluded_names": [
+    "__pycache__"
+  ],
+  "file_count": 246,
+  "total_size_bytes": 881620,
+  "assets": [
+    {
+      "relative_path": "BASELINE-v0.1.0.json",
+      "size_bytes": 2552,
+      "mtime_ns": 1786685610361626000,
+      "sha256": "baddba7e919d0df9b88048b205c4d96c91c624cb6df20668d55892b299658f89"
+    },
+    {
+      "relative_path": "BASELINE-v0.2.0.json",
+      "size_bytes": 3148,
+      "mtime_ns": 1786685610362749900,
+      "sha256": "ae7a1ef807d1aad78196c7f8df234d8002b06b42533f6a4eb2698bc5a303da37"
+    },
+    {
+      "relative_path": "README.md",
+      "size_bytes": 4687,
+      "mtime_ns": 1786685610363282900,
+      "sha256": "42bd1aa2c285b59fd176b80376023a883f0fd8770cce815c1eaa11981ae74eb6"
+    },
+    {
+      "relative_path": "REGISTRY.md",
+      "size_bytes": 4062,
+      "mtime_ns": 1786685610364389100,
+      "sha256": "c3f1f9667f86adb407419a7d9383116e279947bfbf71626f45a93aff039e3c5e"
+    },
+    {
+      "relative_path": "asset-sync/MODULE.yaml",
+      "size_bytes": 1544,
+      "mtime_ns": 1786685610365684700,
+      "sha256": "69e21afe0a25aeb7516b8088aebf69e67aecbc55acfd1687814c0784edc21604"
+    },
+    {
+      "relative_path": "asset-sync/README.md",
+      "size_bytes": 974,
+      "mtime_ns": 1786685610366631900,
+      "sha256": "167511904ee8916dca79b66fd039d16f6779ecd4bd273032ed48a1bb1e1808c0"
+    },
+    {
+      "relative_path": "asset-sync/pyproject.toml",
+      "size_bytes": 401,
+      "mtime_ns": 1786685610369373100,
+      "sha256": "758110b30652268609dfebd0236b3972bf38e61eda38e3c20ee6c7be207ac8a8"
+    },
+    {
+      "relative_path": "asset-sync/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786685843055269500,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "asset-sync/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786685843055269500,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "asset-sync/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786685843055269500,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "asset-sync/deploy/clean-v0.2.0.json",
+      "size_bytes": 585,
+      "mtime_ns": 1786685610367726300,
+      "sha256": "ceaf860483f3d0f9616bf471085938db340fbe4274eb3c3e09936fbc62ec6567"
+    },
+    {
+      "relative_path": "asset-sync/deploy/provenance-20260813.json",
+      "size_bytes": 1210,
+      "mtime_ns": 1786685610368831500,
+      "sha256": "e797fa24a718dcc116f920599fe9529df5be3e38b6537dfecee480fd6ca3d907"
+    },
+    {
+      "relative_path": "asset-sync/src/harbeat_asset_sync/__init__.py",
+      "size_bytes": 292,
+      "mtime_ns": 1786685610369373100,
+      "sha256": "766a81bbb68c3cae541297a64d09e37a73cb261663f601610844ebcd8f464d89"
+    },
+    {
+      "relative_path": "asset-sync/src/harbeat_asset_sync/core.py",
+      "size_bytes": 3553,
+      "mtime_ns": 1786685610371135000,
+      "sha256": "e126947cc9fe48d276bb63e69798496d969f632dd16d86d8fc903e634e544275"
+    },
+    {
+      "relative_path": "asset-sync/src/harbeat_asset_sync/sync_worker.py",
+      "size_bytes": 28811,
+      "mtime_ns": 1786685610372637400,
+      "sha256": "421a6ee5b140fa29cd78c38efd032440572f73869cdfdeb34c40b57687b026fb"
+    },
+    {
+      "relative_path": "asset-sync/tests/test_asset_sync.py",
+      "size_bytes": 5519,
+      "mtime_ns": 1786685610372637400,
+      "sha256": "e6213036a802f68b489f1c29e520012040b4373a908da45bcfb3a61991e796a8"
+    },
+    {
+      "relative_path": "asset-sync/tests/test_core.py",
+      "size_bytes": 1306,
+      "mtime_ns": 1786685610372637400,
+      "sha256": "4157ceece4965888b6b4e3f05ff7dc19ecfbbd7bb56fa27c78409971e3e331da"
+    },
+    {
+      "relative_path": "audio-preprocess/MODULE.yaml",
+      "size_bytes": 1763,
+      "mtime_ns": 1786685610372637400,
+      "sha256": "6b2d9d538b0728cbe32da417fd457852007d3e81136d031b934183397479caf0"
+    },
+    {
+      "relative_path": "audio-preprocess/README.md",
+      "size_bytes": 1980,
+      "mtime_ns": 1786685610377239100,
+      "sha256": "017dd8e1545a77e873e54a84091868fa6f76be4d33300a7c95f99d572af8319c"
+    },
+    {
+      "relative_path": "audio-preprocess/pyproject.toml",
+      "size_bytes": 393,
+      "mtime_ns": 1786685610380482000,
+      "sha256": "dc3beafea6fe15dec168e4268a1fd6e4e1afded324c6146cd549437f4a604ef0"
+    },
+    {
+      "relative_path": "audio-preprocess/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687412695786600,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "audio-preprocess/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687412695786600,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "audio-preprocess/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687412694054200,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "audio-preprocess/contracts/dj-structure-v2.schema.json",
+      "size_bytes": 1517,
+      "mtime_ns": 1786685610378246400,
+      "sha256": "c94766068c8b7c7ed852c024b7bd5693520a638bd8a41f0c49adfa80fd27dc35"
+    },
+    {
+      "relative_path": "audio-preprocess/deploy/clean-v0.2.0.json",
+      "size_bytes": 603,
+      "mtime_ns": 1786685610378645500,
+      "sha256": "b1f0d59d1d95fa10f6151314cf03cd8e6646945150252c956a19fa1e0c814c98"
+    },
+    {
+      "relative_path": "audio-preprocess/deploy/provenance-20260813.json",
+      "size_bytes": 1102,
+      "mtime_ns": 1786685610379977000,
+      "sha256": "3378cefe17ea438b2b4c2fcb9f4bafa08e82e9f287f03c3a1833c669002dc4c1"
+    },
+    {
+      "relative_path": "audio-preprocess/src/harbeat_audio_preprocess/__init__.py",
+      "size_bytes": 624,
+      "mtime_ns": 1786685610381537500,
+      "sha256": "14f33142e82c08ca7aa4ed1c837cf776fbda1f4fbf341bf8f6689ce34c3a7e95"
+    },
+    {
+      "relative_path": "audio-preprocess/src/harbeat_audio_preprocess/coverage.py",
+      "size_bytes": 1010,
+      "mtime_ns": 1786685610382615000,
+      "sha256": "bba50b48b3629ac757f64d47b89aa19d88684f3077a89ef9e3fe86a06f0a0eb2"
+    },
+    {
+      "relative_path": "audio-preprocess/src/harbeat_audio_preprocess/dj_structure_v2.py",
+      "size_bytes": 19985,
+      "mtime_ns": 1786685610383828300,
+      "sha256": "0181d4fa4a16772fcfb281c99f10c43a65b61cf291e3bee396c11028ad0d21b7"
+    },
+    {
+      "relative_path": "audio-preprocess/src/harbeat_audio_preprocess/service.py",
+      "size_bytes": 1474,
+      "mtime_ns": 1786685610384680600,
+      "sha256": "d26113ec8e945c49c301b8db47c2928fc4e1652cd175cfbbb89eb68ba86414c0"
+    },
+    {
+      "relative_path": "audio-preprocess/src/harbeat_audio_preprocess/version_gate.py",
+      "size_bytes": 1573,
+      "mtime_ns": 1786685610385542300,
+      "sha256": "ca3bcd7562a1a315bae16d61bf95c3997cdf3151b40f683858560ed07866f8d8"
+    },
+    {
+      "relative_path": "audio-preprocess/tests/test_coverage.py",
+      "size_bytes": 970,
+      "mtime_ns": 1786685610386608500,
+      "sha256": "d8672a82ea3777d90f4e8dacdc91ec2091e77dc4fdd73353b38f5e826ef1fc20"
+    },
+    {
+      "relative_path": "audio-preprocess/tests/test_service.py",
+      "size_bytes": 1728,
+      "mtime_ns": 1786685610387139100,
+      "sha256": "b97cc1d619c7176565fe47de132707b6f1c0b8d9dd9b06e3950537264d6e533b"
+    },
+    {
+      "relative_path": "audio-preprocess/tests/test_structure.py",
+      "size_bytes": 1121,
+      "mtime_ns": 1786685610388214400,
+      "sha256": "d329b51e5ddbe4d3b5f741346a6b420cbf890482bdb956563ee05adeb644fa05"
+    },
+    {
+      "relative_path": "audio-preprocess/tests/test_version_gate.py",
+      "size_bytes": 757,
+      "mtime_ns": 1786685610388746300,
+      "sha256": "dd7cc45f33181e8561ee12eb43f5072ea31fb3b9a6a9efefebeb1cc74f194eb5"
+    },
+    {
+      "relative_path": "audio-runtime/MODULE.yaml",
+      "size_bytes": 2534,
+      "mtime_ns": 1786685610389846900,
+      "sha256": "b05c2a8f8c0d48ef6a16cf270db7ab66eb718a35c913a9964b8625bcdf63bb7d"
+    },
+    {
+      "relative_path": "audio-runtime/README.md",
+      "size_bytes": 1261,
+      "mtime_ns": 1786685610391336100,
+      "sha256": "2d1fba603d549bb1d8fd4e384242e8c328f3fecfea2bc4c113203c0415dbf0fc"
+    },
+    {
+      "relative_path": "audio-runtime/pyproject.toml",
+      "size_bytes": 437,
+      "mtime_ns": 1786685610394753100,
+      "sha256": "f3e91ea6941d31f545777381fb64814a0e89c7c9576fd643495f32abddc878a3"
+    },
+    {
+      "relative_path": "audio-runtime/requirements.txt",
+      "size_bytes": 67,
+      "mtime_ns": 1786685610394753100,
+      "sha256": "848402b1fa3bf3dfd09f07a31fe3aadb19084dd3c65d5928619db60f6d0e89d5"
+    },
+    {
+      "relative_path": "audio-runtime/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786685844612888900,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "audio-runtime/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786685844612888900,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "audio-runtime/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786685844612888900,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "audio-runtime/deploy/clean-v0.2.0.json",
+      "size_bytes": 669,
+      "mtime_ns": 1786685610392976600,
+      "sha256": "a29e3ca5538a22bd1bf5176a564b1d1e6d7cd6f10b6b442eca25bdfc5ac7ec44"
+    },
+    {
+      "relative_path": "audio-runtime/deploy/provenance-20260813.json",
+      "size_bytes": 2278,
+      "mtime_ns": 1786685610394048500,
+      "sha256": "5cf68128b22547d84abe458dc3b441fe25b665899e94d149ceec75a6cbf36403"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/__init__.py",
+      "size_bytes": 729,
+      "mtime_ns": 1786685610395934300,
+      "sha256": "9f64fd722ab3fd55557e8d85e5d2096515c8d43b48dcb9ddb055db6d7d165b08"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/config.py",
+      "size_bytes": 2817,
+      "mtime_ns": 1786685610397055000,
+      "sha256": "298c3438645500119f5c2322a032671a2c1ffe9e928c425103e416e54b35048f"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/default_render_contract.py",
+      "size_bytes": 2928,
+      "mtime_ns": 1786685610397856700,
+      "sha256": "4a13ebcd39a5e22ddd628d5d5b5b7b5b3e2cf33cc037aab051dc65eb41ef1188"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/dsp.py",
+      "size_bytes": 5824,
+      "mtime_ns": 1786685610398641200,
+      "sha256": "ffe7dfcb0176f64c92f424b55bca47e52735232d02fed28d6ce90a0affc847c2"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/engine.py",
+      "size_bytes": 150980,
+      "mtime_ns": 1786685610400816900,
+      "sha256": "92dfb8899d63862b284430a4edd7bf2b30de0d0ab2a2fbfb1d80647c76cf5cb0"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/envelope_runner.py",
+      "size_bytes": 4587,
+      "mtime_ns": 1786685610401372500,
+      "sha256": "8d2249bfdac2e3481e05a0c7d135c5d93fb83631ce23fe52c372c0ae63c200a9"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/filter_node.py",
+      "size_bytes": 4091,
+      "mtime_ns": 1786685610403034300,
+      "sha256": "cf20100dbb40c4d7aeb517962e778be0fda2d2d23156f2b95fa92150e92318e9"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/loudness_normalizer.py",
+      "size_bytes": 1721,
+      "mtime_ns": 1786685610403729300,
+      "sha256": "99b083c7e9ae7d362afc8771fb31a3e61e899c2978964571f4352301d002e050"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/main.py",
+      "size_bytes": 1774,
+      "mtime_ns": 1786685610404310100,
+      "sha256": "33eaabf9c08427bfc743f3b6374a1052e9f92b94c582978fc01e03aa753b150f"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/mix_plan.py",
+      "size_bytes": 7861,
+      "mtime_ns": 1786685610404817900,
+      "sha256": "f5887537b4d69b23e616c8f67ac6e9625dd2831d177406e712928e36b28d43fe"
+    },
+    {
+      "relative_path": "audio-runtime/src/harbeat_audio_runtime/socket_server.py",
+      "size_bytes": 10423,
+      "mtime_ns": 1786685610404817900,
+      "sha256": "841f54875e4deecf4c154a5430c49de2ede0f88f17507d7c82f45a532b19e561"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_default_render_contract.py",
+      "size_bytes": 1169,
+      "mtime_ns": 1786685610406968900,
+      "sha256": "d0154afbb4acc5dfdbac257432ddbb3436ec3b905013b780488082a603ef5b29"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_engine_envelopes.py",
+      "size_bytes": 12811,
+      "mtime_ns": 1786685610408037000,
+      "sha256": "412e4a5d9e86daf9d30d2b711d3bdf8d22aa16831b3d85f3020f4bc905b5c7fb"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_eq_band_mix_envelope.py",
+      "size_bytes": 897,
+      "mtime_ns": 1786685610409005500,
+      "sha256": "d8224e75edbcecf024b3da02567496ca7d75c1f980a01c3b82615c2e1555678e"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_filter_node.py",
+      "size_bytes": 788,
+      "mtime_ns": 1786685610409495600,
+      "sha256": "953bebec27d038bd27c32644296170d94441d75518c9d9734483e12b330eb3ca"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_loudness_normalizer.py",
+      "size_bytes": 567,
+      "mtime_ns": 1786685610410132100,
+      "sha256": "c91b8421202f800158dcf85d36ba9e3480cc559d373917e82a2c7a39a42141d1"
+    },
+    {
+      "relative_path": "audio-runtime/tests/test_socket_contract.py",
+      "size_bytes": 2397,
+      "mtime_ns": 1786685610410679200,
+      "sha256": "ab4fc4c6cbd2f42119449cfc231169203a181f1fb530bdbce3cdc6ae4ffc3bfb"
+    },
+    {
+      "relative_path": "device-runtime/MODULE.yaml",
+      "size_bytes": 1685,
+      "mtime_ns": 1786685610412308000,
+      "sha256": "4fe82ebd6bbc7efec0fa7cb045cabe4e9c75f2ca440621e8c0290f4a934fa99c"
+    },
+    {
+      "relative_path": "device-runtime/README.md",
+      "size_bytes": 2081,
+      "mtime_ns": 1786685610412844400,
+      "sha256": "212e43d61dbdf105d394c8a4dcaacef847c1025c88bcb32d561955e89038c943"
+    },
+    {
+      "relative_path": "device-runtime/pyproject.toml",
+      "size_bytes": 354,
+      "mtime_ns": 1786685610418481000,
+      "sha256": "91dda9195a280d645896f30efe25e926fd7e97cbdb2ee125a26e354bafe1fda4"
+    },
+    {
+      "relative_path": "device-runtime/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687414319786000,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "device-runtime/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687414319786000,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "device-runtime/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687414319786000,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "device-runtime/contracts/device-runtime.schema.json",
+      "size_bytes": 1809,
+      "mtime_ns": 1786685610414131200,
+      "sha256": "3df65ebbfbebe43f4b543cd5c45ae61275c3865cbd28f489f12b4cc6dd32f8f8"
+    },
+    {
+      "relative_path": "device-runtime/deploy/MIGRATION.md",
+      "size_bytes": 879,
+      "mtime_ns": 1786685610415149400,
+      "sha256": "df78cbf775642fee06bc4d2a17642b37227a5d6f83fcf850ab4643f91a5535e5"
+    },
+    {
+      "relative_path": "device-runtime/deploy/clean-v0.2.0.json",
+      "size_bytes": 559,
+      "mtime_ns": 1786685610416835300,
+      "sha256": "6e1c303d4691019b2773016997afeca8ce3b4ccfe43f7bdd69610d24f650ca3b"
+    },
+    {
+      "relative_path": "device-runtime/deploy/compatibility-report-20260813.json",
+      "size_bytes": 1054,
+      "mtime_ns": 1786685610417939900,
+      "sha256": "2c48df11e0f30ba3b8c538547019de581a68396f4f6a4b343af7a34fba14be4c"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/__init__.py",
+      "size_bytes": 982,
+      "mtime_ns": 1786685610419673200,
+      "sha256": "b4e0745b8f5770cfcb7c29fd31d9dfb9fdc38a49888963ed75e59ba50ec4ffb4"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/cli.py",
+      "size_bytes": 1014,
+      "mtime_ns": 1786685610420680200,
+      "sha256": "a2cb972a86b78eab07dc408aa1167b9194526e71ef86332e1cb4ba2d22959467"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/connection.py",
+      "size_bytes": 6000,
+      "mtime_ns": 1786685610421041200,
+      "sha256": "6661f1066e8200b6044397b353ec4b5628cbdae8824c856ebe131304de73aa47"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/endpoint.py",
+      "size_bytes": 1893,
+      "mtime_ns": 1786685610422590300,
+      "sha256": "d483d098c790e573cb9d63a185a494b8dc93bbb935be9365c30b9f53afb700df"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/migration.py",
+      "size_bytes": 708,
+      "mtime_ns": 1786685610422590300,
+      "sha256": "b894314de8acd267a7dbb85b995fd76021b6a7f36f5b484acc88aa61d062d886"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/operation.py",
+      "size_bytes": 1719,
+      "mtime_ns": 1786685610423546200,
+      "sha256": "3ce69adeba2034066fba4b45a4968472c2598e3166c170f08ac317094d0bded2"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/probe.py",
+      "size_bytes": 2648,
+      "mtime_ns": 1786685610423546200,
+      "sha256": "a11d5cac65ef2e4839a8403acb8a0d493bce0462796e24c904f2a46fa1aae7f0"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/session.py",
+      "size_bytes": 840,
+      "mtime_ns": 1786685610425750500,
+      "sha256": "c3d69bc0e9393c474a5ad81bf12739a16f8916989b5217d755df1758443e2f57"
+    },
+    {
+      "relative_path": "device-runtime/src/harbeat_device_runtime/state.py",
+      "size_bytes": 3560,
+      "mtime_ns": 1786685610426759600,
+      "sha256": "465833ea72ae8027f63ae5de9668356519c611f1ed4ac3d8205bf390acce0207"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_connection.py",
+      "size_bytes": 3231,
+      "mtime_ns": 1786685610430071500,
+      "sha256": "8acd5d093ed081d86fa4cf458ee4f834adb94f3d50ab94ca5920d5348d78f079"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_endpoint.py",
+      "size_bytes": 792,
+      "mtime_ns": 1786685610430611400,
+      "sha256": "0418b104c50fe371660169da6bf3bcd955df3d1e502644d9b408eb22743fae09"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_operation.py",
+      "size_bytes": 799,
+      "mtime_ns": 1786685610430611400,
+      "sha256": "97ccbb29e942829df3e6fd6029e15bfabdb59ebf4a5b6e945d918e20319bae19"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_probe.py",
+      "size_bytes": 1450,
+      "mtime_ns": 1786685610431765400,
+      "sha256": "8c240b825288757010267211ab8f70544b0cb6f4f1651907678e1a350ac72b33"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_reconnect.py",
+      "size_bytes": 932,
+      "mtime_ns": 1786685610432773900,
+      "sha256": "76bffe67ebc29366544b36d21a6f7a00ce9ab643a48ffa0d560d87233f9ad635"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_session.py",
+      "size_bytes": 1112,
+      "mtime_ns": 1786685610433131500,
+      "sha256": "f7eb183b287d599286e25a4ab9ee2770b631aecdbdccdde3ce94a9c85c6d9207"
+    },
+    {
+      "relative_path": "device-runtime/tests/test_state.py",
+      "size_bytes": 2051,
+      "mtime_ns": 1786685610434473600,
+      "sha256": "a0c3d3894fb2384e4814c345a921ea99276c211acbe4c37affa3694401f9c74d"
+    },
+    {
+      "relative_path": "device-runtime/tests/fixtures/rk_health.json",
+      "size_bytes": 276,
+      "mtime_ns": 1786685610427772200,
+      "sha256": "c0f75156bc8318baba8fbc4ba7d6837067c8cacb8c1c8fbeaaae770e5e4d69ab"
+    },
+    {
+      "relative_path": "device-runtime/tests/fixtures/rk_state.json",
+      "size_bytes": 370,
+      "mtime_ns": 1786685610427772200,
+      "sha256": "867439d2a0c0fc2a32b9f9a6277016e374495c27ad4cf700a3eb6f149eafd9a8"
+    },
+    {
+      "relative_path": "library-catalog/MODULE.yaml",
+      "size_bytes": 1800,
+      "mtime_ns": 1786685610435016600,
+      "sha256": "812a5a1e8a13e848b568acf02b84a64efb633444c01377a17f22fdc1045742cc"
+    },
+    {
+      "relative_path": "library-catalog/README.md",
+      "size_bytes": 1855,
+      "mtime_ns": 1786685610435016600,
+      "sha256": "9c06c5827cfa90429640984aa03402a3d26055bae6d6f4cd4b79bd63aefca6c5"
+    },
+    {
+      "relative_path": "library-catalog/pyproject.toml",
+      "size_bytes": 348,
+      "mtime_ns": 1786685610439972700,
+      "sha256": "bca5077e4c751d73a772d94d755cff2e3120cd125a368dd1244365d330d41a70"
+    },
+    {
+      "relative_path": "library-catalog/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687414822749400,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "library-catalog/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687414822749400,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "library-catalog/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687414822749400,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "library-catalog/contracts/library-catalog.schema.json",
+      "size_bytes": 1429,
+      "mtime_ns": 1786685610437865000,
+      "sha256": "b95fd2137025eb7889a436de1ebb819da471d0ef512e2e8522992eb2c2f35ede"
+    },
+    {
+      "relative_path": "library-catalog/deploy/clean-v0.2.0.json",
+      "size_bytes": 592,
+      "mtime_ns": 1786685610439305900,
+      "sha256": "da562560e26e7cb6e228d642ee1f9a78cfb0f73fc03c0b176e79a84aa5917968"
+    },
+    {
+      "relative_path": "library-catalog/deploy/compatibility-report-20260813.json",
+      "size_bytes": 1047,
+      "mtime_ns": 1786685610439972700,
+      "sha256": "e2cd63ebca7c9f741e79d882fa9502219c67d760514234ea3e6bac5e9822aa81"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/__init__.py",
+      "size_bytes": 641,
+      "mtime_ns": 1786685610439972700,
+      "sha256": "2e32698ba6b6aa1f775f3b3ff9be9bf89820404c33123430bebd3f7f9aee12fa"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/catalog.py",
+      "size_bytes": 1658,
+      "mtime_ns": 1786685610439972700,
+      "sha256": "db80e273b24614b1209157ccb41d18f91d81b19dbb49369b3374d8f512e67ec3"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/identity.py",
+      "size_bytes": 613,
+      "mtime_ns": 1786685610443894900,
+      "sha256": "0f679980be6c0feb754cac2ea4bf1acbbc01433ec334ba0dd8ee04621981667d"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/manifest.py",
+      "size_bytes": 2638,
+      "mtime_ns": 1786685610444902400,
+      "sha256": "be049ad178c3ff93a44bc15c7f153f277356b172b71a16e62e7be84cf50d0b34"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/models.py",
+      "size_bytes": 2588,
+      "mtime_ns": 1786685610445347000,
+      "sha256": "db3d0cd9096831f0c7efd884ef0ee8e16606c5bdd3646aa9a37f567f5b034d04"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/ports.py",
+      "size_bytes": 338,
+      "mtime_ns": 1786685610445347000,
+      "sha256": "ec73e09719b2c93e5ace3f57248930347e6cab866aec5e21a2b96f87f81c03e4"
+    },
+    {
+      "relative_path": "library-catalog/src/harbeat_library_catalog/service.py",
+      "size_bytes": 1167,
+      "mtime_ns": 1786685610445347000,
+      "sha256": "c4efa23cee7b795c491969484f474a743ad15b93bf190e27d038cbffe65a2141"
+    },
+    {
+      "relative_path": "library-catalog/tests/test_catalog.py",
+      "size_bytes": 1632,
+      "mtime_ns": 1786685610450969900,
+      "sha256": "c295b3cc77bc3de61ed611368cef2c215bbf8b82b668f9448c626ea0b0bfb032"
+    },
+    {
+      "relative_path": "library-catalog/tests/test_identity.py",
+      "size_bytes": 575,
+      "mtime_ns": 1786685610451367900,
+      "sha256": "49b4547a8f08629a50f072d32d4d3c1d962329cf5e7de54d0efb7d6e15df2ef5"
+    },
+    {
+      "relative_path": "library-catalog/tests/test_manifest.py",
+      "size_bytes": 1457,
+      "mtime_ns": 1786685610451367900,
+      "sha256": "0440420393b54357cc85082a12fd5d6dac0ae303dd6fdac8b5f730e5f2b35ca5"
+    },
+    {
+      "relative_path": "library-catalog/tests/test_service.py",
+      "size_bytes": 1272,
+      "mtime_ns": 1786685610452560900,
+      "sha256": "5fa0bbfb6e0b0d7008fc5d711bc1cc3719d60f5c6f00217eaed139b09bd674fe"
+    },
+    {
+      "relative_path": "library-catalog/tests/fixtures/library_songs.json",
+      "size_bytes": 365,
+      "mtime_ns": 1786685610445347000,
+      "sha256": "c4486cccbeaf4824893443dcdff17e454339c93ef63004e9d83f3499582aaac6"
+    },
+    {
+      "relative_path": "library-catalog/tests/fixtures/manifest.json",
+      "size_bytes": 233,
+      "mtime_ns": 1786685610449960600,
+      "sha256": "e280dd60f8fe44c278668fa3034d8542937d1114859491e30abb2c2658bf872b"
+    },
+    {
+      "relative_path": "library-catalog/tests/fixtures/playlist.json",
+      "size_bytes": 261,
+      "mtime_ns": 1786685610449960600,
+      "sha256": "f060ee40fdbd032bf194e808c7d8865acc45001c36433726a6ed12613e6f667c"
+    },
+    {
+      "relative_path": "mobile-dj-control/MODULE.yaml",
+      "size_bytes": 1919,
+      "mtime_ns": 1786685610453747200,
+      "sha256": "dd6551b4b4e60149e6a4c34b260199b0c8d8b01fb6a82999cd76a6767b83e8f7"
+    },
+    {
+      "relative_path": "mobile-dj-control/README.md",
+      "size_bytes": 1042,
+      "mtime_ns": 1786685610453747200,
+      "sha256": "e82add7e4e6309fd1981f9f31e96aa9a13119bc009e012a8d2ae75a223c60294"
+    },
+    {
+      "relative_path": "mobile-dj-control/pubspec.yaml",
+      "size_bytes": 161,
+      "mtime_ns": 1786685610459089000,
+      "sha256": "3e0891812b0e28a7ca46cd336e1b3209e1b563e4779848467bf733c326cc9234"
+    },
+    {
+      "relative_path": "mobile-dj-control/deploy/clean-v0.2.0.json",
+      "size_bytes": 606,
+      "mtime_ns": 1786685610456094700,
+      "sha256": "c8ea1b83bff21ad7f80f6e8ca79231100da3701a14f414b9651f7a841e56ba7e"
+    },
+    {
+      "relative_path": "mobile-dj-control/deploy/provenance-20260813.json",
+      "size_bytes": 1367,
+      "mtime_ns": 1786685610457104100,
+      "sha256": "716f7b39c315a1dd443b105e532e454b433dab7cc2170daef937cf82e472bf53"
+    },
+    {
+      "relative_path": "mobile-dj-control/lib/mobile_dj_control.dart",
+      "size_bytes": 8617,
+      "mtime_ns": 1786685610458475000,
+      "sha256": "2eb146e52e3787592834f00134e1f6752d4391013d338552e17f4448b59f549e"
+    },
+    {
+      "relative_path": "mobile-dj-control/tests/mobile_dj_control_test.dart",
+      "size_bytes": 4367,
+      "mtime_ns": 1786685610459089000,
+      "sha256": "507d05f19a4c0665268e4a5be6c19fc53d5ecd48e4a3ca8633439a0dac838bf7"
+    },
+    {
+      "relative_path": "observability-e2e/MODULE.yaml",
+      "size_bytes": 1401,
+      "mtime_ns": 1786685610461187900,
+      "sha256": "7242cbfdb71cd36a19a9aa60616a82fc71e940dc9c576fe9e0e26d051d5667ca"
+    },
+    {
+      "relative_path": "observability-e2e/README.md",
+      "size_bytes": 1931,
+      "mtime_ns": 1786685610462086900,
+      "sha256": "151e3a23654d4323d64ce0ae93a205bf363bf116a97bf6c2cf7fec2e2b6035b9"
+    },
+    {
+      "relative_path": "observability-e2e/pyproject.toml",
+      "size_bytes": 364,
+      "mtime_ns": 1786685610465942700,
+      "sha256": "5a6df003e0cee8cbf7553d3b43393d9253f52a70c0c05b01344a335f081f890c"
+    },
+    {
+      "relative_path": "observability-e2e/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687415911285600,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "observability-e2e/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687415911825600,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "observability-e2e/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687415910758500,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "observability-e2e/contracts/acceptance-report.schema.json",
+      "size_bytes": 1505,
+      "mtime_ns": 1786685610463498500,
+      "sha256": "640f9b474e4ecca9c3a0f0c4aea22801bce72aff05fc5203845c8bdbaa53e106"
+    },
+    {
+      "relative_path": "observability-e2e/deploy/RECOVERY.md",
+      "size_bytes": 991,
+      "mtime_ns": 1786685610463498500,
+      "sha256": "df48a70936b6c31e2e7c70eac2d54ec410b53c5b40a3adffa08934aa754b805e"
+    },
+    {
+      "relative_path": "observability-e2e/deploy/clean-v0.2.0.json",
+      "size_bytes": 607,
+      "mtime_ns": 1786685610463498500,
+      "sha256": "f8c17f7af3112f2fa0f3d3ed1d2fac1ba1200f0b9a4a166ee49878f9be340bc6"
+    },
+    {
+      "relative_path": "observability-e2e/deploy/deployment-baseline-20260813.json",
+      "size_bytes": 1808,
+      "mtime_ns": 1786685610465942700,
+      "sha256": "cef10147832cc227bf41d83d6096b7fd441e375f66d4d28cca55f3b222909792"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/__init__.py",
+      "size_bytes": 576,
+      "mtime_ns": 1786685610468159800,
+      "sha256": "c9968d9733964e9262c5f869f081733916a26beb2f1631f5dd1f9300602fc764"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/android.py",
+      "size_bytes": 2200,
+      "mtime_ns": 1786685610469673400,
+      "sha256": "9bacfc55635764148c9585490c1507a3e5b685dba7a6fe2e3d972390248fa031"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/cli.py",
+      "size_bytes": 4250,
+      "mtime_ns": 1786685610469673400,
+      "sha256": "a94850afa2f79eed344e6fd6c7e294104b247c9a7d158f4ea4cc293b8ed27926"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/events.py",
+      "size_bytes": 902,
+      "mtime_ns": 1786685610469673400,
+      "sha256": "4f45504d0aae72cbb55ef72e2914cb12ce19f99625528db5fa34775e602c107b"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/inventory.py",
+      "size_bytes": 5048,
+      "mtime_ns": 1786685610469673400,
+      "sha256": "a82c78fae3d8859b7e760128dae9eb03d08633e99d1fb44e48968567f71ac837"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/journal.py",
+      "size_bytes": 1328,
+      "mtime_ns": 1786685610469673400,
+      "sha256": "b4ed81e08f1bb27d191e229506ac1b991ed1281da72fefeae07f9c0fe317def9"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/trace.py",
+      "size_bytes": 4044,
+      "mtime_ns": 1786685610474203400,
+      "sha256": "49fefb33240af44ce128d76779c6b3792cfee22bf48b2e8473416134394960c2"
+    },
+    {
+      "relative_path": "observability-e2e/src/harbeat_observability/ui_semantics.py",
+      "size_bytes": 2799,
+      "mtime_ns": 1786685610475213100,
+      "sha256": "f20241763c464ace59c20fac34023f2ae94e99b9e019041ae454e04e0fec49bf"
+    },
+    {
+      "relative_path": "observability-e2e/tests/test_android.py",
+      "size_bytes": 1253,
+      "mtime_ns": 1786685610475560400,
+      "sha256": "0b06d7efd2f6d6cd2b08ffceef0f81d01a46ad49f3cd613aa7d35c4cfb113f35"
+    },
+    {
+      "relative_path": "observability-e2e/tests/test_inventory.py",
+      "size_bytes": 1185,
+      "mtime_ns": 1786685610475560400,
+      "sha256": "6ff5a468cb8bdeee1ab60c57c3753dacdbe33c76c39f7492822abdcd0b64ec22"
+    },
+    {
+      "relative_path": "observability-e2e/tests/test_journal.py",
+      "size_bytes": 1065,
+      "mtime_ns": 1786685610478828100,
+      "sha256": "0bc51193ae151d6520305b5d865303d68c077deacdce20ece5565cf41a3edf61"
+    },
+    {
+      "relative_path": "observability-e2e/tests/test_trace.py",
+      "size_bytes": 2567,
+      "mtime_ns": 1786685610478828100,
+      "sha256": "c2d6aad5470966d0614568c3e4507203f778ae8af338538cb64dca54946581f4"
+    },
+    {
+      "relative_path": "observability-e2e/tests/test_ui_semantics.py",
+      "size_bytes": 1144,
+      "mtime_ns": 1786685610480297000,
+      "sha256": "d2a1fcf1ae98a7cf15ce2d3641d54d5b4a47a3aeb99fee8e2a4aa3c342aa1bfb"
+    },
+    {
+      "relative_path": "observability-e2e/tests/fixtures/flutter_confirm.xml",
+      "size_bytes": 583,
+      "mtime_ns": 1786685610475560400,
+      "sha256": "7dd5805f0ffe4d186d233304089c7f8d4c1a9ec14fa68aff12e08dfdc32a78d1"
+    },
+    {
+      "relative_path": "physical-input/MODULE.yaml",
+      "size_bytes": 1548,
+      "mtime_ns": 1786685610481733800,
+      "sha256": "08ccfd976d2c2b16d6de7dae8fd86631a4274a9f6c172e1817f67e519533c56d"
+    },
+    {
+      "relative_path": "physical-input/README.md",
+      "size_bytes": 1155,
+      "mtime_ns": 1786685610481733800,
+      "sha256": "358724ddd873860bd45f00adfe8a3d0282c71cbb7c6b89ee88673d44b1786f87"
+    },
+    {
+      "relative_path": "physical-input/pyproject.toml",
+      "size_bytes": 351,
+      "mtime_ns": 1786685610481733800,
+      "sha256": "3ccefae9af9ad41ec11debede476a106c1387cc107128483d29620b396c3d094"
+    },
+    {
+      "relative_path": "physical-input/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786685851756150600,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "physical-input/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786685851756150600,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "physical-input/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786685851756150600,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "physical-input/deploy/clean-v0.2.0.json",
+      "size_bytes": 570,
+      "mtime_ns": 1786685610481733800,
+      "sha256": "09b7b0e0ae13891fe37ea989c50157e8f474945e60d47c4bac3c3919b7361196"
+    },
+    {
+      "relative_path": "physical-input/deploy/provenance-20260813.json",
+      "size_bytes": 1547,
+      "mtime_ns": 1786685610481733800,
+      "sha256": "b677819624234bc0b6ef7d54f5c97055de9b78e4d9fc6c7b58fe571dbe21eff7"
+    },
+    {
+      "relative_path": "physical-input/src/harbeat_physical_input/__init__.py",
+      "size_bytes": 275,
+      "mtime_ns": 1786685610486321700,
+      "sha256": "f6c95ddc98686faf8212dd3d865384de10b3461656d800224fba7d1736543336"
+    },
+    {
+      "relative_path": "physical-input/src/harbeat_physical_input/domain.py",
+      "size_bytes": 2231,
+      "mtime_ns": 1786685610487890000,
+      "sha256": "373c2cdd16d6df3e5c3c930d95d1efb9ff702f57202c46d43564ad8d36f0050c"
+    },
+    {
+      "relative_path": "physical-input/src/harbeat_physical_input/protocol.py",
+      "size_bytes": 715,
+      "mtime_ns": 1786685610487890000,
+      "sha256": "1aa6d5dda9a96902265e1065cfa2313cfb6bd7964f5ce482d4a7c5b2650896c2"
+    },
+    {
+      "relative_path": "physical-input/src/harbeat_physical_input/routing.py",
+      "size_bytes": 383,
+      "mtime_ns": 1786685610487890000,
+      "sha256": "42c7c857c1505b279d72500332268a06e6e7b6e854b9c71502e92ea406431b24"
+    },
+    {
+      "relative_path": "physical-input/tests/test_physical_input.py",
+      "size_bytes": 2226,
+      "mtime_ns": 1786685610490456900,
+      "sha256": "b13f889314e97adf536299fcb21ef648b9e899da08b4d772ccebd3843357619f"
+    },
+    {
+      "relative_path": "sequence-planner/MODULE.yaml",
+      "size_bytes": 1313,
+      "mtime_ns": 1786685610490456900,
+      "sha256": "a74ceaddec86fc50ef99422ccb71a3366d6a2dff1678b61bedb961c1a132b18e"
+    },
+    {
+      "relative_path": "sequence-planner/README.md",
+      "size_bytes": 1102,
+      "mtime_ns": 1786685610490456900,
+      "sha256": "466cb4d4668b4f1970f5e3f578fd2b8d9daca8b12afbb7954433166556b3f251"
+    },
+    {
+      "relative_path": "sequence-planner/pyproject.toml",
+      "size_bytes": 355,
+      "mtime_ns": 1786685610494903500,
+      "sha256": "914958793a82105bc738029c1c3842665e27b55d302eca55d2d6db8500165e0c"
+    },
+    {
+      "relative_path": "sequence-planner/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687416847251900,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "sequence-planner/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687416847251900,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "sequence-planner/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687416847251900,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "sequence-planner/deploy/clean-v0.2.0.json",
+      "size_bytes": 485,
+      "mtime_ns": 1786685610493431200,
+      "sha256": "a8885db0221da7fd1cf2678bb66d1b32ab29c86a450fc39efc203bfb0c1fc317"
+    },
+    {
+      "relative_path": "sequence-planner/deploy/provenance-20260813.json",
+      "size_bytes": 657,
+      "mtime_ns": 1786685610493825100,
+      "sha256": "014e5e39ce1d89d29dfc6c16efefdd47337f77e3d89e246056f252e8431594ee"
+    },
+    {
+      "relative_path": "sequence-planner/deploy/runtime-check-20260813.json",
+      "size_bytes": 432,
+      "mtime_ns": 1786685610494903500,
+      "sha256": "6aaebd931587e8e0a84268b31ae12865fdfddc694f2a20fb1f41398d3bddf486"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/__init__.py",
+      "size_bytes": 544,
+      "mtime_ns": 1786685610494903500,
+      "sha256": "8c16df5da104e75583c40e4b9995f41ea14a137a02c3930250c66cf1f4fa1883"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/band_analysis.py",
+      "size_bytes": 2761,
+      "mtime_ns": 1786685610497608300,
+      "sha256": "33e8c712592ef44ec91ccc289ebb346f597ee42d397347d11141d960df88ed08"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/energy_hiphop.py",
+      "size_bytes": 9960,
+      "mtime_ns": 1786685610500422300,
+      "sha256": "0efeac6292424c83e8521601f0b78803b44777931a9e8a8cd46ec9150a5512f7"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/presets.py",
+      "size_bytes": 1034,
+      "mtime_ns": 1786685610500422300,
+      "sha256": "852171aa40b059717db89220694698f8b23358aae5b0473842f70025752a18ea"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/sequencer.py",
+      "size_bytes": 9189,
+      "mtime_ns": 1786685610501422900,
+      "sha256": "71041e1d70a813786832ff847e9695849d108a43df84b63e6cfadf2bc6a2f9c1"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/default_mix/__init__.py",
+      "size_bytes": 155,
+      "mtime_ns": 1786685610498412800,
+      "sha256": "db2ddd5eba993092c968531df60a70f56a72eb12db0c5924936b8339fe4747fd"
+    },
+    {
+      "relative_path": "sequence-planner/src/harbeat_sequence_planner/default_mix/playlist_selector.py",
+      "size_bytes": 9649,
+      "mtime_ns": 1786685610499420700,
+      "sha256": "81f644fc92ec93fa65b50a624899b05b8b48c708d46e76c89dfea255ac207666"
+    },
+    {
+      "relative_path": "sequence-planner/tests/test_default_sequence.py",
+      "size_bytes": 1371,
+      "mtime_ns": 1786685610502421600,
+      "sha256": "200068fc22d22656ae7a476676336b82d78cbcc1b1b72ed47a3778e069ee1e64"
+    },
+    {
+      "relative_path": "sequence-planner/tests/test_energy_curves.py",
+      "size_bytes": 1604,
+      "mtime_ns": 1786685610503419400,
+      "sha256": "84c6157f1d856ba121bb864adc20984091870219eaef9e26b968725a8112d099"
+    },
+    {
+      "relative_path": "stem-separation/MODULE.yaml",
+      "size_bytes": 1545,
+      "mtime_ns": 1786685610505421500,
+      "sha256": "b3e417987b6b1c5b7c8f3a7a05759753e59572763da9a83a35cf119a791d48e1"
+    },
+    {
+      "relative_path": "stem-separation/README.md",
+      "size_bytes": 1733,
+      "mtime_ns": 1786685610506420200,
+      "sha256": "b65d39e3fdb2616b9d46fefd4a9243600becca23164af57b7507aa56e50da98b"
+    },
+    {
+      "relative_path": "stem-separation/pyproject.toml",
+      "size_bytes": 491,
+      "mtime_ns": 1786685610509421600,
+      "sha256": "391387104b9d3d3fc77bc0d5713bd0dad310b73ac3464fcdefa43c0d260d64ce"
+    },
+    {
+      "relative_path": "stem-separation/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687417507841100,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "stem-separation/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687417507841100,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "stem-separation/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687417506850900,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "stem-separation/contracts/stem-result.schema.json",
+      "size_bytes": 835,
+      "mtime_ns": 1786685610507419700,
+      "sha256": "3e3c1d148105a33dee76c1c26cbd8bc520c63b5da59992633435879c48934f40"
+    },
+    {
+      "relative_path": "stem-separation/deploy/clean-v0.2.0.json",
+      "size_bytes": 633,
+      "mtime_ns": 1786685610508419700,
+      "sha256": "e3a27250714c1bf90c0b8cb7c8110de3715e3879413ecdfae96e2b5f6f726fef"
+    },
+    {
+      "relative_path": "stem-separation/deploy/provenance-20260813.json",
+      "size_bytes": 1110,
+      "mtime_ns": 1786685610509421600,
+      "sha256": "11716df866a54ec7f932e8b900c9d5eb7ed5cc78191d459dfa0213fe46111381"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/__init__.py",
+      "size_bytes": 524,
+      "mtime_ns": 1786685610511661500,
+      "sha256": "992486027565236568d31673502ce2f1c15dd32271b97148ab78612f65294ff2"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/__main__.py",
+      "size_bytes": 51,
+      "mtime_ns": 1786685610511661500,
+      "sha256": "482b8693e2fe6dbd732e3d7961e03827d3efa187bad11d29da188be580ebbeea"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/analysis.py",
+      "size_bytes": 4629,
+      "mtime_ns": 1786685610513166600,
+      "sha256": "0b696efea14215a2d4e0273b15ac98b74ca8bb058bc6268aed5143263adf3844"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/cli.py",
+      "size_bytes": 1184,
+      "mtime_ns": 1786685610514173900,
+      "sha256": "5e385635240f6c61d8228a068ad54bb53368eddfa5960267e17ef5a11fde4c5c"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/runner.py",
+      "size_bytes": 1870,
+      "mtime_ns": 1786685610514173900,
+      "sha256": "a4edc8a53401427fcb096cea84061be0714e3ae8d385555481d1d285a803de79"
+    },
+    {
+      "relative_path": "stem-separation/src/harbeat_stem_separation/separator.py",
+      "size_bytes": 3782,
+      "mtime_ns": 1786685610515174000,
+      "sha256": "438f4d2e86cc8d4e786ddca22699a879cbcc0669de5a88bf859603a7c329c1d8"
+    },
+    {
+      "relative_path": "stem-separation/tests/test_analysis.py",
+      "size_bytes": 1499,
+      "mtime_ns": 1786685610517174600,
+      "sha256": "f991434dc43cf6e53edf3f9ca591d0524041398f8d61f1a2a87e3c4cd0177306"
+    },
+    {
+      "relative_path": "stem-separation/tests/test_cli.py",
+      "size_bytes": 1196,
+      "mtime_ns": 1786685610517174600,
+      "sha256": "cbfcbcf6af76fb305ae4401619d313a671885a77e237111d8910ecb79efa367f"
+    },
+    {
+      "relative_path": "stem-separation/tests/test_separator.py",
+      "size_bytes": 3705,
+      "mtime_ns": 1786685610518605300,
+      "sha256": "361f34ff2ebc0f5d629efc98bda7c76fe75ec108504df908034afe04cb0f8158"
+    },
+    {
+      "relative_path": "transition-orchestrator/MODULE.yaml",
+      "size_bytes": 2160,
+      "mtime_ns": 1786688193641809800,
+      "sha256": "f906019ef02f17ed24f92a9f512f2b06adfa38a639e402e1a6f410428dcac565"
+    },
+    {
+      "relative_path": "transition-orchestrator/README.md",
+      "size_bytes": 1577,
+      "mtime_ns": 1786688193641809800,
+      "sha256": "c0e0a40b3d434dd1baa74a31b0a07cc496c86d96dc1b1302b0afae108a79c7e8"
+    },
+    {
+      "relative_path": "transition-orchestrator/pyproject.toml",
+      "size_bytes": 356,
+      "mtime_ns": 1786693590900604800,
+      "sha256": "924345b50dc9ee4bb95d257e6602f443793903c9b4c4d8c9152bc547b5b78289"
+    },
+    {
+      "relative_path": "transition-orchestrator/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786685843660232400,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "transition-orchestrator/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786685843660232400,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "transition-orchestrator/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786685843660232400,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "transition-orchestrator/deploy/clean-v0.2.0.json",
+      "size_bytes": 563,
+      "mtime_ns": 1786685610521832500,
+      "sha256": "e8eea6a1eee5ae82c85efb674de4915c80453a648f9ac15e6e0c631b6bd54a81"
+    },
+    {
+      "relative_path": "transition-orchestrator/deploy/provenance-20260813.json",
+      "size_bytes": 1625,
+      "mtime_ns": 1786685610522364100,
+      "sha256": "a9fc33cb4840478c2486cc04f6c972fdb236df8a1875603981b593dd856f610b"
+    },
+    {
+      "relative_path": "transition-orchestrator/src/harbeat_transition_orchestrator/__init__.py",
+      "size_bytes": 1204,
+      "mtime_ns": 1786692720063611000,
+      "sha256": "8617659f5c9d18442afb733fe8a61f8c4d1cc26d551c01f1bc2b51c87ea37f4f"
+    },
+    {
+      "relative_path": "transition-orchestrator/src/harbeat_transition_orchestrator/executor.py",
+      "size_bytes": 7765,
+      "mtime_ns": 1786719006460138600,
+      "sha256": "7d0ca3f4e94eabe8cac2c831face42e01edc935114b785797cd8080563188d07"
+    },
+    {
+      "relative_path": "transition-orchestrator/src/harbeat_transition_orchestrator/operation.py",
+      "size_bytes": 6311,
+      "mtime_ns": 1786719043566970900,
+      "sha256": "ef0b6849e59b681f1376db573c4ebd07d4253c51b5a177830b45122b9738fab8"
+    },
+    {
+      "relative_path": "transition-orchestrator/src/harbeat_transition_orchestrator/orchestrator.py",
+      "size_bytes": 9236,
+      "mtime_ns": 1786685610525818100,
+      "sha256": "9d7291f358414af81286b4800ebae2994fc2d83596c7dfadf38524ed65683c20"
+    },
+    {
+      "relative_path": "transition-orchestrator/src/harbeat_transition_orchestrator/state.py",
+      "size_bytes": 1600,
+      "mtime_ns": 1786685610526370800,
+      "sha256": "f194c544bb464598431bfd242c1ca7b6bc1081c0bc02c5d1049b3191bd09579d"
+    },
+    {
+      "relative_path": "transition-orchestrator/tests/test_executor.py",
+      "size_bytes": 6269,
+      "mtime_ns": 1786719006468367300,
+      "sha256": "e211d7fea9d99a616bf0908cdc260cd5738ea4ba5faf11166bd7cd7d21f83299"
+    },
+    {
+      "relative_path": "transition-orchestrator/tests/test_operation.py",
+      "size_bytes": 2554,
+      "mtime_ns": 1786719043566970900,
+      "sha256": "d424ea0597f7d662d761daeb99836290a25b3425e2489b32910898e5e3781e64"
+    },
+    {
+      "relative_path": "transition-orchestrator/tests/test_orchestrator.py",
+      "size_bytes": 5498,
+      "mtime_ns": 1786685610527493000,
+      "sha256": "b4c285c14b7de961b36f29bb6b9795e8eb9ea23ef4537e48c7e01ac5fa5aad74"
+    },
+    {
+      "relative_path": "transition-planner/MODULE.yaml",
+      "size_bytes": 2446,
+      "mtime_ns": 1786685610528696000,
+      "sha256": "fae1727ee9d5fbbf0eae23de6418b061456259558903ae90c6576a5b2178974b"
+    },
+    {
+      "relative_path": "transition-planner/README.md",
+      "size_bytes": 1433,
+      "mtime_ns": 1786685610529924400,
+      "sha256": "9701282933bef893913d3b78bc4540862c4a2aaec0e39d36e8a90452ab7e3547"
+    },
+    {
+      "relative_path": "transition-planner/pyproject.toml",
+      "size_bytes": 357,
+      "mtime_ns": 1786685610531929800,
+      "sha256": "171b5c793b555c6c9247d5de70f3e6386dbc1b8876352a67cb667aaff458d9c3"
+    },
+    {
+      "relative_path": "transition-planner/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786687418456453200,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "transition-planner/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786687418456453200,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "transition-planner/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786687418456453200,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "transition-planner/deploy/clean-v0.2.0.json",
+      "size_bytes": 673,
+      "mtime_ns": 1786685610530929700,
+      "sha256": "041e8494a866b2e1b35b54b050281d7247f64122858920defb60c0bbab6debd8"
+    },
+    {
+      "relative_path": "transition-planner/deploy/provenance-20260813.json",
+      "size_bytes": 3516,
+      "mtime_ns": 1786685610531929800,
+      "sha256": "c12b6e580cb5aebd82849d97ab40fcdd0e22dd6bc8d3b599714af5e26ee8716c"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/__init__.py",
+      "size_bytes": 928,
+      "mtime_ns": 1786685610532928700,
+      "sha256": "9948bc14f32267594c1bdeb8991373d35bd68a8f2b5ea417dd270047cae5e851"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/band_analysis.py",
+      "size_bytes": 2761,
+      "mtime_ns": 1786685610533931300,
+      "sha256": "33e8c712592ef44ec91ccc289ebb346f597ee42d397347d11141d960df88ed08"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/eq_transition_presets.py",
+      "size_bytes": 1847,
+      "mtime_ns": 1786685610533931300,
+      "sha256": "00fdfe5af78a665fe47cf3021adaeb713848b49fcad0dea8e6de7981959c5dde"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/eq_transition_strategy.py",
+      "size_bytes": 8211,
+      "mtime_ns": 1786685610535931900,
+      "sha256": "a25f2f0d637fd8a231d1d9148f456fa2bceae6f0a454a5f292f2f7c124429182"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/feature_analyzer.py",
+      "size_bytes": 7360,
+      "mtime_ns": 1786685610536932000,
+      "sha256": "13ff17994473922d67bce9ab9abfd83ef06891224443d00a3611e7899fe05c1c"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/mix_profile.py",
+      "size_bytes": 6699,
+      "mtime_ns": 1786685610537930300,
+      "sha256": "a3ac6564d97d8d9d99ad535ef80150837bde6e23f8c9f2a6232a200d3440ccd8"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/mixer_rules.py",
+      "size_bytes": 42383,
+      "mtime_ns": 1786685610539931000,
+      "sha256": "4c4043231fb1355226658d730a1403d6609d49ce35c30211f583865f24a720b2"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/mixing_strategies.py",
+      "size_bytes": 9527,
+      "mtime_ns": 1786685610540932500,
+      "sha256": "b65f73a35f170c0201a6e27e1b671b298d55c024905245460c7664740a0afeab"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/phrase_transition.py",
+      "size_bytes": 14151,
+      "mtime_ns": 1786685610540932500,
+      "sha256": "0de76137966af7a1fdc3c7440fd56be92e63cc3fe6174c8063dacea4297709cc"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/section_energy.py",
+      "size_bytes": 10751,
+      "mtime_ns": 1786685610541933000,
+      "sha256": "4d56a9116ed234ee318c4a5ecffdaa4e368c45002b4f7bc6457a6f331cb5e1d0"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/section_features.py",
+      "size_bytes": 14225,
+      "mtime_ns": 1786685610542932900,
+      "sha256": "cfbca5491f4c2ea4f86121c0656961e38fcb37ef06e553c676d8b87091bf6821"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/service.py",
+      "size_bytes": 3096,
+      "mtime_ns": 1786685610544082400,
+      "sha256": "0571dc429de990df5c0e06a084082d5d2a35f650c95bde7b619f55fbb4cebb8c"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/strategy_selector.py",
+      "size_bytes": 3598,
+      "mtime_ns": 1786685610544625600,
+      "sha256": "64b9a7e09210419ed7cf6341b77b9783256faa51575ae74effd660f0d0fdfc80"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/transition_planner.py",
+      "size_bytes": 105101,
+      "mtime_ns": 1786685610545747200,
+      "sha256": "dd4ca54bc1d654e6f3e912de63413efb9ec0d51babd1dcf9d5991c2e03aacbc2"
+    },
+    {
+      "relative_path": "transition-planner/src/harbeat_transition_planner/transition_strategy.py",
+      "size_bytes": 21334,
+      "mtime_ns": 1786685610546917800,
+      "sha256": "67390253f4d4125a511fb5592869f35bdf8512278c495e6736addc4ce73abb6f"
+    },
+    {
+      "relative_path": "transition-planner/tests/test_service.py",
+      "size_bytes": 1634,
+      "mtime_ns": 1786685610548661700,
+      "sha256": "dcbcd3e9108e92294f5ac4a37595c4afb9b55f8000015aa67f49df98d4f77e4a"
+    },
+    {
+      "relative_path": "transition-planner/tests/test_transition_planner.py",
+      "size_bytes": 4534,
+      "mtime_ns": 1786685610549246400,
+      "sha256": "2b40ffb7a00ed44b9c99cf7c7fd64815b75fc0ac36230a33b68bad8c1fb4fdfe"
+    },
+    {
+      "relative_path": "transition-renderer/MODULE.yaml",
+      "size_bytes": 1733,
+      "mtime_ns": 1786685610550951200,
+      "sha256": "0784c1b3e3958155fa9562e7d14ad6e240696a4e6b294065fc2b9371adebecf4"
+    },
+    {
+      "relative_path": "transition-renderer/README.md",
+      "size_bytes": 1048,
+      "mtime_ns": 1786685610551527700,
+      "sha256": "3b1a62046f25436ac169da92c2543c77ec549dd9c5977691dab4025a55a19123"
+    },
+    {
+      "relative_path": "transition-renderer/pyproject.toml",
+      "size_bytes": 406,
+      "mtime_ns": 1786685610553900400,
+      "sha256": "681911e6eccf890ccab48f849772a315558cb7e0d421a9ed9326650125215408"
+    },
+    {
+      "relative_path": "transition-renderer/.pytest_cache/.gitignore",
+      "size_bytes": 39,
+      "mtime_ns": 1786685841325530100,
+      "sha256": "e7c6bb30148cf667606dcd63e7ca77acaa3cfb0c8303bf09e6419e1e1669dc6d"
+    },
+    {
+      "relative_path": "transition-renderer/.pytest_cache/CACHEDIR.TAG",
+      "size_bytes": 191,
+      "mtime_ns": 1786685841325530100,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "relative_path": "transition-renderer/.pytest_cache/README.md",
+      "size_bytes": 310,
+      "mtime_ns": 1786685841325530100,
+      "sha256": "420e808d79a6c25d3cda0af33bc4782314a14949866682c68ce8149e89b66b70"
+    },
+    {
+      "relative_path": "transition-renderer/deploy/clean-v0.2.0.json",
+      "size_bytes": 591,
+      "mtime_ns": 1786685610552129400,
+      "sha256": "1e84b07582d0ebc3fbb2b6cc6f1ecde600df091ded0b97761eb7949a4d56443e"
+    },
+    {
+      "relative_path": "transition-renderer/deploy/provenance-20260813.json",
+      "size_bytes": 1420,
+      "mtime_ns": 1786685610553310400,
+      "sha256": "094a87eb9b1dd3642a8c10bac2e663c3d6764473228f960bf7d40456f5355c48"
+    },
+    {
+      "relative_path": "transition-renderer/src/harbeat_transition_renderer/__init__.py",
+      "size_bytes": 567,
+      "mtime_ns": 1786685610555091800,
+      "sha256": "4dca5ff8de5754cb5016dfe8203606ed3b5504fc336bf062af2a5dbac1b13ac5"
+    },
+    {
+      "relative_path": "transition-renderer/src/harbeat_transition_renderer/policy.py",
+      "size_bytes": 1575,
+      "mtime_ns": 1786685610555091800,
+      "sha256": "90090e41fb9a4b880f08e3c118ed75e480ade36f4c68f3171b1fdf6b5859df7c"
+    },
+    {
+      "relative_path": "transition-renderer/src/harbeat_transition_renderer/reference_renderer.py",
+      "size_bytes": 41773,
+      "mtime_ns": 1786685610557099400,
+      "sha256": "9d5e9d7ced6836a4db93857ea76aa2efcfd6b4d3aa891c3aeaace2613cee9633"
+    },
+    {
+      "relative_path": "transition-renderer/tests/test_policy.py",
+      "size_bytes": 915,
+      "mtime_ns": 1786685610558100100,
+      "sha256": "7253541ca28217156424240491ab33815570ca420bbccda0a4c045be6d474f64"
+    },
+    {
+      "relative_path": "transition-renderer/tests/test_reference_renderer.py",
+      "size_bytes": 3639,
+      "mtime_ns": 1786685610559099800,
+      "sha256": "01442fc343285d34567002f4ffb75dceb4448e69e783c0ab56490b135e5da495"
+    }
+  ]
+}

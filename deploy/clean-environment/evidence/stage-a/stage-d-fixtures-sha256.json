@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-14T15:48:20.227262+00:00",
+  "root": "D:\\work\\harbeat-clean-core-v0.4\\deploy\\clean-environment\\evidence\\stage-d",
+  "excluded_names": [],
+  "file_count": 11,
+  "total_size_bytes": 52894,
+  "assets": [
+    {
+      "relative_path": "harbeat-stage-d-analysis-recompute.json",
+      "size_bytes": 444,
+      "mtime_ns": 1786685610191224200,
+      "sha256": "a6b1a3d11b7f5048ec07e09426e04d6e40477098b4da06459291ac7a73eba745"
+    },
+    {
+      "relative_path": "harbeat-stage-d-demucs-explicit-repo.json",
+      "size_bytes": 1242,
+      "mtime_ns": 1786685610191224200,
+      "sha256": "6c6d4ab4604959d41e640de628d5aed624443fb0032764db3431983fbe6447f1"
+    },
+    {
+      "relative_path": "harbeat-stage-d-full-library-audit.json",
+      "size_bytes": 99,
+      "mtime_ns": 1786685610191224200,
+      "sha256": "27c949362ffe97d1feba7fc6a74706f9f5e6351c1bc2c72832cb1e5e04bed092"
+    },
+    {
+      "relative_path": "harbeat-stage-d-hotspot-sync.json",
+      "size_bytes": 3285,
+      "mtime_ns": 1786685610191224200,
+      "sha256": "035875ccd33dd1ab38e5f0c2dc3308acc7542466ea73d049567e6dcdcb91bf0f"
+    },
+    {
+      "relative_path": "harbeat-stage-d-new-render-result.json",
+      "size_bytes": 11035,
+      "mtime_ns": 1786685610195181800,
+      "sha256": "ea2c67f61d557741c4f8fc42d440b7d16ae2cefe0ab0f2bdd1b9f921b469f628"
+    },
+    {
+      "relative_path": "harbeat-stage-d-old-render-result.json",
+      "size_bytes": 11033,
+      "mtime_ns": 1786685610195181800,
+      "sha256": "17769a9c12160516433d24b8512ccc174906bbcf946bd989fc6860b73ad7db89"
+    },
+    {
+      "relative_path": "harbeat-stage-d-orchestration.json",
+      "size_bytes": 18863,
+      "mtime_ns": 1786685610196953600,
+      "sha256": "b7e7fb0caf784e9e387955446e0d8a92b21060d6ec45bc4c6bd305b2b29c9dc8"
+    },
+    {
+      "relative_path": "harbeat-stage-d-plan-parity.json",
+      "size_bytes": 2533,
+      "mtime_ns": 1786685610196953600,
+      "sha256": "83bc478cfea8a34b41070fc6d42804bdb44e4b38e9dbc4d8e1e3d9e2716fe6e0"
+    },
+    {
+      "relative_path": "harbeat-stage-d-postgres-result.json",
+      "size_bytes": 501,
+      "mtime_ns": 1786685610196953600,
+      "sha256": "afd5512cc2579a525cccee9709b7e447872d1cce23f1e22c839299c919d38007"
+    },
+    {
+      "relative_path": "harbeat-stage-d-prepare-schedule.json",
+      "size_bytes": 2707,
+      "mtime_ns": 1786685610196953600,
+      "sha256": "0ac82f541fa6ea1e6599720bf77e3d58fb3aac85bd715f9f606398aac5b0fc7e"
+    },
+    {
+      "relative_path": "harbeat-stage-d-render-parity.json",
+      "size_bytes": 1152,
+      "mtime_ns": 1786685610196953600,
+      "sha256": "ba6de4af4d49f1460b49f5903bfcb635cc76e81c3d7bd33233ae5998b7bee933"
+    }
+  ]
+}
