@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "audit": "r1-base-environment",
+  "created_at": "2026-08-14T05:36:21.916199+00:00",
+  "source_commit": "d737e3ea279e293c21b07824fd92bb7fc3ee5822",
+  "host": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.7"
+  },
+  "tracked_inputs": {
+    "deploy\\clean-environment\\profiles\\rk3588.json": "6979cf9b3ed16872b2ded7dd71316f699f60176f2fd15a4d3a69e3526d3d62f8",
+    "deploy\\clean-environment\\profiles\\jetson.json": "d7b81de575ddd5caf296ea17fd781c5f4296d68801919d17cce140f6d35911ab",
+    "deploy\\clean-environment\\locks\\rk3588.system-packages.lock": "12fff7ecb0c91d64c2bf720f782eceb92121d403d11bb52786ca8020ee16e91f",
+    "deploy\\clean-environment\\locks\\rk3588.python.lock": "30505eb84b5d64f9d58160f868cb6cb2d7ee527287a3f1da425b3757d9a6a90a",
+    "deploy\\clean-environment\\locks\\jetson.system-packages.lock": "59d5dd77692b323f224e8d39cec286cb0272d643f10ab9a550c63fb97cb03e87",
+    "deploy\\clean-environment\\locks\\jetson.python.lock": "6bc2f343cd4d6cdc6d0c1d4b0e36e8673e3d6f2c485afbd2fa8e554deb29bd1c",
+    "deploy\\clean-environment\\locks\\jetson.gpu-artifacts.json": "2fe0dca7886e32e00834859848a954ae4bd39f7c93d6083b82bcfdffc8c2a729",
+    "deploy\\clean-environment\\locks\\build-tools.lock": "e2686d8fe2992d06db8cc9615afdc31e557d2dde26499c4e5188bbd2a8d0a4be",
+    "deploy\\clean-environment\\inventory-rk.json": "e13aeaa7517a78b530d95694c4a40eb854e9e39f0d2f1bdabab56d9e6e67e985",
+    "deploy\\clean-environment\\inventory-jetson.json": "83c9b9f6fb8c8dd81a0cec169732f5225101290858b32bb899079520e3e5c49b",
+    "deploy\\clean-environment\\release-manifest.json": "a15173f03806ee71f213e5f01959c2f2df41ea2eba98ff30af0c49c18a6995fb",
+    "deploy\\clean-environment\\service-manifest.json": "ef6ff3bdc73877fc09d160da7051fd3945fedd8a66f02804df8848eee9cf9f29",
+    "deploy\\clean-environment\\acceptance-report-v0.3.0.json": "8588e0c8f3c7c55a37713723c907fabf566a061033a0ea3f4480d9414cd9b323"
+  },
+  "missing_inputs": [],
+  "profiles": {
+    "rk3588": {
+      "platform": "linux-aarch64",
+      "services": [
+        "audio-engine",
+        "edge-agent",
+        "input-daemon",
+        "sync-worker"
+      ],
+      "hardware_gates": [
+        "alsa",
+        "audio_device",
+        "input_device",
+        "monotonic_clock",
+        "network"
+      ]
+    },
+    "jetson": {
+      "platform": "linux-aarch64-nvidia",
+      "services": [
+        "analysis-worker",
+        "catalog-api",
+        "planning-api",
+        "render-worker",
+        "stem-worker"
+      ],
+      "hardware_gates": [
+        "cuda",
+        "ffmpeg",
+        "gpu",
+        "libsndfile",
+        "network"
+      ]
+    }
+  },
+  "inherited_evidence": {
+    "module_tests": "146/146",
+    "rk_base_hardware": "ALSA, ES8388, FFmpeg, udev",
+    "jetson_base_hardware": "JetPack R36.3, CUDA 12.2, cuDNN, FFmpeg",
+    "rk_python_imports": "12/12",
+    "jetson_python_imports": "12/12"
+  },
+  "gates": {
+    "tracked_manifests_complete": true,
+    "clean_deployment_scaffold_verified": true,
+    "base_image_built": false,
+    "empty_device_restore": false,
+    "remote_mutation_performed": false,
+    "r1_passed": false
+  },
+  "safety": {
+    "production_services_restarted": false,
+    "legacy_runtime_modified": false,
+    "cleanup_authorized": false
+  },
+  "next_action": "Build and restore RK/Jetson base images before authorizing runtime quarantine."
+}
