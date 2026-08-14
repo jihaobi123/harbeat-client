@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from harbeat_transition_orchestrator import (
+    OperationExecutionError,
     TransitionOperationExecutor,
     advance_operation,
     fail_operation,
@@ -124,3 +125,43 @@ def test_executor_keeps_a_cancelled_operation_cancelled():
     store.operation["stage"] = "cancelled"
     result = TransitionOperationExecutor(store, Ports(), poll_interval_sec=0.0).execute("operation-1234")
     assert result["status"] == "cancelled"
+
+
+def test_executor_keeps_cancellation_during_execution_cancelled():
+    class CancellingStore(Store):
+        def advance(self, operation_id: str, stage: str, details=None):
+            self.operation["status"] = "cancelled"
+            self.operation["stage"] = "cancelled"
+            raise RuntimeError("operation_terminal")
+
+    store = CancellingStore(operation())
+    result = TransitionOperationExecutor(store, Ports(), poll_interval_sec=0.0).execute("operation-1234")
+
+    assert result["status"] == "cancelled"
+    assert result["stage"] == "cancelled"
+
+
+def test_executor_preserves_typed_failures_at_each_remote_stage():
+    cases = (
+        ("plan", "planned", "planning_timeout"),
+        ("render", "rendered_or_reused", "render_timeout"),
+        ("sync_target_audio", "target_audio_ready", "target_sync_failed"),
+        ("sync_pair", "pair_synced", "pair_sync_failed"),
+    )
+    for method, stage, code in cases:
+        store = Store(operation(target_song_id="song-b"))
+        ports = Ports()
+
+        def fail(*_args, _stage=stage, _code=code, **_kwargs):
+            raise OperationExecutionError(_stage, _code, True, "injected failure")
+
+        setattr(ports, method, fail)
+        result = TransitionOperationExecutor(store, ports, poll_interval_sec=0.0).execute("operation-1234")
+
+        assert result["status"] == "failed", method
+        assert result["error"] == {
+            "stage": stage,
+            "code": code,
+            "retryable": True,
+            "detail": "injected failure",
+        }

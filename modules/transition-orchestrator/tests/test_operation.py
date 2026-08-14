@@ -69,4 +69,11 @@ def test_operation_cancel_and_failure_are_typed_and_public_safe():
     }
     cancelled = cancel_operation(operation, now="t1")
     assert cancelled["status"] == "cancelled"
+    assert fail_operation(
+        cancelled,
+        now="t2",
+        failed_stage="rendered_or_reused",
+        code="late_worker_failure",
+        retryable=True,
+    ) == cancelled
     assert "request_hash" not in public_operation(cancelled)

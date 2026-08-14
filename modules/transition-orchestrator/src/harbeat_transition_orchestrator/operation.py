@@ -160,6 +160,9 @@ def fail_operation(
     retryable: bool,
     detail: str | None = None,
 ) -> dict[str, Any]:
+    current = OperationStage(str(operation.get("stage") or ""))
+    if current in {OperationStage.RESUMED, OperationStage.FAILED, OperationStage.CANCELLED}:
+        return copy.deepcopy(dict(operation))
     out = copy.deepcopy(dict(operation))
     out.update({
         "stage": "failed",

@@ -113,7 +113,10 @@ class TransitionOperationExecutor:
                 detail=exc.detail,
             )
         except Exception as exc:
-            current = self.store.get(operation_id) or {}
+            current = self.store.get(operation_id)
+            if current is not None and current.get("status") != "active":
+                return current
+            current = current or {}
             return self.store.fail(
                 operation_id,
                 failed_stage=str(current.get("stage") or "accepted"),
