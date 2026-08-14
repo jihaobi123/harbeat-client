@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 import importlib.util
+from unittest.mock import patch
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -117,6 +118,40 @@ class RkAdapterTests(unittest.TestCase):
                 self.assertEqual(response.json()["audio_socket"], str(audio_socket))
                 self.assertTrue(audio_socket.exists())
             self.assertFalse(audio_socket.exists())
+
+    def test_edge_runtime_routes_use_audio_socket_only(self):
+        if importlib.util.find_spec("sounddevice") is None:
+            self.skipTest("workstation lacks target-only sounddevice dependency")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            audio_client = TestClient(create_rk_app(config("audio-engine", root)))
+            edge_client = TestClient(create_rk_app(config("edge-agent", root)))
+            with audio_client:
+                self.assertEqual(audio_client.get("/health").status_code, 200)
+                state = edge_client.get("/runtime/state")
+                self.assertEqual(state.status_code, 200, state.text)
+                self.assertIn("playing", state.json())
+                self.assertEqual(edge_client.post("/runtime/pause").status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/resume").status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/seek", json={"sec": 1.0}).status_code, 200)
+
+    def test_edge_runtime_routes_keep_transport_errors_explicit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            edge_client = TestClient(create_rk_app(config("edge-agent", root)))
+
+            def fake_audio(_socket_path, payload):
+                if payload["cmd"] == "state":
+                    return {"ok": True, "playing": True, "position_sec": 2.0}
+                return {"ok": True, "cmd": payload["cmd"]}
+
+            with patch("adapters.rk_app._audio_command", side_effect=fake_audio):
+                self.assertEqual(edge_client.get("/runtime/state").json()["position_sec"], 2.0)
+                self.assertEqual(edge_client.post("/runtime/play", json={"song_id": "song-a"}).status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/pause").status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/resume").status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/seek", json={"sec": 2.0}).status_code, 200)
+                self.assertEqual(edge_client.post("/runtime/default-render", json={"command": "bad"}).status_code, 422)
 
     def test_all_rk_services_are_registered_and_shadow_only(self):
         with tempfile.TemporaryDirectory() as directory:

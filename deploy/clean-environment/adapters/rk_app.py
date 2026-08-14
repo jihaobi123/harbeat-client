@@ -26,7 +26,7 @@ def create_rk_app(config: AdapterConfig) -> FastAPI:
     app = FastAPI(title=f"HarBeat clean {config.service}", version="0.3.0")
     _health_route(app, config)
     if config.service == "edge-agent":
-        _edge_routes(app)
+        _edge_routes(app, config)
     elif config.service == "input-daemon":
         _input_routes(app)
     return app
@@ -90,7 +90,7 @@ def _audio_engine_app(config: AdapterConfig) -> FastAPI:
     return app
 
 
-def _edge_routes(app: FastAPI) -> None:
+def _edge_routes(app: FastAPI, config: AdapterConfig) -> None:
     from harbeat_transition_orchestrator import (
         OrchestrationValidationError,
         accept_or_reuse,
@@ -136,6 +136,58 @@ def _edge_routes(app: FastAPI) -> None:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         tasks[transition_id] = task
         return {"reused": reused, "task": public_task(task)}
+
+    @app.get("/runtime/state")
+    def runtime_state() -> dict[str, Any]:
+        return _runtime_audio_command(config, {"cmd": "state"})
+
+    @app.post("/runtime/play")
+    def runtime_play(body: dict[str, Any]) -> dict[str, Any]:
+        if body.get("song_id") in (None, ""):
+            raise HTTPException(status_code=422, detail="song_id is required")
+        return _runtime_audio_command(config, {
+            "cmd": "play",
+            "song_id": body["song_id"],
+            "start_at_sec": body.get("start_at_sec", 0.0),
+            "load_stems": body.get("load_stems", True),
+        })
+
+    @app.post("/runtime/pause")
+    def runtime_pause() -> dict[str, Any]:
+        return _runtime_audio_command(config, {"cmd": "pause"})
+
+    @app.post("/runtime/resume")
+    def runtime_resume() -> dict[str, Any]:
+        return _runtime_audio_command(config, {"cmd": "resume"})
+
+    @app.post("/runtime/seek")
+    def runtime_seek(body: dict[str, Any]) -> dict[str, Any]:
+        if body.get("sec") in (None, ""):
+            raise HTTPException(status_code=422, detail="sec is required")
+        return _runtime_audio_command(config, {"cmd": "seek", "sec": body["sec"]})
+
+    @app.post("/runtime/default-render")
+    def runtime_default_render(body: dict[str, Any]) -> dict[str, Any]:
+        command = str(body.get("command") or "")
+        if command not in {"prepare_default_render", "schedule_default_render", "default_render_playback"}:
+            raise HTTPException(status_code=422, detail="unsupported default render command")
+        return _runtime_audio_command(config, {
+            "cmd": command,
+            "transition_plan": body.get("transition_plan") or {},
+            "to_song_id": body.get("to_song_id"),
+            "render_path": body.get("render_path"),
+            "min_lead_sec": body.get("min_lead_sec", 1.5),
+        })
+
+
+def _runtime_audio_command(config: AdapterConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    try:
+        result = _audio_command(str(config.settings["audio_socket"]), payload)
+    except (OSError, RuntimeError, ValueError, KeyError) as exc:
+        raise HTTPException(status_code=503, detail=f"audio runtime unavailable: {exc}") from exc
+    if result.get("ok") is False:
+        raise HTTPException(status_code=int(result.get("code") or 502), detail=result.get("error") or "audio runtime command failed")
+    return result
 
 
 def _input_routes(app: FastAPI) -> None:
