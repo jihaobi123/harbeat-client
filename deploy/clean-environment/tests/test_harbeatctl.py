@@ -17,14 +17,14 @@ class HarbeatCtlTests(unittest.TestCase):
             self.assertEqual(main(["stage", "--root", str(root)]), 0)
             self.assertEqual(main(["verify", "--root", str(root)]), 0)
             self.assertEqual(main(["activate", "--root", str(root)]), 0)
-            self.assertEqual(main(["stage", "--release", "0.3.1", "--root", str(root)]), 0)
-            self.assertEqual(main(["verify", "--release", "0.3.1", "--root", str(root)]), 0)
-            self.assertEqual(main(["activate", "--release", "0.3.1", "--root", str(root)]), 0)
+            self.assertEqual(main(["stage", "--release", "core-v0.4.3", "--root", str(root)]), 0)
+            self.assertEqual(main(["verify", "--release", "core-v0.4.3", "--root", str(root)]), 0)
+            self.assertEqual(main(["activate", "--release", "core-v0.4.3", "--root", str(root)]), 0)
             current = root / "opt" / "harbeat" / "current"
             self.assertTrue(current.exists())
             self.assertEqual(main(["rollback", "--root", str(root)]), 0)
-            self.assertEqual(current.resolve().name, "0.3.0")
-            self.assertEqual(main(["verify", "--release", "0.3.1", "--root", str(root)]), 0)
+            self.assertEqual(current.resolve().name, "core-v0.4.2")
+            self.assertEqual(main(["verify", "--release", "core-v0.4.3", "--root", str(root)]), 0)
 
     def test_manifest_never_authorizes_cleanup(self):
         manifest = json.loads((Path(__file__).parents[3] / "deploy/clean-environment/release-manifest.json").read_text())

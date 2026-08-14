@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "from_song_id": "de625ac62dc4432e8500711fc9a54c51",
+  "to_song_id": "b94f8f40ff244ad8b65926971c7d0b11",
+  "plan_runs": 20,
+  "plan_deterministic": true,
+  "plan_sha256": "c00aec826f9e9e46d2d52c2e7e78c2b4e3d1403dda5573e00d8fcd75ef363a0f",
+  "plan_artifact_sha256": "264d5c1ce031ea2be53277c5fae3888bfb6aa0f59ebb2cc895f3b774c8d93a35",
+  "plan_total_elapsed_sec": 0.202,
+  "audio_feature_source": "dj_structure_precomputed_window_v2",
+  "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+  "fallback": false,
+  "degraded": false,
+  "render_runs": [
+    {
+      "run": 1,
+      "elapsed_sec": 2.47,
+      "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+      "meta_sha256": "d8ddd3e07402da978ec0c9574f92c57c80cc07b51a759afb19d11c00617021d8",
+      "frames": 286650,
+      "sample_rate": 44100,
+      "from_at_sec": 11.029,
+      "to_at_sec": 27.494,
+      "resume_at_sec": 33.992,
+      "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+      "audio_feature_source": "dj_structure_precomputed_window_v2"
+    },
+    {
+      "run": 2,
+      "elapsed_sec": 0.48,
+      "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+      "meta_sha256": "4b96cc7ec997edb4a777092878e25310517050dcc9533425495dc27f5e9573ce",
+      "frames": 286650,
+      "sample_rate": 44100,
+      "from_at_sec": 11.029,
+      "to_at_sec": 27.494,
+      "resume_at_sec": 33.992,
+      "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+      "audio_feature_source": "dj_structure_precomputed_window_v2"
+    },
+    {
+      "run": 3,
+      "elapsed_sec": 0.236,
+      "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+      "meta_sha256": "cbece07eef5e26ae331a85fa7667268523289a5637b9c15584cc508bb9df3c54",
+      "frames": 286650,
+      "sample_rate": 44100,
+      "from_at_sec": 11.029,
+      "to_at_sec": 27.494,
+      "resume_at_sec": 33.992,
+      "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+      "audio_feature_source": "dj_structure_precomputed_window_v2"
+    },
+    {
+      "run": 4,
+      "elapsed_sec": 0.221,
+      "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+      "meta_sha256": "83286907bda583cf9ee8d0f50f4091e4daeb5344cd8272a4a6dbbd5c903fb62a",
+      "frames": 286650,
+      "sample_rate": 44100,
+      "from_at_sec": 11.029,
+      "to_at_sec": 27.494,
+      "resume_at_sec": 33.992,
+      "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+      "audio_feature_source": "dj_structure_precomputed_window_v2"
+    },
+    {
+      "run": 5,
+      "elapsed_sec": 0.216,
+      "wav_sha256": "7f36ce19c6aaf04ba3c80e460a623a4e730a81e8027e79958a41a787aec41fdc",
+      "meta_sha256": "4b3c2ae5883b222334fb7d69879ac433ed0736aadab44928746a162951435b57",
+      "frames": 286650,
+      "sample_rate": 44100,
+      "from_at_sec": 11.029,
+      "to_at_sec": 27.494,
+      "resume_at_sec": 33.992,
+      "renderer_version": "three_band_default_v7_standalone_curve_no_energy_floor",
+      "audio_feature_source": "dj_structure_precomputed_window_v2"
+    }
+  ],
+  "render_output_deterministic": true,
+  "typed_failures": {
+    "missing_v2": "ValueError",
+    "unsupported_renderer": "DefaultRenderError",
+    "missing_audio": "DefaultRenderError"
+  }
+}

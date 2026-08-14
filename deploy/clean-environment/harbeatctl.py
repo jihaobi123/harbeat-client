@@ -55,7 +55,7 @@ def manifest() -> dict[str, Any]:
     if value.get("schema_version") != 1:
         raise DeploymentError("unsupported release manifest schema")
     if value.get("production_ready") is not False:
-        raise DeploymentError("v0.3 deployment scaffold cannot be marked production-ready")
+        raise DeploymentError("clean core release cannot be marked production-ready")
     if value.get("cleanup_authorized") is not False:
         raise DeploymentError("cleanup must remain unauthorized before device acceptance")
     return value
@@ -75,7 +75,7 @@ def validate() -> dict[str, Any]:
     if service_manifest.get("schema_version") != 1:
         raise DeploymentError("unsupported service manifest schema")
     if service_manifest.get("production_ready") is not False or service_manifest.get("adapter_mode") != "shadow":
-        raise DeploymentError("v0.3 service adapters must remain shadow-only")
+        raise DeploymentError("clean core service adapters must remain shadow-only")
     registered_services = service_manifest.get("services")
     if not isinstance(registered_services, dict):
         raise DeploymentError("service manifest is missing services")

@@ -1,9 +1,12 @@
 {
   "schema_version": 1,
-  "release": "0.3.0",
+  "release": "core-v0.4.2",
   "module_baseline": "functional-modules/v0.2.0",
+  "core_baseline": "clean-core/v0.4.1",
   "production_ready": false,
   "cleanup_authorized": false,
+  "core_transition_algorithm_accepted": true,
+  "resource_pipeline_v2_required": true,
   "python_modules": [
     "asset-sync",
     "audio-preprocess",
@@ -25,15 +28,20 @@
     "/home/mark/harbeat",
     "/home/mark/venvs"
   ],
-  "required_acceptance": [
+  "completed_acceptance": [
     "fresh_clone_module_tests",
     "wheel_build",
-    "clean_root_stage_verify",
+    "clean_release_installation",
+    "real_jetson_hardware_smoke",
+    "real_rk_hardware_smoke",
+    "core_transition_algorithm",
     "atomic_activate_rollback",
-    "real_jetson_integration",
-    "real_rk_integration",
-    "mobile_jetson_rk_e2e",
-    "empty_device_rebuild",
-    "rollback_drill"
+    "legacy_runtime_isolation"
+  ],
+  "deferred_acceptance": [
+    "mobile_jetson_rk_resource_pipeline_v2",
+    "auto_fast_energy_style_e2e",
+    "phone_to_rk_15_second_sla",
+    "production_release"
   ]
 }

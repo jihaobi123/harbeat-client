@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "stage": "D",
+  "result": "passed",
+  "release": "core-v0.4.2",
+  "profiles": {
+    "jetson": {
+      "release_root": "/opt/harbeat/releases/core-v0.4.2",
+      "current_target": "/opt/harbeat/releases/core-v0.4.2",
+      "python": "3.10.12",
+      "architecture": "aarch64",
+      "internal_wheels": 12,
+      "third_party_wheels": 65,
+      "pip_check": "passed",
+      "wheel_imports": "12/12",
+      "cuda_available": true,
+      "cuda_device": "Orin",
+      "torch": "2.4.0a0+3bcc3cddb5.nv24.07",
+      "torchaudio": "2.4.0a0+69d4077",
+      "demucs": "4.0.1",
+      "nas_mounted": true,
+      "root_usage_after_temp_cleanup": "78%"
+    },
+    "rk3588": {
+      "release_root": "/opt/harbeat/releases/core-v0.4.2",
+      "current_target": "/opt/harbeat/releases/core-v0.4.2",
+      "python": "3.10.12",
+      "architecture": "aarch64",
+      "internal_wheels": 12,
+      "third_party_wheels": 21,
+      "pip_check": "passed",
+      "wheel_imports": "12/12",
+      "audio_device_count": 11,
+      "ffmpeg": "6.1",
+      "monotonic_clock": true,
+      "audio_socket": true,
+      "harbeat_audio_restore": "active",
+      "root_usage_after_temp_cleanup": "67%"
+    }
+  },
+  "isolation": {
+    "forbidden_legacy_or_tmp_references": 0,
+    "pip_direct_url_metadata_removed": true,
+    "wheel_provenance_preserved_by_sha256_manifests": true,
+    "activation_rollback_cycles_jetson": 3,
+    "activation_rollback_cycles_rk3588": 3,
+    "services_changed_during_deployment": false
+  },
+  "gates": {
+    "stage_d_passed": true,
+    "production_ready": false,
+    "legacy_runtime_disable_authorized": true,
+    "legacy_files_delete_authorized": false,
+    "cleanup_authorized": false
+  }
+}

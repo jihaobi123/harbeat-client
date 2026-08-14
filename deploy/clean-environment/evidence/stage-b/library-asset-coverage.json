@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "library_songs": 43,
+  "source_files_ready": 43,
+  "songs_with_stem_manifest": 42,
+  "songs_without_stem_manifest": [
+    "mt2_o4newg_star_edition"
+  ],
+  "declared_stem_files_expected": 168,
+  "declared_stem_files_ready": 168,
+  "missing": [],
+  "passed": true
+}

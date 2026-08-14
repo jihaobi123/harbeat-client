@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "0.3.0",
+  "release": "core-v0.4.2",
   "adapter_mode": "shadow",
   "production_ready": false,
   "services": {

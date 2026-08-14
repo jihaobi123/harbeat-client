@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-08-15",
+  "result": "passed",
+  "jetson": {
+    "ssh_reachable": true,
+    "current_release": "/opt/harbeat/releases/core-v0.4.2",
+    "legacy_api": "inactive-disabled",
+    "port_8000_listeners": 0,
+    "postgresql": "active",
+    "nas_automount": "active-readable",
+    "cuda_available": true,
+    "cuda_device": "Orin",
+    "core_imports": "passed"
+  },
+  "rk3588": {
+    "ssh_reachable": true,
+    "current_release": "/opt/harbeat/releases/core-v0.4.2",
+    "legacy_target": "inactive-disabled",
+    "legacy_services": "all-inactive-disabled",
+    "ports_9000_9100_listeners": 0,
+    "audio_restore": "active-enabled",
+    "audio_device_count": 11,
+    "es8388_card_present": true,
+    "ffmpeg": "6.1",
+    "monotonic_clock": true,
+    "legacy_audio_socket_present": false,
+    "wheel_imports": "12/12"
+  },
+  "local_verification": {
+    "functional_module_commands": "13/13 passed",
+    "clean_deployment_tests": "31 passed, 2 target-only skipped",
+    "json_documents_valid": 55,
+    "git_diff_check": "passed"
+  },
+  "gates": {
+    "core_transition_algorithm_accepted": true,
+    "resource_pipeline_v2_required": true,
+    "production_ready": false,
+    "legacy_files_delete_authorized": false,
+    "cleanup_authorized": false
+  }
+}

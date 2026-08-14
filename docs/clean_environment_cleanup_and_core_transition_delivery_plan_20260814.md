@@ -400,18 +400,22 @@ legacy_r5_feature_acceptance_deferred = true
 
 ## 8. 门禁状态
 
-当前保持：
+2026-08-15 执行完成后的状态：
 
 ```text
-core_transition_algorithm_accepted = false
+stage_b_data_backup_restore_passed = true
+stage_c_module_artifacts_passed = true
+stage_d_clean_release_deployed = true
+stage_e_core_transition_passed = true
+stage_f_legacy_runtime_isolated = true
+core_transition_algorithm_accepted = true
 resource_pipeline_v2_required = true
 legacy_r5_feature_acceptance_deferred = true
 production_ready = false
-r1_passed = false
-legacy_runtime_quarantine_authorized = false
-legacy_runtime_disable_authorized = false
+legacy_runtime_quarantine_authorized = true
+legacy_runtime_disable_authorized = true
 legacy_files_delete_authorized = false
 cleanup_authorized = false
 ```
 
-只有阶段 B-D 通过后，才允许进入核心算法验收；只有阶段 E 和 rollback 通过后，才允许隔离旧运行时；永久删除仍要求逐项批准。
+阶段 A-F 已完成。阶段 G 的永久删除未执行，仍要求逐项批准。完整手机/RK/Jetson 资源链路、自动接歌、快切、能量/风格切歌和 15 秒 SLA 属于 v2，不能由本次核心算法验收推导为已交付。

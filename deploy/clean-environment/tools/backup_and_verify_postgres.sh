@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV_FILE="${1:-/home/mark/harbeat/.env}"
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "usage: $0 <database-env-file> [output-directory]" >&2
+  exit 2
+fi
+
+ENV_FILE="$1"
 OUTPUT_DIR="${2:-/tmp/harbeat-postgres-backup}"
 RESTORE_DB="harbeat_restore_verify_$(date -u +%Y%m%d%H%M%S)"
 RESTORE_PORT="${HARBEAT_RESTORE_PORT:-55432}"
@@ -62,6 +67,9 @@ psql "$DB_URL" --no-psqlrc --csv --command \
           count(*) FILTER (WHERE stems IS NOT NULL) AS stem_manifests_present
      FROM public.library_songs" \
   > "$OUTPUT_DIR/library-content-audit.csv"
+psql "$DB_URL" --no-psqlrc --tuples-only --no-align --command \
+  "SELECT COALESCE(json_agg(json_build_object('id', id, 'source_path', source_path, 'stems', stems) ORDER BY id), '[]'::json) FROM public.library_songs" \
+  > "$OUTPUT_DIR/library-asset-index.json"
 
 cleanup_restore_cluster() {
   if [[ -s "$RESTORE_CLUSTER/postmaster.pid" ]]; then

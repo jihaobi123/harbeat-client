@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "stage": "B",
+  "result": "passed_for_clean_core_release",
+  "postgresql": {
+    "external_directory": "D:/work/harbeat-device-backups/20260814/postgresql-rhythm-prism",
+    "database_dump_sha256": "2e9e31d047a16a5c5fa3f317a0d25c65eff0b7b5e88ba5fc8d6fd7af43c7055c",
+    "schema_sha256": "65fa559f3ec48e646018f4dfd232953be1019797156c2a730ea810dd727160e4",
+    "isolated_postgresql_14_restore": true,
+    "exact_table_counts_match": true,
+    "business_table_count": 13,
+    "library_songs": 43,
+    "dj_structure_v2_valid": 43,
+    "track1_exit_candidates_present": 43,
+    "track2_entry_candidates_present": 43
+  },
+  "nas_assets": {
+    "source_mutated": false,
+    "music_manifest": "external://harbeat-device-backups/20260814/nas-assets/music-files-sha256.json",
+    "music_manifest_sha256": "f1dda3dfddc3a342542b7ad5c5e4f11e5299a3d19078d55350e03e39aebfe7cf",
+    "music_file_count": 1204,
+    "music_total_size_bytes": 28331926460,
+    "model_manifest": "external://harbeat-device-backups/20260814/nas-assets/models-sha256.json",
+    "model_manifest_sha256": "9c54390d24a72c879f609535340a3091234337c2fcd9082771836a4c768f0797",
+    "model_file_count": 8,
+    "model_total_size_bytes": 618046444,
+    "source_files_ready": "43/43",
+    "declared_stem_files_ready": "168/168",
+    "songs_with_complete_stem_manifest": "42/43",
+    "stem_backfill_required": ["mt2_o4newg_star_edition"]
+  },
+  "dependency_artifacts": {
+    "jetson_linux_aarch64_wheels": 65,
+    "jetson_manifest_sha256": "85115193f4716a0ff488f51bcfa6b763cc630881d1cbe59771f387300e810824",
+    "rk_linux_aarch64_wheels": 21,
+    "rk_manifest_sha256": "8ca230e5e1029bacc8177ef4e40b1f10a95e80e639badf2297e62b7b8fd6e856",
+    "incompatible_windows_wheels_rejected": true
+  },
+  "known_non_blocking_gaps": {
+    "whole_disk_image_created": false,
+    "installed_mobile_apk_archived": false,
+    "single_song_stem_backfill_required": true
+  },
+  "gates": {
+    "stage_b_passed": true,
+    "core_transition_algorithm_accepted": false,
+    "production_ready": false,
+    "legacy_runtime_disable_authorized": false,
+    "legacy_files_delete_authorized": false,
+    "cleanup_authorized": false
+  }
+}

@@ -3,10 +3,10 @@
   "created_at": "2026-08-14",
   "default_action": "retain_pending_review",
   "gates": {
-    "core_transition_algorithm_accepted": false,
+    "core_transition_algorithm_accepted": true,
     "production_ready": false,
-    "legacy_runtime_quarantine_authorized": false,
-    "legacy_runtime_disable_authorized": false,
+    "legacy_runtime_quarantine_authorized": true,
+    "legacy_runtime_disable_authorized": true,
     "legacy_files_delete_authorized": false,
     "cleanup_authorized": false
   },
@@ -95,6 +95,31 @@
       "target": "devices:kernel,bootloader,drivers,firmware,udev,network,ALSA,CUDA,PostgreSQL,NAS",
       "classification": "retain",
       "reason": "Base hardware, operating system and durable data services are outside business cleanup scope."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/third-party-jetson-locked",
+      "classification": "quarantine",
+      "reason": "Historical mixed wheelhouse contains Windows wheels; never use for deployment."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/third-party-jetson-locked-v2",
+      "classification": "delete",
+      "reason": "Failed intermediate curation directory; superseded by locked-v4."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/third-party-jetson-locked-v3",
+      "classification": "delete",
+      "reason": "Incomplete intermediate curation directory; superseded by locked-v4."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/third-party-jetson-locked-v4",
+      "classification": "retain",
+      "reason": "Canonical Linux ARM64 CPython 3.10 Jetson wheelhouse."
+    },
+    {
+      "target": "external:D:/work/harbeat-device-backups/20260814/wheelhouse-core-v0.4.2",
+      "classification": "retain",
+      "reason": "Canonical clean core internal wheelhouse used by both deployed releases."
     },
     {
       "target": "feature:mobile-resource-pull-prewarm-sync-scheduling",

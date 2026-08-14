@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "stage": "F",
+  "result": "passed_reversible_isolation",
+  "snapshot": {
+    "external_directory": "D:/work/harbeat-device-backups/20260814/legacy-runtime-final-snapshot",
+    "manifest_sha256": "291f0feb01d2af031cffc43eae25ec4deb1459db32e8eb83df45c3ca1b483b37",
+    "includes": [
+      "Jetson harbeat-api unit/state/journal tail",
+      "RK cypher service units/state/journal tail",
+      "RK cypher.target dependency graph"
+    ]
+  },
+  "jetson": {
+    "harbeat_api": "inactive-disabled",
+    "port_8000": "free",
+    "postgresql": "active",
+    "nas_automount": "passed_after_reboot_and_first_access",
+    "clean_current": "/opt/harbeat/releases/core-v0.4.2"
+  },
+  "rk3588": {
+    "cypher_target": "inactive-disabled",
+    "cypher_audio_engine": "inactive-disabled",
+    "cypher_edge_agent": "inactive-disabled",
+    "cypher_input_daemon": "inactive-disabled",
+    "cypher_sync_worker": "inactive-disabled",
+    "ports_9000_9100": "free",
+    "harbeat_audio_restore": "active-enabled",
+    "es8388": "card_2_present",
+    "clean_current": "/opt/harbeat/releases/core-v0.4.2"
+  },
+  "reversibility": {
+    "old_source_retained": true,
+    "old_venv_retained": true,
+    "old_units_retained": true,
+    "rollback_action": "systemctl enable --now <legacy-unit> plus cypher.target on RK, harbeat-api on Jetson",
+    "permanent_delete_performed": false
+  },
+  "gates": {
+    "stage_f_passed": true,
+    "legacy_runtime_quarantine_authorized": true,
+    "legacy_runtime_disable_authorized": true,
+    "legacy_files_delete_authorized": false,
+    "production_ready": false
+  }
+}
