@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "result": "passed",
+  "state": "foundation_and_module_sandbox_only",
+  "backend_runtime": {
+    "source_trees": 0,
+    "backend_services": 0,
+    "backend_processes": 0,
+    "backend_ports": [],
+    "legacy_units": 0,
+    "legacy_virtualenvs": 0,
+    "validation_state_files": 0
+  },
+  "retained": {
+    "module_sandbox": "/opt/harbeat/releases/core-v0.5.0",
+    "module_sandbox_alias": "/opt/harbeat/current",
+    "jetson": [
+      "Python 3.10.12",
+      "CUDA and Orin drivers",
+      "FFmpeg 4.4.2",
+      "locked Essentia/librosa/Demucs dependencies",
+      "NAS automount and asset aliases",
+      "PostgreSQL/Redis/API secrets without legacy filesystem paths",
+      "htdemucs and CLAP model assets"
+    ],
+    "rk3588": [
+      "Python 3.10.12",
+      "FFmpeg 6.1",
+      "ES8388/ES8323 ALSA configuration",
+      "harbeat-audio-restore.service",
+      "module runtime dependencies"
+    ],
+    "durable_data": [
+      "PostgreSQL catalog and dj_structure_v2",
+      "NAS original songs",
+      "NAS stems",
+      "NAS model assets"
+    ]
+  },
+  "empty_reserved_roots": [
+    "/var/lib/harbeat on Jetson",
+    "/var/lib/harbeat on RK3588",
+    "/etc/harbeat on RK3588"
+  ],
+  "verification": {
+    "jetson_module_imports": "passed",
+    "rk_module_imports": "passed",
+    "pip_check": "passed on both devices",
+    "jetson_root_usage": "63%",
+    "rk_root_usage": "55%"
+  },
+  "next_step": "build a new backend framework and integrate independently tested modules"
+}
+
