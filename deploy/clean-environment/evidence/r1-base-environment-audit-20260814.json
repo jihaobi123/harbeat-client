@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "audit": "r1-base-environment",
-  "created_at": "2026-08-14T06:34:04.996685+00:00",
-  "source_commit": "58afa17208af3e7895859221a5127e958baade06",
+  "created_at": "2026-08-14T07:25:34.185552+00:00",
+  "source_commit": "508245a51ab148881a30d35702e29d68ba03b4b3",
   "host": {
     "platform": "Windows-11-10.0.26200-SP0",
     "python": "3.13.7"
@@ -22,7 +22,7 @@
     "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json": "094d6684ea81f4e53cf62304c842f0e52779f71a2c671af6d3b40d437a84eeb2",
     "deploy\\clean-environment\\evidence\\r1-exact-system-package-locks-20260814.json": "415c117fc4734053b41d75900dbb1c5d1bb4607e04f1569381eb56bc9dc02efe",
     "deploy\\clean-environment\\evidence\\r1-recovery-bundles-20260814.json": "2b0628b34ee0bf1d7223c6385c2fa8d153dbf3130fe7e3e712a84ce4c88273d1",
-    "deploy\\clean-environment\\evidence\\r1-r2-runtime-dependency-gap-20260814.json": "3ef3e74ed9c5e93bfdb0d4e1397d2eb5511b0e3d768d25cdda66657199a76779",
+    "deploy\\clean-environment\\evidence\\r1-r2-runtime-dependency-gap-20260814.json": "aca5d139e95139e8721f7ffbe520327276a28cf584211f8e82f4a22bd04ad925",
     "deploy\\clean-environment\\release-manifest.json": "a15173f03806ee71f213e5f01959c2f2df41ea2eba98ff30af0c49c18a6995fb",
     "deploy\\clean-environment\\service-manifest.json": "ef6ff3bdc73877fc09d160da7051fd3945fedd8a66f02804df8848eee9cf9f29",
     "deploy\\clean-environment\\acceptance-report-v0.3.0.json": "8588e0c8f3c7c55a37713723c907fabf566a061033a0ea3f4480d9414cd9b323"
@@ -117,7 +117,25 @@
         }
       },
       "system_python_matches_lock": false,
-      "clean_venv_created": false,
+      "clean_venv_created": true,
+      "clean_venv_validation": {
+        "clean_venv": "/tmp/harbeat-clean-r2-20260814-rk",
+        "clean_venv_created": true,
+        "module_wheel_imports": "12/12",
+        "pip_check": "passed",
+        "python": "3.10",
+        "numpy": "1.26.4",
+        "soundfile": "0.13.1",
+        "sounddevice": "0.4.6",
+        "fastapi": "0.116.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.35.0",
+        "sounddevice_count": 11,
+        "ffmpeg": "6.1-rockchip",
+        "unix_audio_socket_ping": true,
+        "real_audio_playback_30m": false,
+        "prepare_schedule_20_of_20": false
+      },
       "policy": "System Python is evidence only and is never accepted as the clean service environment."
     },
     "jetson": {
@@ -159,7 +177,26 @@
         }
       },
       "system_python_matches_lock": false,
-      "clean_venv_created": false,
+      "clean_venv_created": true,
+      "clean_venv_validation": {
+        "clean_venv": "/tmp/harbeat-clean-r2-20260814-jetson-v2",
+        "clean_venv_created": true,
+        "module_wheel_imports": "12/12",
+        "pip_check": "passed",
+        "python": "3.10.12",
+        "architecture": "aarch64",
+        "torch": "2.4.0a0+3bcc3cddb5.nv24.07",
+        "torch_sha256": "c32f2ed4974bda537d99b858d156857c71eb1ec4202b50ba190cf1ad34a7dbec",
+        "torchaudio": "2.4.0a0+69d4077",
+        "torchaudio_sha256": "541a3154e5f892bf174b9234f945205b33bbe66e7e60715220417e41b3026f14",
+        "demucs": "4.0.1",
+        "cuda_available": true,
+        "cuda_device": "Orin",
+        "cuda_tensor_smoke": true,
+        "ffmpeg": "4.4.2-0ubuntu0.22.04.1",
+        "demucs_model": "955717e8-8726e21a.th",
+        "demucs_model_sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4"
+      },
       "policy": "System Python is evidence only and is never accepted as the clean service environment."
     }
   },
@@ -167,7 +204,7 @@
     "tracked_manifests_complete": true,
     "exact_system_package_locks_complete": true,
     "external_recovery_bundles_verified": true,
-    "target_clean_python_venvs_verified": false,
+    "target_clean_python_venvs_verified": true,
     "clean_deployment_scaffold_verified": true,
     "base_image_built": false,
     "empty_device_restore": false,
