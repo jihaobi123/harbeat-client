@@ -198,7 +198,7 @@ def stage(args: argparse.Namespace) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(dir=paths["releases"], prefix=f".{release}.") as tmp:
         copy_release(Path(tmp) / "payload", release)
         os.replace(Path(tmp) / "payload", target)
-    return {"action": "stage", "release": release, "path": str(target), **result}
+    return {**result, "action": "stage", "release": release, "path": str(target)}
 
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
@@ -242,7 +242,7 @@ def activate(args: argparse.Namespace) -> dict[str, Any]:
     except OSError:
         shutil.copytree(target, current)
     write_json(paths["config"] / "active-release.json", {"release": target.name, "path": str(target)})
-    return {"action": "activate", "active": str(target), "previous": str(previous), **verified}
+    return {**verified, "action": "activate", "active": str(target), "previous": str(previous)}
 
 
 def rollback(args: argparse.Namespace) -> dict[str, Any]:
