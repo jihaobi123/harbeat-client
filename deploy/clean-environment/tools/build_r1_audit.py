@@ -48,6 +48,8 @@ def tracked_files() -> list[Path]:
         "locks/build-tools.lock",
         "inventory-rk.json",
         "inventory-jetson.json",
+        "evidence/r1-rk-inventory-current.json",
+        "evidence/r1-jetson-inventory-current.json",
         "release-manifest.json",
         "service-manifest.json",
         "acceptance-report-v0.3.0.json",

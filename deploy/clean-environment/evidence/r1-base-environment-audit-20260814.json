@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "audit": "r1-base-environment",
-  "created_at": "2026-08-14T05:36:21.916199+00:00",
-  "source_commit": "d737e3ea279e293c21b07824fd92bb7fc3ee5822",
+  "created_at": "2026-08-14T05:42:59.109582+00:00",
+  "source_commit": "7d49ccd42400c1e2fcc152195aa3d5aa4eac8035",
   "host": {
     "platform": "Windows-11-10.0.26200-SP0",
     "python": "3.13.7"
@@ -18,6 +18,8 @@
     "deploy\\clean-environment\\locks\\build-tools.lock": "e2686d8fe2992d06db8cc9615afdc31e557d2dde26499c4e5188bbd2a8d0a4be",
     "deploy\\clean-environment\\inventory-rk.json": "e13aeaa7517a78b530d95694c4a40eb854e9e39f0d2f1bdabab56d9e6e67e985",
     "deploy\\clean-environment\\inventory-jetson.json": "83c9b9f6fb8c8dd81a0cec169732f5225101290858b32bb899079520e3e5c49b",
+    "deploy\\clean-environment\\evidence\\r1-rk-inventory-current.json": "1faf101d38b85ccd3b9dc7e3696e70336df4173f8b26bfbe45def1d12d0a52b9",
+    "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json": "131db2733b6a80ecc0022521253bdf1ab74c2b708156e06bfec4bda54f86c3f5",
     "deploy\\clean-environment\\release-manifest.json": "a15173f03806ee71f213e5f01959c2f2df41ea2eba98ff30af0c49c18a6995fb",
     "deploy\\clean-environment\\service-manifest.json": "ef6ff3bdc73877fc09d160da7051fd3945fedd8a66f02804df8848eee9cf9f29",
     "deploy\\clean-environment\\acceptance-report-v0.3.0.json": "8588e0c8f3c7c55a37713723c907fabf566a061033a0ea3f4480d9414cd9b323"

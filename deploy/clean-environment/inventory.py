@@ -8,6 +8,7 @@ import json
 import platform
 import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,10 +34,20 @@ def local_inventory(root: Path) -> dict:
         "git_head": command_output(["git", "-C", str(root), "rev-parse", "HEAD"]),
         "git_branch": command_output(["git", "-C", str(root), "branch", "--show-current"]),
         "systemd_units": command_output(["systemctl", "list-unit-files", "--type=service", "--no-pager", "--no-legend"]),
+        "systemd_running": command_output(["systemctl", "list-units", "--type=service", "--state=running", "--no-pager", "--no-legend"]),
         "active_ports": command_output(["ss", "-ltnup"]),
+        "os_release": command_output(["cat", "/etc/os-release"]),
+        "system_packages": command_output(
+            ["dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${Architecture}\\n"]
+        ),
         "python_executable": command_output(["python3", "-c", "import sys; print(sys.executable)"]),
+        "python_packages": command_output(["python3", "-m", "pip", "freeze", "--all"]),
         "cuda": command_output(["bash", "-lc", "command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=name,driver_version --format=csv,noheader || true"]),
+        "jetson_release": command_output(["bash", "-lc", "test -r /etc/nv_tegra_release && cat /etc/nv_tegra_release || true"]),
         "audio_devices": command_output(["bash", "-lc", "command -v aplay >/dev/null && aplay -l || true"]),
+        "usb_devices": command_output(["bash", "-lc", "command -v lsusb >/dev/null && lsusb || true"]),
+        "pci_devices": command_output(["bash", "-lc", "command -v lspci >/dev/null && lspci -nn || true"]),
+        "network_links": command_output(["bash", "-lc", "command -v ip >/dev/null && ip -json link || true"]),
         "disk": shutil.disk_usage(root)._asdict(),
     }
 
@@ -44,11 +55,15 @@ def local_inventory(root: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(local_inventory(args.root.resolve()), indent=2) + "\n", encoding="utf-8")
-    print(args.output)
+    payload = json.dumps(local_inventory(args.root.resolve()), indent=2) + "\n"
+    if args.output is None:
+        sys.stdout.write(payload)
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+        print(args.output)
     return 0
 
 
