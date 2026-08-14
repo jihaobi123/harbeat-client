@@ -370,6 +370,7 @@ class _SongDetailPageState extends State<SongDetailPage> {
         final playResult = await _edge.play(
           songId: _song.id,
           startAtSec: startAtSec,
+          loadStems: true,
         );
         final ok =
             playResult['ok'] == true ||

@@ -38,12 +38,17 @@ class SyncWorkerClient {
     required List<Map<String, dynamic>> tracks,
     String? planId,
     bool audioOnly = false,
+    bool priority = false,
+    bool waitForCompletion = false,
+    Duration? requestTimeout,
     List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
     final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
     final body = <String, dynamic>{
       'plan_id': planId ?? 'mobile-${DateTime.now().millisecondsSinceEpoch}',
       'tracks': syncTracks,
+      if (priority) 'priority': true,
+      if (waitForCompletion) 'wait': true,
       if (defaultMixPairs.isNotEmpty) 'default_mix_pairs': defaultMixPairs,
     };
     final resp = await http
@@ -52,7 +57,9 @@ class SyncWorkerClient {
           headers: const {'Content-Type': 'application/json'},
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(
+          requestTimeout ?? Duration(seconds: waitForCompletion ? 11 : 10),
+        );
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /sync ${resp.statusCode}: ${resp.body}');
     }
@@ -63,10 +70,10 @@ class SyncWorkerClient {
     return payload;
   }
 
-  Future<SyncStatus> getStatus() async {
-    final resp = await http
-        .get(_u('/status'))
-        .timeout(const Duration(seconds: 5));
+  Future<SyncStatus> getStatus({
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final resp = await http.get(_u('/status')).timeout(timeout);
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw Exception('sync-worker /status ${resp.statusCode}: ${resp.body}');
     }
@@ -94,6 +101,36 @@ class SyncWorkerClient {
       if (resp.statusCode != 200) return false;
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
       return body['exists'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> defaultMixPairExists(String pairId) async {
+    if (pairId.trim().isEmpty) return false;
+    try {
+      final resp = await http
+          .get(_u('/cache/check?pair_id=${Uri.encodeQueryComponent(pairId)}'))
+          .timeout(const Duration(seconds: 2));
+      if (resp.statusCode != 200) return false;
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      return body['exists'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Stop a lower-priority sync so a user-triggered fast cut can upload its
+  /// render package before the live cut window expires. The worker endpoint is
+  /// idempotent: false only means there was nothing running to interrupt.
+  Future<bool> cancelSync() async {
+    try {
+      final resp = await http
+          .post(_u('/sync/cancel'))
+          .timeout(const Duration(seconds: 2));
+      if (resp.statusCode < 200 || resp.statusCode >= 300) return false;
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      return body['cancelled'] == true;
     } catch (_) {
       return false;
     }
@@ -129,41 +166,155 @@ class SyncWorkerClient {
     String? planId,
     Duration timeout = const Duration(minutes: 3),
     Duration pollInterval = const Duration(seconds: 1),
+    Duration statusRequestTimeout = const Duration(seconds: 5),
+    Duration startRequestTimeout = const Duration(seconds: 10),
+    bool priority = false,
+    bool waitForCompletion = false,
     void Function(SyncStatus status)? onProgress,
     bool audioOnly = false,
     List<Map<String, dynamic>> defaultMixPairs = const <Map<String, dynamic>>[],
   }) async {
     final syncTracks = audioOnly ? _audioOnlyTracks(tracks) : tracks;
+    final expectedPlanId =
+        planId ?? 'mobile-${DateTime.now().millisecondsSinceEpoch}';
     final deadline = DateTime.now().add(timeout);
     SyncStatus last = SyncStatus.empty();
+    Future<SyncStatus?> completedFromCache() async {
+      var total = 0;
+      for (final track in syncTracks) {
+        final songId =
+            track['song_id'] ??
+            track['library_song_id'] ??
+            track['songId'] ??
+            track['id'];
+        if (songId == null) continue;
+        total += 1;
+        if (!await cacheExists(songId.toString())) return null;
+      }
+      for (final pair in defaultMixPairs) {
+        final pairId = pair['pair_id'] ?? pair['id'];
+        if (pairId == null) continue;
+        total += 2;
+        if (!await defaultMixPairExists(pairId.toString())) return null;
+      }
+      return SyncStatus(
+        running: false,
+        total: total,
+        downloaded: total,
+        completed: total,
+        percent: 100,
+        planId: expectedPlanId,
+      );
+    }
+
     var started = false;
     while (!started && DateTime.now().isBefore(deadline)) {
       try {
-        await startSync(
+        final startPayload = await startSync(
           tracks: syncTracks,
-          planId: planId,
+          planId: expectedPlanId,
+          priority: priority,
+          waitForCompletion: waitForCompletion,
+          requestTimeout: startRequestTimeout,
           defaultMixPairs: defaultMixPairs,
         );
+        final startStatus = startPayload['status'];
+        if (startStatus is Map) {
+          last = SyncStatus.fromJson(Map<String, dynamic>.from(startStatus));
+          onProgress?.call(last);
+          if (last.matchesPlan(expectedPlanId) && !last.running) {
+            if (last.errors.isNotEmpty) {
+              throw Exception('sync 失败: ${last.errors.join('; ')}');
+            }
+            if (!last.completedAll) {
+              throw SyncIncompleteException(
+                completed: last.completed,
+                total: last.total,
+              );
+            }
+            return last;
+          }
+        }
         started = true;
+        final cached = await completedFromCache();
+        if (cached != null) {
+          onProgress?.call(cached);
+          return cached;
+        }
       } on Exception catch (e) {
         final msg = e.toString();
-        if (!msg.contains('sync-worker busy')) rethrow;
+        final busy = msg.contains('sync-worker busy');
+        final ambiguousStart =
+            e is TimeoutException || e is http.ClientException;
+        if (!busy && !ambiguousStart) rethrow;
+
+        // A timed-out POST may already have started the RK task. Resolve that
+        // ambiguity with the same plan id before submitting another transfer.
+        if (ambiguousStart) {
+          try {
+            last = await getStatus(timeout: statusRequestTimeout);
+            onProgress?.call(last);
+            if (last.matchesPlan(expectedPlanId)) {
+              started = true;
+              if (!last.running) {
+                if (last.errors.isNotEmpty) {
+                  throw Exception('sync failed: ${last.errors.join('; ')}');
+                }
+                if (!last.completedAll) {
+                  throw SyncIncompleteException(
+                    completed: last.completed,
+                    total: last.total,
+                  );
+                }
+                return last;
+              }
+              break;
+            }
+          } on Exception catch (statusError) {
+            if (statusError is SyncIncompleteException ||
+                statusError.toString().contains('sync failed:')) {
+              rethrow;
+            }
+          }
+          final cached = await completedFromCache();
+          if (cached != null) {
+            onProgress?.call(cached);
+            return cached;
+          }
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+
         while (DateTime.now().isBefore(deadline)) {
           await Future<void>.delayed(pollInterval);
           try {
-            last = await getStatus();
+            last = await getStatus(timeout: statusRequestTimeout);
             onProgress?.call(last);
             if (!last.running) {
-              if (last.planId == planId) {
+              if (last.matchesPlan(expectedPlanId)) {
                 if (last.errors.isNotEmpty) {
                   throw Exception('sync 失败: ${last.errors.join('; ')}');
+                }
+                if (!last.completedAll) {
+                  throw SyncIncompleteException(
+                    completed: last.completed,
+                    total: last.total,
+                  );
                 }
                 return last;
               }
               break;
             }
           } on Exception catch (pollError) {
-            if (pollError.toString().contains('sync 失败')) rethrow;
+            if (pollError is SyncIncompleteException ||
+                pollError.toString().contains('sync 失败')) {
+              rethrow;
+            }
+            final cached = await completedFromCache();
+            if (cached != null) {
+              onProgress?.call(cached);
+              return cached;
+            }
             // Keep waiting through transient status failures.
           }
         }
@@ -173,45 +324,81 @@ class SyncWorkerClient {
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(pollInterval);
       try {
-        last = await getStatus();
+        last = await getStatus(timeout: statusRequestTimeout);
         onProgress?.call(last);
+        if (!last.matchesPlan(expectedPlanId)) {
+          continue;
+        }
         if (!last.running) {
           if (last.errors.isNotEmpty) {
             throw Exception('sync 失败: ${last.errors.join('; ')}');
+          }
+          if (!last.completedAll) {
+            throw SyncIncompleteException(
+              completed: last.completed,
+              total: last.total,
+            );
           }
           return last;
         }
       } on Exception catch (e) {
         final msg = e.toString();
-        if (msg.contains('sync 失败')) rethrow;
-        // Transient poll failure (network hiccup) — keep retrying.
+        if (e is SyncIncompleteException || msg.contains('sync 失败')) {
+          rethrow;
+        }
+        final cached = await completedFromCache();
+        if (cached != null) {
+          onProgress?.call(cached);
+          return cached;
+        }
+        // Transient poll failure (network hiccup) – keep retrying.
+      }
+      final cached = await completedFromCache();
+      if (cached != null) {
+        onProgress?.call(cached);
+        return cached;
       }
     }
     throw TimeoutException('sync 超时');
   }
-  List<Map<String, dynamic>> _audioOnlyTracks(List<Map<String, dynamic>> tracks) {
-    return tracks.map((track) {
-      final out = Map<String, dynamic>.from(track);
-      final files = track['files'];
-      final original = files is Map ? files['original'] : null;
-      out['files'] = <String, dynamic>{
-        if (original is Map)
-          'original': Map<String, dynamic>.from(original)
-        else if (original != null)
-          'original': original,
-      };
-      final qualityFlags = out['qualityFlags'];
-      if (qualityFlags is Map) {
-        out['qualityFlags'] = <String, dynamic>{
-          ...Map<String, dynamic>.from(qualityFlags),
-          'has_stems': false,
-          'stem_model': null,
-        };
-      }
-      out['stemStatus'] = 'not_requested';
-      return out;
-    }).toList(growable: false);
+
+  List<Map<String, dynamic>> _audioOnlyTracks(
+    List<Map<String, dynamic>> tracks,
+  ) {
+    return tracks
+        .map((track) {
+          final out = Map<String, dynamic>.from(track);
+          final files = track['files'];
+          final original = files is Map ? files['original'] : null;
+          out['files'] = <String, dynamic>{
+            if (original is Map)
+              'original': Map<String, dynamic>.from(original)
+            else if (original != null)
+              'original': original,
+          };
+          final qualityFlags = out['qualityFlags'];
+          if (qualityFlags is Map) {
+            out['qualityFlags'] = <String, dynamic>{
+              ...Map<String, dynamic>.from(qualityFlags),
+              'has_stems': false,
+              'stem_model': null,
+            };
+          }
+          out['stemStatus'] = 'not_requested';
+          return out;
+        })
+        .toList(growable: false);
   }
+}
+
+class SyncIncompleteException implements Exception {
+  SyncIncompleteException({required this.completed, required this.total});
+
+  final int completed;
+  final int total;
+
+  @override
+  String toString() => 'sync incomplete: $completed/$total';
 }
 
 class SyncStatus {
@@ -234,6 +421,11 @@ class SyncStatus {
   final String? planId;
   final String? currentFile;
   final List<String> errors;
+
+  bool matchesPlan(String? expectedPlanId) =>
+      expectedPlanId == null || planId == expectedPlanId;
+
+  bool get completedAll => total == 0 || completed >= total;
 
   factory SyncStatus.empty() => SyncStatus(
     running: false,

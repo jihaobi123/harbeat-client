@@ -88,6 +88,8 @@ class RkAdapterTests(unittest.TestCase):
             sync = TestClient(create_rk_app(config("sync-worker", root)))
             self.assertEqual(sync.get("/health").status_code, 200)
             self.assertEqual(sync.get("/status").status_code, 200)
+            sync_module = sys.modules["harbeat_asset_sync.sync_worker"]
+            self.assertEqual(sync_module.CACHE_DIR, root / "assets" / "cache")
 
             edge = TestClient(create_rk_app(config("edge-agent", root)))
             response = edge.post("/transition/validate", json=transition_request())

@@ -23,6 +23,9 @@ from .core import AssetSpec, sha256_file, sidecar_path, validate_cached_asset
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("sync-worker")
+# Signed stream URLs can contain bearer credentials in their query string.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 CYPHER_HOME = Path(os.environ.get("CYPHER_HOME", str(Path.home() / "cypher")))
 CACHE_DIR = CYPHER_HOME / "cache"

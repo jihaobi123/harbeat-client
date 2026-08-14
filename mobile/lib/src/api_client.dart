@@ -762,30 +762,38 @@ class HarBeatApiClient {
         .toList();
   }
 
-  /// Live cut planning. Returns plan map: {chosen_song_id, switch_at_sec, ...}.
-  Future<Map<String, dynamic>> djPlanCut({
+  Future<Map<String, dynamic>> djPlanFastCut({
     required String token,
-    required String strategy,
-    required String currentSongId,
-    required double cursorSec,
-    required List<String> queueSongIds,
-    required int currentIndex,
-    required List<String> poolSongIds,
-    double maxWaitSec = 5.0,
+    required String fromSongId,
+    required String toSongId,
+    required double exitTimeSec,
+    double? cursorSec,
+    double? minExitSec,
+    double? maxExitSec,
+    double? renderBudgetSec,
+    int? currentSessionId,
+    String? deviceId,
+    double? fadeSec,
+    String track2ScanMode = 'phrase_change',
   }) async {
     return await _request<Map<String, dynamic>>(
       method: 'POST',
-      path: '/api/dj/cut/plan',
+      path: '/api/dj/transitions/fast-cut',
       token: token,
       body: {
-        'strategy': strategy,
-        'current_song_id': currentSongId,
-        'cursor_sec': cursorSec,
-        'queue_song_ids': queueSongIds,
-        'current_index': currentIndex,
-        'pool_song_ids': poolSongIds,
-        'max_wait_sec': maxWaitSec,
+        'from_song_id': fromSongId,
+        'to_song_id': toSongId,
+        'exit_time_sec': exitTimeSec,
+        if (cursorSec != null) 'cursor_sec': cursorSec,
+        if (minExitSec != null) 'min_exit_sec': minExitSec,
+        if (maxExitSec != null) 'max_exit_sec': maxExitSec,
+        if (renderBudgetSec != null) 'render_budget_sec': renderBudgetSec,
+        if (currentSessionId != null) 'current_session_id': currentSessionId,
+        if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+        if (fadeSec != null) 'fade_sec': fadeSec,
+        'track2_scan_mode': track2ScanMode,
       },
+      timeout: const Duration(seconds: 90),
     );
   }
 
@@ -863,6 +871,7 @@ class HarBeatApiClient {
     required List<String> styleReservePoolSongIds,
     required List<String> playedSongIds,
     required List<String> blockedSongIds,
+    List<String> excludeSongIds = const [],
     required List<String> cachedSongIds,
     required List<String> syncingSongIds,
     String? currentStyle,
@@ -883,7 +892,7 @@ class HarBeatApiClient {
         'style_reserve_pool_song_ids': styleReservePoolSongIds,
         'played_song_ids': playedSongIds,
         'blocked_song_ids': blockedSongIds,
-        'exclude_song_ids': const [],
+        'exclude_song_ids': excludeSongIds,
         'cached_song_ids': cachedSongIds,
         'syncing_song_ids': syncingSongIds,
         if (currentStyle != null && currentStyle.isNotEmpty)

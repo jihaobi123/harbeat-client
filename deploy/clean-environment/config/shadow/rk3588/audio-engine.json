@@ -1,1 +1,1 @@
-{"schema_version":1,"service":"audio-engine","profile":"rk3588","mode":"shadow","state_root":"/tmp/harbeat-shadow/audio-engine","asset_root":"/tmp/harbeat-shadow/assets","settings":{"audio_socket":"/tmp/harbeat-shadow-audio.sock"}}
+{"schema_version":1,"service":"audio-engine","profile":"rk3588","mode":"shadow","state_root":"/tmp/harbeat-shadow/audio-engine","asset_root":"/tmp/harbeat-shadow/assets","settings":{"audio_socket":"/tmp/harbeat-shadow-audio.sock","audio_device":"pulse"}}

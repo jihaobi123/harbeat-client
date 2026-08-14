@@ -1,0 +1,47 @@
+﻿[
+    {
+        "attempt":  1,
+        "ready":  1.269,
+        "execute":  7.683,
+        "resume":  13.986,
+        "error_ms":  null,
+        "degraded":  null,
+        "passed":  true
+    },
+    {
+        "attempt":  2,
+        "ready":  0.684,
+        "execute":  12.007,
+        "resume":  18.422,
+        "error_ms":  -0.007,
+        "degraded":  false,
+        "passed":  true
+    },
+    {
+        "attempt":  3,
+        "ready":  0.654,
+        "execute":  12.21,
+        "resume":  18.616,
+        "error_ms":  0.009,
+        "degraded":  false,
+        "passed":  true
+    },
+    {
+        "attempt":  4,
+        "ready":  0.673,
+        "execute":  14.555,
+        "resume":  21.087,
+        "error_ms":  -0.011,
+        "degraded":  false,
+        "passed":  true
+    },
+    {
+        "attempt":  5,
+        "ready":  1.508,
+        "execute":  11.211,
+        "resume":  17.659,
+        "error_ms":  0.011,
+        "degraded":  false,
+        "passed":  true
+    }
+]

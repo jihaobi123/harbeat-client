@@ -4,12 +4,23 @@ import 'package:http/http.dart' as http;
 
 import 'live_models.dart';
 
+class _EdgeAgentHttpException implements Exception {
+  const _EdgeAgentHttpException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class EdgeAgentClient {
   EdgeAgentClient({required String baseUrl, this.edgeToken})
-    : baseUrl = normalizeBaseUrl(baseUrl);
+    : baseUrl = normalizeBaseUrl(baseUrl),
+      _client = http.Client();
 
   final String baseUrl;
   final String? edgeToken;
+  final http.Client _client;
 
   static String normalizeBaseUrl(String raw) {
     var s = raw.trim();
@@ -40,7 +51,11 @@ class EdgeAgentClient {
 
   Future<LivePlaybackState> getState() async {
     try {
-      final data = await _request(method: 'GET', path: '/state');
+      final data = await _request(
+        method: 'GET',
+        path: '/state',
+        timeout: const Duration(milliseconds: 2500),
+      );
       return LivePlaybackState.fromJson(data);
     } catch (e) {
       return LivePlaybackState(
@@ -77,10 +92,12 @@ class EdgeAgentClient {
   Future<Map<String, dynamic>> play({
     String? songId,
     double? startAtSec,
+    bool? loadStems,
   }) async {
     final body = <String, dynamic>{};
     if (songId != null) body['song_id'] = songId;
     if (startAtSec != null) body['start_at_sec'] = startAtSec;
+    if (loadStems != null) body['load_stems'] = loadStems;
     return _request(method: 'POST', path: '/play', body: body);
   }
 
@@ -119,6 +136,7 @@ class EdgeAgentClient {
         if (sessionId != null) 'session_id': sessionId,
       },
       timeout: const Duration(minutes: 5),
+      attempts: 3,
     );
   }
 
@@ -138,6 +156,129 @@ class EdgeAgentClient {
       },
       timeout: const Duration(seconds: 30),
     );
+  }
+
+  /// Decode the transition render and its target resume deck ahead of a
+  /// manual fast cut. This does not schedule or change RK playback.
+  Future<Map<String, dynamic>> defaultRenderPrepare({
+    required Map<String, dynamic> transitionPlan,
+    Object? toSongId,
+    String? renderPath,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/render/prepare',
+      body: {
+        'transition_plan': transitionPlan,
+        if (toSongId != null) 'to_song_id': toSongId,
+        if (renderPath != null && renderPath.isNotEmpty)
+          'render_path': renderPath,
+      },
+      timeout: const Duration(seconds: 3),
+      attempts: 3,
+    );
+  }
+
+  /// Let RK own the exact handoff after both decks are prepared. The request
+  /// is retry-safe because RK treats a repeated schedule for the same pair as
+  /// the same operation.
+  Future<Map<String, dynamic>> defaultRenderSchedule({
+    required Map<String, dynamic> transitionPlan,
+    Object? toSongId,
+    String? renderPath,
+    double minLeadSec = 1.5,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/render/schedule',
+      body: {
+        'transition_plan': transitionPlan,
+        if (toSongId != null) 'to_song_id': toSongId,
+        if (renderPath != null && renderPath.isNotEmpty)
+          'render_path': renderPath,
+        'min_lead_sec': minLeadSec,
+      },
+      timeout: const Duration(seconds: 3),
+      attempts: 3,
+    );
+  }
+
+  /// Prepare both decks and schedule the handoff inside RK. Keeping both
+  /// operations in one request prevents hotspot response latency from making
+  /// the cut point expire between prepare and schedule.
+  Future<Map<String, dynamic>> defaultRenderPrepareAndSchedule({
+    required Map<String, dynamic> transitionPlan,
+    Object? toSongId,
+    String? renderPath,
+    double minLeadSec = 1.5,
+  }) async {
+    return _request(
+      method: 'POST',
+      path: '/autoplay/default/render/prepare-schedule',
+      body: {
+        'transition_plan': transitionPlan,
+        if (toSongId != null) 'to_song_id': toSongId,
+        if (renderPath != null && renderPath.isNotEmpty)
+          'render_path': renderPath,
+        'min_lead_sec': minLeadSec,
+      },
+      timeout: const Duration(seconds: 11),
+      attempts: 2,
+    );
+  }
+
+  Future<ManualTransitionTask> createDefaultRenderOrchestration({
+    required String transitionId,
+    required String trigger,
+    required Object fromSongId,
+    required Object toSongId,
+    required Map<String, dynamic> transitionPlan,
+    required Map<String, dynamic> pairManifest,
+    double minLeadSec = 1.5,
+    String mode = 'schedule',
+  }) async {
+    final data = await _request(
+      method: 'POST',
+      path: '/autoplay/default/render/orchestrate',
+      body: {
+        'transition_id': transitionId,
+        'trigger': trigger,
+        'mode': mode,
+        'from_song_id': fromSongId,
+        'to_song_id': toSongId,
+        'transition_plan': transitionPlan,
+        'default_mix_pair_manifest': pairManifest,
+        'min_lead_sec': minLeadSec,
+      },
+      timeout: const Duration(seconds: 3),
+      attempts: 3,
+    );
+    return ManualTransitionTask.fromJson(data);
+  }
+
+  Future<ManualTransitionTask> getDefaultRenderOrchestration(
+    String transitionId,
+  ) async {
+    final data = await _request(
+      method: 'GET',
+      path:
+          '/autoplay/default/render/orchestrate/${Uri.encodeComponent(transitionId)}',
+      timeout: const Duration(milliseconds: 2500),
+    );
+    return ManualTransitionTask.fromJson(data);
+  }
+
+  Future<ManualTransitionTask> cancelDefaultRenderOrchestration(
+    String transitionId,
+  ) async {
+    final data = await _request(
+      method: 'DELETE',
+      path:
+          '/autoplay/default/render/orchestrate/${Uri.encodeComponent(transitionId)}',
+      timeout: const Duration(seconds: 3),
+      attempts: 2,
+    );
+    return ManualTransitionTask.fromJson(data);
   }
 
   Future<Map<String, dynamic>> pause() async {
@@ -308,6 +449,7 @@ class EdgeAgentClient {
     Object? body,
     Map<String, String>? queryParameters,
     Duration? timeout,
+    int attempts = 1,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) {
@@ -318,36 +460,56 @@ class EdgeAgentClient {
     }
 
     final uri = _uri(path, queryParameters);
-    late final http.Response response;
-
-    try {
-      switch (method) {
-        case 'GET':
-          response = await http
-              .get(uri, headers: headers)
-              .timeout(timeout ?? const Duration(seconds: 5));
-          break;
-        case 'POST':
-          response = await http
-              .post(uri, headers: headers, body: jsonEncode(body))
-              .timeout(timeout ?? const Duration(seconds: 10));
-          break;
-        default:
-          throw Exception('Unsupported method: $method');
+    final requestTimeout =
+        timeout ??
+        (method == 'GET'
+            ? const Duration(seconds: 5)
+            : const Duration(seconds: 10));
+    Object? lastError;
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      try {
+        late final http.Response response;
+        switch (method) {
+          case 'GET':
+            response = await _client
+                .get(uri, headers: headers)
+                .timeout(requestTimeout);
+            break;
+          case 'POST':
+            response = await _client
+                .post(uri, headers: headers, body: jsonEncode(body))
+                .timeout(requestTimeout);
+            break;
+          case 'DELETE':
+            response = await _client
+                .delete(uri, headers: headers)
+                .timeout(requestTimeout);
+            break;
+          default:
+            throw Exception('Unsupported method: $method');
+        }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw _EdgeAgentHttpException(
+            'RK returned ${response.statusCode}: ${response.body}',
+          );
+        }
+        final payload = jsonDecode(response.body);
+        if (payload is! Map<String, dynamic>) {
+          throw Exception('RK returned unexpected response format');
+        }
+        return payload;
+      } catch (error) {
+        if (error is _EdgeAgentHttpException) rethrow;
+        lastError = error;
+        if (attempt + 1 < attempts) {
+          await Future<void>.delayed(
+            Duration(milliseconds: 150 * (attempt + 1)),
+          );
+        }
       }
-    } catch (e) {
-      throw Exception('RK connection failed: $e');
     }
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('RK returned ${response.statusCode}: ${response.body}');
-    }
-
-    final payload = jsonDecode(response.body);
-    if (payload is! Map<String, dynamic>) {
-      throw Exception('RK returned unexpected response format');
-    }
-
-    return payload;
+    throw Exception(
+      'RK connection failed after $attempts attempt(s): $lastError',
+    );
   }
 }

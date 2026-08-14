@@ -1,3 +1,91 @@
+enum ManualTransitionState {
+  accepted,
+  syncing,
+  cacheReady,
+  prewarmed,
+  prepared,
+  scheduled,
+  executed,
+  expired,
+  failed,
+  cancelled,
+}
+
+class ManualTransitionTask {
+  const ManualTransitionTask({
+    required this.transitionId,
+    required this.pairId,
+    required this.state,
+    this.acceptedPositionSec,
+    this.plannedFromAtSec,
+    this.deadlineInSec,
+    this.timings = const {},
+    this.result,
+    this.error,
+  });
+
+  final String transitionId;
+  final String pairId;
+  final ManualTransitionState state;
+  final double? acceptedPositionSec;
+  final double? plannedFromAtSec;
+  final double? deadlineInSec;
+  final Map<String, double> timings;
+  final Map<String, dynamic>? result;
+  final Map<String, dynamic>? error;
+
+  bool get isTerminal => switch (state) {
+    ManualTransitionState.executed ||
+    ManualTransitionState.prewarmed ||
+    ManualTransitionState.expired ||
+    ManualTransitionState.failed ||
+    ManualTransitionState.cancelled => true,
+    _ => false,
+  };
+
+  bool get isCommitted =>
+      state == ManualTransitionState.scheduled ||
+      state == ManualTransitionState.executed;
+
+  factory ManualTransitionTask.fromJson(Map<String, dynamic> json) {
+    final rawState = json['state']?.toString();
+    final state = switch (rawState) {
+      'accepted' => ManualTransitionState.accepted,
+      'syncing' => ManualTransitionState.syncing,
+      'cache_ready' => ManualTransitionState.cacheReady,
+      'prewarmed' => ManualTransitionState.prewarmed,
+      'prepared' => ManualTransitionState.prepared,
+      'scheduled' => ManualTransitionState.scheduled,
+      'executed' => ManualTransitionState.executed,
+      'expired' => ManualTransitionState.expired,
+      'failed' => ManualTransitionState.failed,
+      'cancelled' => ManualTransitionState.cancelled,
+      _ => throw FormatException('Unknown manual transition state: $rawState'),
+    };
+    final rawTimings = json['timings'];
+    final timings = <String, double>{};
+    if (rawTimings is Map) {
+      for (final entry in rawTimings.entries) {
+        final value = entry.value;
+        if (value is num) timings[entry.key.toString()] = value.toDouble();
+      }
+    }
+    Map<String, dynamic>? mapValue(Object? value) =>
+        value is Map ? Map<String, dynamic>.from(value) : null;
+    return ManualTransitionTask(
+      transitionId: json['transition_id']?.toString() ?? '',
+      pairId: json['pair_id']?.toString() ?? '',
+      state: state,
+      acceptedPositionSec: (json['accepted_position_sec'] as num?)?.toDouble(),
+      plannedFromAtSec: (json['planned_from_at_sec'] as num?)?.toDouble(),
+      deadlineInSec: (json['deadline_in_sec'] as num?)?.toDouble(),
+      timings: timings,
+      result: mapValue(json['result']),
+      error: mapValue(json['error']),
+    );
+  }
+}
+
 class TransitionDetail {
   TransitionDetail({
     required this.toSongId,
@@ -88,8 +176,21 @@ class LivePlaybackState {
           json['last_transition'] is Map
               ? Map<String, dynamic>.from(json['last_transition'] as Map)
               : null,
+      error: json['error']?.toString(),
     );
   }
+}
+
+bool playbackConfirmsManualTransition(
+  LivePlaybackState state, {
+  required String transitionId,
+  String? targetSongId,
+}) {
+  final reportedTransitionId =
+      state.lastTransition?['transition_id']?.toString();
+  final reachedTarget =
+      targetSongId != null && state.currentSongId == targetSongId;
+  return reportedTransitionId == transitionId || reachedTarget;
 }
 
 class LiveOverrideRequest {

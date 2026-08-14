@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "service": "edge-agent",
+  "profile": "rk3588",
+  "mode": "shadow",
+  "state_root": "/tmp/harbeat-stage-e/edge-agent",
+  "asset_root": "/tmp/harbeat-stage-e/assets",
+  "settings": {
+    "sync_worker_url": "http://127.0.0.1:9100",
+    "audio_socket": "/tmp/cypher-audio.sock"
+  }
+}

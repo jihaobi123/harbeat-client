@@ -1,13 +1,84 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'edge_agent_client.dart';
+import 'live_models.dart';
 import 'models.dart';
 import 'sync_worker_client.dart';
+
+@visibleForTesting
+bool shouldScheduleManualCutPrewarm({
+  required bool liveStarted,
+  required bool isDefaultPreset,
+  required int transitionIndex,
+  required int liveIndex,
+  required bool defaultPairPrepared,
+  required bool manualTransitionPending,
+  required bool targetPreviewPreparing,
+}) {
+  return liveStarted &&
+      isDefaultPreset &&
+      transitionIndex == liveIndex &&
+      defaultPairPrepared &&
+      !manualTransitionPending &&
+      !targetPreviewPreparing;
+}
+
+class _PreparedManualCutPair {
+  const _PreparedManualCutPair({
+    required this.fromRkId,
+    required this.toRkId,
+    required this.pairId,
+    required this.plan,
+    required this.manifest,
+    required this.fromAtSec,
+    required this.cacheVerifiedAtMs,
+    required this.createdAtMs,
+  });
+
+  final String fromRkId;
+  final String toRkId;
+  final String pairId;
+  final Map<String, dynamic> plan;
+  final Map<String, dynamic> manifest;
+  final double fromAtSec;
+  final int cacheVerifiedAtMs;
+  final int createdAtMs;
+
+  Map<String, dynamic> toJson() => {
+    'from_rk_id': fromRkId,
+    'to_rk_id': toRkId,
+    'pair_id': pairId,
+    'plan': plan,
+    'manifest': manifest,
+    'from_at_sec': fromAtSec,
+    'cache_verified_at_ms': cacheVerifiedAtMs,
+    'created_at_ms': createdAtMs,
+  };
+
+  factory _PreparedManualCutPair.fromJson(Map<String, dynamic> json) {
+    final manifest = Map<String, dynamic>.from(
+      json['manifest'] as Map? ?? const {},
+    );
+    return _PreparedManualCutPair(
+      fromRkId: json['from_rk_id']?.toString() ?? '',
+      toRkId: json['to_rk_id']?.toString() ?? '',
+      pairId:
+          json['pair_id']?.toString() ?? manifest['pair_id']?.toString() ?? '',
+      plan: Map<String, dynamic>.from(json['plan'] as Map? ?? const {}),
+      manifest: manifest,
+      fromAtSec: (json['from_at_sec'] as num?)?.toDouble() ?? 0.0,
+      cacheVerifiedAtMs: (json['cache_verified_at_ms'] as num?)?.toInt() ?? 0,
+      createdAtMs: (json['created_at_ms'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
 
 // =========================================================================== //
 // DJ Control 4-step wizard (mobile) — RK3588 live playback
@@ -102,15 +173,46 @@ class _DjControlPageState extends State<DjControlPage> {
   final Set<String> _startupValidatedCacheIds = <String>{};
   final Map<int, Map<String, dynamic>> _preparedTransitionPlans =
       <int, Map<String, dynamic>>{};
+  final Set<int> _defaultRollingPrepareInFlight = <int>{};
+  final Set<int> _defaultPreparedRenderPairIndexes = <int>{};
+  static const double _defaultMixMinSongDurationSec = 30.0;
   String? _cutInfo;
   String? _activeRule; // last applied transition rule label
   String? _rkExecutionHint;
   String? _lastTransitionDebug;
+  LivePlaybackState? _lastRkGoodState;
+  DateTime? _lastRkGoodAt;
   int _lastXfadeFromIdx = -1; // guards against double-fire of auto-xfade
   bool _xfadeInFlight = false;
   DateTime? _xfadeInFlightAt;
+  bool _autoXfadeCheckInFlight = false;
+  Future<void>? _manualTransitionFuture;
+  String? _manualTransitionIntentKey;
+  String? _manualTransitionId;
+  ManualTransitionTask? _manualTransitionTask;
+  String? _manualTransitionTargetSongId;
+  String? _manualTransitionTargetRkId;
+  int? _manualTransitionStartIndex;
+  String? _manualTransitionTriggerLabel;
+  bool _manualTransitionInsertTargetAsNext = false;
+  final Set<String> _committedManualTransitionIds = <String>{};
+  final Map<String, List<_PreparedManualCutPair>> _preparedManualCutPairs = {};
+  final Map<String, Future<void>> _manualCutPrewarmFutures = {};
+  final Map<String, DateTime> _manualCutPrewarmLastCheckAt = {};
+  final Set<String> _activeManualCutPrewarmIds = <String>{};
   static const double _v32MinFadeSec = 6.0;
+  // Fast cut only consumes prewarmed v2/v7 render packages. Ask the planner a
+  // little earlier than the hard 15s UX limit so the nearest future v2
+  // candidate still lands inside the click-to-cut window.
+  static const double _defaultFastCutMinLeadSec = 12.0;
+  static const double _defaultFastCutMaxLeadSec = 14.0;
+  static const double _defaultFastCutRenderBudgetSec = 9.0;
+  static const Duration _manualCutPrewarmThrottle = Duration(
+    milliseconds: 2000,
+  );
   Timer? _rkPoll;
+  Timer? _rkPositionTicker;
+  bool _rkPollInFlight = false;
 
   // Sync-worker: pulls Jetson wav into ~/cypher/cache/<song_id>/ on RK.
   // Without this, edge-agent /play and /xfade return HTTP 409 ('缺少 original.wav').
@@ -131,6 +233,20 @@ class _DjControlPageState extends State<DjControlPage> {
   String? _selectedTargetStyle;
 
   bool get _isDefaultPreset => _preset == 'default';
+  bool get _targetPreviewPreparing =>
+      _targetEnergyLoading || _targetStyleLoading;
+  static const String _requiredDefaultPlannerVersion =
+      'default_mix_planner_v4_shared_fast_cut_window';
+  static const String _verifiedFastCutPlannerVersion =
+      'default_mix_planner_v3_precomputed_local_window';
+  static const String _targetEnergyPlannerVersion =
+      'target_energy_default_render_v2_energy_curve_stable_section';
+  static const String _requiredDefaultRendererVersion =
+      'three_band_default_v9_fast_phase_window';
+  static const String _verifiedFastCutRendererVersion =
+      'three_band_default_v7_standalone_curve_no_energy_floor';
+  static const String _requiredDefaultAudioFeatureSource =
+      'dj_structure_precomputed_window_v2';
 
   // ---- Startup sync state ----
   /// True while the full live queue and reserve/style candidate pools are being
@@ -144,6 +260,8 @@ class _DjControlPageState extends State<DjControlPage> {
       baseUrl: SyncWorkerClient.deriveFromRkBaseUrl(widget.edgeClient.baseUrl),
     );
     _loadCatalogs();
+    unawaited(_restorePreparedManualCutPairs());
+    unawaited(_restorePendingManualTransition());
   }
 
   Future<void> _loadCatalogs() async {
@@ -162,7 +280,15 @@ class _DjControlPageState extends State<DjControlPage> {
       if (!mounted) return;
       setState(() {
         _presets = (futures[0] as List).cast<Map<String, dynamic>>();
-        if (_presets.isNotEmpty) _preset = _presets.first['key'] as String;
+        final defaultPreset = _presets.cast<Map<String, dynamic>?>().firstWhere(
+          (p) => p?['key']?.toString() == 'default',
+          orElse: () => null,
+        );
+        if (defaultPreset != null) {
+          _preset = 'default';
+        } else if (_presets.isNotEmpty) {
+          _preset = _presets.first['key'] as String;
+        }
         _rules = futures[1] as Map<String, dynamic>;
         _fxItems = (futures[2] as List).cast<Map<String, dynamic>>();
         _playlists = (futures[3] as List).cast<PlaylistSummary>();
@@ -179,6 +305,7 @@ class _DjControlPageState extends State<DjControlPage> {
   @override
   void dispose() {
     _rkPoll?.cancel();
+    _rkPositionTicker?.cancel();
     _fxPlayer.dispose();
     super.dispose();
   }
@@ -204,6 +331,9 @@ class _DjControlPageState extends State<DjControlPage> {
     _liveSessionId += 1;
     _rkPoll?.cancel();
     _rkPoll = null;
+    _rkPositionTicker?.cancel();
+    _rkPositionTicker = null;
+    _rkPollInFlight = false;
     _liveStartInFlight = false;
     _liveStarted = false;
     _liveIdx = 0;
@@ -216,13 +346,19 @@ class _DjControlPageState extends State<DjControlPage> {
     _lastXfadeToSongId = null;
     _startupValidatedCacheIds.clear();
     _preparedTransitionPlans.clear();
+    _defaultRollingPrepareInFlight.clear();
+    _defaultPreparedRenderPairIndexes.clear();
     _cutInfo = null;
     _activeRule = null;
     _rkExecutionHint = null;
     _lastTransitionDebug = null;
+    _lastRkGoodState = null;
+    _lastRkGoodAt = null;
     _lastXfadeFromIdx = -1;
     _xfadeInFlight = false;
     _xfadeInFlightAt = null;
+    _autoXfadeCheckInFlight = false;
+    _activeManualCutPrewarmIds.clear();
     _prefetched.clear();
     _reservePoolByBucket = const {};
     _styleReservePoolByStyle = const {};
@@ -485,6 +621,79 @@ class _DjControlPageState extends State<DjControlPage> {
         .toList();
   }
 
+  bool _isDefaultMixPlayableSong(LibrarySong song) {
+    if (!_isDefaultPreset) return true;
+    final duration = song.duration;
+    if (duration <= 0) return true;
+    return duration >= _defaultMixMinSongDurationSec;
+  }
+
+  List<LibrarySong> _defaultMixTooShortSongs(List<LibrarySong> songs) {
+    if (!_isDefaultPreset) return const <LibrarySong>[];
+    return songs.where((s) => !_isDefaultMixPlayableSong(s)).toList();
+  }
+
+  void _removeDefaultMixSongsFromLiveQueue(
+    Iterable<LibrarySong> songs, {
+    required String reason,
+  }) {
+    final ids = songs.map((s) => s.id).where((id) => id.isNotEmpty).toSet();
+    if (ids.isEmpty) return;
+    _picked.removeWhere((s) => ids.contains(s.id));
+    _sequence.removeWhere((row) => ids.contains(row['song_id']?.toString()));
+    _preparedTransitionPlans.clear();
+    _defaultRollingPrepareInFlight.clear();
+    _defaultPreparedRenderPairIndexes.clear();
+    _lastXfadeFromIdx = -1;
+    _lastXfadeToSongId = null;
+    _cutInfo =
+        '$reason: skipped ${songs.map((s) => s.title).join(', ')} (too short for default mix)';
+  }
+
+  bool _skipShortDefaultNextSongs() {
+    if (!_isDefaultPreset) return false;
+    var skipped = false;
+    while (true) {
+      final ordered = _orderedSongs();
+      if (_liveIdx + 1 >= ordered.length) break;
+      final next = ordered[_liveIdx + 1];
+      if (_isDefaultMixPlayableSong(next)) break;
+      setState(() {
+        _removeDefaultMixSongsFromLiveQueue([
+          next,
+        ], reason: 'Default mix runtime guard');
+      });
+      skipped = true;
+    }
+    if (skipped) {
+      _scheduleDefaultRollingPrepare(_liveIdx);
+    }
+    return skipped;
+  }
+
+  bool _defaultRenderResumeExceedsTarget(
+    Map<String, dynamic> plan,
+    LibrarySong target,
+  ) {
+    if (!_isDefaultPreset || target.duration <= 0) return false;
+    final defaultMix = _asStringMap(plan['default_mix']);
+    final resumeAt =
+        (plan['resume_at_sec'] as num?)?.toDouble() ??
+        (defaultMix?['resume_at_sec'] as num?)?.toDouble();
+    if (resumeAt == null) return false;
+    return resumeAt >= target.duration - 0.25;
+  }
+
+  void _dropImpossibleDefaultRenderTarget(
+    LibrarySong target, {
+    required String reason,
+  }) {
+    setState(() {
+      _removeDefaultMixSongsFromLiveQueue([target], reason: reason);
+    });
+    _scheduleDefaultRollingPrepare(_liveIdx);
+  }
+
   LibrarySong? _songById(String id) {
     for (final s in _picked) {
       if (s.id == id) return s;
@@ -493,6 +702,26 @@ class _DjControlPageState extends State<DjControlPage> {
       if (s.id == id) return s;
     }
     return null;
+  }
+
+  Future<LibrarySong?> _ensureSongAvailableForTargetCut(String songId) async {
+    final existing = _songById(songId);
+    if (existing != null) return existing;
+    try {
+      final song = await widget.apiClient.getLibrarySong(
+        token: widget.token,
+        songId: songId,
+      );
+      if (!_picked.any((s) => s.id == song.id)) {
+        setState(() => _picked.add(song));
+      }
+      return song;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _cutInfo = 'Target song load failed: $e');
+      }
+      return null;
+    }
   }
 
   double? _liveEnergyScore(String songId) {
@@ -823,6 +1052,49 @@ class _DjControlPageState extends State<DjControlPage> {
     return id.trim();
   }
 
+  Map<String, dynamic> _normalizeDefaultRenderPlanForPair(
+    Map<String, dynamic> plan, {
+    required LibrarySong prev,
+    required LibrarySong next,
+  }) {
+    final out = Map<String, dynamic>.from(plan);
+    final fromId = _rkIdForXfade(prev);
+    final toId = _rkIdForXfade(next);
+
+    out['from_song_id'] = fromId;
+    out['prev_song_id'] = fromId;
+    out['to_song_id'] = toId;
+    out['next_song_id'] = toId;
+
+    final source = _asStringMap(out['source']) ?? <String, dynamic>{};
+    source['song_id'] = fromId;
+    source['title'] ??= prev.title;
+    out['source'] = source;
+
+    final target = _asStringMap(out['target']) ?? <String, dynamic>{};
+    target['song_id'] = toId;
+    target['title'] ??= next.title;
+    if (out['to_at_sec'] != null) {
+      target['start_cue_sec'] = out['to_at_sec'];
+    }
+    out['target'] = target;
+
+    final defaultMix = _asStringMap(out['default_mix']) ?? <String, dynamic>{};
+    defaultMix['from_song_id'] = fromId;
+    defaultMix['to_song_id'] = toId;
+    if (out['pair_id'] != null) defaultMix['pair_id'] = out['pair_id'];
+    for (final key in const [
+      'from_at_sec',
+      'to_at_sec',
+      'duration_sec',
+      'resume_at_sec',
+    ]) {
+      if (out[key] != null) defaultMix[key] = out[key];
+    }
+    out['default_mix'] = defaultMix;
+    return out;
+  }
+
   Future<Map<String, dynamic>> _planSectionMatchTransition({
     required LibrarySong prev,
     required LibrarySong next,
@@ -875,7 +1147,7 @@ class _DjControlPageState extends State<DjControlPage> {
         'mode=$mode execution=$execution pair=$pairId render=$renderUrl',
       );
     }
-    return plan;
+    return _normalizeDefaultRenderPlanForPair(plan, prev: prev, next: next);
   }
 
   double _v32FadeSec(Map<String, dynamic> plan, {double fallback = 6.0}) {
@@ -932,6 +1204,11 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
+  bool _usesDefaultRenderPlayback(Map<String, dynamic> plan) {
+    return plan['execution_mode']?.toString() == 'default_render_playback' ||
+        plan['transition_mode']?.toString() == 'default_mix';
+  }
+
   Future<Map<String, dynamic>> _prepareTransitionPlanForPair({
     required int transitionIndex,
     required LibrarySong prev,
@@ -962,6 +1239,7 @@ class _DjControlPageState extends State<DjControlPage> {
     int sessionId,
   ) async {
     _preparedTransitionPlans.clear();
+    _defaultPreparedRenderPairIndexes.clear();
     if (ordered.length < 2) return;
 
     for (var i = 0; i < ordered.length - 1; i++) {
@@ -1005,35 +1283,80 @@ class _DjControlPageState extends State<DjControlPage> {
         _asStringMap(plan['default_mix'])?['to_song_id']?.toString() ??
         plan['to_song_id']?.toString() ??
         plan['next_song_id']?.toString();
+    final prevRkId = _rkIdForXfade(prev).toString();
+    final nextRkId = _rkIdForXfade(next).toString();
     if (plannedPrev != null &&
         plannedPrev.isNotEmpty &&
-        plannedPrev != prev.id) {
+        plannedPrev != prev.id &&
+        plannedPrev != prevRkId) {
       return false;
     }
     if (plannedNext != null &&
         plannedNext.isNotEmpty &&
-        plannedNext != next.id) {
+        plannedNext != next.id &&
+        plannedNext != nextRkId) {
+      return false;
+    }
+    if (_isDefaultPreset && !_defaultPlanVersionValid(plan)) {
       return false;
     }
     return true;
   }
 
-  Map<String, dynamic> _preparedTransitionPlanFor({
-    required int transitionIndex,
-    required LibrarySong prev,
-    required LibrarySong next,
-  }) {
-    final prepared = _preparedTransitionPlans[transitionIndex];
-    if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
-      final out = Map<String, dynamic>.from(prepared);
-      if (!_isDefaultPreset) {
-        _assertRealSectionMatchPlan(out, prev: prev, next: next);
-      }
-      return out;
+  bool _defaultPlanVersionValid(Map<String, dynamic> plan) {
+    final defaultMix = _asStringMap(plan['default_mix']) ?? <String, dynamic>{};
+    final manifest =
+        _asStringMap(plan['default_mix_pair_manifest']) ?? <String, dynamic>{};
+    String? pick(String key) =>
+        manifest[key]?.toString() ??
+        defaultMix[key]?.toString() ??
+        plan[key]?.toString();
+    final plannerVersion = pick('planner_version');
+    final rendererVersion =
+        pick('renderer_version') ?? pick('required_renderer_version');
+    final requiredRendererVersion = pick('required_renderer_version');
+    final audioFeatureSource = pick('audio_feature_source');
+    final usesV9 =
+        (plannerVersion == _requiredDefaultPlannerVersion ||
+            plannerVersion == _targetEnergyPlannerVersion) &&
+        (requiredRendererVersion == null ||
+            requiredRendererVersion.isEmpty ||
+            requiredRendererVersion == _requiredDefaultRendererVersion) &&
+        (rendererVersion == null ||
+            rendererVersion.isEmpty ||
+            rendererVersion == _requiredDefaultRendererVersion);
+    final usesVerifiedFastCut =
+        plannerVersion == _verifiedFastCutPlannerVersion &&
+        (requiredRendererVersion == null ||
+            requiredRendererVersion.isEmpty ||
+            requiredRendererVersion == _verifiedFastCutRendererVersion) &&
+        (rendererVersion == null ||
+            rendererVersion.isEmpty ||
+            rendererVersion == _verifiedFastCutRendererVersion);
+    return (usesV9 || usesVerifiedFastCut) &&
+        audioFeatureSource == _requiredDefaultAudioFeatureSource;
+  }
+
+  void _assertVerifiedFastCutPlan(Map<String, dynamic> plan) {
+    final defaultMix = _asStringMap(plan['default_mix']) ?? <String, dynamic>{};
+    final manifest =
+        _asStringMap(plan['default_mix_pair_manifest']) ?? <String, dynamic>{};
+    String? pick(String key) =>
+        manifest[key]?.toString() ??
+        defaultMix[key]?.toString() ??
+        plan[key]?.toString();
+    final plannerVersion = pick('planner_version');
+    final rendererVersion =
+        pick('renderer_version') ?? pick('required_renderer_version');
+    final source = pick('audio_feature_source');
+    if (plannerVersion != _verifiedFastCutPlannerVersion ||
+        rendererVersion != _verifiedFastCutRendererVersion ||
+        source != _requiredDefaultAudioFeatureSource) {
+      throw Exception(
+        'Fast cut requires verified v2/v7 assets: '
+        'planner=$plannerVersion renderer=$rendererVersion source=$source',
+      );
     }
-    throw Exception(
-      'Missing Jetson v3.2 section_match plan for ${prev.title} -> ${next.title}',
-    );
   }
 
   Future<Map<String, dynamic>> _ensurePreparedSectionMatchPlanFor({
@@ -1046,6 +1369,10 @@ class _DjControlPageState extends State<DjControlPage> {
     final prepared = _preparedTransitionPlans[transitionIndex];
     if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
       final out = Map<String, dynamic>.from(prepared);
+      // A user can request fast_cut while using a non-default queue template.
+      // That request intentionally replaces this pair with a default-render
+      // plan, which must not be rejected by the legacy section_match guard.
+      if (_usesDefaultRenderPlayback(out)) return out;
       _assertRealSectionMatchPlan(out, prev: prev, next: next);
       return out;
     }
@@ -1073,15 +1400,26 @@ class _DjControlPageState extends State<DjControlPage> {
   }) async {
     final prepared = _preparedTransitionPlans[transitionIndex];
     if (prepared != null && _preparedPlanMatchesPair(prepared, prev, next)) {
-      return Map<String, dynamic>.from(prepared);
+      final normalized = _normalizeDefaultRenderPlanForPair(
+        prepared,
+        prev: prev,
+        next: next,
+      );
+      _preparedTransitionPlans[transitionIndex] = normalized;
+      return normalized;
     }
     final plan = await _planDefaultMixRenderTransition(
       prev: prev,
       next: next,
       cursorSec: cursorSec,
     );
-    _preparedTransitionPlans[transitionIndex] = plan;
-    return plan;
+    final normalized = _normalizeDefaultRenderPlanForPair(
+      plan,
+      prev: prev,
+      next: next,
+    );
+    _preparedTransitionPlans[transitionIndex] = normalized;
+    return normalized;
   }
 
   double? _tempoRatioForPlan(Map<String, dynamic> plan) {
@@ -1134,26 +1472,6 @@ class _DjControlPageState extends State<DjControlPage> {
         stageLabel: 'Prewarming beatmatch ${i + 1}/${ordered.length - 1}:',
       );
     }
-  }
-
-  void _installPreparedTargetCutPlans({
-    required int cutFromIndex,
-    required Map<String, dynamic> transition,
-    Map<String, dynamic>? followup,
-  }) {
-    final retained = <int, Map<String, dynamic>>{};
-    _preparedTransitionPlans.forEach((idx, plan) {
-      if (idx < cutFromIndex) {
-        retained[idx] = plan;
-      }
-    });
-    retained[cutFromIndex] = transition;
-    if (followup != null) {
-      retained[cutFromIndex + 1] = followup;
-    }
-    _preparedTransitionPlans
-      ..clear()
-      ..addAll(retained);
   }
 
   Future<Map<String, dynamic>> _edgeXfadeFromPlan({
@@ -1360,42 +1678,298 @@ class _DjControlPageState extends State<DjControlPage> {
     return out;
   }
 
+  Map<String, dynamic>? _defaultMixPairManifestForPlan(
+    Map<String, dynamic> plan,
+  ) {
+    final embedded = _asStringMap(plan['default_mix_pair_manifest']);
+    if (embedded != null) return embedded;
+    final pairId =
+        plan['pair_id']?.toString() ??
+        _asStringMap(plan['default_mix'])?['pair_id']?.toString();
+    final defaultMix = _asStringMap(plan['default_mix']) ?? <String, dynamic>{};
+    final renderUrl = plan['transition_render_url']?.toString();
+    final metaUrl = plan['transition_render_meta_url']?.toString();
+    if (pairId == null ||
+        pairId.isEmpty ||
+        renderUrl == null ||
+        renderUrl.isEmpty) {
+      return null;
+    }
+    return {
+      'pair_id': pairId,
+      if (defaultMix['planner_version'] != null)
+        'planner_version': defaultMix['planner_version'],
+      if (defaultMix['renderer_version'] != null)
+        'renderer_version': defaultMix['renderer_version'],
+      if (defaultMix['required_renderer_version'] != null)
+        'required_renderer_version': defaultMix['required_renderer_version'],
+      if (defaultMix['audio_feature_source'] != null)
+        'audio_feature_source': defaultMix['audio_feature_source'],
+      if (defaultMix['render_strategy'] != null)
+        'render_strategy': defaultMix['render_strategy'],
+      'files': {
+        'transition_render': {
+          'url': renderUrl,
+          'format': 'wav',
+          if (plan['transition_render_size'] is num)
+            'size': plan['transition_render_size'],
+        },
+        if (metaUrl != null && metaUrl.isNotEmpty)
+          'transition_render_meta': {'url': metaUrl, 'format': 'json'},
+      },
+    };
+  }
+
   List<Map<String, dynamic>> _defaultMixPairManifests() {
     final pairs = <Map<String, dynamic>>[];
     for (final plan in _defaultPreparedTransitions()) {
-      final embedded = _asStringMap(plan['default_mix_pair_manifest']);
-      if (embedded != null) {
-        pairs.add(embedded);
-        continue;
-      }
-      final pairId =
-          plan['pair_id']?.toString() ??
-          _asStringMap(plan['default_mix'])?['pair_id']?.toString();
-      final renderUrl = plan['transition_render_url']?.toString();
-      final metaUrl = plan['transition_render_meta_url']?.toString();
-      if (pairId == null ||
-          pairId.isEmpty ||
-          renderUrl == null ||
-          renderUrl.isEmpty) {
-        continue;
-      }
-      pairs.add({
-        'pair_id': pairId,
-        'files': {
-          'transition_render': {
-            'url': renderUrl,
-            'format': 'wav',
-            if (plan['transition_render_size'] is num)
-              'size': plan['transition_render_size'],
-          },
-          if (metaUrl != null && metaUrl.isNotEmpty)
-            'transition_render_meta': {'url': metaUrl, 'format': 'json'},
-        },
-      });
+      final manifest = _defaultMixPairManifestForPlan(plan);
+      if (manifest != null) pairs.add(manifest);
     }
     return pairs;
   }
 
+  Future<void> _syncDefaultMixAssetsForPair({
+    required LibrarySong prev,
+    required LibrarySong next,
+    required Map<String, dynamic> plan,
+    required int sessionId,
+    required String stageLabel,
+    bool fastCutPriority = false,
+  }) async {
+    final pair = _defaultMixPairManifestForPlan(plan);
+    if (pair == null) {
+      throw Exception('Default mix pair has no render resources');
+    }
+    if (fastCutPriority) {
+      // Current and queued tracks have already been loaded by the live set.
+      // Do not spend the click window probing and revalidating them over the
+      // phone hotspot. RK's following prepare command opens both decks and is
+      // the authoritative cache validation.
+      if (!_isActiveLiveSession(sessionId)) return;
+      setState(() => _cutInfo = stageLabel);
+      await _sync.startSync(
+        tracks: const <Map<String, dynamic>>[],
+        defaultMixPairs: [pair],
+        planId: 'fast-cut-render-sync-${DateTime.now().millisecondsSinceEpoch}',
+        audioOnly: true,
+        priority: true,
+        waitForCompletion: false,
+      );
+      if (_isActiveLiveSession(sessionId)) {
+        setState(() => _cutInfo = '$stageLabel submitted');
+      }
+      return;
+    }
+    final pairId = pair['pair_id']?.toString();
+    final pairReady =
+        pairId != null && pairId.isNotEmpty
+            ? await _sync.defaultMixPairExists(pairId)
+            : false;
+    final tracks = <Map<String, dynamic>>[];
+    final ids = <String>[];
+    for (final song in [prev, next]) {
+      final id = _cacheIdForSong(song);
+      if (id == null || id.isEmpty || ids.contains(id)) continue;
+      ids.add(id);
+      if (await _sync.cacheExists(id)) continue;
+      tracks.add(
+        _originalOnlyManifest(
+          await widget.apiClient.getSongManifest(
+            token: widget.token,
+            songId: id,
+          ),
+          id,
+        ),
+      );
+    }
+    if (!_isActiveLiveSession(sessionId)) return;
+    setState(() {
+      _cutInfo = stageLabel;
+    });
+    if (tracks.isEmpty && pairReady) return;
+    await _sync.syncAndWait(
+      tracks: tracks,
+      defaultMixPairs: pairReady ? const [] : [pair],
+      planId: 'default-mix-pair-sync-${DateTime.now().millisecondsSinceEpoch}',
+      timeout: const Duration(hours: 2),
+      audioOnly: true,
+      pollInterval: const Duration(milliseconds: 100),
+      onProgress: (st) {
+        if (!_isActiveLiveSession(sessionId)) return;
+        setState(() {
+          _cutInfo =
+              '$stageLabel ${st.completed}/${st.total} (${st.percent.toStringAsFixed(0)}%)';
+        });
+      },
+    );
+    if (!_isActiveLiveSession(sessionId)) return;
+    final idsNeedingValidation = ids
+        .where((id) => !_startupValidatedCacheIds.contains(id))
+        .toList(growable: false);
+    if (idsNeedingValidation.isNotEmpty) {
+      await _ensurePlayableRkCacheIds(
+        idsNeedingValidation,
+        sessionId: sessionId,
+        stageLabel: 'Validating rolling default pair audio',
+      );
+      _startupValidatedCacheIds.addAll(idsNeedingValidation);
+    }
+  }
+
+  Future<Map<String, dynamic>> _prepareAndSyncDefaultRenderPair({
+    required List<LibrarySong> ordered,
+    required int transitionIndex,
+    required int sessionId,
+    required double cursorSec,
+    required String stageLabel,
+  }) async {
+    if (transitionIndex < 0 || transitionIndex + 1 >= ordered.length) {
+      throw Exception('No default mix pair at index $transitionIndex');
+    }
+    while (_defaultRollingPrepareInFlight.contains(transitionIndex)) {
+      if (!_isActiveLiveSession(sessionId)) {
+        throw Exception('Default pair prepare cancelled');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    _defaultRollingPrepareInFlight.add(transitionIndex);
+    try {
+      final prev = ordered[transitionIndex];
+      final next = ordered[transitionIndex + 1];
+      final existingPlan = _preparedTransitionPlans[transitionIndex];
+      final canReusePlan =
+          _defaultPreparedRenderPairIndexes.contains(transitionIndex) &&
+          existingPlan != null &&
+          _preparedPlanMatchesPair(existingPlan, prev, next);
+      final Map<String, dynamic> plan;
+      if (canReusePlan) {
+        plan = Map<String, dynamic>.from(existingPlan);
+      } else {
+        _defaultPreparedRenderPairIndexes.remove(transitionIndex);
+        plan = await _ensurePreparedDefaultRenderPlanFor(
+          transitionIndex: transitionIndex,
+          prev: prev,
+          next: next,
+          cursorSec: cursorSec,
+        );
+      }
+      if (!_isActiveLiveSession(sessionId)) return plan;
+      await _syncDefaultMixAssetsForPair(
+        prev: prev,
+        next: next,
+        plan: plan,
+        sessionId: sessionId,
+        stageLabel: stageLabel,
+      );
+      if (!_isActiveLiveSession(sessionId)) return plan;
+      final queue = <Object>[_rkIdForXfade(prev), _rkIdForXfade(next)];
+      final prefetchResponse = await widget.edgeClient.defaultAutoplayPrefetch(
+        queue: queue,
+        transitions: [plan],
+        sessionId: 'mobile-$sessionId-pair-$transitionIndex',
+      );
+      final prefetchResult =
+          _asStringMap(prefetchResponse['result']) ?? prefetchResponse;
+      final missingRenders = prefetchResult['render_missing'];
+      if (missingRenders is List && missingRenders.isNotEmpty) {
+        throw Exception(
+          'RK rolling default render missing: ${missingRenders.join(', ')}',
+        );
+      }
+      _defaultPreparedRenderPairIndexes.add(transitionIndex);
+      return plan;
+    } finally {
+      _defaultRollingPrepareInFlight.remove(transitionIndex);
+    }
+  }
+
+  Future<void> _prepareDefaultRollingPair(int transitionIndex) async {
+    final sessionId = _liveSessionId;
+    if (!_isActiveLiveSession(sessionId) || transitionIndex != _liveIdx) return;
+    final ordered = _orderedSongs();
+    if (transitionIndex < 0 || transitionIndex + 1 >= ordered.length) return;
+    final current = ordered[transitionIndex];
+    final next = ordered[transitionIndex + 1];
+
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await _prepareAndSyncDefaultRenderPair(
+          ordered: ordered,
+          transitionIndex: transitionIndex,
+          sessionId: sessionId,
+          cursorSec: _preplanCursorSec(current),
+          stageLabel: 'Preparing rolling default pair',
+        );
+        break;
+      } catch (e) {
+        if (!_isActiveLiveSession(sessionId) || transitionIndex != _liveIdx) {
+          return;
+        }
+        if (attempt >= 3) {
+          if (mounted) {
+            setState(
+              () => _cutInfo = 'Automatic transition preload failed: $e',
+            );
+          }
+          return;
+        }
+        if (mounted) {
+          setState(
+            () =>
+                _cutInfo =
+                    'Retrying automatic transition preload '
+                    '${attempt + 1}/3',
+          );
+        }
+        await Future<void>.delayed(Duration(seconds: attempt));
+      }
+    }
+
+    if (!_isActiveLiveSession(sessionId) || transitionIndex != _liveIdx) return;
+    await _prewarmManualCutPair(
+      current: current,
+      target: next,
+      triggerLabel: 'fast_cut',
+      expectedLiveIdx: transitionIndex,
+    );
+  }
+
+  void _scheduleDefaultRollingPrepare(int transitionIndex) {
+    if (!_liveStarted || transitionIndex != _liveIdx) return;
+    final ordered = _orderedSongs();
+    if (transitionIndex < 0 || transitionIndex + 1 >= ordered.length) return;
+    if (_defaultRollingPrepareInFlight.contains(transitionIndex)) return;
+    unawaited(_prepareDefaultRollingPair(transitionIndex));
+  }
+
+  void _scheduleManualCutRollingPrewarm(int transitionIndex) {
+    if (!shouldScheduleManualCutPrewarm(
+      liveStarted: _liveStarted,
+      isDefaultPreset: _isDefaultPreset,
+      transitionIndex: transitionIndex,
+      liveIndex: _liveIdx,
+      defaultPairPrepared: _defaultPreparedRenderPairIndexes.contains(
+        transitionIndex,
+      ),
+      manualTransitionPending: _manualTransitionId != null,
+      targetPreviewPreparing: _targetPreviewPreparing,
+    )) {
+      return;
+    }
+    final ordered = _orderedSongs();
+    if (transitionIndex < 0 || transitionIndex + 1 >= ordered.length) return;
+    unawaited(
+      _prewarmManualCutPair(
+        current: ordered[transitionIndex],
+        target: ordered[transitionIndex + 1],
+        triggerLabel: 'fast_cut',
+        expectedLiveIdx: transitionIndex,
+      ),
+    );
+  }
+
+  // ignore: unused_element
   Future<void> _syncDefaultMixAssetsForSession(
     List<LibrarySong> ordered,
     int sessionId,
@@ -1452,7 +2026,18 @@ class _DjControlPageState extends State<DjControlPage> {
   }) {
     final targetRkId = _rkIdForXfade(target);
     if (_rkCurrentSongId != null && _rkCurrentSongId == targetRkId.toString()) {
-      throw Exception('Refusing self-transition to $targetRkId');
+      return Future.value({
+        'ok': true,
+        'actual_tier': 'default_render_playback',
+        'degraded': false,
+        'result': {
+          'action': 'default_render_already_on_target',
+          'to_song_id': targetRkId,
+          'playback_tier': 'default_render_playback',
+          'degraded': false,
+          'degrade_reason': null,
+        },
+      });
     }
     return widget.edgeClient
         .defaultRenderPlayback(transitionPlan: plan, toSongId: targetRkId)
@@ -1529,23 +2114,6 @@ class _DjControlPageState extends State<DjControlPage> {
   /// RK disk — sync-worker's response can race with the file write, and
   /// edge-agent's `/xfade` will 409 ("缺少 original.*") if it's invoked the
   /// instant the response lands but before fsync completes.
-  Future<void> _assertRkCacheReady(LibrarySong song) async {
-    final id = _cacheIdForSong(song);
-    if (id == null || id.isEmpty) {
-      throw Exception('song ${song.title} missing song_id');
-    }
-    if (_liveStarted && !_backgroundSyncInProgress) {
-      if (_startupValidatedCacheIds.contains(id)) return;
-      throw Exception(
-        'song ${song.title} was not validated before playback; refusing live cache check',
-      );
-    }
-    await _waitForSyncWorkerIdleBeforeStartup();
-    await _ensurePlayableRkCacheIds([
-      id,
-    ], stageLabel: 'Checking RK playable cache');
-  }
-
   // Playback-time background prefetch is disabled. Startup sync/decode is the
   // only DJ cache preparation path.
 
@@ -1640,6 +2208,7 @@ class _DjControlPageState extends State<DjControlPage> {
     List<String> ids,
     int? sessionId, {
     required String stageLabel,
+    bool priority = false,
   }) async {
     final wanted = _uniqueNonEmptyIds(ids.map(_cacheIdForCandidate));
     if (wanted.isEmpty) return;
@@ -1680,6 +2249,7 @@ class _DjControlPageState extends State<DjControlPage> {
       planId: 'dj-cache-sync-${DateTime.now().millisecondsSinceEpoch}',
       timeout: const Duration(hours: 2),
       audioOnly: true,
+      priority: priority,
       onProgress: (st) {
         if (!_isCachePrepActive(sessionId)) return;
         setState(() {
@@ -1716,6 +2286,20 @@ class _DjControlPageState extends State<DjControlPage> {
       if (rawFailed is List) {
         failed.addAll(rawFailed.map((e) => e.toString()));
       }
+      final results = result['results'];
+      if (results is List) {
+        for (final item in results) {
+          final row = _asStringMap(item);
+          if (row == null || row['ready'] != true) continue;
+          final id = row['song_id']?.toString();
+          final duration = (row['duration_sec'] as num?)?.toDouble();
+          if (id != null &&
+              duration != null &&
+              _cacheDurationLooksInvalid(id, duration)) {
+            failed.add(id);
+          }
+        }
+      }
       for (final id in batch) {
         if (failed.contains(id)) {
           _prefetched.remove(id);
@@ -1727,6 +2311,15 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     }
     return failed.toList();
+  }
+
+  bool _cacheDurationLooksInvalid(String id, double actualDurationSec) {
+    final song = _songById(id);
+    final expectedDurationSec = song?.duration ?? 0.0;
+    if (expectedDurationSec <= 30.0) return false;
+    if (actualDurationSec <= 0.0) return true;
+    if (actualDurationSec < 12.0 && expectedDurationSec > 45.0) return true;
+    return actualDurationSec + 5.0 < expectedDurationSec * 0.80;
   }
 
   Future<void> _ensurePlayableRkCacheIds(
@@ -1824,29 +2417,6 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
-  Future<void> _prefetchLiveTargetsBeforeCut(
-    List<LibrarySong> targets, {
-    int? sessionId,
-  }) async {
-    final ids = <Object>[];
-    final seen = <String>{};
-    for (final song in targets) {
-      final id = _rkIdForXfade(song);
-      if (seen.add(id.toString())) ids.add(id);
-    }
-    if (ids.isEmpty || !_isCachePrepActive(sessionId)) return;
-    final response = await widget.edgeClient.prefetch(
-      songIds: ids,
-      wait: true,
-      loadStems: false,
-    );
-    final result = _asStringMap(response['result']) ?? response;
-    final failed = result['failed'];
-    if (failed is List && failed.isNotEmpty) {
-      throw Exception('RK target prefetch failed: ${failed.join(', ')}');
-    }
-  }
-
   Map<String, dynamic> _originalOnlyManifest(
     Map<String, dynamic> manifest,
     String songId,
@@ -1874,70 +2444,6 @@ class _DjControlPageState extends State<DjControlPage> {
     }
     out['stemStatus'] = 'not_requested';
     return out;
-  }
-
-  Future<Map<String, dynamic>> _prepareTargetCutPreview({
-    required Map<String, dynamic> previewPlan,
-    required LibrarySong current,
-    required LibrarySong target,
-    required List<LibrarySong> ordered,
-    String? targetStyle,
-  }) async {
-    final sessionId = _liveSessionId;
-    if (!_isActiveLiveSession(sessionId)) return previewPlan;
-    final targetCacheId = _cacheIdForSong(target);
-    if (targetCacheId == null ||
-        !_startupValidatedCacheIds.contains(targetCacheId)) {
-      throw Exception('${target.title} was not prepared before playback');
-    }
-
-    setState(() {
-      _cutInfo = 'Preloading target cut: ${target.title}';
-    });
-    await _prefetchLiveTargetsBeforeCut([target], sessionId: sessionId);
-
-    final transition = await _planSectionMatchTransition(
-      prev: current,
-      next: target,
-      cursorSec: _position.inMilliseconds / 1000.0,
-      ruleKey: previewPlan['recommended_transition_hint']?.toString(),
-      targetStyle: targetStyle,
-    );
-    await _prewarmBeatmatchForPlan(
-      target: target,
-      plan: transition,
-      sessionId: sessionId,
-      stageLabel: 'Prewarming target transition:',
-    );
-
-    final prepared = Map<String, dynamic>.from(previewPlan);
-    prepared['prepared_transition'] = transition;
-    prepared['prepared_for_current_song_id'] = current.id;
-    prepared['prepared_target_song_id'] = target.id;
-
-    final originalNext =
-        _liveIdx + 1 < ordered.length ? ordered[_liveIdx + 1] : null;
-    if (originalNext != null && originalNext.id != target.id) {
-      setState(() {
-        _cutInfo = 'Preparing follow-up transition after ${target.title}';
-      });
-      await _prefetchLiveTargetsBeforeCut([originalNext], sessionId: sessionId);
-      final followup = await _planSectionMatchTransition(
-        prev: target,
-        next: originalNext,
-        cursorSec: _preplanCursorSec(target),
-        targetStyle: targetStyle,
-      );
-      await _prewarmBeatmatchForPlan(
-        target: originalNext,
-        plan: followup,
-        sessionId: sessionId,
-        stageLabel: 'Prewarming follow-up transition:',
-      );
-      prepared['prepared_followup_transition'] = followup;
-      prepared['prepared_followup_to_song_id'] = originalNext.id;
-    }
-    return prepared;
   }
 
   /// Sync the full live queue and all reserve/style candidates before playback.
@@ -2008,10 +2514,31 @@ class _DjControlPageState extends State<DjControlPage> {
     int sessionId,
   ) async {
     if (ordered.isEmpty) return;
-    final queue = _liveQueueDecodeIds(ordered);
-    if (queue.isEmpty) return;
-    final transitions = _defaultPreparedTransitions();
-    await _syncDefaultMixAssetsForSession(ordered, sessionId);
+    final transitions = <Map<String, dynamic>>[];
+    final queue = <Object>[];
+    queue.add(_rkIdForXfade(ordered.first));
+    if (ordered.length > 1) {
+      final firstPlan = await _prepareAndSyncDefaultRenderPair(
+        ordered: ordered,
+        transitionIndex: 0,
+        sessionId: sessionId,
+        cursorSec: _preplanCursorSec(ordered.first),
+        stageLabel: 'Preparing first default pair',
+      );
+      transitions.add(firstPlan);
+      queue.add(_rkIdForXfade(ordered[1]));
+    } else {
+      await _syncMissingCacheFilesForIds(
+        [ordered.first.id],
+        sessionId,
+        stageLabel: 'Syncing first default song',
+      );
+      await _ensurePlayableRkCacheIds(
+        [ordered.first.id],
+        sessionId: sessionId,
+        stageLabel: 'Validating first default song',
+      );
+    }
     if (!_isActiveLiveSession(sessionId)) return;
     setState(() {
       _cutInfo = 'Starting RK default autoplay branch';
@@ -2037,14 +2564,34 @@ class _DjControlPageState extends State<DjControlPage> {
       startAtSec: 0,
       sessionId: 'mobile-$sessionId',
     );
+    _scheduleDefaultRollingPrepare(0);
   }
 
   Future<void> _startLiveMix() async {
     if (_liveStartInFlight) return;
     _liveStartInFlight = true;
-    final ordered = _orderedSongs();
+    var ordered = _orderedSongs();
+    final tooShort = _defaultMixTooShortSongs(ordered);
+    if (tooShort.isNotEmpty) {
+      setState(() {
+        _removeDefaultMixSongsFromLiveQueue(
+          tooShort,
+          reason: 'Default mix startup guard',
+        );
+      });
+      ordered = _orderedSongs();
+    }
     if (ordered.isEmpty) {
       _liveStartInFlight = false;
+      return;
+    }
+    if (ordered.length < 2) {
+      _liveStartInFlight = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Default mix needs at least two playable songs.'),
+        ),
+      );
       return;
     }
     final first = ordered.first;
@@ -2083,13 +2630,13 @@ class _DjControlPageState extends State<DjControlPage> {
     try {
       await _prepareLivePoolForSession(ordered, sessionId);
       if (!_isActiveLiveSession(sessionId)) return;
-      await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
-      if (!_isActiveLiveSession(sessionId)) return;
-      await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
-      if (!_isActiveLiveSession(sessionId)) return;
       if (_isDefaultPreset) {
         await _startDefaultAutoplayOnRk(ordered, sessionId);
       } else {
+        await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+        if (!_isActiveLiveSession(sessionId)) return;
+        await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
+        if (!_isActiveLiveSession(sessionId)) return;
         await _prewarmPreparedTransitionPlansBeforePlay(ordered, sessionId);
         if (!_isActiveLiveSession(sessionId)) return;
         await _prefetchLiveQueueBeforePlay(ordered, sessionId);
@@ -2107,13 +2654,13 @@ class _DjControlPageState extends State<DjControlPage> {
       // Last-ditch retry: if play failed with 409 we may have missed the sync.
       if (_isMissingCacheError(e)) {
         try {
-          await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
-          if (!_isActiveLiveSession(sessionId)) return;
-          await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
-          if (!_isActiveLiveSession(sessionId)) return;
           if (_isDefaultPreset) {
             await _startDefaultAutoplayOnRk(ordered, sessionId);
           } else {
+            await _syncMissingLiveCandidatesBeforePlay(ordered, sessionId);
+            if (!_isActiveLiveSession(sessionId)) return;
+            await _prepareAllTransitionPlansBeforePlay(ordered, sessionId);
+            if (!_isActiveLiveSession(sessionId)) return;
             await _prewarmPreparedTransitionPlansBeforePlay(ordered, sessionId);
             if (!_isActiveLiveSession(sessionId)) return;
             await _prefetchLiveQueueBeforePlay(ordered, sessionId);
@@ -2156,28 +2703,132 @@ class _DjControlPageState extends State<DjControlPage> {
   void _startRkPolling([int? sessionId]) {
     final activeSessionId = sessionId ?? _liveSessionId;
     _rkPoll?.cancel();
+    _rkPositionTicker?.cancel();
+    _rkPollInFlight = false;
     _rkPoll = Timer.periodic(const Duration(milliseconds: 600), (_) async {
-      if (!_isActiveLiveSession(activeSessionId)) return;
+      if (!_isActiveLiveSession(activeSessionId) || _rkPollInFlight) return;
+      _rkPollInFlight = true;
       try {
         final st = await widget.edgeClient.getState();
         if (!_isActiveLiveSession(activeSessionId)) return;
+        if (st.error != null) {
+          // Keep the last visible playback state. A transient hotspot timeout
+          // is retried by the next polling tick and is not a user-facing cut
+          // failure.
+          final recovered = _extrapolatedRkState();
+          if (recovered != null && mounted) {
+            setState(() {
+              _isPlaying = recovered.playing;
+              _position = Duration(
+                milliseconds: (recovered.positionSec * 1000).round(),
+              );
+              _duration = Duration(
+                milliseconds: (recovered.durationSec * 1000).round(),
+              );
+            });
+          }
+          return;
+        }
+        _lastRkGoodState = st;
+        _lastRkGoodAt = DateTime.now();
+        final previousLiveIdx = _liveIdx;
         setState(() {
           _isPlaying = st.playing;
           _position = Duration(milliseconds: (st.positionSec * 1000).round());
           _duration = Duration(milliseconds: (st.durationSec * 1000).round());
           _rkCurrentSongId = st.currentSongId;
           _rkExecutionHint = _rkExecutionHintFromState(st);
+          final ordered = _orderedSongs();
+          final transitionAction = st.lastTransition?['action']?.toString();
+          final renderPlaybackActive =
+              transitionAction == 'default_render_playback';
+          if (ordered.isEmpty) {
+            _liveIdx = 0;
+          } else if (_liveIdx < 0 || _liveIdx >= ordered.length) {
+            _liveIdx = _liveIdx.clamp(0, ordered.length - 1).toInt();
+            _lastXfadeFromIdx = math.min(_lastXfadeFromIdx, _liveIdx - 1);
+            _cutInfo =
+                'Live index repaired to #${_liveIdx + 1}/${ordered.length}';
+          }
+          final reportedSongId = st.currentSongId;
+          if (reportedSongId != null && ordered.isNotEmpty) {
+            final reportedIndex = ordered.indexWhere(
+              (song) => _rkIdForXfade(song).toString() == reportedSongId,
+            );
+            if (reportedIndex >= 0 &&
+                reportedIndex != _liveIdx &&
+                !renderPlaybackActive) {
+              _liveIdx = reportedIndex;
+            }
+          }
+          if (renderPlaybackActive) {
+            _cutInfo = '转场片段播放中 ${st.positionSec.toStringAsFixed(1)}s';
+          }
         });
+        if (_liveIdx != previousLiveIdx &&
+            st.lastTransition?['action']?.toString() !=
+                'default_render_playback') {
+          _scheduleDefaultRollingPrepare(_liveIdx);
+        }
+        if (st.lastTransition?['action']?.toString() !=
+            'default_render_playback') {
+          _scheduleManualCutRollingPrewarm(_liveIdx);
+        }
+        _reconcileManualTransitionPlayback(st);
         if (_shouldRecoverEndedTrack(st)) {
           // ignore: discarded_futures
           _recoverEndedTrack();
-        } else {
+        } else if (st.lastTransition?['action']?.toString() !=
+            'default_render_playback') {
           _maybeAutoXfade();
         }
       } catch (_) {
         /* swallow */
+      } finally {
+        _rkPollInFlight = false;
       }
     });
+    _rkPositionTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!_isActiveLiveSession(activeSessionId) || !mounted) return;
+      final recovered = _extrapolatedRkState();
+      if (recovered == null) return;
+      setState(() {
+        _isPlaying = recovered.playing;
+        _position = Duration(
+          milliseconds: (recovered.positionSec * 1000).round(),
+        );
+        _duration = Duration(
+          milliseconds: (recovered.durationSec * 1000).round(),
+        );
+      });
+    });
+  }
+
+  LivePlaybackState? _extrapolatedRkState() {
+    final last = _lastRkGoodState;
+    final at = _lastRkGoodAt;
+    if (last == null || at == null || !last.playing) return last;
+    final elapsed = DateTime.now().difference(at).inMilliseconds / 1000.0;
+    if (elapsed < 0 || elapsed > 8.0) return null;
+    final position = math.min(
+      last.durationSec > 0 ? last.durationSec : double.infinity,
+      last.positionSec + elapsed,
+    );
+    return LivePlaybackState(
+      playing: last.playing,
+      currentSongId: last.currentSongId,
+      positionSec: position,
+      durationSec: last.durationSec,
+      nextSongId: last.nextSongId,
+      nextTransitionInSec: last.nextTransitionInSec,
+      playbackTier: last.playbackTier,
+      currentSection: last.currentSection,
+      currentEnergy: last.currentEnergy,
+      nextTransition: last.nextTransition,
+      deckA: last.deckA,
+      deckB: last.deckB,
+      lastTransition: last.lastTransition,
+    );
   }
 
   bool _shouldRecoverEndedTrack(dynamic st) {
@@ -2191,51 +2842,97 @@ class _DjControlPageState extends State<DjControlPage> {
     }
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return false;
+    final currentRkId = _rkIdForXfade(ordered[_liveIdx]).toString();
+    if (st.currentSongId != null && st.currentSongId != currentRkId) {
+      return false;
+    }
     if (st.durationSec <= 0 || st.positionSec <= 5) return false;
     return st.durationSec - st.positionSec <= 2.5;
   }
 
   Future<void> _recoverEndedTrack() async {
     if (_xfadeInFlight) return;
+    if (_skipShortDefaultNextSongs()) return;
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return;
-    final prev = ordered[_liveIdx];
-    final next = ordered[_liveIdx + 1];
+    final sessionId = _liveSessionId;
+    final transitionIndex = _liveIdx;
+    final prev = ordered[transitionIndex];
+    final next = ordered[transitionIndex + 1];
+    final currentRkId = _rkIdForXfade(prev).toString();
+    final nextRkId = _rkIdForXfade(next).toString();
+    bool stillCurrent({bool allowNextDeck = false}) {
+      if (!_isActiveLiveSession(sessionId)) return false;
+      final latest = _orderedSongs();
+      if (transitionIndex < 0 || transitionIndex + 1 >= latest.length) {
+        return false;
+      }
+      if (latest[transitionIndex].id != prev.id ||
+          latest[transitionIndex + 1].id != next.id) {
+        return false;
+      }
+      if (_liveIdx != transitionIndex) return false;
+      final rkId = _rkCurrentSongId;
+      if (rkId != null &&
+          rkId != currentRkId &&
+          !(allowNextDeck && rkId == nextRkId)) {
+        return false;
+      }
+      return true;
+    }
+
+    if (!stillCurrent()) return;
 
     _xfadeInFlight = true;
     _xfadeInFlightAt = DateTime.now();
     try {
+      final prepared = _preparedTransitionPlans[transitionIndex];
+      final preparedIsDefaultRender =
+          prepared != null &&
+          _preparedPlanMatchesPair(prepared, prev, next) &&
+          _usesDefaultRenderPlayback(prepared);
       final plan =
-          _isDefaultPreset
-              ? await _ensurePreparedDefaultRenderPlanFor(
-                transitionIndex: _liveIdx,
-                prev: prev,
-                next: next,
+          _isDefaultPreset || preparedIsDefaultRender
+              ? await _prepareAndSyncDefaultRenderPair(
+                ordered: ordered,
+                transitionIndex: transitionIndex,
+                sessionId: sessionId,
                 cursorSec: _position.inMilliseconds / 1000.0,
+                stageLabel: 'Preparing default end-recovery pair',
               )
               : await _ensurePreparedSectionMatchPlanFor(
-                transitionIndex: _liveIdx,
+                transitionIndex: transitionIndex,
                 prev: prev,
                 next: next,
                 cursorSec: _position.inMilliseconds / 1000.0,
               );
+      if (!stillCurrent()) return;
+
+      final useDefaultRender = _usesDefaultRenderPlayback(plan);
 
       final toAtSec = (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0;
       final rawRuleKey = plan['rule_key']?.toString() ?? 'end_recovery';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
-      final nextRkId = _rkIdForXfade(next);
       final fadeSec = _v32FadeSec(plan, fallback: 6.0);
+      if (_defaultRenderResumeExceedsTarget(plan, next)) {
+        _dropImpossibleDefaultRenderTarget(
+          next,
+          reason: 'Default mix end-recovery guard',
+        );
+        return;
+      }
 
       await _ensurePlayableRkCacheIds(
         [next.id],
-        sessionId: _liveSessionId,
+        sessionId: sessionId,
         stageLabel: 'Repairing next song cache',
       );
+      if (!stillCurrent()) return;
 
       Map<String, dynamic> response;
       try {
         response =
-            _isDefaultPreset
+            useDefaultRender
                 ? await _edgeDefaultRenderFromPlan(target: next, plan: plan)
                 : await _edgeXfadeFromPlan(
                   target: next,
@@ -2261,6 +2958,7 @@ class _DjControlPageState extends State<DjControlPage> {
           },
         };
       }
+      if (!stillCurrent(allowNextDeck: true)) return;
       final transitionDebug = _transitionDebugText(
         trigger: 'end recovery',
         from: prev,
@@ -2271,15 +2969,16 @@ class _DjControlPageState extends State<DjControlPage> {
 
       if (!mounted) return;
       setState(() {
-        _lastXfadeFromIdx = _liveIdx;
-        _liveIdx += 1;
+        _lastXfadeFromIdx = transitionIndex;
+        _liveIdx = transitionIndex + 1;
         _activeRule = '$ruleLabel · end recovery';
         _cutInfo = 'End recovery -> #${_liveIdx + 1} ${next.title}';
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = nextRkId.toString();
+        _lastXfadeToSongId = nextRkId;
         _lastTransitionDebug = transitionDebug;
       });
+      _scheduleDefaultRollingPrepare(transitionIndex + 1);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -2295,11 +2994,26 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _maybeAutoXfade() async {
+    if (_autoXfadeCheckInFlight) return;
+    _autoXfadeCheckInFlight = true;
+    try {
+      await _maybeAutoXfadeLocked();
+    } finally {
+      _autoXfadeCheckInFlight = false;
+    }
+  }
+
+  Future<void> _maybeAutoXfadeLocked() async {
     if (_backgroundSyncInProgress) return;
+    final manualTask = _manualTransitionTask;
+    if (_manualTransitionId != null &&
+        (manualTask == null || !manualTask.isTerminal)) {
+      return;
+    }
     if (_xfadeInFlight) {
       final started = _xfadeInFlightAt;
       if (started != null &&
-          DateTime.now().difference(started) > const Duration(seconds: 8)) {
+          DateTime.now().difference(started) > const Duration(seconds: 120)) {
         _xfadeInFlight = false;
         _xfadeInFlightAt = null;
       } else {
@@ -2307,8 +3021,33 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     }
     if (_liveIdx == _lastXfadeFromIdx) return;
+    if (_skipShortDefaultNextSongs()) return;
     final ordered = _orderedSongs();
     if (_liveIdx + 1 >= ordered.length) return;
+    final transitionIndex = _liveIdx;
+    final prev = ordered[transitionIndex];
+    final next = ordered[transitionIndex + 1];
+    final currentRkId = _rkIdForXfade(prev).toString();
+    final nextRkId = _rkIdForXfade(next).toString();
+    bool stillCurrent({bool allowNextDeck = false}) {
+      if (!_isActiveLiveSession(_liveSessionId)) return false;
+      final latest = _orderedSongs();
+      if (transitionIndex < 0 || transitionIndex + 1 >= latest.length) {
+        return false;
+      }
+      if (latest[transitionIndex].id != prev.id ||
+          latest[transitionIndex + 1].id != next.id) {
+        return false;
+      }
+      if (_liveIdx != transitionIndex) return false;
+      final rkId = _rkCurrentSongId;
+      if (rkId != null &&
+          rkId != currentRkId &&
+          !(allowNextDeck && rkId == nextRkId)) {
+        return false;
+      }
+      return true;
+    }
 
     // Lockout: while RK still reports the song we just xfaded TO, the previous
     // fade is either still running or just finished — refuse to fire again.
@@ -2330,8 +3069,6 @@ class _DjControlPageState extends State<DjControlPage> {
       }
     }
 
-    final prev = ordered[_liveIdx];
-    final next = ordered[_liveIdx + 1];
     final positionSec = _position.inMilliseconds / 1000.0;
     final durationSec = _duration.inMilliseconds / 1000.0;
     final remainingSec =
@@ -2341,20 +3078,34 @@ class _DjControlPageState extends State<DjControlPage> {
     // Use the startup-prepared plan to fire at the phrase-aligned exit point.
     // Otherwise fall back to the legacy "remaining ≤ 5s" trigger so we never
     // miss a transition when the planner produced no usable exit.
-    final plan =
-        _isDefaultPreset
-            ? await _ensurePreparedDefaultRenderPlanFor(
-              transitionIndex: _liveIdx,
-              prev: prev,
-              next: next,
-              cursorSec: positionSec,
-            )
-            : await _ensurePreparedSectionMatchPlanFor(
-              transitionIndex: _liveIdx,
-              prev: prev,
-              next: next,
-              cursorSec: positionSec,
-            );
+    final Map<String, dynamic> plan;
+    if (_isDefaultPreset) {
+      final prepared = _preparedTransitionPlans[transitionIndex];
+      if (prepared == null ||
+          !_defaultPreparedRenderPairIndexes.contains(transitionIndex)) {
+        return;
+      }
+      plan = Map<String, dynamic>.from(prepared);
+    } else {
+      plan = await _ensurePreparedSectionMatchPlanFor(
+        transitionIndex: transitionIndex,
+        prev: prev,
+        next: next,
+        cursorSec: positionSec,
+      );
+    }
+    if (!stillCurrent()) return;
+    // A manual fast cut may start while this auto check is awaiting rolling
+    // preparation. Re-check ownership before executing the stale auto plan so
+    // the user-triggered transition remains the only writer to RK playback.
+    if (_xfadeInFlight) return;
+    if (_defaultRenderResumeExceedsTarget(plan, next)) {
+      _dropImpossibleDefaultRenderTarget(
+        next,
+        reason: 'Default mix render guard',
+      );
+      return;
+    }
     final smartExitAt = (plan['from_at_sec'] as num?)?.toDouble();
     final bool shouldTrigger;
     if (smartExitAt != null && smartExitAt > 0) {
@@ -2371,8 +3122,7 @@ class _DjControlPageState extends State<DjControlPage> {
       shouldTrigger = !_isPlaying && positionSec > 30.0;
     }
     if (!shouldTrigger) return;
-
-    final nextRkId = _rkIdForXfade(next);
+    if (!stillCurrent()) return;
 
     _xfadeInFlight = true;
     _xfadeInFlightAt = DateTime.now();
@@ -2425,7 +3175,9 @@ class _DjControlPageState extends State<DjControlPage> {
                 ruleKey: rawRuleKey,
                 fallback: 'blend',
               );
+      if (!stillCurrent()) return;
       final xfadeResponse = await doXfade();
+      if (!stillCurrent(allowNextDeck: true)) return;
       final transitionDebug = _transitionDebugText(
         trigger: 'auto',
         from: prev,
@@ -2435,8 +3187,8 @@ class _DjControlPageState extends State<DjControlPage> {
       );
       if (!mounted) return;
       setState(() {
-        _lastXfadeFromIdx = _liveIdx;
-        _liveIdx += 1;
+        _lastXfadeFromIdx = transitionIndex;
+        _liveIdx = transitionIndex + 1;
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
         final tail = <String>[];
         if (exitSection != null && exitSection.isNotEmpty)
@@ -2459,9 +3211,10 @@ class _DjControlPageState extends State<DjControlPage> {
         _cutInfo = '自动衔接 → #${_liveIdx + 1}：$ruleLabel$tailStr';
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = nextRkId.toString();
+        _lastXfadeToSongId = nextRkId;
         _lastTransitionDebug = transitionDebug;
       });
+      _scheduleDefaultRollingPrepare(transitionIndex + 1);
     } catch (e) {
       // Failure cooldown: even if xfade failed (409 because the song finished
       // and active deck went away, or 503, etc.), don't hammer at every poll.
@@ -2481,34 +3234,79 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _advanceLive() async {
+    if (_xfadeInFlight) {
+      setState(() => _cutInfo = 'next ignored: transition already running');
+      return;
+    }
     final ordered = _orderedSongs();
-    final next = _liveIdx + 1;
+    final sessionId = _liveSessionId;
+    final transitionIndex = _liveIdx;
+    final next = transitionIndex + 1;
     if (next >= ordered.length) {
       await widget.edgeClient.pause();
       setState(() => _isPlaying = false);
       return;
     }
-    final prev = ordered[_liveIdx];
+    final prev = ordered[transitionIndex];
     final nextSong = ordered[next];
-    final nextRk = _rkIdForXfade(nextSong);
+    final currentRkId = _rkIdForXfade(prev).toString();
+    final nextRk = _rkIdForXfade(nextSong).toString();
+    bool stillCurrent({bool allowNextDeck = false}) {
+      if (!_isActiveLiveSession(sessionId)) return false;
+      final latest = _orderedSongs();
+      if (transitionIndex < 0 || transitionIndex + 1 >= latest.length) {
+        return false;
+      }
+      if (latest[transitionIndex].id != prev.id ||
+          latest[transitionIndex + 1].id != nextSong.id) {
+        return false;
+      }
+      if (_liveIdx != transitionIndex) return false;
+      final rkId = _rkCurrentSongId;
+      if (rkId != null &&
+          rkId != currentRkId &&
+          !(allowNextDeck && rkId == nextRk)) {
+        return false;
+      }
+      return true;
+    }
+
+    if (!stillCurrent()) return;
+
+    _xfadeInFlight = true;
+    _xfadeInFlightAt = DateTime.now();
     try {
-      final plan = await _ensurePreparedSectionMatchPlanFor(
-        transitionIndex: _liveIdx,
-        prev: prev,
-        next: nextSong,
-        cursorSec: _position.inMilliseconds / 1000.0,
-      );
+      final plan =
+          _isDefaultPreset
+              ? await _prepareAndSyncDefaultRenderPair(
+                ordered: ordered,
+                transitionIndex: transitionIndex,
+                sessionId: sessionId,
+                cursorSec: _position.inMilliseconds / 1000.0,
+                stageLabel: 'Preparing manual default next pair',
+              )
+              : await _ensurePreparedSectionMatchPlanFor(
+                transitionIndex: transitionIndex,
+                prev: prev,
+                next: nextSong,
+                cursorSec: _position.inMilliseconds / 1000.0,
+              );
+      if (!stillCurrent()) return;
       final rawRuleKey = plan['rule_key']?.toString() ?? 'blend';
       final ruleLabel = plan['rule_label_zh']?.toString() ?? rawRuleKey;
       final fadeSec = _v32FadeSec(plan, fallback: 6.0);
-      final response = await _edgeXfadeFromPlan(
-        target: nextSong,
-        plan: plan,
-        fadeSec: fadeSec,
-        toAtSec: (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        ruleKey: rawRuleKey,
-        fallback: 'blend',
-      );
+      final response =
+          _isDefaultPreset
+              ? await _edgeDefaultRenderFromPlan(target: nextSong, plan: plan)
+              : await _edgeXfadeFromPlan(
+                target: nextSong,
+                plan: plan,
+                fadeSec: fadeSec,
+                toAtSec: (plan['to_at_sec'] as num?)?.toDouble() ?? 0.0,
+                ruleKey: rawRuleKey,
+                fallback: 'blend',
+              );
+      if (!stillCurrent(allowNextDeck: true)) return;
       final transitionDebug = _transitionDebugText(
         trigger: 'next',
         from: prev,
@@ -2518,10 +3316,10 @@ class _DjControlPageState extends State<DjControlPage> {
       );
       setState(() {
         _liveIdx = next;
-        _lastXfadeFromIdx = next - 1;
+        _lastXfadeFromIdx = transitionIndex;
         _lastXfadeAt = DateTime.now();
         _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = nextRk.toString();
+        _lastXfadeToSongId = nextRk;
         _lastTransitionDebug = transitionDebug;
         final hint = _xfadeResultHint(response);
         _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
@@ -2531,6 +3329,9 @@ class _DjControlPageState extends State<DjControlPage> {
       });
     } catch (e) {
       setState(() => _cutInfo = '跳曲失败: $e');
+    } finally {
+      _xfadeInFlight = false;
+      _xfadeInFlightAt = null;
     }
   }
 
@@ -2549,94 +3350,1116 @@ class _DjControlPageState extends State<DjControlPage> {
     }
   }
 
-  Future<void> _doCut(String strategy) async {
-    // Block cuts while startup is syncing the full candidate pool.
-    if (_backgroundSyncInProgress) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('候选池正在同步到 RK，请等待同步完成后再切歌'),
-          duration: Duration(seconds: 2),
+  String get _pendingManualTransitionKey {
+    final rk = Uri.encodeComponent(widget.edgeClient.baseUrl.toLowerCase());
+    return 'harbeat.pending_manual_transition.$rk';
+  }
+
+  String _orchestrationTrigger(String triggerLabel) {
+    if (triggerLabel.contains('style')) return 'style_cut';
+    if (triggerLabel.contains('energy')) return 'energy_cut';
+    return 'fast_cut';
+  }
+
+  String get _preparedManualCutPairsKey {
+    final rk = Uri.encodeComponent(widget.edgeClient.baseUrl.toLowerCase());
+    return 'harbeat.prepared_manual_cut_pairs.$rk';
+  }
+
+  String _preparedManualPairKey(Object fromRkId, Object toRkId) =>
+      '${fromRkId.toString()}->${toRkId.toString()}';
+
+  Future<void> _persistPreparedManualCutPairs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _preparedManualCutPairsKey,
+      jsonEncode({
+        for (final entry in _preparedManualCutPairs.entries)
+          entry.key: entry.value.map((pair) => pair.toJson()).toList(),
+      }),
+    );
+  }
+
+  Future<void> _restorePreparedManualCutPairs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_preparedManualCutPairsKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      for (final entry in decoded.entries) {
+        final restored = <_PreparedManualCutPair>[];
+        final rawValue = entry.value;
+        final rawPairs =
+            rawValue is List
+                ? rawValue
+                : rawValue is Map
+                ? [rawValue]
+                : const [];
+        for (final rawPair in rawPairs) {
+          if (rawPair is! Map) continue;
+          final pair = _PreparedManualCutPair.fromJson(
+            Map<String, dynamic>.from(rawPair),
+          );
+          if (pair.fromRkId.isEmpty ||
+              pair.toRkId.isEmpty ||
+              pair.pairId.isEmpty ||
+              pair.fromAtSec <= 0 ||
+              pair.plan.isEmpty ||
+              pair.manifest.isEmpty) {
+            continue;
+          }
+          restored.add(pair);
+        }
+        if (restored.isNotEmpty) {
+          restored.sort((a, b) => a.fromAtSec.compareTo(b.fromAtSec));
+          _preparedManualCutPairs[entry.key.toString()] = restored;
+        }
+      }
+    } catch (_) {
+      // A corrupt local index is disposable; RK cache remains authoritative.
+    }
+  }
+
+  _PreparedManualCutPair? _validPreparedManualCutPair({
+    required LibrarySong current,
+    required LibrarySong target,
+    required LivePlaybackState rkState,
+  }) {
+    final fromRkId = _rkIdForXfade(current).toString();
+    final toRkId = _rkIdForXfade(target).toString();
+    final key = _preparedManualPairKey(fromRkId, toRkId);
+    final pairs = _preparedManualCutPairs[key];
+    if (pairs == null || pairs.isEmpty) return null;
+    if (!rkState.playing || rkState.currentSongId != fromRkId) {
+      _preparedManualCutPairs.remove(key);
+      unawaited(_persistPreparedManualCutPairs());
+      return null;
+    }
+    final validPairs = <_PreparedManualCutPair>[];
+    final retained = <_PreparedManualCutPair>[];
+    for (final pair in pairs) {
+      final leadSec = pair.fromAtSec - rkState.positionSec;
+      final versionOk = _isVerifiedFastCutPair(pair);
+      if (leadSec >= 3.0 && leadSec <= 15.0 && versionOk) {
+        validPairs.add(pair);
+      }
+      if (leadSec >= 3.0 && versionOk) retained.add(pair);
+    }
+    if (retained.length != pairs.length) {
+      if (retained.isEmpty) {
+        _preparedManualCutPairs.remove(key);
+      } else {
+        _preparedManualCutPairs[key] = retained;
+      }
+      unawaited(_persistPreparedManualCutPairs());
+    }
+    if (validPairs.isEmpty) return null;
+    validPairs.sort((a, b) {
+      final leadA = a.fromAtSec - rkState.positionSec;
+      final leadB = b.fromAtSec - rkState.positionSec;
+      final leadCompare = leadA.compareTo(leadB);
+      if (leadCompare != 0) return leadCompare;
+      final scoreA = _candidateScore(a.plan);
+      final scoreB = _candidateScore(b.plan);
+      final scoreCompare = scoreB.compareTo(scoreA);
+      if (scoreCompare != 0) return scoreCompare;
+      return _relativeJump(a.plan).compareTo(_relativeJump(b.plan));
+    });
+    return validPairs.first;
+  }
+
+  bool _isVerifiedFastCutPair(_PreparedManualCutPair pair) {
+    final defaultMix = _asStringMap(pair.plan['default_mix']) ?? const {};
+    final manifest = _asStringMap(pair.manifest) ?? const {};
+    String? pick(String key) =>
+        manifest[key]?.toString() ??
+        defaultMix[key]?.toString() ??
+        pair.plan[key]?.toString();
+    final rendererVersion =
+        pick('renderer_version') ?? pick('required_renderer_version');
+    final requiredRendererVersion = pick('required_renderer_version');
+    final rendererOk =
+        rendererVersion == _verifiedFastCutRendererVersion ||
+        requiredRendererVersion == _verifiedFastCutRendererVersion;
+    return pick('audio_feature_source') == _requiredDefaultAudioFeatureSource &&
+        rendererOk &&
+        pick('planner_version') == _verifiedFastCutPlannerVersion &&
+        pair.plan['degraded'] != true &&
+        pair.plan['fallback_used'] != true &&
+        defaultMix['analysis_missing'] != true;
+  }
+
+  List<_PreparedManualCutPair> _futureVerifiedManualPairs({
+    required String key,
+    required double positionSec,
+  }) {
+    final pairs = _preparedManualCutPairs[key] ?? const [];
+    final retained = <_PreparedManualCutPair>[];
+    final byPairId = <String, _PreparedManualCutPair>{};
+    for (final pair in pairs) {
+      final leadSec = pair.fromAtSec - positionSec;
+      if (leadSec < 3.0 || !_isVerifiedFastCutPair(pair)) continue;
+      byPairId[pair.pairId] = pair;
+    }
+    retained.addAll(byPairId.values);
+    retained.sort((a, b) => a.fromAtSec.compareTo(b.fromAtSec));
+    final compacted = retained.length > 3 ? retained.sublist(0, 3) : retained;
+    if (compacted.length != pairs.length ||
+        compacted.any((pair) => !pairs.contains(pair))) {
+      if (compacted.isEmpty) {
+        _preparedManualCutPairs.remove(key);
+      } else {
+        _preparedManualCutPairs[key] = compacted;
+      }
+      unawaited(_persistPreparedManualCutPairs());
+    }
+    return compacted;
+  }
+
+  double _candidateScore(Map<String, dynamic> plan) {
+    final defaultMix = _asStringMap(plan['default_mix']) ?? const {};
+    for (final key in const [
+      'candidate_score',
+      'score',
+      'handoff_score',
+      'combined_score',
+    ]) {
+      final value = plan[key] ?? defaultMix[key];
+      if (value is num) return value.toDouble();
+    }
+    return 0.0;
+  }
+
+  double _relativeJump(Map<String, dynamic> plan) {
+    final defaultMix = _asStringMap(plan['default_mix']) ?? const {};
+    final value = plan['relative_jump'] ?? defaultMix['relative_jump'];
+    if (value is num) return value.toDouble();
+    return double.infinity;
+  }
+
+  Future<void> _prepareTargetManualCutForConfirm({
+    required LibrarySong current,
+    required LibrarySong target,
+    required String triggerLabel,
+    required int expectedLiveIdx,
+  }) async {
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) return;
+    setState(() => _cutInfo = '$triggerLabel preparing render');
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) return;
+    await _prewarmManualCutPair(
+      current: current,
+      target: target,
+      triggerLabel: triggerLabel,
+      expectedLiveIdx: expectedLiveIdx,
+    );
+    final state = _extrapolatedRkState() ?? await widget.edgeClient.getState();
+    if (state.error != null || !_liveStarted || _liveIdx != expectedLiveIdx) {
+      return;
+    }
+    final pair = _validPreparedManualCutPair(
+      current: current,
+      target: target,
+      rkState: state,
+    );
+    if (pair == null) {
+      throw Exception('$triggerLabel render is not ready in the 3-15s window');
+    }
+    final cacheOk = await _sync.defaultMixPairExists(pair.pairId);
+    if (!cacheOk) {
+      throw Exception('$triggerLabel render cache missing');
+    }
+    setState(() => _cutInfo = '$triggerLabel ready to confirm');
+  }
+
+  Future<void> _prepareTargetCandidateForPreview({
+    required Map<String, dynamic> plan,
+    required String triggerLabel,
+    required int expectedLiveIdx,
+  }) async {
+    final selected = _asStringMap(plan['selected_song']);
+    final targetId = selected?['song_id']?.toString();
+    if (selected == null || targetId == null || targetId.isEmpty) {
+      throw Exception('$triggerLabel has no target song');
+    }
+    final target = await _ensureSongAvailableForTargetCut(targetId);
+    if (target == null) {
+      throw Exception('$triggerLabel target song metadata is unavailable');
+    }
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) {
+      throw Exception('$triggerLabel cancelled: live song changed');
+    }
+    final sessionId = _liveSessionId;
+    final prewarmIds = _activeManualCutPrewarmIds.toList(growable: false);
+    for (final transitionId in prewarmIds) {
+      try {
+        await widget.edgeClient.cancelDefaultRenderOrchestration(transitionId);
+      } catch (_) {
+        // A task that has not reached RK yet is suppressed by the loading gate.
+      }
+    }
+    await _waitForSyncWorkerIdleForSession(sessionId);
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) {
+      throw Exception('$triggerLabel cancelled: live song changed');
+    }
+    await _syncMissingCacheFilesForIds(
+      [target.id],
+      sessionId,
+      stageLabel: 'Preparing $triggerLabel target audio',
+      priority: true,
+    );
+    await _ensurePlayableRkCacheIds(
+      [target.id],
+      sessionId: sessionId,
+      stageLabel: 'Validating $triggerLabel target audio',
+    );
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) {
+      throw Exception('$triggerLabel cancelled: live song changed');
+    }
+    selected['cache_status'] = 'ready';
+    plan['selected_song'] = selected;
+    plan['playback_ready'] = true;
+  }
+
+  Future<LivePlaybackState?> _activeRkStateForManualTargetCut({
+    required LibrarySong current,
+    required String triggerLabel,
+    required int expectedLiveIdx,
+  }) async {
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) return null;
+    var state = _extrapolatedRkState();
+    final currentRkId = _rkIdForXfade(current).toString();
+    if (state == null ||
+        state.error != null ||
+        state.currentSongId != currentRkId) {
+      final fresh = await widget.edgeClient.getState();
+      state = fresh.error == null ? fresh : state;
+    }
+    if (state == null || state.error != null) {
+      setState(() => _cutInfo = '$triggerLabel waiting for RK playback state');
+      return null;
+    }
+    if (!state.playing || state.currentSongId != currentRkId) {
+      setState(() => _cutInfo = '$triggerLabel needs active current playback');
+      return null;
+    }
+    final latestExitSec =
+        current.duration > 0
+            ? math.max(1.0, current.duration - 2.1)
+            : state.durationSec > 0
+            ? math.max(1.0, state.durationSec - 2.1)
+            : double.infinity;
+    final maxExitSec = math.min(
+      state.positionSec + _defaultFastCutMaxLeadSec,
+      latestExitSec,
+    );
+    if (maxExitSec < state.positionSec + _defaultFastCutMinLeadSec) {
+      setState(
+        () =>
+            _cutInfo =
+                '$triggerLabel needs at least ${_defaultFastCutMaxLeadSec.toStringAsFixed(0)}s of current song',
+      );
+      return null;
+    }
+    return state;
+  }
+
+  bool _hasTargetCandidate(Map<String, dynamic>? preview) {
+    if (preview?['playback_ready'] == false) return false;
+    final selected = preview?['selected_song'];
+    if (selected is! Map) return false;
+    final targetId = selected['song_id']?.toString();
+    return targetId != null && targetId.isNotEmpty;
+  }
+
+  Future<void> _prewarmManualCutPair({
+    required LibrarySong current,
+    required LibrarySong target,
+    required String triggerLabel,
+    required int expectedLiveIdx,
+  }) {
+    final fromRkId = _rkIdForXfade(current).toString();
+    final toRkId = _rkIdForXfade(target).toString();
+    final key = _preparedManualPairKey(fromRkId, toRkId);
+    final running = _manualCutPrewarmFutures[key];
+    if (running != null) return running;
+    final now = DateTime.now();
+    final lastCheck = _manualCutPrewarmLastCheckAt[key];
+    if (lastCheck != null &&
+        now.difference(lastCheck) < _manualCutPrewarmThrottle) {
+      return Future<void>.value();
+    }
+    _manualCutPrewarmLastCheckAt[key] = now;
+    final future = _prewarmManualCutPairOnce(
+      current: current,
+      target: target,
+      triggerLabel: triggerLabel,
+      expectedLiveIdx: expectedLiveIdx,
+    );
+    _manualCutPrewarmFutures[key] = future;
+    return future.whenComplete(() {
+      if (identical(_manualCutPrewarmFutures[key], future)) {
+        _manualCutPrewarmFutures.remove(key);
+      }
+    });
+  }
+
+  Future<void> _prewarmManualCutPairOnce({
+    required LibrarySong current,
+    required LibrarySong target,
+    required String triggerLabel,
+    required int expectedLiveIdx,
+  }) async {
+    if (!_liveStarted || _liveIdx != expectedLiveIdx) return;
+    if (_manualTransitionId != null) return;
+    if (triggerLabel == 'fast_cut' && _targetPreviewPreparing) return;
+    final fromRkId = _rkIdForXfade(current).toString();
+    final toRkId = _rkIdForXfade(target).toString();
+    final rkState = await widget.edgeClient.getState();
+    if (rkState.error != null ||
+        !rkState.playing ||
+        rkState.currentSongId != fromRkId ||
+        _liveIdx != expectedLiveIdx) {
+      return;
+    }
+    final key = _preparedManualPairKey(fromRkId, toRkId);
+    final existing = _futureVerifiedManualPairs(
+      key: key,
+      positionSec: rkState.positionSec,
+    );
+    final futureLeads =
+        existing
+            .map((pair) => pair.fromAtSec - rkState.positionSec)
+            .where((lead) => lead >= 3.0)
+            .toList()
+          ..sort();
+    final hasActive = futureLeads.any((lead) => lead <= 15.0);
+    final hasStandby = futureLeads.any((lead) => lead > 15.0 && lead <= 30.0);
+    if (hasActive && hasStandby) return;
+
+    final latestExitSec =
+        current.duration > 0
+            ? math.max(1.0, current.duration - 2.1)
+            : double.infinity;
+    final baseMinLead = hasActive ? 22.0 : _defaultFastCutMinLeadSec;
+    final baseMaxLead = hasActive ? 25.0 : _defaultFastCutMaxLeadSec;
+    final minExitSec = rkState.positionSec + baseMinLead;
+    final maxExitSec = math.min(
+      rkState.positionSec + baseMaxLead,
+      latestExitSec,
+    );
+    if (maxExitSec < minExitSec) return;
+    final transitionId =
+        'prewarm-$_liveSessionId-${DateTime.now().microsecondsSinceEpoch}';
+    _activeManualCutPrewarmIds.add(transitionId);
+    try {
+      final rawPlan = await widget.apiClient.djPlanFastCut(
+        token: widget.token,
+        fromSongId: current.id,
+        toSongId: target.id,
+        exitTimeSec: maxExitSec,
+        cursorSec: rkState.positionSec,
+        minExitSec: minExitSec,
+        maxExitSec: maxExitSec,
+        renderBudgetSec: _defaultFastCutRenderBudgetSec,
+        currentSessionId: _liveSessionId,
+        deviceId: widget.edgeClient.baseUrl,
+      );
+      if (!_liveStarted ||
+          _liveIdx != expectedLiveIdx ||
+          _manualTransitionId != null ||
+          (triggerLabel == 'fast_cut' && _targetPreviewPreparing)) {
+        return;
+      }
+      final plan = _normalizeDefaultRenderPlanForPair(
+        rawPlan,
+        prev: current,
+        next: target,
+      );
+      _assertVerifiedFastCutPlan(plan);
+      final manifest = _defaultMixPairManifestForPlan(plan);
+      if (manifest == null) return;
+      final pairId = manifest['pair_id']?.toString() ?? '';
+      if (pairId.isEmpty) return;
+      ManualTransitionTask? task;
+      try {
+        task = await widget.edgeClient.createDefaultRenderOrchestration(
+          transitionId: transitionId,
+          trigger: _orchestrationTrigger(triggerLabel),
+          mode: 'prewarm',
+          fromSongId: fromRkId,
+          toSongId: toRkId,
+          transitionPlan: plan,
+          pairManifest: manifest,
+          minLeadSec: 3.0,
+        );
+      } catch (_) {
+        // A POST timeout can still mean accepted. Query the same id below.
+      }
+      final deadline = DateTime.now().add(const Duration(seconds: 35));
+      while (DateTime.now().isBefore(deadline)) {
+        if (triggerLabel == 'fast_cut' && _targetPreviewPreparing) {
+          try {
+            await widget.edgeClient.cancelDefaultRenderOrchestration(
+              transitionId,
+            );
+          } catch (_) {
+            // A completed prewarm needs no cancellation.
+          }
+          return;
+        }
+        if (task?.state == ManualTransitionState.prewarmed) break;
+        if (task?.isTerminal == true) return;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        try {
+          task = await widget.edgeClient.getDefaultRenderOrchestration(
+            transitionId,
+          );
+        } catch (_) {
+          continue;
+        }
+      }
+      if (task?.state != ManualTransitionState.prewarmed ||
+          !_liveStarted ||
+          _liveIdx != expectedLiveIdx) {
+        return;
+      }
+      final fromAt = (plan['from_at_sec'] as num?)?.toDouble() ?? 0.0;
+      if (fromAt <= 0) return;
+      final cacheVerifiedAtMs = DateTime.now().millisecondsSinceEpoch;
+      final updated = <_PreparedManualCutPair>[
+        ...(_preparedManualCutPairs[key] ?? const []),
+        _PreparedManualCutPair(
+          fromRkId: fromRkId,
+          toRkId: toRkId,
+          pairId: pairId,
+          plan: plan,
+          manifest: manifest,
+          fromAtSec: fromAt,
+          cacheVerifiedAtMs: cacheVerifiedAtMs,
+          createdAtMs: cacheVerifiedAtMs,
         ),
+      ];
+      final byPairId = <String, _PreparedManualCutPair>{};
+      for (final pair in updated) {
+        byPairId[pair.pairId] = pair;
+      }
+      final compacted =
+          byPairId.values
+              .where((pair) => pair.fromAtSec - rkState.positionSec >= 3.0)
+              .toList()
+            ..sort((a, b) => a.fromAtSec.compareTo(b.fromAtSec));
+      _preparedManualCutPairs[key] =
+          compacted.length > 3 ? compacted.sublist(0, 3) : compacted;
+      await _persistPreparedManualCutPairs();
+      if (mounted && triggerLabel != 'fast_cut') {
+        setState(() => _cutInfo = '$triggerLabel render ready');
+      }
+    } catch (_) {
+      // Prewarm is opportunistic. The confirmed click retains on-demand flow.
+    } finally {
+      _activeManualCutPrewarmIds.remove(transitionId);
+    }
+  }
+
+  String _manualTransitionStateLabel(ManualTransitionState state) {
+    return switch (state) {
+      ManualTransitionState.accepted => 'accepted',
+      ManualTransitionState.syncing => 'syncing render',
+      ManualTransitionState.cacheReady => 'render ready',
+      ManualTransitionState.prewarmed => 'prewarmed',
+      ManualTransitionState.prepared => 'prepared',
+      ManualTransitionState.scheduled => 'scheduled',
+      ManualTransitionState.executed => 'executed',
+      ManualTransitionState.expired => 'expired',
+      ManualTransitionState.failed => 'failed',
+      ManualTransitionState.cancelled => 'cancelled',
+    };
+  }
+
+  Future<void> _persistPendingManualTransition({
+    required String transitionId,
+    required int sessionId,
+    required int startIndex,
+    required String fromSongId,
+    required LibrarySong target,
+    required bool insertTargetAsNext,
+    required String triggerLabel,
+    required Map<String, dynamic> normalizedPlan,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _pendingManualTransitionKey,
+      jsonEncode({
+        'version': 1,
+        'transition_id': transitionId,
+        'session_id': sessionId,
+        'start_index': startIndex,
+        'from_song_id': fromSongId,
+        'target_song_id': target.id,
+        'target_rk_id': _rkIdForXfade(target).toString(),
+        'insert_target_as_next': insertTargetAsNext,
+        'trigger': _orchestrationTrigger(triggerLabel),
+        'trigger_label': triggerLabel,
+        'normalized_plan': normalizedPlan,
+        'created_at_ms': DateTime.now().millisecondsSinceEpoch,
+      }),
+    );
+  }
+
+  Future<void> _clearPendingManualTransition() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingManualTransitionKey);
+  }
+
+  void _clearManualTransitionMemory(String transitionId) {
+    if (_manualTransitionId != transitionId) return;
+    _manualTransitionId = null;
+    _manualTransitionTask = null;
+    _manualTransitionTargetSongId = null;
+    _manualTransitionTargetRkId = null;
+    _manualTransitionStartIndex = null;
+    _manualTransitionTriggerLabel = null;
+    _manualTransitionInsertTargetAsNext = false;
+  }
+
+  Future<void> _restorePendingManualTransition() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingManualTransitionKey);
+      if (raw == null || raw.isEmpty || !mounted) return;
+      final context = _asStringMap(jsonDecode(raw));
+      final plan = _asStringMap(context?['normalized_plan']);
+      final transitionId = context?['transition_id']?.toString();
+      final targetId = context?['target_song_id']?.toString();
+      final fromId = context?['from_song_id']?.toString();
+      final startIndex = (context?['start_index'] as num?)?.toInt();
+      if (context?['version'] != 1 ||
+          plan == null ||
+          transitionId == null ||
+          targetId == null ||
+          fromId == null ||
+          startIndex == null) {
+        await prefs.remove(_pendingManualTransitionKey);
+        return;
+      }
+      final restoredContext = context!;
+      final target = _songById(targetId);
+      final current = _songById(fromId);
+      if (target == null || current == null) {
+        setState(
+          () => _cutInfo = 'Pending RK transition retained for reconnect',
+        );
+        return;
+      }
+      _manualTransitionId = transitionId;
+      _manualTransitionTargetSongId = targetId;
+      _manualTransitionTargetRkId =
+          restoredContext['target_rk_id']?.toString() ??
+          _rkIdForXfade(target).toString();
+      _manualTransitionStartIndex = startIndex;
+      _manualTransitionTriggerLabel =
+          restoredContext['trigger_label']?.toString() ??
+          restoredContext['trigger']?.toString() ??
+          'fast_cut';
+      _manualTransitionInsertTargetAsNext =
+          restoredContext['insert_target_as_next'] == true;
+      ManualTransitionTask? task;
+      try {
+        task = await widget.edgeClient.getDefaultRenderOrchestration(
+          transitionId,
+        );
+      } catch (e) {
+        final createdAt =
+            (restoredContext['created_at_ms'] as num?)?.toInt() ?? 0;
+        final stale =
+            DateTime.now().millisecondsSinceEpoch - createdAt > 120000;
+        if (stale && e.toString().contains('404')) {
+          await _clearPendingManualTransition();
+          _clearManualTransitionMemory(transitionId);
+        }
+        return;
+      }
+      final manifest = _defaultMixPairManifestForPlan(plan);
+      if (manifest == null) return;
+      final future = _observeManualTransition(
+        initial: task,
+        current: current,
+        target: target,
+        startIndex: startIndex,
+        normalized: plan,
+        pairManifest: manifest,
+        triggerLabel: _manualTransitionTriggerLabel!,
+        insertTargetAsNext: _manualTransitionInsertTargetAsNext,
+      );
+      _manualTransitionFuture = future;
+      await future;
+    } catch (_) {
+      // Recovery is best effort. The persisted ID remains available when the
+      // phone can reach RK again.
+    } finally {
+      _manualTransitionFuture = null;
+    }
+  }
+
+  void _commitScheduledManualTransition({
+    required ManualTransitionTask task,
+    required LibrarySong current,
+    required LibrarySong target,
+    required int startIndex,
+    required Map<String, dynamic> normalized,
+    required bool insertTargetAsNext,
+    required String triggerLabel,
+    VoidCallback? onScheduled,
+  }) {
+    if (!_committedManualTransitionIds.add(task.transitionId) || !mounted) {
+      return;
+    }
+    final preparedKey = _preparedManualPairKey(
+      _rkIdForXfade(current),
+      _rkIdForXfade(target),
+    );
+    _preparedManualCutPairs.remove(preparedKey);
+    unawaited(_persistPreparedManualCutPairs());
+    final fromAt =
+        (normalized['from_at_sec'] as num?)?.toDouble() ??
+        task.plannedFromAtSec ??
+        0.0;
+    final toAt = (normalized['to_at_sec'] as num?)?.toDouble() ?? 0.0;
+    final fadeSec = _v32FadeSec(normalized, fallback: 6.0);
+    setState(() {
+      if (insertTargetAsNext) {
+        _insertTargetAsNext(target, afterIndex: startIndex);
+      }
+      _defaultPreparedRenderPairIndexes.remove(startIndex);
+      _preparedTransitionPlans[startIndex] = normalized;
+      _lastTransitionDebug = _transitionDebugText(
+        trigger: triggerLabel,
+        from: current,
+        to: target,
+        plan: normalized,
+        response: task.result,
+      );
+      _activeRule = '$triggerLabel / ${fadeSec.toStringAsFixed(1)}s';
+      _cutInfo =
+          '$triggerLabel scheduled -> ${target.title} '
+          'out ${fromAt.toStringAsFixed(1)}s / in ${toAt.toStringAsFixed(1)}s';
+      onScheduled?.call();
+    });
+    unawaited(_clearPendingManualTransition());
+  }
+
+  Future<void> _observeManualTransition({
+    required ManualTransitionTask? initial,
+    required LibrarySong current,
+    required LibrarySong target,
+    required int startIndex,
+    required Map<String, dynamic> normalized,
+    required Map<String, dynamic> pairManifest,
+    required String triggerLabel,
+    required bool insertTargetAsNext,
+    VoidCallback? onScheduled,
+  }) async {
+    final transitionId = _manualTransitionId;
+    if (transitionId == null) return;
+    var task = initial;
+    var unknownPolls = 0;
+    var resubmitted = false;
+    while (mounted && _manualTransitionId == transitionId) {
+      if (task != null) {
+        _manualTransitionTask = task;
+        if (task.isCommitted) {
+          _commitScheduledManualTransition(
+            task: task,
+            current: current,
+            target: target,
+            startIndex: startIndex,
+            normalized: normalized,
+            insertTargetAsNext: insertTargetAsNext,
+            triggerLabel: triggerLabel,
+            onScheduled: onScheduled,
+          );
+        }
+        if (task.isTerminal) {
+          if (task.state != ManualTransitionState.executed && mounted) {
+            final detail = task.error?['code'] ?? task.error?['detail'] ?? '';
+            setState(() {
+              _cutInfo =
+                  '$triggerLabel ${_manualTransitionStateLabel(task!.state)}'
+                  '${detail.toString().isEmpty ? '' : ': $detail'}';
+            });
+          }
+          await _clearPendingManualTransition();
+          _clearManualTransitionMemory(transitionId);
+          _scheduleDefaultRollingPrepare(_liveIdx);
+          _scheduleManualCutRollingPrewarm(_liveIdx);
+          return;
+        }
+        if (mounted) {
+          setState(() {
+            _cutInfo =
+                '$triggerLabel: ${_manualTransitionStateLabel(task!.state)}';
+          });
+        }
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: unknownPolls >= 3 ? 1000 : 300),
+      );
+      if (!mounted || _manualTransitionId != transitionId) return;
+      try {
+        task = await widget.edgeClient.getDefaultRenderOrchestration(
+          transitionId,
+        );
+        unknownPolls = 0;
+      } catch (e) {
+        unknownPolls += 1;
+        if (!resubmitted && e.toString().contains('404')) {
+          resubmitted = true;
+          try {
+            task = await widget.edgeClient.createDefaultRenderOrchestration(
+              transitionId: transitionId,
+              trigger: _orchestrationTrigger(triggerLabel),
+              fromSongId: _rkIdForXfade(current),
+              toSongId: _rkIdForXfade(target),
+              transitionPlan: normalized,
+              pairManifest: pairManifest,
+            );
+            unknownPolls = 0;
+            continue;
+          } catch (_) {
+            // Keep querying the same id. A timeout does not prove rejection.
+          }
+        }
+        if (unknownPolls >= 3 && mounted) {
+          setState(() => _cutInfo = '$triggerLabel: RK is still processing');
+        }
+        task = null;
+      }
+    }
+  }
+
+  void _reconcileManualTransitionPlayback(LivePlaybackState state) {
+    final transitionId = _manualTransitionId;
+    if (transitionId == null) return;
+    if (!playbackConfirmsManualTransition(
+      state,
+      transitionId: transitionId,
+      targetSongId: _manualTransitionTargetRkId,
+    )) {
+      return;
+    }
+    final recoverCommit = _committedManualTransitionIds.add(transitionId);
+    final targetSongId = _manualTransitionTargetSongId;
+    final startIndex = _manualTransitionStartIndex ?? _liveIdx;
+    final triggerLabel = _manualTransitionTriggerLabel;
+    final insertTargetAsNext = _manualTransitionInsertTargetAsNext;
+    final target = targetSongId == null ? null : _songById(targetSongId);
+    if (mounted) {
+      setState(() {
+        // Playback is authoritative. On a lossy hotspot it can arrive before
+        // the task poll observes "scheduled", so recover the same queue/UI
+        // commit that _commitScheduledManualTransition normally performs.
+        if (recoverCommit && insertTargetAsNext && target != null) {
+          _insertTargetAsNext(target, afterIndex: startIndex);
+        }
+        final targetId = _manualTransitionTargetRkId;
+        if (targetId != null) {
+          final ordered = _orderedSongs();
+          final idx = ordered.indexWhere(
+            (song) => _rkIdForXfade(song).toString() == targetId,
+          );
+          if (idx >= 0) _liveIdx = idx;
+        }
+        if (recoverCommit && triggerLabel?.contains('energy') == true) {
+          _targetEnergyPreview = null;
+          _targetEnergyBucketLabel = null;
+          _targetEnergyExcluded.clear();
+        }
+        if (recoverCommit && triggerLabel?.contains('style') == true) {
+          _targetStylePreview = null;
+          _selectedTargetStyle = null;
+        }
+        _cutInfo = 'Manual transition executed';
+      });
+    }
+    unawaited(_clearPendingManualTransition());
+    _clearManualTransitionMemory(transitionId);
+    _scheduleDefaultRollingPrepare(_liveIdx);
+    _scheduleManualCutRollingPrewarm(_liveIdx);
+  }
+
+  Future<void> _scheduleFastCutToTarget({
+    required LibrarySong target,
+    required String triggerLabel,
+    bool insertTargetAsNext = false,
+    int? expectedLiveIdx,
+    VoidCallback? onScheduled,
+  }) {
+    final running = _manualTransitionFuture;
+    final intentKey =
+        '${_liveSessionId}:${_liveIdx}:${target.id}:$triggerLabel';
+    if (running != null) {
+      if (_manualTransitionIntentKey == intentKey) return running;
+      if (mounted) {
+        setState(() => _cutInfo = 'Another manual transition is processing');
+      }
+      return Future<void>.value();
+    }
+    _manualTransitionIntentKey = intentKey;
+    final future = _scheduleFastCutToTargetOnce(
+      target: target,
+      triggerLabel: triggerLabel,
+      insertTargetAsNext: insertTargetAsNext,
+      expectedLiveIdx: expectedLiveIdx,
+      onScheduled: onScheduled,
+    );
+    _manualTransitionFuture = future;
+    return future.whenComplete(() {
+      if (identical(_manualTransitionFuture, future)) {
+        _manualTransitionFuture = null;
+        _manualTransitionIntentKey = null;
+      }
+    });
+  }
+
+  Future<void> _scheduleFastCutToTargetOnce({
+    required LibrarySong target,
+    required String triggerLabel,
+    required bool insertTargetAsNext,
+    int? expectedLiveIdx,
+    VoidCallback? onScheduled,
+  }) async {
+    final sessionId = _liveSessionId;
+    final ordered = _orderedSongs();
+    if (ordered.isEmpty || _liveIdx < 0 || _liveIdx >= ordered.length) return;
+    if (expectedLiveIdx != null && expectedLiveIdx != _liveIdx) {
+      setState(
+        () =>
+            _cutInfo =
+                '$triggerLabel ignored: live index changed from #${expectedLiveIdx + 1} to #${_liveIdx + 1}',
+      );
+      return;
+    }
+    if (!insertTargetAsNext && _liveIdx + 1 >= ordered.length) {
+      setState(() => _cutInfo = '$triggerLabel -> queue end, no next song');
+      return;
+    }
+    if (!_isActiveLiveSession(sessionId)) return;
+    final startIndex = _liveIdx;
+    final current = ordered[startIndex];
+    if (target.id == current.id) {
+      setState(() => _cutInfo = '$triggerLabel failed: target is playing');
+      return;
+    }
+    if (!insertTargetAsNext && ordered[startIndex + 1].id != target.id) {
+      setState(() => _cutInfo = '$triggerLabel cancelled: queue changed');
+      return;
+    }
+    final currentRkId = _rkIdForXfade(current).toString();
+    final targetRkId = _rkIdForXfade(target).toString();
+    var rkAtClick = _extrapolatedRkState();
+    if (rkAtClick == null || rkAtClick.currentSongId != currentRkId) {
+      final freshState = await widget.edgeClient.getState();
+      rkAtClick =
+          freshState.error == null
+              ? freshState
+              : (_extrapolatedRkState() ?? freshState);
+    }
+    final clickStateError = rkAtClick.error;
+    final clickStatePlaying = rkAtClick.playing;
+    final clickStateSongId = rkAtClick.currentSongId;
+    if (clickStateError != null || !clickStatePlaying) {
+      final message =
+          clickStateError != null
+              ? '$triggerLabel waiting for RK playback state'
+              : '$triggerLabel waiting for active playback';
+      setState(() => _cutInfo = message);
+      return;
+    }
+    if (clickStateSongId != currentRkId) {
+      final message =
+          '$triggerLabel failed: RK source changed '
+          '(expected $currentRkId, got $clickStateSongId)';
+      setState(() => _cutInfo = message);
+      return;
+    }
+    final clickCursorSec = rkAtClick.positionSec;
+    final preparedPair = _validPreparedManualCutPair(
+      current: current,
+      target: target,
+      rkState: rkAtClick,
+    );
+    final latestExitSec =
+        current.duration > 0
+            ? math.max(1.0, current.duration - 2.1)
+            : double.infinity;
+    final minExitSec = clickCursorSec + _defaultFastCutMinLeadSec;
+    final maxExitSec = math.min(
+      clickCursorSec + _defaultFastCutMaxLeadSec,
+      latestExitSec,
+    );
+    if (preparedPair == null && maxExitSec < minExitSec) {
+      setState(
+        () =>
+            _cutInfo =
+                '$triggerLabel failed: not enough time for a 14-15s window',
       );
       return;
     }
 
-    final ordered = _orderedSongs();
-    if (ordered.isEmpty) return;
-    final current = ordered[_liveIdx];
-    final queue = ordered.map((s) => s.id).toList();
-    final pool = _picked.map((s) => s.id).toList();
+    bool stillCurrent() {
+      if (!_isActiveLiveSession(sessionId)) return false;
+      final latest = _orderedSongs();
+      if (startIndex < 0 || startIndex >= latest.length) return false;
+      if (_liveIdx != startIndex) return false;
+      if (latest[startIndex].id != current.id) {
+        return false;
+      }
+      if (!insertTargetAsNext &&
+          (startIndex + 1 >= latest.length ||
+              latest[startIndex + 1].id != target.id)) {
+        return false;
+      }
+      // The click-time RK state was already verified directly. The periodic
+      // poll cache can lag by one song on a lossy hotspot, so it must not
+      // silently cancel a valid manual plan. RK prepare/schedule remains the
+      // authoritative source-song check.
+      return true;
+    }
+
     try {
-      final plan = await widget.apiClient.djPlanCut(
-        token: widget.token,
-        strategy: strategy,
-        currentSongId: current.id,
-        cursorSec: _position.inMilliseconds / 1000.0,
-        queueSongIds: queue,
-        currentIndex: _liveIdx,
-        poolSongIds: pool,
-      );
-      final nextId = plan['next_song_id']?.toString();
-      if (nextId == null) {
-        setState(() => _cutInfo = '⏭ $strategy → 队尾，无下一首');
+      late Map<String, dynamic> normalized;
+      late Map<String, dynamic> pairManifest;
+      if (preparedPair != null) {
+        setState(() => _cutInfo = 'Using prepared $triggerLabel render');
+        final cacheOk = await _sync.defaultMixPairExists(preparedPair.pairId);
+        if (!cacheOk) {
+          setState(
+            () =>
+                _cutInfo =
+                    '$triggerLabel unavailable: prepared render cache missing',
+          );
+          unawaited(
+            _prewarmManualCutPair(
+              current: current,
+              target: target,
+              triggerLabel: triggerLabel,
+              expectedLiveIdx: startIndex,
+            ),
+          );
+          return;
+        }
+        normalized = Map<String, dynamic>.from(preparedPair.plan);
+        pairManifest = Map<String, dynamic>.from(preparedPair.manifest);
+      } else {
+        final gap =
+            'rolling_fast_cut_coverage_gap '
+            '@ ${clickCursorSec.toStringAsFixed(1)}s';
+        setState(() => _cutInfo = '$triggerLabel unavailable: $gap');
+        unawaited(
+          _prewarmManualCutPair(
+            current: current,
+            target: target,
+            triggerLabel: triggerLabel,
+            expectedLiveIdx: startIndex,
+          ),
+        );
         return;
       }
-      final byId = {for (final s in _picked) s.id: s};
-      final target =
-          byId[nextId] ??
-          ordered.firstWhere((s) => s.id == nextId, orElse: () => current);
-      final targetRk = _rkIdForXfade(target);
-      final inOrderIdx = ordered.indexWhere((s) => s.id == nextId);
-      final transitionIndex = inOrderIdx > _liveIdx ? inOrderIdx - 1 : _liveIdx;
-      final transition = await _ensurePreparedSectionMatchPlanFor(
-        transitionIndex: transitionIndex,
-        prev: current,
-        next: target,
-        cursorSec: _position.inMilliseconds / 1000.0,
-      );
-      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final ruleLabel = transition['rule_label_zh']?.toString() ?? rawRuleKey;
-      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
-
-      Future<Map<String, dynamic>> doXfade() => _edgeXfadeFromPlan(
+      if (!stillCurrent()) {
+        setState(
+          () => _cutInfo = '$triggerLabel cancelled: queue/state changed',
+        );
+        return;
+      }
+      _assertVerifiedFastCutPlan(normalized);
+      final transitionId =
+          'manual-$sessionId-${DateTime.now().microsecondsSinceEpoch}';
+      _manualTransitionId = transitionId;
+      _manualTransitionTargetSongId = target.id;
+      _manualTransitionTargetRkId = targetRkId;
+      _manualTransitionStartIndex = startIndex;
+      _manualTransitionTriggerLabel = triggerLabel;
+      _manualTransitionInsertTargetAsNext = insertTargetAsNext;
+      await _persistPendingManualTransition(
+        transitionId: transitionId,
+        sessionId: sessionId,
+        startIndex: startIndex,
+        fromSongId: current.id,
         target: target,
-        plan: transition,
-        fadeSec: fadeSec,
-        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        ruleKey: rawRuleKey,
-        fallback: 'blend',
+        insertTargetAsNext: insertTargetAsNext,
+        triggerLabel: triggerLabel,
+        normalizedPlan: normalized,
       );
-      final xfadeResponse = await doXfade();
-      final transitionDebug = _transitionDebugText(
-        trigger: strategy,
-        from: current,
-        to: target,
-        plan: transition,
-        response: xfadeResponse,
-      );
-      setState(() {
-        if (inOrderIdx > _liveIdx) {
-          _liveIdx = inOrderIdx;
-        } else {
-          _liveIdx = _liveIdx + 1;
+      if (!stillCurrent()) {
+        setState(
+          () => _cutInfo = '$triggerLabel cancelled: queue/state changed',
+        );
+        return;
+      }
+      setState(() => _cutInfo = 'Submitting $triggerLabel to RK');
+      ManualTransitionTask? task;
+      try {
+        task = await widget.edgeClient.createDefaultRenderOrchestration(
+          transitionId: transitionId,
+          trigger: _orchestrationTrigger(triggerLabel),
+          fromSongId: currentRkId,
+          toSongId: targetRkId,
+          transitionPlan: normalized,
+          pairManifest: pairManifest,
+        );
+      } catch (e) {
+        final message = e.toString();
+        if (message.contains('RK returned 400') ||
+            message.contains('RK returned 409') ||
+            message.contains('RK returned 422')) {
+          rethrow;
         }
-        _lastXfadeFromIdx = transitionIndex;
-        _lastXfadeAt = DateTime.now();
-        _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = targetRk.toString();
-        _lastTransitionDebug = transitionDebug;
-        _activeRule = '$ruleLabel · ${fadeSec.toStringAsFixed(1)}s';
-        final xfadeHint = _xfadeResultHint(xfadeResponse);
-        _cutInfo =
-            '⏭ $strategy → ${target.title} · $ruleLabel'
-            '${xfadeHint == null ? "" : " · $xfadeHint"}';
-      });
+        // A hotspot timeout does not reveal whether RK accepted the POST.
+        // Query the same id instead of creating a second transition.
+      }
+      await _observeManualTransition(
+        initial: task,
+        current: current,
+        target: target,
+        startIndex: startIndex,
+        normalized: normalized,
+        pairManifest: pairManifest,
+        triggerLabel: triggerLabel,
+        insertTargetAsNext: insertTargetAsNext,
+        onScheduled: onScheduled,
+      );
+      return;
     } catch (e) {
-      setState(() => _cutInfo = '切歌失败: $e');
+      if (mounted) setState(() => _cutInfo = '$triggerLabel failed: $e');
+      await _clearPendingManualTransition();
+      final transitionId = _manualTransitionId;
+      if (transitionId != null) _clearManualTransitionMemory(transitionId);
+      _scheduleDefaultRollingPrepare(_liveIdx);
+      _scheduleManualCutRollingPrewarm(_liveIdx);
+    } finally {
+      _autoXfadeCheckInFlight = false;
     }
   }
 
-  List<Map<String, dynamic>> _sequenceWithInsertedNext(String targetId) {
+  Future<void> _doDefaultFastCut({int? expectedLiveIdx}) async {
+    final ordered = _orderedSongs();
+    if (ordered.isEmpty || _liveIdx < 0 || _liveIdx >= ordered.length) return;
+    if (_liveIdx + 1 >= ordered.length) {
+      setState(() => _cutInfo = 'fast_cut -> queue end, no next song');
+      return;
+    }
+    await _scheduleFastCutToTarget(
+      target: ordered[_liveIdx + 1],
+      triggerLabel: 'fast_cut',
+      expectedLiveIdx: expectedLiveIdx,
+    );
+  }
+
+  List<Map<String, dynamic>> _sequenceWithInsertedNext(
+    String targetId, {
+    int? afterIndex,
+  }) {
     final ordered = _orderedSongs();
     final base =
         _sequence.isNotEmpty
@@ -2654,7 +4477,7 @@ class _DjControlPageState extends State<DjControlPage> {
                 )
                 .toList();
     base.removeWhere((e) => e['song_id']?.toString() == targetId);
-    final insertAt = math.min(_liveIdx + 1, base.length);
+    final insertAt = math.min((afterIndex ?? _liveIdx) + 1, base.length);
     base.insert(insertAt, {
       'song_id': targetId,
       'target_energy': _liveEnergyScore(targetId) ?? 0.0,
@@ -2667,22 +4490,29 @@ class _DjControlPageState extends State<DjControlPage> {
     return base;
   }
 
-  void _insertTargetAsNext(LibrarySong target) {
+  void _insertTargetAsNext(LibrarySong target, {int? afterIndex}) {
+    final sourceIndex = afterIndex ?? _liveIdx;
     if (!_picked.any((s) => s.id == target.id)) {
       _picked.add(target);
     }
     if (_sequence.isEmpty) {
       _picked.removeWhere((s) => s.id == target.id);
-      final insertAt = math.min(_liveIdx + 1, _picked.length);
+      final insertAt = math.min(sourceIndex + 1, _picked.length);
       _picked.insert(insertAt, target);
     } else {
-      _sequence = _sequenceWithInsertedNext(target.id);
+      _sequence = _sequenceWithInsertedNext(target.id, afterIndex: sourceIndex);
     }
     final reserve = <String, List<String>>{};
     _reservePoolByBucket.forEach((bucket, ids) {
       reserve[bucket] = ids.where((id) => id != target.id).toList();
     });
     _reservePoolByBucket = reserve;
+    if (_liveStarted) {
+      _preparedTransitionPlans.removeWhere((idx, _) => idx >= sourceIndex);
+      _defaultPreparedRenderPairIndexes.removeWhere(
+        (idx) => idx >= sourceIndex,
+      );
+    }
   }
 
   Future<void> _previewTargetEnergyBucket(String label) async {
@@ -2694,6 +4524,13 @@ class _DjControlPageState extends State<DjControlPage> {
     final hi = int.tryParse(parts[1]);
     if (lo == null || hi == null) return;
     final current = ordered[_liveIdx];
+    final expectedLiveIdx = _liveIdx;
+    final rkState = await _activeRkStateForManualTargetCut(
+      current: current,
+      triggerLabel: 'energy_fast_cut',
+      expectedLiveIdx: expectedLiveIdx,
+    );
+    if (rkState == null) return;
     setState(() {
       _targetEnergyLoading = true;
       _targetEnergyBucketLabel = label;
@@ -2701,47 +4538,70 @@ class _DjControlPageState extends State<DjControlPage> {
       _cutInfo = '正在寻找 $label 能量区间的下一首…';
     });
     try {
-      final plan = await widget.apiClient.djPlanTargetEnergyCut(
-        token: widget.token,
-        currentSongId: current.id,
-        cursorSec: _position.inMilliseconds / 1000.0,
-        activeQueueSongIds:
-            ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
-        reservePoolSongIds: _reserveSongIds(),
-        playedSongIds: _playedSongIds(),
-        blockedSongIds:
-            _rkCacheStatus.entries
-                .where((e) => e.value == 'failed')
-                .map((e) => e.key)
-                .toList(),
-        excludeSongIds: _targetEnergyExcluded.toList(),
-        cachedSongIds: _cachedIds(),
-        syncingSongIds: const [],
-        targetMin: lo,
-        targetMax: hi,
-        currentStyle: _v2StyleForPreset(),
-      );
-      if (!mounted) return;
-      Map<String, dynamic> preparedPlan = plan;
-      final selected = plan['selected_song'];
-      if (selected is Map && selected['song_id'] != null) {
-        final target = _songById(selected['song_id'].toString());
-        if (target != null) {
-          preparedPlan = await _prepareTargetCutPreview(
-            previewPlan: plan,
-            current: current,
-            target: target,
-            ordered: ordered,
+      Map<String, dynamic>? plan;
+      final excluded = _targetEnergyExcluded.toSet();
+      for (var attempt = 0; attempt < 4; attempt++) {
+        final candidate = await widget.apiClient.djPlanTargetEnergyCut(
+          token: widget.token,
+          currentSongId: current.id,
+          cursorSec: rkState.positionSec,
+          activeQueueSongIds:
+              ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
+          // Preview selects the song and prepares only its original audio.
+          // Confirmation still owns render planning and fast-cut scheduling.
+          reservePoolSongIds: _reserveSongIds(),
+          playedSongIds: _playedSongIds(),
+          blockedSongIds:
+              _rkCacheStatus.entries
+                  .where((e) => e.value == 'failed')
+                  .map((e) => e.key)
+                  .toList(),
+          excludeSongIds: excluded.toList(),
+          cachedSongIds: _cachedIds(),
+          syncingSongIds: const [],
+          targetMin: lo,
+          targetMax: hi,
+          currentStyle: _v2StyleForPreset(),
+          preferCached: false,
+        );
+        if (candidate['selected_song'] is Map) {
+          plan = candidate;
+          break;
+        }
+        final selected = candidate['selected_song'];
+        final targetId =
+            selected is Map ? selected['song_id']?.toString() : null;
+        if (targetId == null || targetId.isEmpty) {
+          plan = candidate;
+          break;
+        }
+        excluded.add(targetId);
+      }
+      if (plan == null) {
+        if (mounted) {
+          setState(
+            () => _cutInfo = 'energy_fast_cut failed: no candidate for $label',
           );
         }
+        return;
       }
+      final readyPlan = plan;
       if (!mounted) return;
+      readyPlan['playback_ready'] = false;
+      if (readyPlan['selected_song'] != null) {
+        await _prepareTargetCandidateForPreview(
+          plan: readyPlan,
+          triggerLabel: 'energy_fast_cut',
+          expectedLiveIdx: expectedLiveIdx,
+        );
+        if (!mounted) return;
+      }
       setState(() {
-        _targetEnergyPreview = preparedPlan;
+        _targetEnergyPreview = readyPlan;
         _cutInfo =
-            preparedPlan['selected_song'] == null
+            readyPlan['selected_song'] == null
                 ? '未找到 $label 可用候选'
-                : '已准备 ${preparedPlan['selected_song']['title']}，可立即切歌';
+                : '已选择 ${readyPlan['selected_song']['title']}，确认后按快切衔接';
       });
     } catch (e) {
       if (mounted) setState(() => _cutInfo = '目标能量预览失败: $e');
@@ -2775,6 +4635,13 @@ class _DjControlPageState extends State<DjControlPage> {
     final ordered = _orderedSongs();
     if (!_liveStarted || _liveIdx >= ordered.length) return;
     final current = ordered[_liveIdx];
+    final expectedLiveIdx = _liveIdx;
+    final rkState = await _activeRkStateForManualTargetCut(
+      current: current,
+      triggerLabel: 'style_fast_cut',
+      expectedLiveIdx: expectedLiveIdx,
+    );
+    if (rkState == null) return;
     setState(() {
       _targetStyleLoading = true;
       _selectedTargetStyle = style;
@@ -2782,46 +4649,69 @@ class _DjControlPageState extends State<DjControlPage> {
       _cutInfo = '正在寻找 $style 风格的下一首…';
     });
     try {
-      final plan = await widget.apiClient.djPlanTargetStyleCut(
-        token: widget.token,
-        currentSongId: current.id,
-        cursorSec: _position.inMilliseconds / 1000.0,
-        targetStyle: style,
-        activeQueueSongIds:
-            ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
-        styleReservePoolSongIds: _styleReserveSongIds(),
-        playedSongIds: _playedSongIds(),
-        blockedSongIds:
-            _rkCacheStatus.entries
-                .where((e) => e.value == 'failed')
-                .map((e) => e.key)
-                .toList(),
-        cachedSongIds: _cachedIds(),
-        syncingSongIds: const [],
-        currentStyle: _v2StyleForPreset(),
-      );
-      if (!mounted) return;
-      Map<String, dynamic> preparedPlan = plan;
-      final selected = plan['selected_song'];
-      if (selected is Map && selected['song_id'] != null) {
-        final target = _songById(selected['song_id'].toString());
-        if (target != null) {
-          preparedPlan = await _prepareTargetCutPreview(
-            previewPlan: plan,
-            current: current,
-            target: target,
-            ordered: ordered,
-            targetStyle: style,
+      Map<String, dynamic>? plan;
+      final excluded = <String>{};
+      for (var attempt = 0; attempt < 4; attempt++) {
+        final candidate = await widget.apiClient.djPlanTargetStyleCut(
+          token: widget.token,
+          currentSongId: current.id,
+          cursorSec: rkState.positionSec,
+          targetStyle: style,
+          activeQueueSongIds:
+              ordered.skip(_liveIdx + 1).map((s) => s.id).toList(),
+          // Style reserve candidates may be absent from RK. Preview prepares
+          // only target audio; confirmation owns the fast-cut render.
+          styleReservePoolSongIds: _styleReserveSongIds(),
+          playedSongIds: _playedSongIds(),
+          blockedSongIds:
+              _rkCacheStatus.entries
+                  .where((e) => e.value == 'failed')
+                  .map((e) => e.key)
+                  .toList(),
+          excludeSongIds: excluded.toList(),
+          cachedSongIds: _cachedIds(),
+          syncingSongIds: const [],
+          currentStyle: _v2StyleForPreset(),
+          preferCached: false,
+        );
+        if (candidate['selected_song'] is Map) {
+          plan = candidate;
+          break;
+        }
+        final selected = candidate['selected_song'];
+        final targetId =
+            selected is Map ? selected['song_id']?.toString() : null;
+        if (targetId == null || targetId.isEmpty) {
+          plan = candidate;
+          break;
+        }
+        excluded.add(targetId);
+      }
+      if (plan == null) {
+        if (mounted) {
+          setState(
+            () => _cutInfo = 'style_fast_cut failed: no candidate for $style',
           );
         }
+        return;
       }
+      final readyPlan = plan;
       if (!mounted) return;
+      readyPlan['playback_ready'] = false;
+      if (readyPlan['selected_song'] != null) {
+        await _prepareTargetCandidateForPreview(
+          plan: readyPlan,
+          triggerLabel: 'style_fast_cut',
+          expectedLiveIdx: expectedLiveIdx,
+        );
+        if (!mounted) return;
+      }
       setState(() {
-        _targetStylePreview = preparedPlan;
+        _targetStylePreview = readyPlan;
         _cutInfo =
-            preparedPlan['selected_song'] == null
+            readyPlan['selected_song'] == null
                 ? '未找到 $style 可用候选'
-                : '已准备 ${preparedPlan['selected_song']['title']}，可立即切歌';
+                : '已选择 ${readyPlan['selected_song']['title']}，确认后按快切衔接';
       });
     } catch (e) {
       if (mounted) setState(() => _cutInfo = '目标风格预览失败: $e');
@@ -2831,83 +4721,46 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _confirmTargetStyleCut() async {
-    if (_backgroundSyncInProgress) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Candidate pool is still syncing to RK. Please wait.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     final plan = _targetStylePreview;
     final selected = plan?['selected_song'];
     if (plan == null || selected is! Map || selected['song_id'] == null) return;
     final ordered = _orderedSongs();
     if (_liveIdx >= ordered.length) return;
-    final current = ordered[_liveIdx];
+    final expectedLiveIdx = _liveIdx;
     final targetId = selected['song_id'].toString();
-    final target = _songById(targetId);
+    if (!_hasTargetCandidate(_targetStylePreview)) return;
+    final target = await _ensureSongAvailableForTargetCut(targetId);
     if (target == null) {
       setState(() => _cutInfo = 'Recommended song is not in the loaded pool.');
       return;
     }
-
-    try {
-      final transition = _asStringMap(plan['prepared_transition']);
-      if (transition == null ||
-          plan['prepared_for_current_song_id']?.toString() != current.id ||
-          plan['prepared_target_song_id']?.toString() != target.id) {
-        setState(
-          () =>
-              _cutInfo = 'Target style preview expired, please preview again.',
-        );
-        return;
-      }
-      final followup = _asStringMap(plan['prepared_followup_transition']);
-      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
-      final response = await _edgeXfadeFromPlan(
-        target: target,
-        plan: transition,
-        fadeSec: fadeSec,
-        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        ruleKey: rawRuleKey,
-        fallback: 'blend',
-      );
-      final transitionDebug = _transitionDebugText(
-        trigger: 'target style',
-        from: current,
-        to: target,
-        plan: transition,
-        response: response,
-      );
-      if (!mounted) return;
+    if (mounted) {
       setState(() {
-        final cutFromIndex = _liveIdx;
-        _insertTargetAsNext(target);
-        _installPreparedTargetCutPlans(
-          cutFromIndex: cutFromIndex,
-          transition: transition,
-          followup: followup,
-        );
-        _liveIdx = cutFromIndex + 1;
-        _lastXfadeFromIdx = cutFromIndex;
-        _lastXfadeAt = DateTime.now();
-        _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = _rkIdForXfade(target).toString();
-        _lastTransitionDebug = transitionDebug;
-        _activeRule =
-            '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
-        final hint = _xfadeResultHint(response);
-        _cutInfo =
-            'Target style cut -> ${target.title}${hint == null ? "" : " - $hint"}';
-        _targetStylePreview = null;
-        _selectedTargetStyle = null;
+        _targetStyleLoading = true;
+        _cutInfo = 'style_fast_cut preparing confirmed candidate';
       });
+    }
+    try {
+      await _prepareTargetManualCutForConfirm(
+        current: ordered[expectedLiveIdx],
+        target: target,
+        triggerLabel: 'style_fast_cut',
+        expectedLiveIdx: expectedLiveIdx,
+      );
+      await _scheduleFastCutToTarget(
+        target: target,
+        triggerLabel: 'style_fast_cut',
+        insertTargetAsNext: true,
+        expectedLiveIdx: expectedLiveIdx,
+        onScheduled: () {
+          _targetStylePreview = null;
+          _selectedTargetStyle = null;
+        },
+      );
     } catch (e) {
-      if (mounted) setState(() => _cutInfo = 'Target style cut failed: $e');
+      if (mounted) setState(() => _cutInfo = 'style_fast_cut failed: $e');
+    } finally {
+      if (mounted) setState(() => _targetStyleLoading = false);
     }
   }
 
@@ -2919,84 +4772,47 @@ class _DjControlPageState extends State<DjControlPage> {
   }
 
   Future<void> _confirmTargetEnergyCut() async {
-    if (_backgroundSyncInProgress) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Candidate pool is still syncing to RK. Please wait.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     final plan = _targetEnergyPreview;
     final selected = plan?['selected_song'];
     if (plan == null || selected is! Map || selected['song_id'] == null) return;
     final ordered = _orderedSongs();
     if (_liveIdx >= ordered.length) return;
-    final current = ordered[_liveIdx];
+    final expectedLiveIdx = _liveIdx;
     final targetId = selected['song_id'].toString();
-    final target = _songById(targetId);
+    if (!_hasTargetCandidate(_targetEnergyPreview)) return;
+    final target = await _ensureSongAvailableForTargetCut(targetId);
     if (target == null) {
       setState(() => _cutInfo = 'Recommended song is not in the loaded pool.');
       return;
     }
-
-    try {
-      final transition = _asStringMap(plan['prepared_transition']);
-      if (transition == null ||
-          plan['prepared_for_current_song_id']?.toString() != current.id ||
-          plan['prepared_target_song_id']?.toString() != target.id) {
-        setState(
-          () =>
-              _cutInfo = 'Target energy preview expired, please preview again.',
-        );
-        return;
-      }
-      final followup = _asStringMap(plan['prepared_followup_transition']);
-      final rawRuleKey = transition['rule_key']?.toString() ?? 'blend';
-      final fadeSec = _v32FadeSec(transition, fallback: 6.0);
-      final response = await _edgeXfadeFromPlan(
-        target: target,
-        plan: transition,
-        fadeSec: fadeSec,
-        toAtSec: (transition['to_at_sec'] as num?)?.toDouble() ?? 0.0,
-        ruleKey: rawRuleKey,
-        fallback: 'blend',
-      );
-      final transitionDebug = _transitionDebugText(
-        trigger: 'target energy',
-        from: current,
-        to: target,
-        plan: transition,
-        response: response,
-      );
-      if (!mounted) return;
+    if (mounted) {
       setState(() {
-        final cutFromIndex = _liveIdx;
-        _insertTargetAsNext(target);
-        _installPreparedTargetCutPlans(
-          cutFromIndex: cutFromIndex,
-          transition: transition,
-          followup: followup,
-        );
-        _liveIdx = cutFromIndex + 1;
-        _lastXfadeFromIdx = cutFromIndex;
-        _lastXfadeAt = DateTime.now();
-        _lastXfadeSec = fadeSec;
-        _lastXfadeToSongId = _rkIdForXfade(target).toString();
-        _lastTransitionDebug = transitionDebug;
-        _activeRule =
-            '${transition['rule_label_zh']?.toString() ?? rawRuleKey} - ${fadeSec.toStringAsFixed(1)}s';
-        final hint = _xfadeResultHint(response);
-        _cutInfo =
-            'Target energy cut -> ${target.title}${hint == null ? "" : " - $hint"}';
-        _targetEnergyPreview = null;
-        _targetEnergyBucketLabel = null;
-        _targetEnergyExcluded.clear();
+        _targetEnergyLoading = true;
+        _cutInfo = 'energy_fast_cut preparing confirmed candidate';
       });
+    }
+    try {
+      await _prepareTargetManualCutForConfirm(
+        current: ordered[expectedLiveIdx],
+        target: target,
+        triggerLabel: 'energy_fast_cut',
+        expectedLiveIdx: expectedLiveIdx,
+      );
+      await _scheduleFastCutToTarget(
+        target: target,
+        triggerLabel: 'energy_fast_cut',
+        insertTargetAsNext: true,
+        expectedLiveIdx: expectedLiveIdx,
+        onScheduled: () {
+          _targetEnergyPreview = null;
+          _targetEnergyBucketLabel = null;
+          _targetEnergyExcluded.clear();
+        },
+      );
     } catch (e) {
-      if (mounted) setState(() => _cutInfo = 'Target energy cut failed: $e');
+      if (mounted) setState(() => _cutInfo = 'energy_fast_cut failed: $e');
+    } finally {
+      if (mounted) setState(() => _targetEnergyLoading = false);
     }
   }
 
@@ -3145,7 +4961,7 @@ class _DjControlPageState extends State<DjControlPage> {
           liveStarted: _liveStarted,
           isDefaultPreset: _isDefaultPreset,
           fxItems: _fxItems,
-          onCut: _doCut,
+          onFastCut: _doDefaultFastCut,
           onPlayFx: _playFx,
           energyScore:
               _liveIdx < _orderedSongs().length
@@ -3157,6 +4973,7 @@ class _DjControlPageState extends State<DjControlPage> {
           cacheStatus: _rkCacheStatus,
           targetEnergyPreview: _targetEnergyPreview,
           targetEnergyLoading: _targetEnergyLoading,
+          targetEnergyReady: _hasTargetCandidate(_targetEnergyPreview),
           selectedTargetBucket: _targetEnergyBucketLabel,
           onPreviewTargetBucket: _previewTargetEnergyBucket,
           onConfirmTargetEnergy: _confirmTargetEnergyCut,
@@ -3165,6 +4982,7 @@ class _DjControlPageState extends State<DjControlPage> {
           backgroundSyncInProgress: _backgroundSyncInProgress,
           targetStylePreview: _targetStylePreview,
           targetStyleLoading: _targetStyleLoading,
+          targetStyleReady: _hasTargetCandidate(_targetStylePreview),
           selectedTargetStyle: _selectedTargetStyle,
           onPreviewTargetStyle: _previewTargetStyle,
           onConfirmTargetStyle: _confirmTargetStyleCut,
@@ -5964,7 +7782,7 @@ class _Step4Live extends StatelessWidget {
     required this.liveStarted,
     required this.isDefaultPreset,
     required this.fxItems,
-    required this.onCut,
+    required this.onFastCut,
     required this.onPlayFx,
     required this.energyScore,
     required this.targetBuckets,
@@ -5973,6 +7791,7 @@ class _Step4Live extends StatelessWidget {
     required this.cacheStatus,
     required this.targetEnergyPreview,
     required this.targetEnergyLoading,
+    required this.targetEnergyReady,
     required this.selectedTargetBucket,
     required this.onPreviewTargetBucket,
     required this.onConfirmTargetEnergy,
@@ -5981,6 +7800,7 @@ class _Step4Live extends StatelessWidget {
     required this.backgroundSyncInProgress,
     required this.targetStylePreview,
     required this.targetStyleLoading,
+    required this.targetStyleReady,
     required this.selectedTargetStyle,
     required this.onPreviewTargetStyle,
     required this.onConfirmTargetStyle,
@@ -5991,7 +7811,7 @@ class _Step4Live extends StatelessWidget {
   final bool liveStarted;
   final bool isDefaultPreset;
   final List<Map<String, dynamic>> fxItems;
-  final Future<void> Function(String strategy) onCut;
+  final Future<void> Function({int? expectedLiveIdx}) onFastCut;
   final Future<void> Function(String key) onPlayFx;
   final double? energyScore;
   final List<String> targetBuckets;
@@ -6000,6 +7820,7 @@ class _Step4Live extends StatelessWidget {
   final Map<String, String> cacheStatus;
   final Map<String, dynamic>? targetEnergyPreview;
   final bool targetEnergyLoading;
+  final bool targetEnergyReady;
   final String? selectedTargetBucket;
   final Future<void> Function(String bucket) onPreviewTargetBucket;
   final Future<void> Function() onConfirmTargetEnergy;
@@ -6008,6 +7829,7 @@ class _Step4Live extends StatelessWidget {
   final bool backgroundSyncInProgress;
   final Map<String, dynamic>? targetStylePreview;
   final bool targetStyleLoading;
+  final bool targetStyleReady;
   final String? selectedTargetStyle;
   final Future<void> Function(String style) onPreviewTargetStyle;
   final Future<void> Function() onConfirmTargetStyle;
@@ -6097,11 +7919,7 @@ class _Step4Live extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         ),
         const SizedBox(height: 4),
-        _cutBtn(
-          '⚡ 快切 fast_cut',
-          '5 秒内寻找下一个 downbeat/beat，硬切到队列下一首。',
-          'fast_cut',
-        ),
+        _cutBtn('⚡ 快切 fast_cut', '延后寻找可衔接切点，生成 default render 后切到队列下一首。'),
         const SizedBox(height: 14),
         const Text(
           '🎛️ 加花 FX Pad（数字键 1-5）',
@@ -6223,7 +8041,7 @@ class _Step4Live extends StatelessWidget {
                             : "搜索曲库"}';
                     return OutlinedButton(
                       onPressed:
-                          (targetEnergyLoading || backgroundSyncInProgress)
+                          targetEnergyLoading
                               ? null
                               : () => onPreviewTargetBucket(bucket),
                       style: OutlinedButton.styleFrom(
@@ -6293,7 +8111,9 @@ class _Step4Live extends StatelessWidget {
                           Expanded(
                             child: ElevatedButton(
                               onPressed:
-                                  targetEnergyLoading
+                                  (targetEnergyLoading ||
+                                          backgroundSyncInProgress ||
+                                          !targetEnergyReady)
                                       ? null
                                       : onConfirmTargetEnergy,
                               style: ElevatedButton.styleFrom(
@@ -6402,7 +8222,7 @@ class _Step4Live extends StatelessWidget {
 
                     return OutlinedButton(
                       onPressed:
-                          (targetStyleLoading || backgroundSyncInProgress)
+                          targetStyleLoading
                               ? null
                               : () => onPreviewTargetStyle(key),
                       style: OutlinedButton.styleFrom(
@@ -6483,7 +8303,9 @@ class _Step4Live extends StatelessWidget {
                           Expanded(
                             child: ElevatedButton(
                               onPressed:
-                                  targetStyleLoading
+                                  (targetStyleLoading ||
+                                          backgroundSyncInProgress ||
+                                          !targetStyleReady)
                                       ? null
                                       : onConfirmTargetStyle,
                               style: ElevatedButton.styleFrom(
@@ -6549,11 +8371,14 @@ class _Step4Live extends StatelessWidget {
     return s ?? '-';
   }
 
-  Widget _cutBtn(String title, String desc, String strategy) {
+  Widget _cutBtn(String title, String desc) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ElevatedButton(
-        onPressed: backgroundSyncInProgress ? null : () => onCut(strategy),
+        onPressed:
+            backgroundSyncInProgress
+                ? null
+                : () => onFastCut(expectedLiveIdx: idx),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0x0A000000),
           foregroundColor: Colors.white,

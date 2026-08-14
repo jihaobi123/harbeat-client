@@ -1,0 +1,355 @@
+﻿{
+    "test":  "energy_cut_1",
+    "started_at":  "2026-08-14T08:51:02.4414911+08:00",
+    "before":  null,
+    "click_to_ready_sec":  null,
+    "click_to_execute_sec":  null,
+    "click_to_resume_sec":  null,
+    "passed":  false,
+    "samples":  [
+                    {
+                        "elapsed":  0.741,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  1.3,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  1.822,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  2.377,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  2.898,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  3.419,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  3.947,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  4.471,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  5.002,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  5.533,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  6.063,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  6.582,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  7.105,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  7.631,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  8.16,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  8.685,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  9.218,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  9.742,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  10.269,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  10.788,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  11.309,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  11.83,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  12.353,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  12.873,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  13.394,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  13.923,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  14.448,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  14.969,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  15.487,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  15.999,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  16.527,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  17.048,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  17.57,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  18.1,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  18.629,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  19.15,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  19.667,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  20.195,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  20.714,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  21.236,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  21.757,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  22.279,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  22.801,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  23.321,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  23.835,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  24.357,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  24.889,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  25.405,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  25.928,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  26.447,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  26.974,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  27.501,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  28.016,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  28.544,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  29.06,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  29.575,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  30.095,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  30.617,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  31.138,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  31.656,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  32.18,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  32.7,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  33.228,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  33.753,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  34.276,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  34.8,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  35.319,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  35.846,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  36.373,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  36.912,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  37.442,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  37.961,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  38.488,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  39.003,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  39.524,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  40.045,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  40.567,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  41.088,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  41.603,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  42.125,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  42.647,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  43.166,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  43.694,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  44.216,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  44.744,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    },
+                    {
+                        "elapsed":  45.269,
+                        "error":  "The term \u0027Invoke-RestMethod$uri\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                    }
+                ]
+}
