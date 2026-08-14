@@ -4,7 +4,7 @@ librosa==0.10.2.post1
 soundfile==0.13.1
 scipy==1.15.3
 demucs==4.0.1
-torch==2.4.0a0+3bcc3cddb5.nv24.7
+torch==2.4.0a0+3bcc3cddb5.nv24.7.16234504
 torchaudio==2.4.0a0+69d4077
 fastapi==0.116.1
 httpx==0.28.1
