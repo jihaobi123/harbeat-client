@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-08-14",
+  "branch": "rewrite/clean-core-operation-v0.4",
+  "source_commit": "870dbbc",
+  "scope": "core_code_and_module_artifacts_only",
+  "result": "passed_with_device_acceptance_deferred",
+  "core_pipeline": [
+    "source_snapshot",
+    "planned",
+    "rendered_or_reused",
+    "target_audio_ready",
+    "pair_synced",
+    "prepared",
+    "scheduled",
+    "executing",
+    "resumed"
+  ],
+  "shared_intents": ["auto", "fast", "energy", "style"],
+  "algorithm_contract": {
+    "candidate_source": "dj_structure_precomputed_window_v2",
+    "manual_renderer": "three_band_default_v7_standalone_curve_no_energy_floor",
+    "fallback_allowed": false,
+    "degraded_allowed": false
+  },
+  "tests": {
+    "python_modules": {"passed": 144, "failed": 0},
+    "mobile_dart_contract": {"passed": 11, "failed": 0},
+    "clean_deployment_adapters": {"passed": 23, "failed": 0, "target_only_skipped": 2},
+    "transition_orchestrator": {
+      "passed": 15,
+      "failed": 0,
+      "faults_covered": [
+        "planning_timeout",
+        "render_timeout",
+        "target_sync_failure",
+        "pair_sync_failure",
+        "cancellation_terminal_state",
+        "same_request_id_reuse",
+        "active_session_serialization"
+      ]
+    }
+  },
+  "artifacts": {
+    "external_wheelhouse": "D:\\work\\harbeat-device-backups\\20260814\\wheelhouse-core-v0.4.1",
+    "wheel_count": 12,
+    "orchestrator_wheel": {
+      "name": "harbeat_transition_orchestrator-0.4.1-py3-none-any.whl",
+      "sha256": "8777114a0f11a604195e8eb5a9a1f5889edb7518c5d0d13a7b4201adec0060c6"
+    }
+  },
+  "isolated_service_health": {
+    "jetson_planning_19020": true,
+    "jetson_render_19030": true,
+    "rk_sync_19100": true,
+    "rk_edge_19300": true
+  },
+  "device_acceptance": {
+    "rk_to_jetson_reachable": false,
+    "observed_error": "connection timeout after 3 seconds",
+    "continuous_audio_30_min": false,
+    "prepare_schedule_20_of_20": false,
+    "trigger_error_lte_100ms": false,
+    "r4_mobile_complete": false,
+    "r5_complete": false
+  },
+  "gates": {
+    "production_ready": false,
+    "r1_passed": false,
+    "legacy_runtime_quarantine_authorized": false,
+    "legacy_runtime_disable_authorized": false,
+    "legacy_files_delete_authorized": false,
+    "cleanup_authorized": false
+  }
+}
