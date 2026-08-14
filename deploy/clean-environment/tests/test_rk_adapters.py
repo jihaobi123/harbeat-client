@@ -153,6 +153,30 @@ class RkAdapterTests(unittest.TestCase):
                 self.assertEqual(edge_client.post("/runtime/seek", json={"sec": 2.0}).status_code, 200)
                 self.assertEqual(edge_client.post("/runtime/default-render", json={"command": "bad"}).status_code, 422)
 
+    def test_edge_operation_api_is_persistent_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            body = {
+                "device_id": "rk3588-01",
+                "session_id": "set-12345678",
+                "intent": "style",
+                "target_song_id": "song-b",
+                "request_id": "request-12345678",
+            }
+            first_client = TestClient(create_rk_app(config("edge-agent", root)))
+            first = first_client.post("/v1/transition-operations", json=body)
+            self.assertEqual(first.status_code, 200, first.text)
+            operation_id = first.json()["operation"]["operation_id"]
+            self.assertFalse(first.json()["reused"])
+
+            second_client = TestClient(create_rk_app(config("edge-agent", root)))
+            second = second_client.post("/v1/transition-operations", json=body)
+            self.assertTrue(second.json()["reused"])
+            self.assertEqual(second.json()["operation"]["operation_id"], operation_id)
+            self.assertEqual(second_client.get(f"/v1/transition-operations/{operation_id}").status_code, 200)
+            cancelled = second_client.delete(f"/v1/transition-operations/{operation_id}")
+            self.assertEqual(cancelled.json()["status"], "cancelled")
+
     def test_all_rk_services_are_registered_and_shadow_only(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

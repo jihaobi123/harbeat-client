@@ -100,6 +100,8 @@ def _edge_routes(app: FastAPI, config: AdapterConfig) -> None:
     )
 
     tasks: dict[str, dict[str, Any]] = {}
+    from .operation_store import JsonOperationStore
+    operation_store = JsonOperationStore(config.state_root / "transition-operations.json")
 
     def normalize(body: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -136,6 +138,29 @@ def _edge_routes(app: FastAPI, config: AdapterConfig) -> None:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         tasks[transition_id] = task
         return {"reused": reused, "task": public_task(task)}
+
+    @app.post("/v1/transition-operations")
+    def create_operation(body: dict[str, Any]) -> dict[str, Any]:
+        try:
+            operation, reused = operation_store.create_or_reuse(body)
+        except OrchestrationValidationError as exc:
+            status = 409 if exc.code == "request_id_conflict" else 422
+            raise HTTPException(status_code=status, detail={"code": exc.code, "detail": exc.detail}) from exc
+        return {"reused": reused, "operation": operation}
+
+    @app.get("/v1/transition-operations/{operation_id}")
+    def get_operation(operation_id: str) -> dict[str, Any]:
+        operation = operation_store.get(operation_id)
+        if operation is None:
+            raise HTTPException(status_code=404, detail="operation not found")
+        return operation
+
+    @app.delete("/v1/transition-operations/{operation_id}")
+    def delete_operation(operation_id: str) -> dict[str, Any]:
+        operation = operation_store.cancel(operation_id)
+        if operation is None:
+            raise HTTPException(status_code=404, detail="operation not found")
+        return operation
 
     @app.get("/runtime/state")
     def runtime_state() -> dict[str, Any]:

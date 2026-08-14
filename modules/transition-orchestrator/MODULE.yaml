@@ -1,8 +1,8 @@
 id: transition-orchestrator
-version: 0.2.0
+version: 0.3.0
 owners:
   - rk3588
-purpose: Validate and describe manual transition orchestration across planning, asset sync, RK preparation, and scheduling.
+purpose: Validate transition execution and define the authoritative idempotent operation lifecycle across planning, render, sync, RK preparation, and scheduling.
 inputs:
   - transition plan with pair identity, source/target ids, timing, renderer and feature markers
   - default mix pair manifest with render and metadata files
@@ -12,6 +12,7 @@ outputs:
   - priority pair-sync request
   - idempotent task acceptance and state transitions
   - timing/deadline and terminal error metadata
+  - clean operation intent, deterministic stages, typed failure, and cancellation metadata
 runtime_dependencies:
   - Python >= 3.10
   - standard library only
@@ -30,9 +31,16 @@ public_functions:
   - accept_or_reuse
   - transition_task
   - public_task
+  - validate_operation_request
+  - new_operation
+  - advance_operation
+  - fail_operation
+  - cancel_operation
+  - public_operation
 health_check: set PYTHONPATH to modules/transition-orchestrator/src, then run py -m pytest -q modules/transition-orchestrator/tests
 tests:
   - modules/transition-orchestrator/tests/test_orchestrator.py
+  - modules/transition-orchestrator/tests/test_operation.py
 deployment_boundary:
   - This module does not select songs or transition points.
   - This module does not render or download audio.
@@ -41,5 +49,5 @@ clean_architecture:
   - state.py owns typed states and legal transitions
   - orchestrator.py owns validation, idempotency and public task views
   - HTTP, persistence, sync and audio execution remain adapters
-artifact_sha256: c756e70f2174cfedc750b44510b216ad22f22cead055c01ee89e6befc2a93eaa
+artifact_status: pending_release_build
 rollback_artifact: git tag module/transition-orchestrator/v0.1.0

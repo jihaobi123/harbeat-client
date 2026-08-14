@@ -11,6 +11,17 @@ from .orchestrator import (
     validate_request,
 )
 from .state import ACTIVE_STATES, TaskState
+from .operation import (
+    OperationStage,
+    TransitionIntent,
+    advance_operation,
+    cancel_operation,
+    fail_operation,
+    new_operation,
+    operation_request_hash,
+    public_operation,
+    validate_operation_request,
+)
 
 __all__ = [
     "OrchestrationValidationError",
@@ -19,6 +30,15 @@ __all__ = [
     "TERMINAL_STATES",
     "accept_task",
     "accept_or_reuse",
+    "OperationStage",
+    "TransitionIntent",
+    "advance_operation",
+    "cancel_operation",
+    "fail_operation",
+    "new_operation",
+    "operation_request_hash",
+    "public_operation",
+    "validate_operation_request",
     "build_priority_sync_request",
     "public_task",
     "transition_task",
