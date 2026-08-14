@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "audit": "r1-r2-runtime-dependency-gap",
+  "created_at": "2026-08-14T06:33:37.840604+00:00",
+  "roles": {
+    "rk3588": {
+      "role": "rk3588",
+      "locked": {
+        "numpy": "1.26.4",
+        "soundfile": "0.13.1",
+        "sounddevice": "0.4.6",
+        "httpx": "0.28.1",
+        "fastapi": "0.116.1",
+        "uvicorn": "0.35.0"
+      },
+      "system_python_missing": [
+        "soundfile"
+      ],
+      "system_python_version_mismatch": {
+        "sounddevice": {
+          "installed": "0.5.5",
+          "locked": "0.4.6"
+        },
+        "fastapi": {
+          "installed": "0.128.0",
+          "locked": "0.116.1"
+        },
+        "uvicorn": {
+          "installed": "0.40.0",
+          "locked": "0.35.0"
+        }
+      },
+      "system_python_matches_lock": false,
+      "clean_venv_created": false,
+      "policy": "System Python is evidence only and is never accepted as the clean service environment."
+    },
+    "jetson": {
+      "role": "jetson",
+      "locked": {
+        "numpy": "1.26.4",
+        "librosa": "0.10.2.post1",
+        "soundfile": "0.13.1",
+        "scipy": "1.15.3",
+        "demucs": "4.0.1",
+        "torch": "2.4.0a0+3bcc3cddb5.nv24.7",
+        "torchaudio": "2.4.0a0+69d4077",
+        "fastapi": "0.116.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.35.0",
+        "sqlalchemy": "2.0.43",
+        "psycopg2-binary": "2.9.10"
+      },
+      "system_python_missing": [
+        "demucs",
+        "fastapi",
+        "httpx",
+        "librosa",
+        "psycopg2-binary",
+        "soundfile",
+        "sqlalchemy",
+        "torch",
+        "torchaudio",
+        "uvicorn"
+      ],
+      "system_python_version_mismatch": {
+        "numpy": {
+          "installed": "1.21.5",
+          "locked": "1.26.4"
+        },
+        "scipy": {
+          "installed": "1.8.0",
+          "locked": "1.15.3"
+        }
+      },
+      "system_python_matches_lock": false,
+      "clean_venv_created": false,
+      "policy": "System Python is evidence only and is never accepted as the clean service environment."
+    }
+  },
+  "module_wheelhouse": {
+    "uri": "external://harbeat-device-backups/20260814/wheelhouse-r3",
+    "module_wheels": 12,
+    "verified_on_target_python_3_10": false
+  },
+  "r2_target_runtime_ready": false,
+  "cleanup_authorized": false
+}

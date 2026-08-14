@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "audit": "r1-base-environment",
-  "created_at": "2026-08-14T06:04:52.700417+00:00",
-  "source_commit": "0d968f45a5abae2a75ff6b6140b58190f5b4de1f",
+  "created_at": "2026-08-14T06:34:04.996685+00:00",
+  "source_commit": "58afa17208af3e7895859221a5127e958baade06",
   "host": {
     "platform": "Windows-11-10.0.26200-SP0",
     "python": "3.13.7"
@@ -11,7 +11,7 @@
     "deploy\\clean-environment\\profiles\\rk3588.json": "6979cf9b3ed16872b2ded7dd71316f699f60176f2fd15a4d3a69e3526d3d62f8",
     "deploy\\clean-environment\\profiles\\jetson.json": "d7b81de575ddd5caf296ea17fd781c5f4296d68801919d17cce140f6d35911ab",
     "deploy\\clean-environment\\locks\\rk3588.system-packages.lock": "12fff7ecb0c91d64c2bf720f782eceb92121d403d11bb52786ca8020ee16e91f",
-    "deploy\\clean-environment\\locks\\rk3588.python.lock": "30505eb84b5d64f9d58160f868cb6cb2d7ee527287a3f1da425b3757d9a6a90a",
+    "deploy\\clean-environment\\locks\\rk3588.python.lock": "547994d9550d9f02c27d7b81c6d6de05460421e93fc06db3eb6a410e334e3a91",
     "deploy\\clean-environment\\locks\\jetson.system-packages.lock": "59d5dd77692b323f224e8d39cec286cb0272d643f10ab9a550c63fb97cb03e87",
     "deploy\\clean-environment\\locks\\jetson.python.lock": "6bc2f343cd4d6cdc6d0c1d4b0e36e8673e3d6f2c485afbd2fa8e554deb29bd1c",
     "deploy\\clean-environment\\locks\\jetson.gpu-artifacts.json": "2fe0dca7886e32e00834859848a954ae4bd39f7c93d6083b82bcfdffc8c2a729",
@@ -22,6 +22,7 @@
     "deploy\\clean-environment\\evidence\\r1-jetson-inventory-current.json": "094d6684ea81f4e53cf62304c842f0e52779f71a2c671af6d3b40d437a84eeb2",
     "deploy\\clean-environment\\evidence\\r1-exact-system-package-locks-20260814.json": "415c117fc4734053b41d75900dbb1c5d1bb4607e04f1569381eb56bc9dc02efe",
     "deploy\\clean-environment\\evidence\\r1-recovery-bundles-20260814.json": "2b0628b34ee0bf1d7223c6385c2fa8d153dbf3130fe7e3e712a84ce4c88273d1",
+    "deploy\\clean-environment\\evidence\\r1-r2-runtime-dependency-gap-20260814.json": "3ef3e74ed9c5e93bfdb0d4e1397d2eb5511b0e3d768d25cdda66657199a76779",
     "deploy\\clean-environment\\release-manifest.json": "a15173f03806ee71f213e5f01959c2f2df41ea2eba98ff30af0c49c18a6995fb",
     "deploy\\clean-environment\\service-manifest.json": "ef6ff3bdc73877fc09d160da7051fd3945fedd8a66f02804df8848eee9cf9f29",
     "deploy\\clean-environment\\acceptance-report-v0.3.0.json": "8588e0c8f3c7c55a37713723c907fabf566a061033a0ea3f4480d9414cd9b323"
@@ -87,10 +88,86 @@
       "resolved_executables": []
     }
   },
+  "current_runtime_dependency_gap": {
+    "rk3588": {
+      "role": "rk3588",
+      "locked": {
+        "numpy": "1.26.4",
+        "soundfile": "0.13.1",
+        "sounddevice": "0.4.6",
+        "httpx": "0.28.1",
+        "fastapi": "0.116.1",
+        "uvicorn": "0.35.0"
+      },
+      "system_python_missing": [
+        "soundfile"
+      ],
+      "system_python_version_mismatch": {
+        "sounddevice": {
+          "installed": "0.5.5",
+          "locked": "0.4.6"
+        },
+        "fastapi": {
+          "installed": "0.128.0",
+          "locked": "0.116.1"
+        },
+        "uvicorn": {
+          "installed": "0.40.0",
+          "locked": "0.35.0"
+        }
+      },
+      "system_python_matches_lock": false,
+      "clean_venv_created": false,
+      "policy": "System Python is evidence only and is never accepted as the clean service environment."
+    },
+    "jetson": {
+      "role": "jetson",
+      "locked": {
+        "numpy": "1.26.4",
+        "librosa": "0.10.2.post1",
+        "soundfile": "0.13.1",
+        "scipy": "1.15.3",
+        "demucs": "4.0.1",
+        "torch": "2.4.0a0+3bcc3cddb5.nv24.7",
+        "torchaudio": "2.4.0a0+69d4077",
+        "fastapi": "0.116.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.35.0",
+        "sqlalchemy": "2.0.43",
+        "psycopg2-binary": "2.9.10"
+      },
+      "system_python_missing": [
+        "demucs",
+        "fastapi",
+        "httpx",
+        "librosa",
+        "psycopg2-binary",
+        "soundfile",
+        "sqlalchemy",
+        "torch",
+        "torchaudio",
+        "uvicorn"
+      ],
+      "system_python_version_mismatch": {
+        "numpy": {
+          "installed": "1.21.5",
+          "locked": "1.26.4"
+        },
+        "scipy": {
+          "installed": "1.8.0",
+          "locked": "1.15.3"
+        }
+      },
+      "system_python_matches_lock": false,
+      "clean_venv_created": false,
+      "policy": "System Python is evidence only and is never accepted as the clean service environment."
+    }
+  },
   "gates": {
     "tracked_manifests_complete": true,
     "exact_system_package_locks_complete": true,
     "external_recovery_bundles_verified": true,
+    "target_clean_python_venvs_verified": false,
     "clean_deployment_scaffold_verified": true,
     "base_image_built": false,
     "empty_device_restore": false,
