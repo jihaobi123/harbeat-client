@@ -177,7 +177,22 @@ class JetsonAdapterTests(unittest.TestCase):
             audio.write_bytes(b"test")
 
             render = TestClient(create_jetson_app(config("render-worker", root)))
-            with patch("harbeat_transition_renderer.ensure_reference_render", return_value={"pair_id": "pair-a-b"}):
+            pair_dir = root / "render-worker" / "pairs" / "pair-a-b"
+            pair_dir.mkdir(parents=True)
+            render_wav = pair_dir / "transition_render.wav"
+            render_meta = pair_dir / "transition_render.json"
+            render_wav.write_bytes(b"RIFF-test")
+            render_meta.write_text("{}", encoding="utf-8")
+            render_result = {
+                "pair_id": "pair-a-b",
+                "planner_version": "planner-v2",
+                "audio_feature_source": SOURCE,
+                "renderer_version": "renderer-v7",
+                "render_strategy": "three_band_default",
+                "transition_render_path": str(render_wav),
+                "transition_render_meta_path": str(render_meta),
+            }
+            with patch("harbeat_transition_renderer.ensure_reference_render", return_value=render_result):
                 response = render.post("/render/transition", json={
                     "previous_song": {"id": "a", "source_path": str(audio)},
                     "next_song": {"id": "b", "source_path": str(audio)},
@@ -185,6 +200,11 @@ class JetsonAdapterTests(unittest.TestCase):
                 })
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["pair_id"], "pair-a-b")
+            manifest = response.json()["pair_manifest"]
+            self.assertEqual(manifest["files"]["transition_render"]["size"], len(b"RIFF-test"))
+            self.assertEqual(len(manifest["files"]["transition_render"]["sha256"]), 64)
+            artifact = render.get(manifest["files"]["transition_render"]["url"])
+            self.assertEqual(artifact.content, b"RIFF-test")
 
             stems = TestClient(create_jetson_app(config("stem-worker", root)))
             output = root / "stem-worker" / "output"

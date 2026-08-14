@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 
 from .config import AdapterConfig, JETSON_SERVICES
 
@@ -33,7 +35,7 @@ def create_jetson_app(config: AdapterConfig) -> FastAPI:
     elif config.service == "analysis-worker":
         _analysis_routes(app, config)
     elif config.service == "planning-api":
-        _planning_routes(app)
+        _planning_routes(app, config)
     elif config.service == "render-worker":
         _render_routes(app, config)
     elif config.service == "stem-worker":
@@ -151,7 +153,7 @@ def _analysis_routes(app: FastAPI, config: AdapterConfig) -> None:
         }
 
 
-def _planning_routes(app: FastAPI) -> None:
+def _planning_routes(app: FastAPI, config: AdapterConfig) -> None:
     from harbeat_transition_planner import PlanningMode, PlanningRequest, TransitionPlanningService
 
     @app.post("/planning/transition")
@@ -167,22 +169,114 @@ def _planning_routes(app: FastAPI) -> None:
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @app.post("/planning/database/transition")
+    def plan_database(body: dict[str, Any]) -> dict[str, Any]:
+        from .postgres import PostgresCatalogRepository, database_url_from_env
+
+        try:
+            repository = PostgresCatalogRepository(database_url_from_env(), config.asset_root)
+            previous = _song_namespace(repository.load_song(str(body.get("from_song_id") or "")))
+            next_song = _song_namespace(repository.load_song(str(body.get("to_song_id") or "")))
+            mode = PlanningMode(str(body.get("mode") or ""))
+            options = body.get("options") or {}
+            if not isinstance(options, dict):
+                raise ValueError("options must be an object")
+            return TransitionPlanningService().plan(PlanningRequest(mode, previous, next_song, options))
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
 
 def _render_routes(app: FastAPI, config: AdapterConfig) -> None:
-    @app.post("/render/transition")
-    def render(body: dict[str, Any]) -> dict[str, Any]:
+    def render_pair(previous: Any, next_song: Any, plan: dict[str, Any]) -> dict[str, Any]:
         from harbeat_transition_renderer import DefaultRenderError, ensure_reference_render
 
         os.environ["HARBEAT_DEFAULT_MIX_PAIR_CACHE_DIR"] = str(config.state_root / "pairs")
+        try:
+            result = ensure_reference_render(previous, next_song, plan)
+            return {**result, "pair_manifest": _render_pair_manifest(result)}
+        except (DefaultRenderError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/render/transition")
+    def render(body: dict[str, Any]) -> dict[str, Any]:
         try:
             previous = _song_namespace(body.get("previous_song"))
             next_song = _song_namespace(body.get("next_song"))
             plan = body.get("plan")
             if not isinstance(plan, dict):
                 raise ValueError("plan is required")
-            return ensure_reference_render(previous, next_song, plan)
-        except (DefaultRenderError, TypeError, ValueError) as exc:
+            return render_pair(previous, next_song, plan)
+        except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/render/database/transition")
+    def render_database(body: dict[str, Any]) -> dict[str, Any]:
+        from .postgres import PostgresCatalogRepository, database_url_from_env
+
+        plan = body.get("plan")
+        if not isinstance(plan, dict):
+            raise HTTPException(status_code=422, detail="plan is required")
+        try:
+            repository = PostgresCatalogRepository(database_url_from_env(), config.asset_root)
+            previous = _song_namespace(repository.load_song(str(body.get("from_song_id") or "")))
+            next_song = _song_namespace(repository.load_song(str(body.get("to_song_id") or "")))
+            return render_pair(previous, next_song, plan)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/render/artifacts/{pair_id}/{name}")
+    def render_artifact(pair_id: str, name: str) -> FileResponse:
+        if name not in {"transition_render.wav", "transition_render.json"}:
+            raise HTTPException(status_code=404, detail="artifact not found")
+        path = _contained_artifact(config.state_root / "pairs", pair_id, name)
+        return FileResponse(path)
+
+
+def _render_pair_manifest(result: dict[str, Any]) -> dict[str, Any]:
+    pair_id = str(result.get("pair_id") or "")
+    wav = Path(str(result.get("transition_render_path") or ""))
+    meta = Path(str(result.get("transition_render_meta_path") or ""))
+    if not pair_id or not wav.is_file() or not meta.is_file():
+        raise ValueError("renderer returned incomplete artifacts")
+    return {
+        "pair_id": pair_id,
+        "planner_version": result.get("planner_version"),
+        "audio_feature_source": result.get("audio_feature_source"),
+        "renderer_version": result.get("renderer_version"),
+        "required_renderer_version": result.get("required_renderer_version"),
+        "render_strategy": result.get("render_strategy"),
+        "files": {
+            "transition_render": _artifact_spec(pair_id, wav, "transition_render.wav"),
+            "transition_render_meta": _artifact_spec(pair_id, meta, "transition_render.json"),
+        },
+    }
+
+
+def _artifact_spec(pair_id: str, path: Path, public_name: str) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {
+        "url": f"/render/artifacts/{pair_id}/{public_name}",
+        "size": path.stat().st_size,
+        "sha256": digest.hexdigest(),
+        "format": path.suffix.lstrip("."),
+    }
+
+
+def _contained_artifact(root: Path, pair_id: str, name: str) -> Path:
+    safe = "".join(ch for ch in pair_id if ch.isalnum() or ch in ("-", "_"))
+    if safe != pair_id or not safe:
+        raise HTTPException(status_code=404, detail="artifact not found")
+    path = (root / safe / name).resolve()
+    try:
+        path.relative_to(root.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="artifact not found") from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="artifact not found")
+    return path
 
 
 def _stem_routes(app: FastAPI, config: AdapterConfig) -> None:
