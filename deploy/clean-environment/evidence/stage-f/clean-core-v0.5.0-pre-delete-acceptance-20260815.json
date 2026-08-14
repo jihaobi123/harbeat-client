@@ -47,9 +47,9 @@
     "monotonic_clock": true
   },
   "preservation": {
-    "snapshot_files": 299,
-    "snapshot_bytes": 3914548,
-    "snapshot_manifest_sha256": "e9e7a43a0199e73b6777c6b041bf9c9f58833378b92e3005f5e40929d3a75f9e",
+    "snapshot_files": 303,
+    "snapshot_bytes": 3916279,
+    "snapshot_manifest_sha256": "fc3603833ef9c4bf4226868706e80cd3d26956a5ec2f5081637f04c433c0e82d",
     "secrets_migrated_to_root_only_clean_path": true
   },
   "deferred": [

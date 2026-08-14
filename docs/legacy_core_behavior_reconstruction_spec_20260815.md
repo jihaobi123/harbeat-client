@@ -87,7 +87,7 @@ paths. Repeated rendering of the same pair must produce identical WAV bytes.
 - Legacy venvs: `/home/mark/venvs/harbeat` and `/home/cat/venvs/edge`.
 - Legacy source and venvs are not runtime prerequisites for clean core.
 - Pre-delete file snapshot: `D:\work\harbeat-device-backups\20260815-core-preservation`.
-- Snapshot manifest: `sha256-manifest.json`, 299 files, 3,914,548 bytes.
+- Snapshot manifest: `sha256-manifest.json`, 303 files, 3,916,279 bytes.
 - PostgreSQL/NAS/stem/v2 data are retained; secrets are migrated to
   `/etc/harbeat/secrets/runtime.env` with root-only permissions.
 - Locked htdemucs artifact: `955717e8-8726e21a.th`, SHA256
@@ -107,4 +107,3 @@ After clean-core acceptance, delete only legacy business runtime material:
 
 Do not delete `.cache/torch` until the NAS model artifact hash has been checked.
 Do not delete PostgreSQL or NAS data as part of source cleanup.
-
