@@ -37,10 +37,24 @@
     const scenario = event.target.closest('[data-scenario]');
     const view = event.target.closest('[data-view]');
     const action = event.target.closest('[data-action]');
+    const track = event.target.closest('[data-track]');
+    const importMode = event.target.closest('[data-import-mode]');
+    const saveTrack = event.target.closest('[data-save-track]');
     if (scenario) dispatch({ type: 'SET_SCENARIO', scenario: scenario.dataset.scenario });
     if (view) dispatch({ type: 'GO_TO_VIEW', viewId: view.dataset.view });
     if (mode) dispatch({ type: 'SET_MODE', mode: mode.dataset.mode });
-    if (action?.dataset.action === 'reset') dispatch({ type: 'RESET' });
+    if (track) dispatch({ type: 'SELECT_TRACK', trackId: track.dataset.track });
+    if (importMode) dispatch({ type: 'SET_IMPORT_MODE', mode: importMode.dataset.importMode });
+    if (saveTrack) dispatch({ type: 'SAVE_TRACK', trackId: saveTrack.dataset.saveTrack, playlistId: saveTrack.dataset.playlist });
+    const actions = {
+      reset: { type: 'RESET' },
+      'open-save': { type: 'OPEN_SAVE' },
+      'toggle-preview': { type: 'TOGGLE_PREVIEW' },
+      'next-step': { type: 'NEXT_STEP' },
+      'previous-step': { type: 'PREVIOUS_STEP' },
+      'close-overlay': { type: 'CLOSE_OVERLAY' },
+    };
+    if (action && actions[action.dataset.action]) dispatch(actions[action.dataset.action]);
   });
 
   globalThis.HBApp = { dispatch, getState: () => structuredClone(state) };

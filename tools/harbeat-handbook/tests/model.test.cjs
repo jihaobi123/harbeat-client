@@ -31,3 +31,19 @@ test('reset restores a stable demo state', () => {
   const dirty = model.reduce(model.initialState(), { type: 'DISCONNECT_DEVICE' });
   assert.deepEqual(model.reduce(dirty, { type: 'RESET' }), model.initialState());
 });
+
+test('discover scenario follows V01 V02 V04 V05', () => {
+  let state = model.reduce(model.initialState(), { type: 'SET_SCENARIO', scenario: 'discover' });
+  assert.equal(state.viewId, 'V01');
+  state = model.reduce(state, { type: 'NEXT_STEP' });
+  assert.equal(state.viewId, 'V02');
+  state = model.reduce(state, { type: 'NEXT_STEP' });
+  assert.equal(state.viewId, 'V04');
+  state = model.reduce(state, { type: 'NEXT_STEP' });
+  assert.equal(state.viewId, 'V05');
+});
+
+test('metadata-only tracks cannot be marked as locally available', () => {
+  const state = model.reduce(model.initialState(), { type: 'SELECT_TRACK', trackId: 'trk-midnight' });
+  assert.equal(model.selectedTrack(state).resource, 'metadata_only');
+});

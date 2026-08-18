@@ -68,6 +68,52 @@ button, input { font: inherit; }
 .responsibility-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .responsibility-grid article { display: grid; gap: 6px; padding: 16px; background: var(--paper); border-radius: 12px; }
 .related-views button { background: var(--paper); }
+.prototype-workspace { display: grid; justify-items: center; gap: 18px; }
+.prototype-heading { width: min(100%, 760px); display: flex; align-items: end; justify-content: space-between; }
+.prototype-heading h1 { margin: 4px 0 0; font-size: clamp(30px, 4vw, 52px); letter-spacing: -.04em; }
+.prototype-heading > span { padding: 6px 8px; background: var(--acid); border: 1px solid var(--ink); font-size: 12px; font-weight: 850; }
+.phone-shell { position: relative; width: min(390px, calc(100vw - 44px)); height: 760px; padding: 12px 12px 82px; overflow: hidden; background: var(--paper); border: 3px solid var(--ink); border-radius: 42px; box-shadow: 12px 15px 0 rgba(18,19,17,.14), 0 24px 60px rgba(18,19,17,.18); }
+.phone-island { position: relative; z-index: 2; width: 92px; height: 24px; margin: 0 auto 8px; background: var(--ink); border-radius: 999px; }
+.phone-screen { height: 100%; overflow-y: auto; scrollbar-width: none; }
+.phone-screen::-webkit-scrollbar { display: none; }
+.phone-page { padding: 8px 7px 30px; }
+.phone-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.phone-heading small { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: #74746d; }
+.phone-heading h2, .phone-page > h2 { margin: 4px 0 0; font-size: 27px; line-height: 1; letter-spacing: -.04em; }
+.avatar { width: 34px; height: 34px; display: grid; place-items: center; flex: none; background: var(--acid); border: 1px solid var(--ink); border-radius: 50%; font-size: 10px; font-weight: 900; }
+.editorial-card, .recommend-hero { position: relative; width: 100%; min-height: 145px; display: flex; flex-direction: column; align-items: flex-start; justify-content: end; padding: 16px; overflow: hidden; color: var(--white); background: linear-gradient(135deg, #4a2dc8, #966cda 56%, #f29b71); border: 0; border-radius: 18px; text-align: left; cursor: pointer; }
+.editorial-card::after, .recommend-hero::after { content: "MOVE"; position: absolute; right: -9px; bottom: -10px; color: rgba(255,255,255,.14); font-size: 56px; font-weight: 950; transform: rotate(-5deg); }
+.editorial-card b, .recommend-hero b { position: relative; z-index: 1; margin-top: 28px; font-size: 23px; line-height: 1; }
+.editorial-card small, .recommend-hero small { position: relative; z-index: 1; margin-top: 6px; opacity: .82; }
+.zine-mini { position: relative; z-index: 1; padding: 5px 7px; color: var(--ink); background: var(--acid); border: 1px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); font-size: 9px; font-weight: 900; transform: rotate(-1.5deg); }
+.section-line { display: flex; align-items: center; justify-content: space-between; margin: 18px 2px 8px; font-size: 12px; }
+.section-line button { border: 0; background: transparent; color: var(--cobalt); font-size: 11px; cursor: pointer; }
+.device-summary, .track-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; margin: 7px 0; color: var(--ink); background: var(--white); border: 1px solid transparent; border-radius: 13px; text-align: left; cursor: pointer; }
+.device-summary span:nth-child(2), .track-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.device-summary small, .track-copy small { color: #77776f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-dot { width: 9px; height: 9px; flex: none; background: #8ca808; border-radius: 50%; box-shadow: 0 0 0 4px rgba(220,255,50,.35); }
+.track-cover { width: 42px; height: 42px; display: grid; place-items: center; flex: none; border-radius: 9px; color: rgba(255,255,255,.88); font-size: 10px; font-weight: 900; }
+.cover-violet { background: linear-gradient(135deg,#5135ca,#ed8ab1); }.cover-mint { background: linear-gradient(135deg,#53d6b0,#18554d); }.cover-orange { background: linear-gradient(135deg,#ffbd3f,#e95d4e); }.cover-red { background: linear-gradient(135deg,#ff4d36,#651e19); }.cover-blue { background: linear-gradient(135deg,#2457ff,#62b4ff); }.cover-acid { background: linear-gradient(135deg,#dcff32,#708500); }.cover-slate { background: linear-gradient(135deg,#8c96a3,#30343b); }.cover-pink { background: linear-gradient(135deg,#ff76bb,#7c3c9e); }
+.resource-pill { flex: none; padding: 4px 6px; border-radius: 999px; font-size: 8px; font-weight: 800; }.resource-ok { background: #edf3ca; color: #4c580e; }.resource-warn { background: #fff0ca; color: #76510a; }.resource-off { background: #ecebea; color: #666; }
+.row-action { font-size: 19px; color: #999; }
+.music-tabs, .source-switch { display: flex; gap: 4px; padding: 4px; margin-bottom: 12px; overflow-x: auto; background: #e8e5dc; border-radius: 12px; }
+.music-tabs b, .music-tabs button, .source-switch button { flex: 1; padding: 8px 9px; border: 0; border-radius: 9px; background: transparent; white-space: nowrap; text-align: center; font-size: 11px; cursor: pointer; }
+.music-tabs b, .source-switch [aria-selected="true"] { background: var(--white); box-shadow: 0 2px 8px rgba(18,19,17,.08); }
+.search-field { display: grid; gap: 6px; margin: 14px 0; font-size: 11px; font-weight: 800; }.search-field input { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--white); color: #5e5e58; }
+.legal-note, .resource-copy { display: flex; flex-direction: column; gap: 5px; padding: 12px; border-radius: 11px; background: #fff0ca; font-size: 11px; line-height: 1.45; }
+.back-link { padding: 4px 0; margin-bottom: 8px; border: 0; background: transparent; color: var(--cobalt); cursor: pointer; }
+.detail-cover-wrap { position: relative; }.cover-large { width: 100%; height: 230px; border-radius: 18px; font-size: 32px; }.detail-cover-wrap .resource-pill { position: absolute; right: 10px; bottom: 10px; }
+.detail-page > small { display: block; margin-top: 15px; color: #77776f; }.detail-page > h2 { font-size: 34px; }
+.analysis-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; margin: 15px 0; }.analysis-grid span { display: flex; flex-direction: column; padding: 10px; background: var(--white); border-radius: 10px; }.analysis-grid small { color: #888; }.analysis-grid b { margin-top: 3px; }
+.segment-strip { display: grid; grid-template-columns: 1fr 1.4fr .8fr 1.5fr .7fr; gap: 3px; height: 8px; margin: 14px 0; }.segment-strip i { background: var(--cobalt); border-radius: 4px; }.segment-strip i:nth-child(2n) { background: #9f7ee6; }
+.resource-copy { margin: 12px 0; }.detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.detail-actions button { padding: 12px; border: 1px solid var(--ink); border-radius: 11px; font-weight: 800; cursor: pointer; }.preview-button { background: var(--ink); color: var(--white); }.preview-button:disabled { opacity: .35; cursor: not-allowed; }.save-button { background: var(--acid); color: var(--ink); }
+.playlist-card { display: flex; min-height: 120px; flex-direction: column; align-items: flex-start; justify-content: end; gap: 5px; padding: 15px; background: var(--cobalt); color: var(--white); border-radius: 15px; }.playlist-card b { font-size: 20px; }
+.empty-state { display: grid; justify-items: center; gap: 7px; padding: 34px 16px; color: #6d6d66; text-align: center; }.empty-state button { padding: 9px 12px; border: 1px solid var(--ink); border-radius: 9px; background: var(--acid); font-weight: 800; }
+.overlay-backdrop { position: absolute; inset: 0; z-index: 8; display: flex; align-items: flex-end; background: rgba(18,19,17,.45); }.phone-overlay { position: relative; width: 100%; padding: 24px 18px 18px; background: var(--white); border-radius: 22px 22px 0 0; }.phone-overlay h3 { margin: 6px 0; font-size: 23px; }.phone-overlay p { color: #6f6f68; }.overlay-close { position: absolute; right: 14px; top: 12px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--paper); cursor: pointer; }.playlist-option { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 11px; margin-top: 7px; border: 1px solid var(--line); border-radius: 11px; background: var(--white); text-align: left; cursor: pointer; }.playlist-option span:first-child { display: flex; flex-direction: column; }.playlist-option small { color: #888; }
+.phone-nav { position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 5; height: 62px; display: flex; align-items: center; justify-content: space-around; background: rgba(255,255,255,.95); border: 1px solid var(--line); border-radius: 19px; box-shadow: 0 8px 24px rgba(18,19,17,.12); }.phone-nav button { position: relative; display: grid; justify-items: center; gap: 2px; min-width: 56px; border: 0; background: transparent; color: #8a8a83; cursor: pointer; }.phone-nav button b { font-size: 18px; line-height: 1; }.phone-nav button span { font-size: 9px; }.phone-nav .active { color: var(--ink); }.phone-nav .active::after { content: ""; position: absolute; bottom: -6px; width: 4px; height: 4px; background: var(--cobalt); border-radius: 50%; }
+.mini-player { position: absolute; left: 19px; right: 19px; bottom: 78px; z-index: 4; display: flex; align-items: center; gap: 8px; padding: 7px; background: var(--ink); color: var(--white); border-radius: 12px; }.mini-player .track-cover { width: 34px; height: 34px; }.mini-player > span { display: flex; flex: 1; flex-direction: column; }.mini-player small { color: #aaa; }.mini-player button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--acid); }
+.toast { position: absolute; left: 50%; bottom: 88px; z-index: 12; transform: translateX(-50%); padding: 10px 13px; background: var(--ink); color: var(--white); border-radius: 999px; white-space: nowrap; font-size: 11px; }
+.step-controls { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: min(100%, 560px); }.step-controls span { text-align: center; font-size: 12px; color: #6f6f68; }.step-controls button { padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); cursor: pointer; }.step-controls button:disabled { opacity: .4; cursor: not-allowed; }
 @media (max-width: 760px) {
   .app-header { grid-template-columns: auto 1fr auto; }
   .mock-badge, .spec-link { display: none; }
@@ -441,7 +487,154 @@ globalThis.HBViews.handbook = (state, content) => `
   </main>`;
 
 globalThis.HBViews = globalThis.HBViews || {};
-globalThis.HBViews.prototype = () => '<main><h1>交互原型</h1></main>';
+
+const resourceLabels = {
+  available: ['可试听', 'resource-ok'],
+  metadata_only: ['仅元数据', 'resource-warn'],
+  unavailable: ['资源不可用', 'resource-off'],
+};
+
+const cover = (song, large = false) => `
+  <div class="track-cover cover-${song.accent}${large ? ' cover-large' : ''}" aria-hidden="true">
+    <span>${song.style.slice(0, 2).toUpperCase()}</span>
+  </div>`;
+
+const trackRow = (song, state) => {
+  const [resourceLabel, resourceClass] = resourceLabels[song.resource];
+  return `<button class="track-row" data-track="${song.id}">
+    ${cover(song)}
+    <span class="track-copy"><b>${song.title}</b><small>${song.artist} · ${song.style} · ${song.bpm} BPM</small></span>
+    <span class="resource-pill ${resourceClass}">${resourceLabel}</span>
+    <span class="row-action" aria-hidden="true">›</span>
+  </button>`;
+};
+
+const renderHome = (state, content) => `
+  <div class="phone-page home-page">
+    <div class="phone-heading"><div><small>FOR YOUR DANCE / 08.18</small><h2>今晚动起来</h2></div><span class="avatar">HB</span></div>
+    <button class="editorial-card" data-view="V02">
+      <span class="zine-mini">POPPING · 98–112 BPM</span>
+      <b>你的今日<br>训练能量</b><small>12 首精选 · 约 42 分钟</small>
+    </button>
+    <div class="section-line"><b>继续准备</b><span>最近任务</span></div>
+    <button class="device-summary" data-view="V06">
+      <span class="status-dot"></span><span><b>HarBeat Stage 01</b><small>已连接 · 预设版本 3</small></span><span>›</span>
+    </button>
+    <div class="section-line"><b>最近播放</b><button data-view="V05">查看曲库</button></div>
+    ${content.songs.slice(0, 2).map((song) => trackRow(song, state)).join('')}
+  </div>`;
+
+const renderRecommendations = (state, content) => `
+  <div class="phone-page">
+    <div class="phone-heading"><div><small>MUSIC / FOR YOU</small><h2>为你的舞步推荐</h2></div><span class="avatar">HB</span></div>
+    <div class="music-tabs"><b>推荐</b><button data-view="V03">搜索</button><button data-view="V05">曲库</button></div>
+    <div class="recommend-hero"><span class="zine-mini">DAILY SET</span><b>Popping<br>训练能量</b><small>根据你的舞种与个人收藏更新</small></div>
+    <div class="section-line"><b>适合今天</b><span>8 首</span></div>
+    ${content.songs.slice(0, 5).map((song) => trackRow(song, state)).join('')}
+  </div>`;
+
+const renderSearchImport = (state, content) => {
+  const intro = {
+    search: ['搜索歌曲、艺人或舞种', '示例：Popping 104 BPM'],
+    link: ['粘贴外部歌单链接', '只解析元数据并匹配合法资源'],
+    file: ['选择手机本地音频', '上传后进行 BPM、调性与段落分析'],
+  }[state.importMode];
+  return `<div class="phone-page">
+    <div class="phone-heading"><div><small>MUSIC / DISCOVER</small><h2>搜索与导入</h2></div></div>
+    <div class="source-switch" role="tablist" aria-label="音乐来源">
+      <button data-import-mode="search" aria-selected="${state.importMode === 'search'}">搜索</button>
+      <button data-import-mode="link" aria-selected="${state.importMode === 'link'}">外部链接</button>
+      <button data-import-mode="file" aria-selected="${state.importMode === 'file'}">本地文件</button>
+    </div>
+    <label class="search-field"><span>${intro[0]}</span><input value="${intro[1]}" aria-label="${intro[0]}" readonly></label>
+    ${state.importMode === 'link' ? '<div class="legal-note"><b>资源说明</b><span>QQ 音乐、网易云等链接仅用于元数据解析与合法资源匹配，不提供未经授权下载。</span></div>' : ''}
+    <div class="section-line"><b>${state.importMode === 'search' ? '匹配结果' : '演示结果'}</b><span>${content.songs.length} 项</span></div>
+    ${content.songs.slice(0, 5).map((song) => trackRow(song, state)).join('')}
+  </div>`;
+};
+
+const renderSaveOverlay = (state, content, song) => state.overlay === 'save-track' ? `
+  <div class="overlay-backdrop">
+    <section class="phone-overlay" role="dialog" aria-modal="true" aria-label="保存歌曲">
+      <button class="overlay-close" data-action="close-overlay" aria-label="关闭">×</button>
+      <span class="eyebrow">SAVE TRACK</span><h3>保存“${song.title}”</h3><p>选择要加入的歌单，歌曲也会进入个人曲库。</p>
+      ${content.playlists.map((playlist) => `<button class="playlist-option" data-save-track="${song.id}" data-playlist="${playlist.id}"><span><b>${playlist.name}</b><small>${state.playlistTrackIds[playlist.id]?.length || 0} 首歌曲</small></span><span>＋</span></button>`).join('')}
+    </section>
+  </div>` : '';
+
+const renderTrackDetail = (state, content) => {
+  const song = HBModel.selectedTrack(state);
+  const [resourceLabel, resourceClass] = resourceLabels[song.resource];
+  const canPreview = song.resource === 'available';
+  const resourceCopy = song.resource === 'available'
+    ? '已匹配可试听资源，可以在手机端练习。'
+    : song.resource === 'metadata_only'
+      ? '仅元数据 · 尚未匹配到可播放资源，可先保存并稍后重试。'
+      : '资源不可用 · 可以保留歌曲信息，但当前无法播放。';
+  return `<div class="phone-page detail-page">
+    <button class="back-link" data-view="V02">← 返回推荐</button>
+    <div class="detail-cover-wrap">${cover(song, true)}<span class="resource-pill ${resourceClass}">${resourceLabel}</span></div>
+    <small>${song.artist} / ${song.style}</small><h2>${song.title}</h2>
+    <div class="analysis-grid"><span><small>BPM</small><b>${song.bpm}</b></span><span><small>调性</small><b>${song.key}</b></span><span><small>能量</small><b>${song.energy}</b></span></div>
+    <div class="segment-strip" aria-label="歌曲段落"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="resource-copy ${resourceClass}"><b>${resourceLabel}</b><span>${resourceCopy}</span></div>
+    <div class="detail-actions"><button class="preview-button" data-action="toggle-preview" ${canPreview ? '' : 'disabled'}>${state.previewPlaying ? '暂停试听' : '试听 30 秒'}</button><button class="save-button" data-action="open-save">＋ 保存</button></div>
+    ${renderSaveOverlay(state, content, song)}
+  </div>`;
+};
+
+const renderLibrary = (state, content) => {
+  const savedSongs = content.songs.filter((song) => state.savedTrackIds.includes(song.id));
+  const playlist = content.playlists.find((item) => item.id === state.selectedPlaylistId);
+  return `<div class="phone-page">
+    <div class="phone-heading"><div><small>MY MUSIC</small><h2>曲库与歌单</h2></div><span class="avatar">${state.savedTrackIds.length}</span></div>
+    <div class="music-tabs"><b>曲库</b><button>歌单</button><button data-view="V03">导入</button></div>
+    <div class="playlist-card"><span class="zine-mini">PLAYLIST</span><b>${playlist.name}</b><small>${state.playlistTrackIds[playlist.id]?.length || 0} 首歌曲 · 最近更新</small></div>
+    <div class="section-line"><b>已保存歌曲</b><span>${savedSongs.length} 首</span></div>
+    ${savedSongs.length ? savedSongs.map((song) => trackRow(song, state)).join('') : '<div class="empty-state"><b>曲库还是空的</b><span>从推荐或搜索中保存第一首音乐。</span><button data-view="V02">去发现音乐</button></div>'}
+  </div>`;
+};
+
+const musicRenderers = {
+  V01: renderHome,
+  V02: renderRecommendations,
+  V03: renderSearchImport,
+  V04: renderTrackDetail,
+  V05: renderLibrary,
+};
+
+const renderPhoneNav = (state) => `
+  <nav class="phone-nav" aria-label="App 底部导航">
+    <button data-view="V01" class="${state.viewId === 'V01' ? 'active' : ''}"><b>⌂</b><span>首页</span></button>
+    <button data-view="V02" class="${['V02','V03','V04','V05'].includes(state.viewId) ? 'active' : ''}"><b>♫</b><span>音乐</span></button>
+    <button data-view="V06" class="${['V06','V07','V08','V09'].includes(state.viewId) ? 'active' : ''}"><b>▣</b><span>设备</span></button>
+    <button><b>●</b><span>我的</span></button>
+  </nav>`;
+
+const renderStepControls = (state, content) => {
+  const scenario = content.scenarios[state.scenario];
+  return `<div class="step-controls">
+    <button data-action="previous-step" ${state.stepIndex === 0 ? 'disabled' : ''}>← 上一步</button>
+    <span>${state.stepIndex + 1} / ${scenario.steps.length} · ${scenario.label}</span>
+    <button data-action="next-step" ${state.stepIndex === scenario.steps.length - 1 ? 'disabled' : ''}>下一步 →</button>
+  </div>`;
+};
+
+globalThis.HBViews.prototype = (state, content, options = {}) => {
+  const renderer = musicRenderers[state.viewId] || (() => '<div class="phone-page"><h2>设备页面将在下一阶段实现</h2></div>');
+  const selected = HBModel.selectedTrack(state);
+  return `<main class="prototype-workspace ${options.embedded ? 'is-embedded' : ''}">
+    ${options.embedded ? '' : `<div class="prototype-heading"><div><p class="eyebrow">CLICKABLE PROTOTYPE</p><h1>${content.views[state.viewId].name}</h1></div><span>${state.viewId} → ${content.views[state.viewId].canonical}</span></div>`}
+    <div class="phone-shell">
+      <div class="phone-island"></div>
+      <div class="phone-screen">${renderer(state, content)}</div>
+      ${state.previewPlaying ? `<div class="mini-player">${cover(selected)}<span><b>${selected.title}</b><small>试听片段 · 00:12</small></span><button data-action="toggle-preview">Ⅱ</button></div>` : ''}
+      ${renderPhoneNav(state)}
+      ${state.toast ? `<div class="toast" role="status">${state.toast}</div>` : ''}
+    </div>
+    ${options.embedded ? '' : renderStepControls(state, content)}
+  </main>`;
+};
 
 globalThis.HBViews = globalThis.HBViews || {};
 globalThis.HBViews.annotations = () => '<main><h1>前端标注</h1></main>';
@@ -485,10 +678,24 @@ globalThis.HBViews.annotations = () => '<main><h1>前端标注</h1></main>';
     const scenario = event.target.closest('[data-scenario]');
     const view = event.target.closest('[data-view]');
     const action = event.target.closest('[data-action]');
+    const track = event.target.closest('[data-track]');
+    const importMode = event.target.closest('[data-import-mode]');
+    const saveTrack = event.target.closest('[data-save-track]');
     if (scenario) dispatch({ type: 'SET_SCENARIO', scenario: scenario.dataset.scenario });
     if (view) dispatch({ type: 'GO_TO_VIEW', viewId: view.dataset.view });
     if (mode) dispatch({ type: 'SET_MODE', mode: mode.dataset.mode });
-    if (action?.dataset.action === 'reset') dispatch({ type: 'RESET' });
+    if (track) dispatch({ type: 'SELECT_TRACK', trackId: track.dataset.track });
+    if (importMode) dispatch({ type: 'SET_IMPORT_MODE', mode: importMode.dataset.importMode });
+    if (saveTrack) dispatch({ type: 'SAVE_TRACK', trackId: saveTrack.dataset.saveTrack, playlistId: saveTrack.dataset.playlist });
+    const actions = {
+      reset: { type: 'RESET' },
+      'open-save': { type: 'OPEN_SAVE' },
+      'toggle-preview': { type: 'TOGGLE_PREVIEW' },
+      'next-step': { type: 'NEXT_STEP' },
+      'previous-step': { type: 'PREVIOUS_STEP' },
+      'close-overlay': { type: 'CLOSE_OVERLAY' },
+    };
+    if (action && actions[action.dataset.action]) dispatch(actions[action.dataset.action]);
   });
 
   globalThis.HBApp = { dispatch, getState: () => structuredClone(state) };
