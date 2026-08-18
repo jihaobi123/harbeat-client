@@ -1,0 +1,5 @@
+:root { color-scheme: light; font-family: Inter, "PingFang SC", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f2efe6; color: #121311; }
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 12px; top: 12px; z-index: 20; }

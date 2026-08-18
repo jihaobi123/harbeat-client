@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HarBeat 移动端产品手册、关键路径原型与前端标注">
+  <title>HarBeat 移动端产品手册</title>
+  <style>:root { color-scheme: light; font-family: Inter, "PingFang SC", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f2efe6; color: #121311; }
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 12px; top: 12px; z-index: 20; }
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#app">跳到主要内容</a>
+  <div id="app" aria-live="polite"></div>
+  <script>const HBContent = Object.freeze({ views: {}, scenarios: {}, handbookSections: [], annotations: {} });
+globalThis.HBContent = HBContent;
+if (typeof module !== 'undefined') module.exports = HBContent;
+</script>
+  <script>const HBModel = Object.freeze({
+  initialState: () => ({ mode: 'handbook', scenario: 'discover', viewId: 'V01' }),
+  reduce: (state, action) => action.type === 'RESET' ? HBModel.initialState() : state,
+});
+globalThis.HBModel = HBModel;
+if (typeof module !== 'undefined') module.exports = HBModel;
+</script>
+  <script>globalThis.HBViews = globalThis.HBViews || {};
+globalThis.HBViews.handbook = () => '<main><h1>HarBeat</h1><p>产品手册</p></main>';
+
+globalThis.HBViews = globalThis.HBViews || {};
+globalThis.HBViews.prototype = () => '<main><h1>交互原型</h1></main>';
+
+globalThis.HBViews = globalThis.HBViews || {};
+globalThis.HBViews.annotations = () => '<main><h1>前端标注</h1></main>';
+</script>
+  <script>(() => {
+  const root = document.querySelector('#app');
+  const state = HBModel.initialState();
+  root.innerHTML = [
+    '<nav aria-label="显示模式">产品手册 · 交互原型 · 前端标注</nav>',
+    HBViews[state.mode](state, HBContent),
+  ].join('');
+})();
+</script>
+</body>
+</html>
