@@ -107,6 +107,68 @@ const renderLibrary = (state, content) => {
   </div>`;
 };
 
+const connectionLabel = (state) => ({ connected: '设备在线', connecting: '正在连接', disconnected: '设备离线' }[state.deviceConnectionState] || '状态未知');
+
+const renderDisconnectedBanner = (state) => state.deviceConnectionState === 'disconnected'
+  ? '<div class="disconnect-banner"><b>设备连接已断开</b><span>可以继续编辑 App 版本，但恢复连接前不能同步。</span><button data-action="reconnect-device">重新连接</button></div>'
+  : '';
+
+const renderDeviceList = (state, content) => `
+  <div class="phone-page device-page">
+    <div class="phone-heading"><div><small>DEVICE / LOCAL NETWORK</small><h2>连接 HarBeat</h2></div><span class="avatar">RK</span></div>
+    <div class="device-intro"><span class="zine-mini">P0 CONNECTION</span><b>选择最近设备，<br>或输入局域网地址</b><small>配对完成后才能同步 Pad 和音乐资源。</small></div>
+    <div class="section-line"><b>最近设备</b><span>${content.devices.length} 台</span></div>
+    ${content.devices.map((device) => `<button class="device-card ${device.online ? '' : 'is-offline'}" ${device.online ? `data-start-pairing="${device.host}"` : 'disabled'}><span class="status-dot"></span><span><b>${device.name}</b><small>${device.host} · ${device.online ? '局域网在线' : '上次在线于昨天'}</small></span><span>${device.online ? '配对 ›' : '离线'}</span></button>`).join('')}
+    <div class="manual-host"><label for="manual-host">手动输入地址</label><div><input id="manual-host" value="192.168.31.88" inputmode="decimal"><button data-action="pair-manual-host">继续</button></div></div>
+  </div>`;
+
+const renderPairing = (state) => `
+  <div class="phone-page device-page pairing-page">
+    <button class="back-link" data-view="V06">← 返回设备列表</button>
+    <div class="pair-icon">38<span>58</span></div>
+    <small>PAIRING / ${state.pairingHost || '192.168.31.88'}</small><h2>输入设备上的<br>四位配对码</h2>
+    <p>配对码可以确认你正在连接目标 RK3588，而不是同一网络中的其他设备。</p>
+    <label class="pair-code"><span>演示配对码：3588</span><input id="pairing-code" value="3588" maxlength="4" inputmode="numeric" aria-label="四位配对码"></label>
+    ${state.pairingState === 'invalid-code' ? '<div class="inline-error">配对码不正确，请重新输入。</div>' : ''}
+    <button class="wide-primary" data-action="submit-pairing">连接 HarBeat Stage 01</button>
+  </div>`;
+
+const renderDeviceDashboard = (state, content) => {
+  const device = content.devices[0];
+  const versionsMatch = state.appPresetVersion === state.devicePresetVersion;
+  return `<div class="phone-page device-page">
+    ${renderDisconnectedBanner(state)}
+    <div class="phone-heading"><div><small>DEVICE / RK3588</small><h2>设备</h2></div><span class="avatar">RK</span></div>
+    <div class="device-hero"><div class="online-row"><span class="status-dot"></span><b>${connectionLabel(state)}</b></div><h3>${device.name}</h3><small>${device.host} · ${device.latency} ms 延迟</small><div class="sync-summary"><span><small>App 版本</small><b>v${state.appPresetVersion}</b></span><i>${versionsMatch ? '＝' : '→'}</i><span><small>设备版本</small><b>v${state.devicePresetVersion}</b></span></div></div>
+    <div class="state-card"><span><b>${versionsMatch ? '预设已经同步' : 'App 版本较新'}</b><small>${versionsMatch ? '设备可以脱离手机独立工作' : '同步前会再次确认覆盖范围'}</small></span><span class="resource-pill ${versionsMatch ? 'resource-ok' : 'resource-warn'}">${versionsMatch ? '已同步' : '待同步'}</span></div>
+    <button class="preset-card" data-view="V09"><span class="preset-number">08</span><span><b>Battle · Round 1</b><small>8 个自定义 Pad 槽位</small></span><span>编辑 ›</span></button>
+    <div class="device-actions"><button data-action="${state.deviceConnectionState === 'connected' ? 'disconnect-device' : 'reconnect-device'}">${state.deviceConnectionState === 'connected' ? '模拟设备掉线' : '重新连接设备'}</button><button data-view="V06">更换设备</button></div>
+  </div>`;
+};
+
+const renderSyncOverlay = (state) => state.overlay === 'sync-confirm' ? `
+  <div class="overlay-backdrop"><section class="phone-overlay sync-overlay" role="dialog" aria-modal="true" aria-label="确认覆盖设备预设">
+    <button class="overlay-close" data-action="close-overlay" aria-label="关闭">×</button><span class="eyebrow">SYNC TO RK3588</span><h3>同步并覆盖设备？</h3>
+    <p>将把 HarBeat Stage 01 的 Pad 预设从 <b>v${state.devicePresetVersion}</b> 更新为 <b>v${state.appPresetVersion}</b>，共 ${state.padSlots.filter((pad) => pad.sound).length} 个已配置音效。</p>
+    <div class="sync-warning">同步完成后，手机断开也不会影响实体控制器使用这套预设。</div><button class="wide-primary" data-action="confirm-sync">确认覆盖并同步</button>
+  </section></div>` : '';
+
+const renderPadEditor = (state, content) => `
+  <div class="phone-page pad-page">
+    ${renderDisconnectedBanner(state)}
+    <button class="back-link" data-view="V08">← 返回设备</button>
+    <div class="phone-heading"><div><small>PAD PRESET / APP v${state.appPresetVersion}</small><h2>Battle · Round 1</h2></div><span class="resource-pill ${state.syncState === 'synced' ? 'resource-ok' : 'resource-warn'}">${state.syncState === 'synced' ? '已同步' : '未同步'}</span></div>
+    <div class="fixed-controls"><b>固定核心按键</b><span>播放 / 暂停 · 下一首 · Talk · 撤销</span><small>核心按键不可重新映射</small></div>
+    <div class="pad-grid">${state.padSlots.map((pad, index) => {
+      const nextSound = content.sounds[(Math.max(0, content.sounds.indexOf(pad.sound)) + 1) % content.sounds.length];
+      return `<button class="pad-slot pad-color-${(index % 4) + 1}" data-edit-pad="${pad.id}" data-sound="${nextSound}"><span>${String(index + 1).padStart(2, '0')}</span><b>${pad.sound || '未配置'}</b><small>${pad.sound ? '点击更换音效' : '点击分配音效'}</small></button>`;
+    }).join('')}</div>
+    <button class="wide-primary sync-button" data-action="request-sync" ${state.syncState === 'synced' ? 'disabled' : ''}>${state.syncState === 'synced' ? '设备版本已一致' : '同步并覆盖到设备'}</button>
+    ${renderSyncOverlay(state)}
+  </div>`;
+
+const deviceRenderers = { V06: renderDeviceList, V07: renderPairing, V08: renderDeviceDashboard, V09: renderPadEditor };
+
 const musicRenderers = {
   V01: renderHome,
   V02: renderRecommendations,
@@ -133,7 +195,7 @@ const renderStepControls = (state, content) => {
 };
 
 globalThis.HBViews.prototype = (state, content, options = {}) => {
-  const renderer = musicRenderers[state.viewId] || (() => '<div class="phone-page"><h2>设备页面将在下一阶段实现</h2></div>');
+  const renderer = musicRenderers[state.viewId] || deviceRenderers[state.viewId];
   const selected = HBModel.selectedTrack(state);
   return `<main class="prototype-workspace ${options.embedded ? 'is-embedded' : ''}">
     ${options.embedded ? '' : `<div class="prototype-heading"><div><p class="eyebrow">CLICKABLE PROTOTYPE</p><h1>${content.views[state.viewId].name}</h1></div><span>${state.viewId} → ${content.views[state.viewId].canonical}</span></div>`}

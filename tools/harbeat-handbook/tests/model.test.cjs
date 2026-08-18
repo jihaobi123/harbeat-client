@@ -47,3 +47,26 @@ test('metadata-only tracks cannot be marked as locally available', () => {
   const state = model.reduce(model.initialState(), { type: 'SELECT_TRACK', trackId: 'trk-midnight' });
   assert.equal(model.selectedTrack(state).resource, 'metadata_only');
 });
+
+test('pairing connects the selected RK device', () => {
+  let state = model.reduce(model.initialState(), { type: 'DISCONNECT_DEVICE' });
+  state = model.reduce(state, { type: 'START_PAIRING', host: '192.168.31.88' });
+  assert.equal(state.pairingState, 'enter-code');
+  state = model.reduce(state, { type: 'SUBMIT_PAIRING_CODE', code: '3588' });
+  assert.equal(state.deviceConnectionState, 'connected');
+  assert.equal(state.viewId, 'V08');
+});
+
+test('sync is blocked while the device is disconnected', () => {
+  let state = model.reduce(model.initialState(), { type: 'EDIT_PAD', padId: 'pad-4', sound: 'Scratch Stop' });
+  state = model.reduce(state, { type: 'DISCONNECT_DEVICE' });
+  state = model.reduce(state, { type: 'REQUEST_SYNC' });
+  assert.equal(state.overlay, null);
+  assert.match(state.toast, /设备未连接/);
+});
+
+test('direct device navigation selects the device scenario', () => {
+  const state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V08' });
+  assert.equal(state.scenario, 'device');
+  assert.equal(state.stepIndex, 2);
+});

@@ -27,3 +27,19 @@ test('library reflects a saved track', () => {
   assert.match(html, /Electric Motion/);
   assert.match(html, /本周练习/);
 });
+
+test('device dashboard shows connection and both preset versions', () => {
+  const state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V08' });
+  const html = globalThis.HBViews.prototype(state, content);
+  assert.match(html, /HarBeat Stage 01/);
+  assert.match(html, /App 版本/);
+  assert.match(html, /设备版本/);
+});
+
+test('pad editor renders eight independent slots', () => {
+  let state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V09' });
+  state = model.reduce(state, { type: 'EDIT_PAD', padId: 'pad-4', sound: 'Scratch Stop' });
+  const html = globalThis.HBViews.prototype(state, content);
+  assert.equal((html.match(/class="pad-slot/g) || []).length, 8);
+  assert.match(html, /同步并覆盖到设备/);
+});

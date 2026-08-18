@@ -50,8 +50,13 @@ const reduce = (state, action) => {
       return { ...state, scenario: action.scenario, stepIndex: 0, viewId: steps[0], overlay: null, toast: null };
     }
     case 'GO_TO_VIEW': {
-      const index = scenarioSteps[state.scenario].indexOf(action.viewId);
-      return { ...state, viewId: action.viewId, stepIndex: index >= 0 ? index : state.stepIndex, overlay: null };
+      const scenario = ['V06', 'V07', 'V08', 'V09'].includes(action.viewId)
+        ? 'device'
+        : action.viewId === 'V03'
+          ? 'import'
+          : state.scenario;
+      const index = scenarioSteps[scenario].indexOf(action.viewId);
+      return { ...state, scenario, viewId: action.viewId, stepIndex: index >= 0 ? index : state.stepIndex, overlay: null };
     }
     case 'NEXT_STEP': {
       const steps = scenarioSteps[state.scenario];
@@ -123,6 +128,34 @@ const reduce = (state, action) => {
         syncState: state.appPresetVersion === state.devicePresetVersion ? 'synced' : 'dirty',
         toast: '设备已重新连接',
       };
+    case 'START_PAIRING':
+      return {
+        ...state,
+        scenario: 'device',
+        stepIndex: 1,
+        pairingHost: action.host,
+        pairingState: 'enter-code',
+        deviceConnectionState: 'connecting',
+        viewId: 'V07',
+        toast: null,
+      };
+    case 'SUBMIT_PAIRING_CODE':
+      return action.code === '3588'
+        ? {
+            ...state,
+            scenario: 'device',
+            pairingState: 'paired',
+            deviceConnectionState: 'connected',
+            viewId: 'V08',
+            stepIndex: 2,
+            toast: 'HarBeat Stage 01 已连接',
+          }
+        : {
+            ...state,
+            pairingState: 'invalid-code',
+            deviceConnectionState: 'disconnected',
+            toast: '配对码不正确，请重新输入',
+          };
     case 'CLOSE_OVERLAY':
       return { ...state, overlay: null };
     case 'CLEAR_TOAST':
