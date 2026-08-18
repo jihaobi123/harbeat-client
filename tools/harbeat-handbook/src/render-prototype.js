@@ -160,7 +160,8 @@ const renderPadEditor = (state, content) => `
     <div class="phone-heading"><div><small>PAD PRESET / APP v${state.appPresetVersion}</small><h2>Battle · Round 1</h2></div><span class="resource-pill ${state.syncState === 'synced' ? 'resource-ok' : 'resource-warn'}">${state.syncState === 'synced' ? '已同步' : '未同步'}</span></div>
     <div class="fixed-controls"><b>固定核心按键</b><span>播放 / 暂停 · 下一首 · Talk · 撤销</span><small>核心按键不可重新映射</small></div>
     <div class="pad-grid">${state.padSlots.map((pad, index) => {
-      const nextSound = content.sounds[(Math.max(0, content.sounds.indexOf(pad.sound)) + 1) % content.sounds.length];
+      const soundIndex = content.sounds.indexOf(pad.sound);
+      const nextSound = content.sounds[soundIndex < 0 ? 0 : (soundIndex + 1) % content.sounds.length];
       return `<button class="pad-slot pad-color-${(index % 4) + 1}" data-edit-pad="${pad.id}" data-sound="${nextSound}"><span>${String(index + 1).padStart(2, '0')}</span><b>${pad.sound || '未配置'}</b><small>${pad.sound ? '点击更换音效' : '点击分配音效'}</small></button>`;
     }).join('')}</div>
     <button class="wide-primary sync-button" data-action="request-sync" ${state.syncState === 'synced' ? 'disabled' : ''}>${state.syncState === 'synced' ? '设备版本已一致' : '同步并覆盖到设备'}</button>

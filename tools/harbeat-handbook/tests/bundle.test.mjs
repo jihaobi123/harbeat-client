@@ -28,6 +28,7 @@ test('builds a self-contained offline handbook', () => {
   assert.match(html, /class="skip-link"/);
   assert.match(html, /:focus-visible/);
   assert.match(html, /prefers-reduced-motion/);
+  assert.match(html, /\.toast\s*\{[^}]*pointer-events:\s*none/);
   assert.doesNotMatch(html, /@import\s+url/);
   assert.doesNotMatch(html, /fetch\s*\(/);
   assert.doesNotMatch(html, /new\s+WebSocket/);

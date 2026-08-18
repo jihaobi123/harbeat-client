@@ -40,21 +40,24 @@ const initialState = () => ({
 
 const selectedTrack = (state) => content().songs.find((track) => track.id === state.selectedTrackId);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const scenarioForView = (viewId, currentScenario) => {
+  if (['V06', 'V07', 'V08', 'V09'].includes(viewId)) return 'device';
+  if (viewId === 'V03') return 'import';
+  if (['V01', 'V02'].includes(viewId)) return 'discover';
+  if (['V04', 'V05'].includes(viewId)) return currentScenario === 'import' ? 'import' : 'discover';
+  return currentScenario;
+};
 
 const reduce = (state, action) => {
   switch (action.type) {
     case 'SET_MODE':
-      return { ...state, mode: action.mode, overlay: null };
+      return { ...state, mode: action.mode, overlay: null, toast: null };
     case 'SET_SCENARIO': {
       const steps = scenarioSteps[action.scenario];
       return { ...state, scenario: action.scenario, stepIndex: 0, viewId: steps[0], overlay: null, toast: null };
     }
     case 'GO_TO_VIEW': {
-      const scenario = ['V06', 'V07', 'V08', 'V09'].includes(action.viewId)
-        ? 'device'
-        : action.viewId === 'V03'
-          ? 'import'
-          : state.scenario;
+      const scenario = scenarioForView(action.viewId, state.scenario);
       const index = scenarioSteps[scenario].indexOf(action.viewId);
       return { ...state, scenario, viewId: action.viewId, stepIndex: index >= 0 ? index : state.stepIndex, overlay: null };
     }
@@ -69,7 +72,13 @@ const reduce = (state, action) => {
       return { ...state, stepIndex, viewId: steps[stepIndex], overlay: null };
     }
     case 'SELECT_TRACK':
-      return { ...state, selectedTrackId: action.trackId, previewPlaying: false, viewId: 'V04' };
+      return {
+        ...state,
+        selectedTrackId: action.trackId,
+        previewPlaying: false,
+        viewId: 'V04',
+        stepIndex: scenarioSteps[state.scenario].indexOf('V04'),
+      };
     case 'SET_IMPORT_MODE':
       return { ...state, importMode: action.mode };
     case 'TOGGLE_PREVIEW':

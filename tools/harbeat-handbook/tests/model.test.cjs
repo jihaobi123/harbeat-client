@@ -70,3 +70,25 @@ test('direct device navigation selects the device scenario', () => {
   assert.equal(state.scenario, 'device');
   assert.equal(state.stepIndex, 2);
 });
+
+test('switching from device to music resets the walkthrough to discover', () => {
+  let state = model.reduce(model.initialState(), { type: 'SET_SCENARIO', scenario: 'device' });
+  state = model.reduce(state, { type: 'GO_TO_VIEW', viewId: 'V02' });
+  assert.equal(state.scenario, 'discover');
+  assert.equal(state.stepIndex, 1);
+});
+
+test('changing mode clears a transient toast from the previous workflow', () => {
+  let state = model.reduce(model.initialState(), { type: 'SAVE_TRACK', trackId: 'trk-electric', playlistId: 'pl-practice' });
+  assert.match(state.toast, /已保存/);
+  state = model.reduce(state, { type: 'SET_MODE', mode: 'annotations' });
+  assert.equal(state.toast, null);
+});
+
+test('opening a search result advances the import walkthrough to its detail step', () => {
+  let state = model.reduce(model.initialState(), { type: 'SET_SCENARIO', scenario: 'import' });
+  state = model.reduce(state, { type: 'NEXT_STEP' });
+  state = model.reduce(state, { type: 'SELECT_TRACK', trackId: 'trk-midnight' });
+  assert.equal(state.viewId, 'V04');
+  assert.equal(state.stepIndex, 2);
+});

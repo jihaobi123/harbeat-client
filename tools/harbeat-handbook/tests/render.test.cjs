@@ -45,6 +45,12 @@ test('pad editor renders eight independent slots', () => {
   assert.match(html, /同步并覆盖到设备/);
 });
 
+test('an empty Pad starts from the first available sound', () => {
+  const state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V09' });
+  const html = globalThis.HBViews.prototype(state, content);
+  assert.match(html, /data-edit-pad="pad-4" data-sound="Air Horn"/);
+});
+
 test('annotation mode explains contract, states and acceptance', () => {
   const state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V04' });
   const html = globalThis.HBViews.annotations(state, content);

@@ -4,6 +4,7 @@
 - 日期：2026-08-18
 - 状态：设计已确认，等待书面规格审核
 - 读者：产品经理、Flutter 前端、后端、RK3588/Jetson 工程师、测试人员
+- 可交互成品：[打开 HarBeat 移动端产品手册](./harbeat-mobile-product-handbook.html)
 
 ## 1. 文档用途
 

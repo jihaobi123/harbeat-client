@@ -5,7 +5,7 @@
 - 状态：方案已确认，等待书面规格审核
 - 读者：产品经理、设计师、Flutter 前端、后端、RK3588 工程师、合作方
 - 完整产品规格：[2026-08-18-harbeat-mobile-app-product-design.md](./2026-08-18-harbeat-mobile-app-product-design.md)
-- 计划交付物：`harbeat-mobile-product-handbook.html`
+- 可交互成品：[打开 HarBeat 移动端产品手册](./harbeat-mobile-product-handbook.html)
 
 ## 1. 目标
 
