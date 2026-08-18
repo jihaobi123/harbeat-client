@@ -8,6 +8,9 @@
   --signal: #ff4d36;
   --white: #ffffff;
   --line: #d8d5cb;
+  --muted: #74746d;
+  --radius-card: 18px;
+  --shadow-card: 0 12px 32px rgba(18, 19, 17, .10);
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); }
@@ -120,9 +123,32 @@ button, input { font: inherit; }
 .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.pad-slot { min-height: 92px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 10px; border: 1px solid var(--ink); border-radius: 10px; color: var(--ink); text-align: left; cursor: pointer; }.pad-slot span { align-self: flex-end; font-size: 10px; font-weight: 900; }.pad-slot b { font-size: 14px; }.pad-slot small { opacity: .68; }.pad-color-1 { background: #ff7a67; }.pad-color-2 { background: #6c8dff; }.pad-color-3 { background: var(--acid); }.pad-color-4 { background: #d7c4ed; }.sync-button { margin-top: 12px; }
 .sync-warning { margin: 12px 0; padding: 10px; background: #f3f5de; color: #4c580e; border-radius: 9px; font-size: 11px; line-height: 1.45; }
 .annotation-workbench { display: grid; grid-template-columns: minmax(390px, .9fr) minmax(360px, 1.1fr); gap: clamp(20px, 4vw, 50px); align-items: start; max-width: 1150px; margin: 0 auto; }.annotation-phone { display: grid; justify-items: center; position: sticky; top: 94px; }.annotation-phone .phone-shell { height: 700px; }.annotation-panel { padding: clamp(22px, 4vw, 42px); background: var(--white); border: 1px solid var(--line); border-radius: 20px; }.annotation-panel h1 { margin: 6px 0 10px; font-size: clamp(32px, 5vw, 58px); letter-spacing: -.05em; }.contract-status { display: inline-block; padding: 6px 8px; margin: 0 0 20px; background: var(--acid); border: 1px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); font-size: 11px; font-weight: 900; transform: rotate(-1deg); }.annotation-panel dl { display: grid; grid-template-columns: 108px 1fr; gap: 0; margin: 0; border-top: 1px solid var(--line); }.annotation-panel dt, .annotation-panel dd { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }.annotation-panel dt { color: #77776f; font-size: 12px; font-weight: 850; }.annotation-panel dd { line-height: 1.55; }.annotation-panel code { display: inline-block; padding: 3px 6px; margin: 2px; background: var(--paper); border-radius: 5px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; }.annotation-panel ul { margin: 0; padding-left: 18px; }.annotation-note { margin-top: 18px; padding: 13px; background: #edf1ff; color: #273d7a; border-radius: 11px; }.annotation-note p { margin: 5px 0 0; line-height: 1.55; }
+button, a, input { transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease; }
+button:not(:disabled):hover { transform: translateY(-1px); }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+@media (max-width: 900px) {
+  .annotation-workbench { grid-template-columns: 1fr; }
+  .annotation-phone { position: static; }
+  .scenario-nav { overflow-x: auto; }
+  .responsibility-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 760px) {
   .app-header { grid-template-columns: auto 1fr auto; }
   .mock-badge, .spec-link { display: none; }
   .app-body { grid-template-columns: 1fr; }
   .scenario-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .app-header { grid-template-columns: 1fr auto; gap: 8px; }
+  .brand { grid-column: 1; }
+  .reset-button { grid-column: 2; grid-row: 1; }
+  .mode-tabs { grid-column: 1 / -1; justify-content: flex-start; overflow-x: auto; }
+  .annotation-panel dl { grid-template-columns: 1fr; }
+  .annotation-panel dt { padding-bottom: 4px; border-bottom: 0; }
+  .annotation-panel dd { padding-top: 0; }
+  .handbook-hero { min-height: 370px; }
+  .zine-sticker { right: 16px; top: 14px; }
 }

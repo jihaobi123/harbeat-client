@@ -24,6 +24,13 @@ test('builds a self-contained offline handbook', () => {
   assert.match(html, /data-mode="annotations"/);
   assert.match(html, /data-action="reset"/);
   assert.match(html, /aria-label="场景导航"/);
+  assert.match(html, /lang="zh-CN"/);
+  assert.match(html, /class="skip-link"/);
+  assert.match(html, /:focus-visible/);
+  assert.match(html, /prefers-reduced-motion/);
+  assert.doesNotMatch(html, /@import\s+url/);
+  assert.doesNotMatch(html, /fetch\s*\(/);
+  assert.doesNotMatch(html, /new\s+WebSocket/);
   assert.doesNotMatch(html, /__HB_[A-Z_]+__/);
   assert.doesNotMatch(html, /<(script|link)[^>]+(?:src|href)=["']https?:\/\//i);
 });
