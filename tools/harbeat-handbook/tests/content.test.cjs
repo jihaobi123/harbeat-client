@@ -40,3 +40,12 @@ test('annotations contain executable handoff information', () => {
     assert.ok(annotation.acceptance.length >= 1);
   }
 });
+
+test('handbook covers the approved product narrative', () => {
+  assert.deepEqual(content.handbookSections.map((section) => section.id), [
+    'positioning', 'system', 'users', 'ia', 'journeys', 'scope', 'handoff',
+  ]);
+  assert.match(JSON.stringify(content.handbookSections), /RK3588/);
+  assert.match(JSON.stringify(content.handbookSections), /个人推荐/);
+  assert.match(JSON.stringify(content.handbookSections), /未经授权/);
+});
