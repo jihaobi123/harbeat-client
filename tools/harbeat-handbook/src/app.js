@@ -1,8 +1,48 @@
 (() => {
   const root = document.querySelector('#app');
-  const state = HBModel.initialState();
-  root.innerHTML = [
-    '<nav aria-label="显示模式">产品手册 · 交互原型 · 前端标注</nav>',
-    HBViews[state.mode](state, HBContent),
-  ].join('');
+  let state = HBModel.initialState();
+
+  const dispatch = (action) => {
+    state = HBModel.reduce(state, action);
+    render();
+  };
+
+  const render = () => {
+    const sidebars = {
+      handbook: `<nav class="scenario-nav" aria-label="手册章节">${HBContent.handbookSections.map((section) => `<a href="#${section.id || 'positioning'}">${section.title || section}</a>`).join('')}</nav>`,
+      prototype: `<nav class="scenario-nav" aria-label="场景导航">${Object.entries(HBContent.scenarios).map(([id, item]) => `<button data-scenario="${id}" aria-current="${state.scenario === id ? 'page' : 'false'}">${item.label}</button>`).join('')}</nav>`,
+      annotations: `<nav class="scenario-nav" aria-label="页面标注导航">${Object.entries(HBContent.views).map(([id, item]) => `<button data-view="${id}" aria-current="${state.viewId === id ? 'page' : 'false'}">${id} · ${item.name}</button>`).join('')}</nav>`,
+    };
+
+    root.innerHTML = `
+      <header class="app-header">
+        <a class="brand" href="#top" aria-label="HarBeat 首页">HARBEAT®</a>
+        <div class="mode-tabs" role="tablist" aria-label="显示模式">
+          <button role="tab" data-mode="handbook" aria-selected="${state.mode === 'handbook'}">产品手册</button>
+          <button role="tab" data-mode="prototype" aria-selected="${state.mode === 'prototype'}">交互原型</button>
+          <button role="tab" data-mode="annotations" aria-selected="${state.mode === 'annotations'}">前端标注</button>
+        </div>
+        <span class="mock-badge">${HBContent.meta.dataLabel}</span>
+        <a class="spec-link" href="${HBContent.meta.specFile}">完整规格</a>
+        <button class="reset-button" data-action="reset">重置演示</button>
+      </header>
+      <div class="app-body" id="top">
+        ${sidebars[state.mode]}
+        <section id="main-panel">${HBViews[state.mode](state, HBContent)}</section>
+      </div>`;
+  };
+
+  root.addEventListener('click', (event) => {
+    const mode = event.target.closest('[data-mode]');
+    const scenario = event.target.closest('[data-scenario]');
+    const view = event.target.closest('[data-view]');
+    const action = event.target.closest('[data-action]');
+    if (scenario) dispatch({ type: 'SET_SCENARIO', scenario: scenario.dataset.scenario });
+    if (view) dispatch({ type: 'GO_TO_VIEW', viewId: view.dataset.view });
+    if (mode) dispatch({ type: 'SET_MODE', mode: mode.dataset.mode });
+    if (action?.dataset.action === 'reset') dispatch({ type: 'RESET' });
+  });
+
+  globalThis.HBApp = { dispatch, getState: () => structuredClone(state) };
+  render();
 })();

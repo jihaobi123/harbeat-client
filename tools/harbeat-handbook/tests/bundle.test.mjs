@@ -18,6 +18,12 @@ test('builds a self-contained offline handbook', () => {
   assert.match(html, /产品手册/);
   assert.match(html, /交互原型/);
   assert.match(html, /前端标注/);
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /data-mode="handbook"/);
+  assert.match(html, /data-mode="prototype"/);
+  assert.match(html, /data-mode="annotations"/);
+  assert.match(html, /data-action="reset"/);
+  assert.match(html, /aria-label="场景导航"/);
   assert.doesNotMatch(html, /__HB_[A-Z_]+__/);
   assert.doesNotMatch(html, /<(script|link)[^>]+(?:src|href)=["']https?:\/\//i);
 });
