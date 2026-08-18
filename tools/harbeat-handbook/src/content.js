@@ -190,5 +190,20 @@ const HBContent = Object.freeze({
   },
 });
 
+const contractStatuses = {
+  V01: 'Mock API',
+  V02: 'Mock API',
+  V03: '待确认：搜索与导入 API',
+  V04: '待确认：资源可用性 API',
+  V05: 'Mock API',
+  V06: '待确认：设备发现 API',
+  V07: '待确认：RK 配对 API',
+  V08: '待确认：设备状态与 WebSocket 事件',
+  V09: '待确认：PadPreset 与 SyncJob',
+};
+for (const [viewId, contractStatus] of Object.entries(contractStatuses)) {
+  HBContent.annotations[viewId].contractStatus = contractStatus;
+}
+
 globalThis.HBContent = HBContent;
 if (typeof module !== 'undefined') module.exports = HBContent;

@@ -5,6 +5,7 @@ const model = require('../src/model.js');
 
 globalThis.HBViews = {};
 require('../src/render-prototype.js');
+require('../src/render-annotations.js');
 
 test('music prototype renders a navigable phone shell', () => {
   const html = globalThis.HBViews.prototype(model.initialState(), content);
@@ -42,4 +43,13 @@ test('pad editor renders eight independent slots', () => {
   const html = globalThis.HBViews.prototype(state, content);
   assert.equal((html.match(/class="pad-slot/g) || []).length, 8);
   assert.match(html, /同步并覆盖到设备/);
+});
+
+test('annotation mode explains contract, states and acceptance', () => {
+  const state = model.reduce(model.initialState(), { type: 'GO_TO_VIEW', viewId: 'V04' });
+  const html = globalThis.HBViews.annotations(state, content);
+  assert.match(html, /V04 → M01 子页面/);
+  assert.match(html, /资源可用性 API/);
+  assert.match(html, /页面状态/);
+  assert.match(html, /验收/);
 });

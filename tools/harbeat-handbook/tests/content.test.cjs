@@ -49,3 +49,13 @@ test('handbook covers the approved product narrative', () => {
   assert.match(JSON.stringify(content.handbookSections), /个人推荐/);
   assert.match(JSON.stringify(content.handbookSections), /未经授权/);
 });
+
+test('every view declares its contract maturity', () => {
+  const serialized = JSON.stringify(content.annotations);
+  assert.match(serialized, /loading/);
+  assert.match(serialized, /offline/);
+  assert.match(serialized, /acceptance/);
+  for (const annotation of Object.values(content.annotations)) {
+    assert.match(annotation.contractStatus, /Mock|待确认/);
+  }
+});
