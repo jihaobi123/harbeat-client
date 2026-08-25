@@ -21,7 +21,7 @@
 | ▶️ **音频播放** | 播放/暂停、快进/快退、音量调节 |
 | 🔍 **在线搜索** | 接入 fangpi.net 平台，实时搜索歌曲 |
 | ⬇️ **在线下载** | 一键下载在线歌曲到本地曲库 |
-| 📈 **BPM / 小节 / Key 分析** | 三路 BPM 投票；Beat This + All-In-One + madmom 小节共识；Essentia 调性检测 |
+| 📈 **BPM / 小节 / Key 分析** | 三路 BPM 投票；Beat This + All-In-One + madmom 小节共识；libKeyFinder 主调性链路 + Essentia/madmom CNN 验证 |
 | 🎯 **Cue Points** | 自动段落识别 + 手动标记/删除 Cue 点 |
 | 🔁 **A-B Loop** | 标记 A/B 点循环播放片段 |
 | 🎚️ **BPM Sync** | 调整播放速率匹配目标 BPM |
@@ -291,6 +291,16 @@ harbeat-client/
 | `DOWNBEAT_MATCH_TOLERANCE_MS` | `70` | 两路小节时间点匹配窗口 |
 | `DOWNBEAT_AGREEMENT_F1` | `0.70` | 判定两路小节序列一致的最低 F1 |
 | `DOWNBEAT_MADMOM_BEATS_PER_BAR` | `4` | madmom 候选拍号；混合曲库可设为 `3,4` |
+| `KEY_ENABLE_LIBKEYFINDER` | `true` | 启用主调性识别链路 |
+| `KEYFINDER_CLI` | `keyfinder-cli` | libKeyFinder CLI 路径或命令 |
+| `KEYFINDER_ENABLE_SEGMENTS` | `true` | 整曲、主体、中央片段三次检测 |
+| `KEYFINDER_TIMEOUT_SECONDS` | `180` | 单次 libKeyFinder 超时 |
+| `KEY_ENABLE_ESSENTIA` | `true` | 启用 Essentia 调性验证 |
+| `KEY_ENABLE_MADMOM` | `true` | 启用 madmom CNN 调性验证 |
+| `KEY_MADMOM_COMMAND` | 空 | 独立 Python 3.10 madmom JSON 适配器命令 |
+
+调性识别的裁决规则、返回字段和部署步骤见
+[`docs/key_detection_backend_deployment.md`](docs/key_detection_backend_deployment.md)。
 
 ---
 

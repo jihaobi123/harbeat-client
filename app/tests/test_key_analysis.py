@@ -1,10 +1,18 @@
 """Tests for comprehensive key/tonal analysis."""
 import json
+import os
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
-from app.modules.library.analysis import _analyze_key
+from app.modules.library.analysis import (
+    _analyze_key,
+    _analyze_key_libkeyfinder,
+    _choose_key_consensus,
+    _key_result_from_camelot,
+    _parse_keyfinder_camelot,
+)
 
 
 class KeyAnalysisTests(unittest.TestCase):
@@ -70,6 +78,76 @@ class KeyAnalysisTests(unittest.TestCase):
         y = self._synthesize_sine_chord(261.63, major=True)
         result = _analyze_key(y, 22050)
         json.dumps(result)  # should not raise
+
+
+class KeyConsensusTests(unittest.TestCase):
+    @staticmethod
+    def _route(camelot: str, engine: str) -> dict:
+        return _key_result_from_camelot(
+            camelot,
+            engine=engine,
+            method=f"{engine}_test",
+            confidence=0.8,
+        )
+
+    def test_keyfinder_cli_camelot_parser(self):
+        self.assertEqual(_parse_keyfinder_camelot("8B\n"), "8B")
+        self.assertEqual(_parse_keyfinder_camelot("Detected key: 12A\n"), "12A")
+        with self.assertRaises(ValueError):
+            _parse_keyfinder_camelot("C major")
+
+    def test_libkeyfinder_uses_segment_majority(self):
+        audio = np.zeros(22050 * 61, dtype=np.float32)
+        with patch.dict(os.environ, {"KEYFINDER_ENABLE_SEGMENTS": "true"}), patch(
+            "app.modules.library.analysis._run_keyfinder_cli",
+            side_effect=["2A", "8A", "8A"],
+        ):
+            result = _analyze_key_libkeyfinder("song.mp3", audio, 22050)
+        self.assertEqual(result["camelot_key"], "8A")
+        self.assertEqual(result["engine"], "libkeyfinder")
+        self.assertAlmostEqual(result["route_stability"], 2 / 3, places=4)
+        self.assertEqual(len(result["segment_results"]), 3)
+
+    def test_primary_is_selected_when_one_validator_agrees(self):
+        result = _choose_key_consensus({
+            "libkeyfinder": self._route("2A", "libkeyfinder"),
+            "essentia": self._route("2A", "essentia"),
+            "madmom": self._route("3A", "madmom_cnn"),
+        })
+        self.assertEqual(result["camelot_key"], "2A")
+        self.assertEqual(result["selected_engine"], "libkeyfinder")
+        self.assertEqual(result["decision"], "primary_confirmed")
+        self.assertFalse(result["needs_review"])
+
+    def test_two_validators_can_override_primary(self):
+        result = _choose_key_consensus({
+            "libkeyfinder": self._route("2A", "libkeyfinder"),
+            "essentia": self._route("8A", "essentia"),
+            "madmom": self._route("8A", "madmom_cnn"),
+        })
+        self.assertEqual(result["camelot_key"], "8A")
+        self.assertEqual(result["decision"], "validators_override_primary")
+        self.assertEqual(result["confidence_level"], "high")
+
+    def test_local_route_breaks_three_way_conflict(self):
+        local = self._route("4A", "librosa_chroma_fallback")
+        result = _choose_key_consensus({
+            "libkeyfinder": self._route("2A", "libkeyfinder"),
+            "essentia": self._route("4A", "essentia"),
+            "madmom": self._route("8A", "madmom_cnn"),
+        }, local_fallback=local)
+        self.assertEqual(result["camelot_key"], "4A")
+        self.assertEqual(result["decision"], "local_tiebreak")
+        self.assertTrue(result["needs_review"])
+
+    def test_local_only_when_all_optional_routes_fail(self):
+        local = self._route("8B", "librosa_chroma_fallback")
+        result = _choose_key_consensus(
+            {}, errors={"libkeyfinder": "missing"}, local_fallback=local,
+        )
+        self.assertEqual(result["camelot_key"], "8B")
+        self.assertEqual(result["decision"], "local_only_fallback")
+        self.assertEqual(result["errors"]["libkeyfinder"], "missing")
 
 
 if __name__ == "__main__":

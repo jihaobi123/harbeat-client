@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import os
+import json
+import re
+import shlex
+import subprocess
 import threading
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from pathlib import Path
@@ -19,6 +24,7 @@ DOWNBEAT_AGREEMENT_F1 = 0.70
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
 _MADMOM_INFERENCE_LOCK = threading.Lock()
+_MADMOM_KEY_INFERENCE_LOCK = threading.Lock()
 
 
 def _env_flag(name: str, default: bool = True) -> bool:
@@ -75,6 +81,7 @@ NOTE_MODE_TO_CAMELOT = {
     ("F#", "minor"): "11A", ("G", "minor"): "6A", ("G#", "minor"): "1A",
     ("A", "minor"): "8A", ("A#", "minor"): "3A", ("B", "minor"): "10A",
 }
+CAMELOT_TO_NOTE_MODE = {value: key for key, value in NOTE_MODE_TO_CAMELOT.items()}
 
 FLAT_TO_SHARP = {
     "Db": "C#",
@@ -234,6 +241,268 @@ def _normalize_scale_name(scale: str) -> str:
     if raw in {"minor", "min"}:
         return "minor"
     return raw
+
+
+def _key_result_from_camelot(
+    camelot: str,
+    *,
+    engine: str,
+    method: str,
+    confidence: float = 0.0,
+    **details: Any,
+) -> dict:
+    normalized = str(camelot or "").strip().upper()
+    note_mode = CAMELOT_TO_NOTE_MODE.get(normalized)
+    if note_mode is None:
+        raise ValueError(f"unsupported Camelot key: {camelot!r}")
+    root, mode = note_mode
+    score = _clamp01(confidence)
+    return {
+        "key": f"{root} {mode}",
+        "camelot_key": normalized,
+        "key_confidence": round(score, 4),
+        "tonal_clarity": round(score, 4),
+        "relative_ambiguity": False,
+        "candidates": [{
+            "root": root,
+            "mode": mode,
+            "camelot": normalized,
+            "score": round(score, 4),
+            "source": method,
+        }],
+        "method": method,
+        "engine": engine,
+        **details,
+    }
+
+
+def _parse_keyfinder_camelot(output: str) -> str:
+    """Extract a Camelot key from keyfinder-cli stdout."""
+    matches = re.findall(r"(?<![0-9A-Z])(1[0-2]|[1-9])([AB])(?![0-9A-Z])", str(output).upper())
+    if not matches:
+        raise ValueError(f"keyfinder-cli returned no Camelot key: {output!r}")
+    return f"{matches[-1][0]}{matches[-1][1]}"
+
+
+def _run_keyfinder_cli(file_path: str) -> str:
+    command = shlex.split(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))
+    if not command:
+        raise RuntimeError("KEYFINDER_CLI is empty")
+    try:
+        timeout = float(os.getenv("KEYFINDER_TIMEOUT_SECONDS", "180"))
+    except ValueError:
+        timeout = 180.0
+    completed = subprocess.run(
+        [*command, "-n", "camelot", str(file_path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=max(10.0, timeout),
+    )
+    return _parse_keyfinder_camelot(completed.stdout)
+
+
+def _analyze_key_libkeyfinder(file_path: str, y: np.ndarray, sr: int) -> dict:
+    """Primary DJ key route using libKeyFinder through keyfinder-cli.
+
+    The whole track is always analyzed. For tracks of at least one minute, a
+    body crop and a centre crop are also analyzed to expose intros, outros and
+    local modulations instead of hiding them behind one global label.
+    """
+    route_results: list[dict[str, str]] = [{
+        "segment": "full",
+        "camelot": _run_keyfinder_cli(file_path),
+    }]
+
+    audio = np.asarray(y, dtype=np.float32)
+    duration = len(audio) / max(1, int(sr))
+    if _env_flag("KEYFINDER_ENABLE_SEGMENTS") and duration >= 60.0:
+        import soundfile as sf
+
+        segment_specs = [
+            ("body", int(len(audio) * 0.10), int(len(audio) * 0.90)),
+            ("center", max(0, len(audio) // 2 - int(sr * 45)), min(len(audio), len(audio) // 2 + int(sr * 45))),
+        ]
+        with TemporaryDirectory(prefix="harbeat-keyfinder-") as temp_dir:
+            for label, start, end in segment_specs:
+                segment_path = str(Path(temp_dir) / f"{label}.wav")
+                sf.write(segment_path, audio[start:end], int(sr), subtype="PCM_16")
+                try:
+                    route_results.append({
+                        "segment": label,
+                        "camelot": _run_keyfinder_cli(segment_path),
+                    })
+                except Exception as exc:
+                    route_results.append({
+                        "segment": label,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    })
+
+    successful = [item["camelot"] for item in route_results if item.get("camelot")]
+    counts = Counter(successful)
+    # Counter preserves insertion order, so a tie intentionally favours the
+    # full-track result, which is the first and canonical libKeyFinder pass.
+    selected, votes = counts.most_common(1)[0]
+    stability = votes / len(successful)
+    return _key_result_from_camelot(
+        selected,
+        engine="libkeyfinder",
+        method="libkeyfinder_global_segment_consensus",
+        confidence=stability,
+        route_stability=round(stability, 4),
+        segment_results=route_results,
+        command=command[0] if (command := shlex.split(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))) else "keyfinder-cli",
+    )
+
+
+def _analyze_key_madmom(file_path: str) -> dict:
+    """Independent 24-class CNN verification route from madmom."""
+    external_command = shlex.split(os.getenv("KEY_MADMOM_COMMAND", ""))
+    if external_command:
+        completed = subprocess.run(
+            [*external_command, str(file_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=max(10.0, float(os.getenv("KEY_MADMOM_TIMEOUT_SECONDS", "180"))),
+        )
+        payload = json.loads(completed.stdout)
+        label = str(payload["key"])
+        root_raw, mode_raw = label.rsplit(" ", 1)
+        root = _normalize_note_name(root_raw)
+        mode = _normalize_scale_name(mode_raw)
+        camelot = NOTE_MODE_TO_CAMELOT.get((root, mode))
+        if camelot is None:
+            raise ValueError(f"unsupported madmom key result: {label}")
+        return _key_result_from_camelot(
+            camelot,
+            engine="madmom_cnn",
+            method="madmom_cnn_key_recognition_external",
+            confidence=_clamp01(payload.get("confidence")),
+            raw_label=label,
+            candidates=payload.get("candidates", []),
+        )
+
+    with _MADMOM_KEY_INFERENCE_LOCK:
+        from madmom.features.key import (  # type: ignore[import-not-found]
+            CNNKeyRecognitionProcessor,
+            KEY_LABELS,
+        )
+        probabilities = np.asarray(CNNKeyRecognitionProcessor()(file_path), dtype=float).reshape(-1)
+    if probabilities.size != len(KEY_LABELS):
+        raise ValueError(f"madmom returned {probabilities.size} classes, expected {len(KEY_LABELS)}")
+    class_index = int(np.argmax(probabilities))
+    label = str(KEY_LABELS[class_index])
+    root_raw, mode_raw = label.rsplit(" ", 1)
+    root = _normalize_note_name(root_raw)
+    mode = _normalize_scale_name(mode_raw)
+    camelot = NOTE_MODE_TO_CAMELOT.get((root, mode))
+    if camelot is None:
+        raise ValueError(f"unsupported madmom key result: {label}")
+    confidence = _clamp01(probabilities[class_index])
+    top_indices = np.argsort(probabilities)[::-1][:3]
+    candidates = []
+    for index in top_indices:
+        candidate_root_raw, candidate_mode_raw = str(KEY_LABELS[int(index)]).rsplit(" ", 1)
+        candidate_root = _normalize_note_name(candidate_root_raw)
+        candidate_mode = _normalize_scale_name(candidate_mode_raw)
+        candidates.append({
+            "root": candidate_root,
+            "mode": candidate_mode,
+            "camelot": NOTE_MODE_TO_CAMELOT[(candidate_root, candidate_mode)],
+            "score": round(_clamp01(probabilities[int(index)]), 4),
+            "source": "madmom_cnn",
+        })
+    result = _key_result_from_camelot(
+        camelot,
+        engine="madmom_cnn",
+        method="madmom_cnn_key_recognition",
+        confidence=confidence,
+        raw_label=label,
+    )
+    result["candidates"] = candidates
+    return result
+
+
+def _choose_key_consensus(
+    route_results: dict[str, dict],
+    *,
+    errors: dict[str, str] | None = None,
+    local_fallback: dict | None = None,
+) -> dict:
+    """Select the public key while preserving libKeyFinder as primary."""
+    errors = dict(errors or {})
+    primary = route_results.get("libkeyfinder")
+    validators = [
+        route_results[name]
+        for name in ("essentia", "madmom")
+        if name in route_results
+    ]
+
+    selected: dict
+    decision: str
+    confidence_level: str
+    decision_confidence: float
+
+    if primary is not None:
+        primary_key = primary["camelot_key"]
+        agreeing = [item for item in validators if item["camelot_key"] == primary_key]
+        if agreeing:
+            selected, decision, confidence_level, decision_confidence = primary, "primary_confirmed", "high", 0.95
+        elif len(validators) == 2 and validators[0]["camelot_key"] == validators[1]["camelot_key"]:
+            selected, decision, confidence_level, decision_confidence = validators[0], "validators_override_primary", "high", 0.9
+        elif len(validators) == 2:
+            fallback_key = (local_fallback or {}).get("camelot_key")
+            fallback_match = next(
+                (item for item in [primary, *validators] if item["camelot_key"] == fallback_key),
+                None,
+            )
+            if fallback_match is not None:
+                selected, decision, confidence_level, decision_confidence = fallback_match, "local_tiebreak", "low", 0.55
+            else:
+                selected, decision, confidence_level, decision_confidence = primary, "primary_unresolved_conflict", "low", 0.4
+        else:
+            selected, decision, confidence_level, decision_confidence = primary, "primary_unconfirmed", "medium", 0.65
+    elif validators:
+        if len(validators) == 2 and validators[0]["camelot_key"] == validators[1]["camelot_key"]:
+            selected, decision, confidence_level, decision_confidence = validators[0], "validators_agree_primary_unavailable", "high", 0.85
+        else:
+            fallback_key = (local_fallback or {}).get("camelot_key")
+            selected = next((item for item in validators if item["camelot_key"] == fallback_key), validators[0])
+            decision = "validator_fallback"
+            confidence_level = "medium" if selected["camelot_key"] == fallback_key else "low"
+            decision_confidence = 0.65 if confidence_level == "medium" else 0.45
+    elif local_fallback is not None:
+        selected, decision, confidence_level, decision_confidence = local_fallback, "local_only_fallback", "low", 0.35
+    else:
+        raise RuntimeError("all key detection routes failed")
+
+    public = dict(selected)
+    public["key_confidence"] = round(decision_confidence, 4)
+    public["decision"] = decision
+    public["confidence_level"] = confidence_level
+    public["primary_engine"] = "libkeyfinder"
+    public["selected_engine"] = selected.get("engine")
+    public["needs_review"] = confidence_level == "low"
+    public["route_results"] = {
+        name: {
+            "key": result.get("key"),
+            "camelot_key": result.get("camelot_key"),
+            "confidence": result.get("key_confidence"),
+            "engine": result.get("engine"),
+            "route_stability": result.get("route_stability"),
+            "segment_results": result.get("segment_results"),
+        }
+        for name, result in route_results.items()
+    }
+    if local_fallback is not None:
+        public["local_fallback"] = {
+            "key": local_fallback.get("key"),
+            "camelot_key": local_fallback.get("camelot_key"),
+            "confidence": local_fallback.get("key_confidence"),
+        }
+    public["errors"] = errors
+    return public
 
 
 def _prepare_essentia_audio(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> np.ndarray:
@@ -2311,19 +2580,46 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     energy_curve = _build_energy_curve(y, sr)
     loudness_profile = _analyze_loudness(y, sr)
 
-    # Key detection. Essentia KeyExtractor is primary; the previous chroma
-    # Krumhansl-Schmuckler path remains an explicit fallback.
-    key_fallback_reason: str | None = None
-    try:
-        key_result = _analyze_key_essentia(y, sr, max_duration=MAX_ANALYSIS_DURATION)
-    except Exception as exc:
-        key_fallback_reason = f"{type(exc).__name__}: {exc}"
-        key_result = _analyze_key(y, sr)
-        key_result = {
-            **key_result,
+    # Key detection. libKeyFinder is the primary DJ-facing route. Essentia and
+    # madmom CNN independently verify it; the local CQT/CENS implementation is
+    # invoked only when a primary route is unavailable or the routes conflict.
+    key_routes: dict[str, dict] = {}
+    key_errors: dict[str, str] = {}
+    key_jobs: dict[Any, str] = {}
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="key-family") as executor:
+        if _env_flag("KEY_ENABLE_LIBKEYFINDER"):
+            key_jobs[executor.submit(_analyze_key_libkeyfinder, file_path, y, sr)] = "libkeyfinder"
+        if _env_flag("KEY_ENABLE_ESSENTIA"):
+            key_jobs[executor.submit(
+                _analyze_key_essentia, y, sr, max_duration=MAX_ANALYSIS_DURATION,
+            )] = "essentia"
+        if _env_flag("KEY_ENABLE_MADMOM"):
+            key_jobs[executor.submit(_analyze_key_madmom, file_path)] = "madmom"
+
+        for future in as_completed(key_jobs):
+            route_name = key_jobs[future]
+            try:
+                key_routes[route_name] = future.result()
+            except Exception as exc:
+                key_errors[route_name] = f"{type(exc).__name__}: {exc}"
+
+    route_keys = [result["camelot_key"] for result in key_routes.values()]
+    needs_local_fallback = (
+        not key_routes
+        or "libkeyfinder" not in key_routes
+        or (len(route_keys) >= 2 and len(set(route_keys)) == len(route_keys))
+    )
+    local_key_result: dict | None = None
+    if needs_local_fallback:
+        local_key_result = {
+            **_analyze_key(y, sr),
             "engine": "librosa_chroma_fallback",
-            "fallback_reason": key_fallback_reason,
         }
+    key_result = _choose_key_consensus(
+        key_routes,
+        errors=key_errors,
+        local_fallback=local_key_result,
+    )
 
     # Section detection → cue points (use analysis_duration for relative-position labels)
     cue_points = _detect_sections(y, sr, analysis_duration)
@@ -2368,6 +2664,14 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
             "raw_key": key_result.get("raw_key"),
             "raw_scale": key_result.get("raw_scale"),
             "strength": key_result.get("strength"),
+            "primary_engine": key_result.get("primary_engine"),
+            "selected_engine": key_result.get("selected_engine"),
+            "decision": key_result.get("decision"),
+            "confidence_level": key_result.get("confidence_level"),
+            "needs_review": key_result.get("needs_review"),
+            "route_results": key_result.get("route_results", {}),
+            "local_fallback": key_result.get("local_fallback"),
+            "errors": key_result.get("errors", {}),
         },
         "beat_points": beat_points,
         "bpm_curve": bpm_curve,
