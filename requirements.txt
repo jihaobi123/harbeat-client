@@ -17,6 +17,7 @@ pedalboard
 essentia==2.1b6.dev1177
 beat-this==1.1.0
 all-in-one-infer==3.1.0
+madmom-infer==0.2.0
 
 # === Stem Separation (demucs) ===
 # torch CPU installed separately in Dockerfile (smaller, faster)

@@ -21,7 +21,7 @@
 | ▶️ **音频播放** | 播放/暂停、快进/快退、音量调节 |
 | 🔍 **在线搜索** | 接入 fangpi.net 平台，实时搜索歌曲 |
 | ⬇️ **在线下载** | 一键下载在线歌曲到本地曲库 |
-| 📈 **BPM / Key 分析** | Beat This + All-In-One + Essentia 三路并行投票；Essentia 调性检测 |
+| 📈 **BPM / 小节 / Key 分析** | 三路 BPM 投票；Beat This + All-In-One + madmom 小节共识；Essentia 调性检测 |
 | 🎯 **Cue Points** | 自动段落识别 + 手动标记/删除 Cue 点 |
 | 🔁 **A-B Loop** | 标记 A/B 点循环播放片段 |
 | 🎚️ **BPM Sync** | 调整播放速率匹配目标 BPM |
@@ -147,11 +147,16 @@ cd web && npx vite --port 5180
 - **BPM** — 节拍速度
 - **Key** — 调性 + Camelot 编号
 - **Beat Points** — 逐拍时间戳
+- **Downbeats** — 小节第一拍时间戳与三路共识状态
 - **Cue Points** — 段落标记（可手动添加/删除）
 
 BPM 由 Beat This、All-In-One 和 Essentia 三路并行计算，并以 ±2 BPM
 为同组进行多数投票。后端部署、模型预下载、资源配置及降级策略见
-[BPM 三引擎后端部署说明](docs/bpm_consensus_backend_deployment.md)。
+[BPM 与小节三引擎后端部署说明](docs/bpm_consensus_backend_deployment.md)。
+
+小节第一拍（downbeat）独立采用 Beat This、All-In-One 和 madmom-infer 三路
+交叉验证，默认以 ±70 ms、F1 ≥ 0.70 判定两路一致；本地重音算法只负责冲突
+裁决或全部模型失败时的兜底。
 
 ### 5. DJ 工具
 - **A-B Loop** — 标记循环片段
@@ -282,6 +287,10 @@ harbeat-client/
 | `BPM_ENABLE_ALL_IN_ONE` | `true` | 启用 All-In-One BPM 线路 |
 | `BPM_ENABLE_ESSENTIA` | `true` | 启用 Essentia BPM 线路 |
 | `BPM_CONSENSUS_TOLERANCE` | `2.0` | 多数投票同组最大 BPM 差值 |
+| `DOWNBEAT_ENABLE_MADMOM` | `true` | 启用 madmom-infer 小节检测线路 |
+| `DOWNBEAT_MATCH_TOLERANCE_MS` | `70` | 两路小节时间点匹配窗口 |
+| `DOWNBEAT_AGREEMENT_F1` | `0.70` | 判定两路小节序列一致的最低 F1 |
+| `DOWNBEAT_MADMOM_BEATS_PER_BAR` | `4` | madmom 候选拍号；混合曲库可设为 `3,4` |
 
 ---
 

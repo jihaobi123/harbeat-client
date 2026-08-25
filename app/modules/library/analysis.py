@@ -13,9 +13,12 @@ import numpy as np
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 ESSENTIA_ANALYSIS_SAMPLE_RATE = 44100
 BPM_CONSENSUS_TOLERANCE = 2.0
+DOWNBEAT_MATCH_TOLERANCE_SECONDS = 0.07
+DOWNBEAT_AGREEMENT_F1 = 0.70
 
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
+_MADMOM_INFERENCE_LOCK = threading.Lock()
 
 
 def _env_flag(name: str, default: bool = True) -> bool:
@@ -30,6 +33,34 @@ def _bpm_consensus_tolerance() -> float:
         return float(np.clip(float(os.getenv("BPM_CONSENSUS_TOLERANCE", "2.0")), 0.1, 10.0))
     except (TypeError, ValueError):
         return BPM_CONSENSUS_TOLERANCE
+
+
+def _downbeat_match_tolerance() -> float:
+    try:
+        milliseconds = float(os.getenv("DOWNBEAT_MATCH_TOLERANCE_MS", "70"))
+        return float(np.clip(milliseconds / 1000.0, 0.02, 0.25))
+    except (TypeError, ValueError):
+        return DOWNBEAT_MATCH_TOLERANCE_SECONDS
+
+
+def _downbeat_agreement_f1() -> float:
+    try:
+        return float(np.clip(float(os.getenv("DOWNBEAT_AGREEMENT_F1", "0.70")), 0.1, 1.0))
+    except (TypeError, ValueError):
+        return DOWNBEAT_AGREEMENT_F1
+
+
+def _madmom_beats_per_bar() -> tuple[int, ...]:
+    raw = os.getenv("DOWNBEAT_MADMOM_BEATS_PER_BAR", "4")
+    values: list[int] = []
+    for item in raw.split(","):
+        try:
+            value = int(item.strip())
+        except (TypeError, ValueError):
+            continue
+        if 2 <= value <= 8 and value not in values:
+            values.append(value)
+    return tuple(values or [4])
 
 MAJOR_TEMPLATE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 MINOR_TEMPLATE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
@@ -371,7 +402,7 @@ def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
     import soundfile as sf
     from allin1_infer import analyze
 
-    model_name = os.getenv("BPM_ALL_IN_ONE_MODEL", "harmonix-fold0").strip() or "harmonix-fold0"
+    model_name = os.getenv("BPM_ALL_IN_ONE_MODEL", "harmonix-all").strip() or "harmonix-all"
     device = _resolve_torch_device("BPM_ALL_IN_ONE_DEVICE", prefer_accelerator=True)
     with TemporaryDirectory(prefix="harbeat-all-in-one-") as tmp:
         tmp_path = Path(tmp)
@@ -408,6 +439,69 @@ def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
         "engine": f"all_in_one:{model_name}",
         "sample_rate": int(sr),
         "method": "all_in_one_model",
+    }
+
+
+@lru_cache(maxsize=4)
+def _load_madmom_downbeat_processors(beats_per_bar: tuple[int, ...]):
+    from madmom_infer.features.downbeats import (
+        DBNDownBeatTrackingProcessor,
+        RNNDownBeatProcessor,
+    )
+
+    activation_processor = RNNDownBeatProcessor()
+    tracking_processor = DBNDownBeatTrackingProcessor(
+        beats_per_bar=list(beats_per_bar),
+        fps=100,
+    )
+    return activation_processor, tracking_processor
+
+
+def _analyze_downbeats_madmom(y: np.ndarray, sr: int) -> dict:
+    """Run the independent madmom BLSTM+DBN downbeat tracking route."""
+    audio = _prepare_essentia_audio(y, sr, max_duration=MAX_ANALYSIS_DURATION)
+    beats_per_bar = _madmom_beats_per_bar()
+    activation_processor, tracking_processor = _load_madmom_downbeat_processors(beats_per_bar)
+    with _MADMOM_INFERENCE_LOCK:
+        # The BLSTM front end creates three full-resolution spectrogram views.
+        # Processing long songs in one call can exceed container RAM, so build
+        # activations in overlapping chunks and run the continuity-enforcing
+        # DBN once over the stitched full-song activation sequence.
+        sample_rate = ESSENTIA_ANALYSIS_SAMPLE_RATE
+        chunk_samples = 60 * sample_rate
+        overlap_samples = 5 * sample_rate
+        activation_chunks: list[np.ndarray] = []
+        for core_start in range(0, len(audio), chunk_samples):
+            core_end = min(core_start + chunk_samples, len(audio))
+            expanded_start = max(0, core_start - overlap_samples)
+            expanded_end = min(len(audio), core_end + overlap_samples)
+            expanded = np.asarray(
+                activation_processor(audio[expanded_start:expanded_end]),
+                dtype=float,
+            )
+            keep_start = int(round((core_start - expanded_start) / sample_rate * 100))
+            expected_frames = int(round((core_end - core_start) / sample_rate * 100))
+            activation_chunks.append(expanded[keep_start:keep_start + expected_frames])
+        activations = np.concatenate(activation_chunks, axis=0) if activation_chunks else np.empty((0, 2))
+        tracked = np.asarray(tracking_processor(activations), dtype=float)
+    if tracked.ndim != 2 or tracked.shape[1] < 2 or len(tracked) == 0:
+        raise ValueError("madmom returned no beat/downbeat ticks")
+
+    downbeat_mask = np.rint(tracked[:, 1]).astype(int) == 1
+    downbeats = tracked[downbeat_mask, 0]
+    if len(downbeats) == 0:
+        raise ValueError("madmom returned no downbeats")
+    frames = np.clip(np.rint(downbeats * 100).astype(int), 0, max(len(activations) - 1, 0))
+    confidence = float(np.mean(activations[frames, 1])) if len(activations) else 0.0
+    return {
+        "beat_times": np.asarray(tracked[:, 0], dtype=float),
+        "downbeats": [round(float(value), 3) for value in downbeats],
+        "beat_positions": [int(round(value)) for value in tracked[:, 1]],
+        "confidence": float(np.clip(confidence, 0.0, 1.0)),
+        "engine": "madmom_infer:rnn_dbn",
+        "method": "blstm_dbn_downbeat_tracking",
+        "beats_per_bar": list(beats_per_bar),
+        "sample_rate": ESSENTIA_ANALYSIS_SAMPLE_RATE,
     }
 
 
@@ -1138,6 +1232,147 @@ def _detect_downbeats(y: np.ndarray, sr: int, beat_times: np.ndarray) -> list[fl
     """Compatibility wrapper for callers that only need bar boundaries."""
     downbeats, _time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
     return downbeats
+
+
+def _downbeat_match_metrics(
+    first: list[float] | np.ndarray,
+    second: list[float] | np.ndarray,
+    *,
+    tolerance: float = DOWNBEAT_MATCH_TOLERANCE_SECONDS,
+) -> dict:
+    """Return one-to-one downbeat matching metrics within a time tolerance."""
+    left = np.asarray(first, dtype=float)
+    right = np.asarray(second, dtype=float)
+    left = np.sort(left[np.isfinite(left)])
+    right = np.sort(right[np.isfinite(right)])
+    if len(left) == 0 or len(right) == 0:
+        return {"precision": 0.0, "recall": 0.0, "f1": 0.0, "matches": 0, "mean_error_ms": None}
+
+    used: set[int] = set()
+    errors: list[float] = []
+    for value in left:
+        candidates = np.where(np.abs(right - value) <= tolerance)[0]
+        candidates = [int(index) for index in candidates if int(index) not in used]
+        if not candidates:
+            continue
+        index = min(candidates, key=lambda item: abs(float(right[item] - value)))
+        used.add(index)
+        errors.append(abs(float(right[index] - value)))
+    matches = len(errors)
+    precision = matches / len(left)
+    recall = matches / len(right)
+    f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {
+        "precision": round(float(precision), 4),
+        "recall": round(float(recall), 4),
+        "f1": round(float(f1), 4),
+        "matches": matches,
+        "mean_error_ms": round(float(np.mean(errors) * 1000.0), 2) if errors else None,
+    }
+
+
+def _choose_downbeat_consensus(
+    results: dict[str, dict],
+    *,
+    accent_fallback: list[float],
+    tolerance: float = DOWNBEAT_MATCH_TOLERANCE_SECONDS,
+    agreement_f1: float = DOWNBEAT_AGREEMENT_F1,
+    preferred_engine: str = "all_in_one",
+) -> tuple[list[float], dict]:
+    """Choose a coherent native downbeat sequence, using accents only as fallback/tie-break."""
+    valid = {
+        name: value for name, value in results.items()
+        if len(value.get("downbeats") or []) >= 2
+    }
+    priority = {"all_in_one": 0, "beat_this": 1, "madmom": 2}
+    names = sorted(valid, key=lambda name: priority.get(name, 99))
+    pair_metrics: dict[str, dict] = {}
+    agreeing_pairs: set[frozenset[str]] = set()
+    for index, first_name in enumerate(names):
+        for second_name in names[index + 1:]:
+            metrics = _downbeat_match_metrics(
+                valid[first_name]["downbeats"],
+                valid[second_name]["downbeats"],
+                tolerance=tolerance,
+            )
+            pair_metrics[f"{first_name}:{second_name}"] = metrics
+            if float(metrics["f1"]) >= agreement_f1:
+                agreeing_pairs.add(frozenset((first_name, second_name)))
+
+    groups: list[list[str]] = []
+    for mask in range(1, 1 << len(names)):
+        group = [names[index] for index in range(len(names)) if mask & (1 << index)]
+        if len(group) == 1 or all(
+            frozenset((group[left], group[right])) in agreeing_pairs
+            for left in range(len(group)) for right in range(left + 1, len(group))
+        ):
+            groups.append(group)
+
+    available_count = len(valid)
+    winning_group = max(
+        groups,
+        key=lambda group: (
+            len(group),
+            preferred_engine in group,
+            -sum(priority.get(name, 99) for name in group),
+        ),
+        default=[],
+    )
+    has_model_agreement = len(winning_group) >= 2
+    accent_metrics = {
+        name: _downbeat_match_metrics(value["downbeats"], accent_fallback, tolerance=tolerance)
+        for name, value in valid.items()
+    }
+
+    if has_model_agreement:
+        selected_engine = min(winning_group, key=lambda name: priority.get(name, 99))
+        status = (
+            "unanimous" if len(winning_group) == available_count == 3
+            else "majority" if available_count == 3
+            else "degraded_agreement"
+        )
+        needs_review = available_count < 3
+    elif names:
+        accent_winner = max(
+            names,
+            key=lambda name: (float(accent_metrics[name]["f1"]), -priority.get(name, 99)),
+        )
+        selected_engine = accent_winner if float(accent_metrics[accent_winner]["f1"]) >= agreement_f1 else names[0]
+        winning_group = [selected_engine]
+        status = "accent_tiebreak" if selected_engine == accent_winner and float(accent_metrics[accent_winner]["f1"]) >= agreement_f1 else "no_majority"
+        needs_review = True
+    else:
+        return list(accent_fallback), {
+            "selected_engine": "accent_fallback",
+            "winning_engines": [],
+            "agreement_count": 0,
+            "available_count": 0,
+            "status": "fallback",
+            "needs_review": True,
+            "tolerance_ms": round(tolerance * 1000.0, 2),
+            "agreement_f1_threshold": agreement_f1,
+            "pair_metrics": {},
+            "accent_metrics": {},
+        }
+
+    selected = [round(float(value), 3) for value in valid[selected_engine]["downbeats"]]
+    return selected, {
+        "selected_engine": selected_engine,
+        "selected_engine_name": valid[selected_engine].get("engine"),
+        "winning_engines": winning_group,
+        "agreement_count": len(winning_group),
+        "available_count": available_count,
+        "status": status,
+        "needs_review": needs_review,
+        "tolerance_ms": round(tolerance * 1000.0, 2),
+        "agreement_f1_threshold": agreement_f1,
+        "pair_metrics": pair_metrics,
+        "accent_metrics": accent_metrics,
+        "model_confidences": {
+            name: round(float(value.get("confidence", 0.0)), 4)
+            for name, value in valid.items()
+        },
+    }
 
 
 def _detect_phrase_structure(
@@ -1979,17 +2214,34 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     rhythm_results: dict[str, dict] = {}
     bpm_consensus: dict[str, Any] | None = None
     rhythm_fallback_reason: str | None = None
-    try:
-        rhythm_result, bpm_consensus, rhythm_results = _analyze_rhythm_parallel(
-            y, sr, max_duration=MAX_ANALYSIS_DURATION,
+    madmom_result: dict[str, Any] | None = None
+    madmom_error: str | None = None
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="rhythm-family") as executor:
+        rhythm_future = executor.submit(
+            _analyze_rhythm_parallel, y, sr, max_duration=MAX_ANALYSIS_DURATION,
         )
-        bpm = float(bpm_consensus["bpm"])
-        beat_times = np.asarray(rhythm_result["beat_times"], dtype=float)
-    except Exception as exc:
-        rhythm_fallback_reason = f"{type(exc).__name__}: {exc}"
-        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-        bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
-        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        madmom_future = (
+            executor.submit(_analyze_downbeats_madmom, y, sr)
+            if _env_flag("DOWNBEAT_ENABLE_MADMOM") else None
+        )
+        try:
+            rhythm_result, bpm_consensus, rhythm_results = rhythm_future.result()
+            bpm = float(bpm_consensus["bpm"])
+            beat_times = np.asarray(rhythm_result["beat_times"], dtype=float)
+        except Exception as exc:
+            rhythm_fallback_reason = f"{type(exc).__name__}: {exc}"
+            tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+            bpm = float(tempo) if not hasattr(tempo, "__len__") else float(tempo[0])
+            beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        if madmom_future is not None:
+            try:
+                madmom_result = madmom_future.result()
+            except Exception as exc:
+                madmom_error = f"{type(exc).__name__}: {exc}"
+
+    if rhythm_result is None and rhythm_fallback_reason is None:
+        # Defensive guard for unexpected future orchestration changes.
+        rhythm_fallback_reason = "rhythm consensus returned no selected engine"
     beat_points = [round(float(t), 3) for t in beat_times]
     bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
     beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
@@ -2026,8 +2278,32 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         details["fallback_reason"] = rhythm_fallback_reason
         beatgrid_summary["beat_confidence_details"] = details
 
-    # Downbeats and meter are inferred from the same beat-accent evidence.
-    downbeats, time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
+    # Native downbeats are voted independently from BPM. The local beat-accent
+    # route is intentionally only a tie-break/fallback.
+    accent_downbeats, _accent_time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
+    downbeat_results = {
+        name: rhythm_results[name]
+        for name in ("beat_this", "all_in_one")
+        if name in rhythm_results and rhythm_results[name].get("downbeats")
+    }
+    if madmom_result is not None:
+        downbeat_results["madmom"] = madmom_result
+    downbeats, downbeat_consensus = _choose_downbeat_consensus(
+        downbeat_results,
+        accent_fallback=accent_downbeats,
+        tolerance=_downbeat_match_tolerance(),
+        agreement_f1=_downbeat_agreement_f1(),
+    )
+    downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
+    time_signature = _detect_time_signature(beat_times, downbeats, bpm=bpm)
+    time_signature["needs_review"] = bool(downbeat_consensus["needs_review"])
+    time_signature["downbeat_consensus"] = downbeat_consensus
+    beatgrid_summary["beat_needs_review"] = bool(
+        beatgrid_summary.get("beat_needs_review") or downbeat_consensus["needs_review"]
+    )
+    beat_details = dict(beatgrid_summary.get("beat_confidence_details") or {})
+    beat_details["downbeat_consensus"] = downbeat_consensus
+    beatgrid_summary["beat_confidence_details"] = beat_details
 
     # Energy
     rms = librosa.feature.rms(y=y)[0]
