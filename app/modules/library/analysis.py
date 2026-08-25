@@ -1,11 +1,35 @@
 from __future__ import annotations
 
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import numpy as np
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 ESSENTIA_ANALYSIS_SAMPLE_RATE = 44100
+BPM_CONSENSUS_TOLERANCE = 2.0
+
+_BEAT_THIS_INFERENCE_LOCK = threading.Lock()
+_ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
+
+
+def _env_flag(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _bpm_consensus_tolerance() -> float:
+    try:
+        return float(np.clip(float(os.getenv("BPM_CONSENSUS_TOLERANCE", "2.0")), 0.1, 10.0))
+    except (TypeError, ValueError):
+        return BPM_CONSENSUS_TOLERANCE
 
 MAJOR_TEMPLATE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 MINOR_TEMPLATE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
@@ -274,6 +298,219 @@ def _analyze_rhythm_essentia(y: np.ndarray, sr: int, *, max_duration: float | No
         "sample_rate": ESSENTIA_ANALYSIS_SAMPLE_RATE,
         "method": "multifeature",
     }
+
+
+def _bpm_from_beat_times(beat_times: list[float] | np.ndarray) -> float:
+    """Estimate a stable global BPM from an engine's detected beat positions."""
+    beats = np.asarray(beat_times, dtype=float)
+    intervals = np.diff(beats)
+    intervals = intervals[(intervals >= 0.18) & (intervals <= 2.0)]
+    if len(intervals) < 2:
+        raise ValueError("not enough valid beat intervals to estimate BPM")
+    return float(60.0 / np.median(intervals))
+
+
+def _resolve_torch_device(env_name: str, *, prefer_accelerator: bool) -> str:
+    """Resolve an optional device override without importing torch at module load."""
+    override = os.getenv(env_name, "").strip().lower()
+    if override:
+        return override
+    if not prefer_accelerator:
+        return "cpu"
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
+
+
+@lru_cache(maxsize=4)
+def _load_beat_this_analyzer(model_name: str, device: str):
+    from beat_this.inference import Audio2Beats
+
+    return Audio2Beats(checkpoint_path=model_name, device=device, float16=False, dbn=False)
+
+
+def _analyze_rhythm_beat_this(y: np.ndarray, sr: int) -> dict:
+    """Run the Beat This model and derive BPM from its predicted beat grid."""
+    model_name = os.getenv("BPM_BEAT_THIS_MODEL", "final0").strip() or "final0"
+    device = _resolve_torch_device("BPM_BEAT_THIS_DEVICE", prefer_accelerator=False)
+    analyzer = _load_beat_this_analyzer(model_name, device)
+    with _BEAT_THIS_INFERENCE_LOCK:
+        beats, downbeats = analyzer(np.asarray(y, dtype=np.float32), int(sr))
+    beat_times = np.asarray(beats, dtype=float)
+    if len(beat_times) == 0:
+        raise ValueError("Beat This returned no beat ticks")
+    bpm = _bpm_from_beat_times(beat_times)
+    intervals = np.diff(beat_times)
+    interval_mean = float(np.mean(intervals)) if len(intervals) else 0.0
+    confidence = (
+        float(np.clip(1.0 - np.std(intervals) / interval_mean, 0.0, 1.0))
+        if interval_mean > 0 else 0.0
+    )
+    return {
+        "bpm": bpm,
+        "beat_times": beat_times,
+        "downbeats": [round(float(x), 3) for x in np.asarray(downbeats, dtype=float)],
+        "confidence": confidence,
+        "bpm_candidates": [{"bpm": round(bpm, 3), "source": "beat_this_grid"}],
+        "bpm_intervals": [round(float(x), 6) for x in list(intervals)[:16]],
+        "engine": f"beat_this:{model_name}",
+        "sample_rate": int(sr),
+        "method": "median_detected_beat_interval",
+    }
+
+
+def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
+    """Run All-In-One on a temporary WAV to avoid platform MP3 decoder drift."""
+    import soundfile as sf
+    from allin1_infer import analyze
+
+    model_name = os.getenv("BPM_ALL_IN_ONE_MODEL", "harmonix-fold0").strip() or "harmonix-fold0"
+    device = _resolve_torch_device("BPM_ALL_IN_ONE_DEVICE", prefer_accelerator=True)
+    with TemporaryDirectory(prefix="harbeat-all-in-one-") as tmp:
+        tmp_path = Path(tmp)
+        wav_path = tmp_path / "analysis.wav"
+        sf.write(wav_path, np.asarray(y, dtype=np.float32), int(sr), subtype="PCM_16")
+        with _ALL_IN_ONE_INFERENCE_LOCK:
+            result = analyze(
+                wav_path,
+                model=model_name,
+                device=device,
+                multiprocess=False,
+                demix_dir=tmp_path / "demix",
+                spec_dir=tmp_path / "spec",
+                keep_byproducts=False,
+            )
+
+    beat_times = np.asarray(result.beats, dtype=float)
+    if len(beat_times) == 0:
+        raise ValueError("All-In-One returned no beat ticks")
+    bpm = float(result.bpm) if result.bpm else _bpm_from_beat_times(beat_times)
+    intervals = np.diff(beat_times)
+    interval_mean = float(np.mean(intervals)) if len(intervals) else 0.0
+    confidence = (
+        float(np.clip(1.0 - np.std(intervals) / interval_mean, 0.0, 1.0))
+        if interval_mean > 0 else 0.0
+    )
+    return {
+        "bpm": bpm,
+        "beat_times": beat_times,
+        "downbeats": [round(float(x), 3) for x in np.asarray(result.downbeats, dtype=float)],
+        "confidence": confidence,
+        "bpm_candidates": [{"bpm": round(bpm, 3), "source": "all_in_one"}],
+        "bpm_intervals": [round(float(x), 6) for x in list(intervals)[:16]],
+        "engine": f"all_in_one:{model_name}",
+        "sample_rate": int(sr),
+        "method": "all_in_one_model",
+    }
+
+
+def _choose_bpm_consensus(
+    results: dict[str, dict],
+    *,
+    tolerance: float = BPM_CONSENSUS_TOLERANCE,
+    preferred_engine: str = "essentia",
+) -> dict:
+    """Choose the largest pairwise-agreeing BPM group, then its median.
+
+    Engine values within ``tolerance`` BPM of each other are one vote group.
+    If every available engine disagrees, the current Essentia route is retained
+    as a deterministic fallback and the result is marked for review.
+    """
+    valid = {
+        name: value for name, value in results.items()
+        if np.isfinite(float(value.get("bpm", 0.0))) and float(value.get("bpm", 0.0)) > 0
+    }
+    if not valid:
+        raise ValueError("all BPM engines failed")
+
+    canonical_order = ["beat_this", "all_in_one", "essentia"]
+    names = [name for name in canonical_order if name in valid]
+    names.extend(sorted(name for name in valid if name not in canonical_order))
+    groups: list[list[str]] = []
+    for mask in range(1, 1 << len(names)):
+        group = [names[index] for index in range(len(names)) if mask & (1 << index)]
+        bpms = [float(valid[name]["bpm"]) for name in group]
+        if max(bpms) - min(bpms) <= tolerance:
+            groups.append(group)
+
+    largest = max(len(group) for group in groups)
+    candidates = [group for group in groups if len(group) == largest]
+    candidates.sort(key=lambda group: (
+        preferred_engine not in group,
+        -sum(name in group for name in ("beat_this", "all_in_one")),
+        [names.index(name) for name in group],
+    ))
+    winning_group = candidates[0]
+    has_majority = len(winning_group) >= 2
+
+    if has_majority:
+        consensus_bpm = float(np.median([float(valid[name]["bpm"]) for name in winning_group]))
+    else:
+        fallback_name = preferred_engine if preferred_engine in valid else names[0]
+        winning_group = [fallback_name]
+        consensus_bpm = float(valid[fallback_name]["bpm"])
+
+    engine_priority = {"beat_this": 0, "all_in_one": 1, "essentia": 2}
+    selected_engine = min(
+        winning_group,
+        key=lambda name: (
+            abs(float(valid[name]["bpm"]) - consensus_bpm),
+            engine_priority.get(name, 99),
+        ),
+    )
+    available_count = len(valid)
+    status = (
+        "unanimous" if has_majority and len(winning_group) == available_count == 3
+        else "majority" if has_majority and available_count == 3
+        else "degraded_agreement" if has_majority
+        else "no_majority"
+    )
+    return {
+        "bpm": consensus_bpm,
+        "selected_engine": selected_engine,
+        "winning_engines": winning_group,
+        "agreement_count": len(winning_group),
+        "available_count": available_count,
+        "status": status,
+        "needs_review": not has_majority or available_count < 3,
+        "tolerance": float(tolerance),
+        "votes": {name: round(float(value["bpm"]), 3) for name, value in valid.items()},
+    }
+
+
+def _analyze_rhythm_parallel(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> tuple[dict, dict, dict]:
+    """Run Beat This, All-In-One, and Essentia concurrently and vote on BPM."""
+    jobs = {}
+    if _env_flag("BPM_ENABLE_BEAT_THIS"):
+        jobs["beat_this"] = lambda: _analyze_rhythm_beat_this(y, sr)
+    if _env_flag("BPM_ENABLE_ALL_IN_ONE"):
+        jobs["all_in_one"] = lambda: _analyze_rhythm_all_in_one(y, sr)
+    if _env_flag("BPM_ENABLE_ESSENTIA"):
+        jobs["essentia"] = lambda: _analyze_rhythm_essentia(y, sr, max_duration=max_duration)
+    if not jobs:
+        raise ValueError("all BPM engines are disabled")
+    results: dict[str, dict] = {}
+    errors: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="bpm-engine") as executor:
+        futures = {executor.submit(job): name for name, job in jobs.items()}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                errors[name] = f"{type(exc).__name__}: {exc}"
+
+    consensus = _choose_bpm_consensus(results, tolerance=_bpm_consensus_tolerance())
+    consensus["errors"] = errors
+    selected = results[consensus["selected_engine"]]
+    return selected, consensus, results
 
 
 def _analyze_key(y: np.ndarray, sr: int) -> dict:
@@ -1734,13 +1971,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     # Reported duration = real file length when available
     duration = real_duration if real_duration is not None else analysis_duration
 
-    # BPM + beat points. Essentia is the primary DJ-grade detector; librosa is
-    # kept only as an explicit fallback so downstream plans know the source.
+    # BPM + beat points. Beat This, All-In-One, and the existing Essentia route
+    # run concurrently. Values within ±2 BPM form one vote group; the largest
+    # group wins and its median is the public BPM. Librosa remains the final
+    # fallback when all three optional engines fail.
     rhythm_result: dict[str, Any] | None = None
+    rhythm_results: dict[str, dict] = {}
+    bpm_consensus: dict[str, Any] | None = None
     rhythm_fallback_reason: str | None = None
     try:
-        rhythm_result = _analyze_rhythm_essentia(y, sr, max_duration=MAX_ANALYSIS_DURATION)
-        bpm = float(rhythm_result["bpm"])
+        rhythm_result, bpm_consensus, rhythm_results = _analyze_rhythm_parallel(
+            y, sr, max_duration=MAX_ANALYSIS_DURATION,
+        )
+        bpm = float(bpm_consensus["bpm"])
         beat_times = np.asarray(rhythm_result["beat_times"], dtype=float)
     except Exception as exc:
         rhythm_fallback_reason = f"{type(exc).__name__}: {exc}"
@@ -1751,14 +1994,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     bpm_curve, tempo_stability = _build_bpm_curve(beat_times)
     beatgrid_summary = _summarize_beatgrid(beat_times, bpm_curve, tempo_stability)
     if rhythm_result is not None:
-        beatgrid_summary["beat_engines_used"] = [rhythm_result["engine"]]
+        beatgrid_summary["beat_engines_used"] = [
+            rhythm_results[name]["engine"] for name in ("beat_this", "all_in_one", "essentia")
+            if name in rhythm_results
+        ]
         details = dict(beatgrid_summary.get("beat_confidence_details") or {})
         details.update({
-            "essentia_confidence": round(float(rhythm_result.get("confidence", 0.0)), 4),
+            "selected_bpm_engine": rhythm_result["engine"],
+            "selected_engine_confidence": round(float(rhythm_result.get("confidence", 0.0)), 4),
             "bpm_candidates": rhythm_result.get("bpm_candidates", []),
             "bpm_intervals": rhythm_result.get("bpm_intervals", []),
             "method": rhythm_result.get("method"),
             "sample_rate": rhythm_result.get("sample_rate"),
+            "bpm_consensus": bpm_consensus,
         })
         beatgrid_summary["beat_confidence_details"] = details
         beatgrid_summary["beat_confidence"] = round(float(np.clip(
@@ -1770,6 +2018,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         beatgrid_summary["beat_needs_review"] = bool(
             beatgrid_summary.get("beat_confidence", 0.0) < 0.72
             or len(beat_points) < 16
+            or bool((bpm_consensus or {}).get("needs_review"))
         )
     else:
         beatgrid_summary["beat_engines_used"] = ["librosa_fallback"]

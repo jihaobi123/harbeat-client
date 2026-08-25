@@ -11,10 +11,11 @@
       - redis
     volumes:
       - music_data:/app/data/music-files
+      - model_cache:/root/.cache
     deploy:
       resources:
         limits:
-          memory: 3G
+          memory: 8G
     environment:
       - MALLOC_ARENA_MAX=2
       - PYTHONDONTWRITEBYTECODE=1
@@ -49,3 +50,4 @@
 volumes:
   music_data:
   redis_data:
+  model_cache:
