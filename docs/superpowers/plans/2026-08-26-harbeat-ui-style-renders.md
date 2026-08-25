@@ -2,13 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 生成 6 张 HarBeat 移动端 UI 展示图，每张并排呈现首页、音乐、设备、我的四个页面，并完整保留产品手册定义的入口、状态含义和操作关系。
+**Goal:** 生成 3 张最终 HarBeat 移动端 UI 展示图，每张并排呈现首页、音乐、设备、我的四个页面，并完整保留产品手册定义的入口、状态含义和操作关系。
 
 **Architecture:** 先从产品手册锁定任务顺序、按钮语义、状态关系和四个底部 Tab，再为六套风格分别建立视觉锚点、版式语法和组件模型。现有四张页面图只用于核对内容，不能当作固定几何模板。最后逐张检查文字、页面完整性与流程入口，并把合格图片保存到统一目录。
 
 **Tech Stack:** Codex 内置图像生成、产品手册 HTML、参考 PNG、人工视觉核对
 
 ---
+
+## 评审后的范围调整
+
+最终只深化三套：叙事插画、瑞士信息网格、新粗野插画。原 Task 4 的夜场信号、Task 6 的液态数字和 Task 7 的 Y2K 数码俱乐部停止；原 Task 2、Task 3、Task 5 分别重构为新粗野插画、叙事插画、瑞士信息网格。三套都需要先确定颜色角色和使用比例，再生成最终图。
 
 ### Task 1: 锁定四屏内容与流程
 
