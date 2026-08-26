@@ -1,4 +1,4 @@
-"""Deterministic drum-stem transcription for DJ-oriented metadata.
+"""Mature-model-first drum transcription for DJ-oriented metadata.
 
 The analyzer expects an isolated Demucs ``drums`` stem.  It deliberately keeps
 the output confidence-gated: frequency-band transients are useful for DJ
@@ -12,8 +12,8 @@ import librosa
 import numpy as np
 
 
-DRUM_ANALYSIS_VERSION = "spectral_flux_v1"
-DRUM_CLASSES = ("kick", "snare", "hihat")
+DRUM_ANALYSIS_VERSION = "drum_transcription_consensus_v2"
+DRUM_CLASSES = ("kick", "snare", "hihat", "tom", "cymbal")
 
 
 def empty_drum_analysis(reason: str = "drums_stem_unavailable") -> dict[str, Any]:
@@ -36,7 +36,50 @@ def empty_drum_analysis(reason: str = "drums_stem_unavailable") -> dict[str, Any
         "fills": [],
         "confidence": {"overall": 0.0, **{name: 0.0 for name in DRUM_CLASSES}},
         "quality_flags": [reason],
+        "engine_routes": {},
     }
+
+
+def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[str, list[dict]], str] | None:
+    if not model_route or model_route.get("status") != "ready":
+        return None
+    payload = model_route.get("result") or {}
+    raw_events = payload.get("events")
+    if not isinstance(raw_events, dict):
+        return None
+    aliases = {
+        "bd": "kick", "bass_drum": "kick", "kick_drum": "kick",
+        "sd": "snare", "snare_drum": "snare",
+        "hh": "hihat", "hi_hat": "hihat", "closed_hihat": "hihat", "open_hihat": "hihat",
+        "toms": "tom", "ride": "cymbal", "crash": "cymbal", "cymbals": "cymbal",
+    }
+    normalized = {name: [] for name in DRUM_CLASSES}
+    for raw_name, values in raw_events.items():
+        name = aliases.get(str(raw_name).strip().lower(), str(raw_name).strip().lower())
+        if name not in normalized or not isinstance(values, list):
+            continue
+        for value in values:
+            event = {"time": value} if isinstance(value, (int, float)) else value
+            if not isinstance(event, dict):
+                continue
+            try:
+                timestamp = float(event["time"])
+                confidence = float(event.get("confidence", event.get("probability", 0.75)))
+                velocity = int(round(float(event.get("velocity", 35 + 92 * confidence))))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if timestamp < 0 or not np.isfinite(timestamp):
+                continue
+            normalized[name].append({
+                "time": round(timestamp, 4),
+                "confidence": round(float(np.clip(confidence, 0.0, 1.0)), 4),
+                "velocity": int(np.clip(velocity, 1, 127)),
+            })
+    for name in DRUM_CLASSES:
+        normalized[name].sort(key=lambda item: item["time"])
+    if not any(normalized.values()):
+        return None
+    return normalized, str(payload.get("engine") or model_route.get("engine") or "dedicated_drum_model")
 
 
 def _float_points(values: list[float] | np.ndarray | None) -> np.ndarray:
@@ -210,7 +253,7 @@ def _pattern_and_fills(
             class_steps[name] = steps
         encoded = {
             name: "".join(symbol if step in class_steps[name] else "." for step in range(16))
-            for name, symbol in (("kick", "K"), ("snare", "S"), ("hihat", "H"))
+            for name, symbol in (("kick", "K"), ("snare", "S"), ("hihat", "H"), ("tom", "T"), ("cymbal", "C"))
         }
         offbeat = sum(step % 4 not in (0,) for steps in class_steps.values() for step in steps)
         total = sum(len(steps) for steps in class_steps.values())
@@ -319,6 +362,7 @@ def analyze_drum_stem(
     downbeats: list[float] | np.ndarray | None = None,
     separation_quality: float = 0.75,
     density_window_sec: float = 2.0,
+    model_route: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Detect kick/snare/hi-hat events and derive DJ rhythm metadata."""
     if audio is None or sr <= 0 or len(audio) < sr:
@@ -333,30 +377,30 @@ def analyze_drum_stem(
         mono = librosa.resample(mono, orig_sr=sr, target_sr=target_sr)
         sr = target_sr
 
-    hop_length = 256
-    n_fft = 1024
-    spectrum = np.abs(librosa.stft(mono, n_fft=n_fft, hop_length=hop_length)) ** 2
-    frequencies = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-    low = _band_flux(spectrum, frequencies, 30.0, 180.0)
-    mid = _band_flux(spectrum, frequencies, 180.0, 4000.0)
-    high = _band_flux(spectrum, frequencies, 4000.0, min(11000.0, sr / 2.0))
-
-    kick_score = _robust_unit(low * (0.75 + 0.25 * (1.0 - high)))
-    snare_score = _robust_unit(np.clip(0.72 * mid + 0.38 * high - 0.20 * low, 0.0, None))
-    hihat_score = _robust_unit(np.clip(0.90 * high + 0.10 * mid - 0.28 * low, 0.0, None))
-    events = {
-        "kick": _pick_events(kick_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.09, threshold=0.48),
-        "snare": _pick_events(snare_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.10, threshold=0.55),
-        "hihat": _pick_events(hihat_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.05, threshold=0.58),
-    }
-    events = _remove_spectral_leakage(
-        events,
-        low=low,
-        mid=mid,
-        high=high,
-        sr=sr,
-        hop_length=hop_length,
-    )
+    model_events = _normalized_model_events(model_route)
+    if model_events is not None:
+        events, selected_engine = model_events
+        detector_mode = "dedicated_model"
+    else:
+        hop_length = 256
+        n_fft = 1024
+        spectrum = np.abs(librosa.stft(mono, n_fft=n_fft, hop_length=hop_length)) ** 2
+        frequencies = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
+        low = _band_flux(spectrum, frequencies, 30.0, 180.0)
+        mid = _band_flux(spectrum, frequencies, 180.0, 4000.0)
+        high = _band_flux(spectrum, frequencies, 4000.0, min(11000.0, sr / 2.0))
+        kick_score = _robust_unit(low * (0.75 + 0.25 * (1.0 - high)))
+        snare_score = _robust_unit(np.clip(0.72 * mid + 0.38 * high - 0.20 * low, 0.0, None))
+        hihat_score = _robust_unit(np.clip(0.90 * high + 0.10 * mid - 0.28 * low, 0.0, None))
+        core_events = {
+            "kick": _pick_events(kick_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.09, threshold=0.48),
+            "snare": _pick_events(snare_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.10, threshold=0.55),
+            "hihat": _pick_events(hihat_score, sr=sr, hop_length=hop_length, minimum_gap_seconds=0.05, threshold=0.58),
+        }
+        core_events = _remove_spectral_leakage(core_events, low=low, mid=mid, high=high, sr=sr, hop_length=hop_length)
+        events = {**core_events, "tom": [], "cymbal": []}
+        selected_engine = "spectral_flux_fallback"
+        detector_mode = "fallback"
     duration = len(mono) / sr
     beat_grid = _float_points(beat_points)
     bars = _bar_grid(bpm=bpm, beat_points=beat_points, downbeats=downbeats, duration=duration)
@@ -389,11 +433,15 @@ def analyze_drum_stem(
         flags.append("bar_pattern_unavailable")
     if separation_quality < 0.6:
         flags.append("low_stem_quality")
+    if detector_mode == "fallback":
+        flags.extend(["dedicated_drum_model_unavailable", "spectral_proxy_fallback"])
     if overall < 0.58:
         flags.append("low_confidence")
     return {
         "version": DRUM_ANALYSIS_VERSION,
         "source": "demucs_drums_stem",
+        "selected_engine": selected_engine,
+        "detector_mode": detector_mode,
         "status": "ready" if overall >= 0.58 else "degraded",
         "needs_review": bool(flags),
         "reason": None,
@@ -409,4 +457,8 @@ def analyze_drum_stem(
             "stem_quality": round(float(np.clip(separation_quality, 0.0, 1.0)), 4),
         },
         "quality_flags": flags,
+        "engine_routes": {
+            "dedicated_model": model_route or {"status": "unavailable", "engine": "external_drum_transcriber"},
+            "spectral_fallback": {"status": "selected" if detector_mode == "fallback" else "not_selected"},
+        },
     }

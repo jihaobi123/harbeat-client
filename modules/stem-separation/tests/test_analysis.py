@@ -20,6 +20,9 @@ class AnalysisTests(unittest.TestCase):
       result=analyze_stem_files(paths,original_path=original_path,window_sec=2.0)
     self.assertTrue(result['has_complete_stems']); self.assertTrue(result['intro_is_clean']); self.assertGreater(result['stem_quality_score'],.9)
     self.assertIn('drum_analysis', result)
+    self.assertEqual(result['drum_analysis']['version'], 'drum_transcription_consensus_v2')
+    self.assertIn('tom', result['drum_analysis']['events'])
+    self.assertIn('cymbal', result['drum_analysis']['events'])
 
   def test_missing_stem_is_incomplete(self):
     with tempfile.TemporaryDirectory() as td:

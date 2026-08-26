@@ -24,15 +24,25 @@ separation is complete.
 When `drums.wav` is available, `analyze_stem_files` also returns
 `drum_analysis` with:
 
-- confidence-gated Kick, Snare, and Hi-hat event candidates;
+- model-derived Kick, Snare, Hi-hat, Tom, and Cymbal event candidates when a
+  dedicated worker is configured;
+- confidence-gated Kick, Snare, and Hi-hat spectral candidates as an explicit
+  fallback when the model worker is unavailable;
 - a 2-second density curve;
 - a downbeat-aligned 16-step dominant pattern and stability score;
 - fill candidates, per-class confidence, and quality flags.
 
 Pass `bpm`, `beat_points`, and `downbeats` from the rhythm pipeline. Without a
 beat grid, event detection remains available but pattern output is explicitly
-marked for review. This deterministic spectral implementation is DJ metadata,
-not a claim of ground-truth drum transcription.
+marked for review. The result reports `selected_engine`, `detector_mode`, and
+`engine_routes`, so callers can distinguish mature-model output from spectral
+fallback. Neither route may be advertised as a real-song accuracy figure
+before annotated-set validation.
+
+The application pipeline additionally persists
+`music_features.pre_style_features`. See
+`docs/pre_style_feature_analysis_backend_deployment.md` for model-worker
+contracts, licensing constraints, feature semantics, and acceptance commands.
 
 ## Runtime behavior preserved from Jetson
 

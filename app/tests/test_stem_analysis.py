@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
@@ -36,7 +37,11 @@ class StemAnalysisTests(unittest.TestCase):
             original_path = os.path.join(td, "original.wav")
             sf.write(original_path, original, sr)
 
-            result = analyze_stem_files(paths, original_path=original_path, window_sec=2.0)
+            with patch.dict(os.environ, {
+                "FEATURE_ENABLE_TORCHCREPE": "false",
+                "FEATURE_ENABLE_BASIC_PITCH": "false",
+            }):
+                result = analyze_stem_files(paths, original_path=original_path, window_sec=2.0)
 
         self.assertEqual(len(result["stem_activity_windows"]), 4)
         self.assertLess(result["stem_activity_windows"][0]["vocals"], 0.1)
@@ -47,6 +52,13 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertLess(result["outro_clean_score"], 0.3)
         self.assertTrue(result["has_drum_loop"])
         self.assertIn("drum_analysis", result)
+        self.assertIn("feature_analysis", result)
+        self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v2")
+        self.assertIn("rhythm_grammar", result["feature_analysis"])
+        self.assertIn("low_frequency", result["feature_analysis"])
+        self.assertIn("percussion_timbre", result["feature_analysis"])
+        self.assertIn("sonic_profile", result["feature_analysis"])
+        self.assertIn("mature_models_unavailable_using_dsp_fallbacks", result["feature_analysis"]["quality_flags"])
         self.assertGreater(result["stem_quality_score"], 0.9)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 1.0)
         self.assertGreater(result["stem_quality_profile"]["reconstruction_score"], 0.9)
@@ -65,6 +77,7 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertEqual(result["stem_quality_profile"]["completeness"], 0.25)
         self.assertFalse(result["has_drum_loop"])
         self.assertEqual(result["drum_analysis"]["status"], "unavailable")
+        self.assertIn("feature_analysis", result)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+# Optional mature feature-analysis runtime.
+# Install in the analysis worker, not in latency-sensitive API containers.
+#
+# torchcrepe: MIT, monophonic F0 tracking on the Demucs bass stem.
+torchcrepe>=0.0.23,<0.1
+
+# Spotify Basic Pitch is intentionally not pinned into the Python 3.12 API
+# image because its TensorFlow runtime support differs by platform. Deploy it
+# in a compatible isolated worker or add a version validated for the target.
+# Source/license: https://github.com/spotify/basic-pitch (Apache-2.0)

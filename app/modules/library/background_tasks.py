@@ -59,6 +59,9 @@ def apply_stem_analysis(song) -> None:
     song.stem_quality_score = result["stem_quality_score"]
     song.stem_quality_profile = result["stem_quality_profile"]
     song.drum_analysis = result["drum_analysis"]
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    music_features["pre_style_features"] = result.get("feature_analysis", {})
+    song.music_features = music_features
     song.intro_is_clean = _int_bool(result["intro_is_clean"])
     song.outro_is_clean = _int_bool(result["outro_is_clean"])
     song.intro_clean_score = result["intro_clean_score"]

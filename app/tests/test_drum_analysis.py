@@ -70,4 +70,4 @@ def test_empty_drum_analysis_is_explicitly_unavailable() -> None:
 
     assert result["status"] == "unavailable"
     assert result["needs_review"] is True
-    assert result["counts"] == {"kick": 0, "snare": 0, "hihat": 0}
+    assert result["counts"] == {"kick": 0, "snare": 0, "hihat": 0, "tom": 0, "cymbal": 0}

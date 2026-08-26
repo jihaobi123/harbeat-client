@@ -172,6 +172,7 @@ BPM 由 Beat This、All-In-One 和 Essentia 三路并行计算，并以 ±2 BPM
 密度曲线、16 步主节奏型、Fill 候选和分层置信度。该结果为置信度受控的 DJ
 辅助元数据，不等同于人工校对鼓谱；部署与字段说明见
 [鼓组分析后端部署说明](docs/drum_analysis_backend_deployment.md)。
+[风格分析前置特征模块部署说明](docs/pre_style_feature_analysis_backend_deployment.md)。
 
 ### 7. 歌单管理
 - **新建歌单**：侧边栏歌单区域点击 **「+」** 按钮 → 输入名称 → 回车创建

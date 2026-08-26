@@ -8,6 +8,8 @@ import numpy as np
 import soundfile as sf
 
 from app.modules.library.drum_analysis import analyze_drum_stem, empty_drum_analysis
+from app.modules.library.feature_model_adapters import collect_mature_model_evidence
+from app.modules.library.style_feature_analysis import analyze_style_features, empty_style_features
 
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 
@@ -98,6 +100,8 @@ def analyze_stem_files(
             "outro_clean_score": 0.0,
             "has_drum_loop": False,
             "drum_analysis": empty_drum_analysis(),
+            "feature_analysis": empty_style_features(),
+            "model_evidence": {"status": "unavailable", "routes": {}},
         }
 
     length = min(len(audio) for audio in loaded.values())
@@ -135,6 +139,10 @@ def analyze_stem_files(
         0.0,
         1.0,
     )) if completeness == 1.0 and vocals and bass else 0.0
+    model_evidence = collect_mature_model_evidence(
+        available,
+        original_path=original_path,
+    )
     drum_analysis = analyze_drum_stem(
         loaded.get("drums"),
         sample_rate,
@@ -143,6 +151,19 @@ def analyze_stem_files(
         downbeats=downbeats,
         separation_quality=quality,
         density_window_sec=window_sec,
+        model_route=(model_evidence.get("routes") or {}).get("drum_transcription"),
+    )
+    feature_analysis = analyze_style_features(
+        loaded,
+        sample_rate,
+        bpm=bpm,
+        beat_points=beat_points,
+        downbeats=downbeats,
+        drum_analysis=drum_analysis,
+        # Reconstruct from already-loaded stems inside the analyzer.  Avoid a
+        # second full-song decode and keep memory bounded in background jobs.
+        original_audio=None,
+        model_evidence=model_evidence,
     )
 
     return {
@@ -165,4 +186,6 @@ def analyze_stem_files(
             and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6
         ),
         "drum_analysis": drum_analysis,
+        "feature_analysis": feature_analysis,
+        "model_evidence": model_evidence,
     }
