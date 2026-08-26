@@ -31,6 +31,7 @@ JSON_COLUMNS = {
     "stem_activity": "{}",
     "stem_activity_windows": "[]",
     "stem_quality_profile": "{}",
+    "drum_analysis": "{}",
     "music_features": "{}",
     "dance_styles": "[]",
     "dance_style_scores": "{}",

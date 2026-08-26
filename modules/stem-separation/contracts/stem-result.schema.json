@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "harbeat://modules/stem-separation/v0.1.0",
+  "$id": "harbeat://modules/stem-separation/v0.2.0",
   "title": "HarBeat stem separation result",
   "type": "object",
   "required": ["status", "model", "stems", "complete"],

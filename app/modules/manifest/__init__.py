@@ -181,6 +181,8 @@ def build_song_manifest(song, base_url: str = "") -> dict[str, Any]:
         analysis["stem_quality_score"] = song.stem_quality_score
     if getattr(song, "stem_quality_profile", None):
         analysis["stem_quality_profile"] = song.stem_quality_profile
+    if getattr(song, "drum_analysis", None):
+        analysis["drum_analysis"] = song.drum_analysis
     analysis["intro_is_clean"] = bool(getattr(song, "intro_is_clean", False))
     analysis["outro_is_clean"] = bool(getattr(song, "outro_is_clean", False))
     if getattr(song, "intro_clean_score", None) is not None:

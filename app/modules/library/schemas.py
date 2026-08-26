@@ -57,6 +57,7 @@ class LibrarySongBase(BaseModel):
     stem_activity_windows: list[dict] = Field(default_factory=list)
     stem_quality_score: float | None = None
     stem_quality_profile: dict = Field(default_factory=dict)
+    drum_analysis: dict = Field(default_factory=dict)
     intro_is_clean: bool = False
     outro_is_clean: bool = False
     intro_clean_score: float | None = None
@@ -121,6 +122,7 @@ class LibrarySongUpdateRequest(BaseModel):
     stem_activity_windows: list[dict] | None = None
     stem_quality_score: float | None = None
     stem_quality_profile: dict | None = None
+    drum_analysis: dict | None = None
     intro_is_clean: bool | None = None
     outro_is_clean: bool | None = None
     intro_clean_score: float | None = None

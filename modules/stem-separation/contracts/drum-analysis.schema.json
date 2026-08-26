@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harbeat://modules/stem-separation/drum-analysis/v1",
+  "title": "HarBeat drum analysis",
+  "type": "object",
+  "required": [
+    "version", "source", "status", "needs_review", "events", "counts",
+    "density_curve", "pattern", "fills", "confidence", "quality_flags"
+  ],
+  "properties": {
+    "version": {"const": "spectral_flux_v1"},
+    "source": {"const": "demucs_drums_stem"},
+    "status": {"enum": ["ready", "degraded", "unavailable"]},
+    "needs_review": {"type": "boolean"},
+    "reason": {"type": ["string", "null"]},
+    "events": {
+      "type": "object",
+      "required": ["kick", "snare", "hihat"],
+      "additionalProperties": false,
+      "properties": {
+        "kick": {"$ref": "#/$defs/events"},
+        "snare": {"$ref": "#/$defs/events"},
+        "hihat": {"$ref": "#/$defs/events"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["kick", "snare", "hihat"],
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "density_curve": {"type": "array", "items": {"type": "object"}},
+    "pattern": {
+      "type": "object",
+      "required": ["resolution", "bars_analyzed", "dominant", "stability", "syncopation"]
+    },
+    "fills": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"type": "object"},
+    "quality_flags": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["time", "confidence", "velocity"],
+        "properties": {
+          "time": {"type": "number", "minimum": 0},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "velocity": {"type": "integer", "minimum": 0, "maximum": 127}
+        }
+      }
+    }
+  }
+}

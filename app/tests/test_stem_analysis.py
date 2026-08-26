@@ -46,6 +46,7 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertGreater(result["intro_clean_score"], 0.7)
         self.assertLess(result["outro_clean_score"], 0.3)
         self.assertTrue(result["has_drum_loop"])
+        self.assertIn("drum_analysis", result)
         self.assertGreater(result["stem_quality_score"], 0.9)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 1.0)
         self.assertGreater(result["stem_quality_profile"]["reconstruction_score"], 0.9)
@@ -63,6 +64,7 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertEqual(result["outro_clean_score"], 0.0)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 0.25)
         self.assertFalse(result["has_drum_loop"])
+        self.assertEqual(result["drum_analysis"]["status"], "unavailable")
 
 
 if __name__ == "__main__":

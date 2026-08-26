@@ -56,6 +56,7 @@ def _stem_analysis_complete(row: dict) -> bool:
         row.get("stem_activity")
         and row.get("stem_activity_windows")
         and row.get("stem_quality_profile")
+        and row.get("drum_analysis")
     )
 
 
@@ -81,7 +82,7 @@ def _candidate_rows() -> list[dict]:
                     select id, user_id, title, artist, analysis_status, bpm, key,
                            source_path, beat_points, cue_points, transition_windows,
                            stems, stem_activity, stem_activity_windows,
-                           stem_quality_profile, created_at
+                           stem_quality_profile, drum_analysis, created_at
                     from library_songs
                     where source_path is not null and source_path <> ''
                     order by created_at
@@ -131,7 +132,7 @@ def _row_is_complete(song_id: str) -> bool:
                 """
                 select id, analysis_status, bpm, key, source_path, beat_points,
                        cue_points, transition_windows, stems, stem_activity,
-                       stem_activity_windows, stem_quality_profile
+                       stem_activity_windows, stem_quality_profile, drum_analysis
                 from library_songs
                 where id = :id
                 """
@@ -153,7 +154,7 @@ def _summarize() -> dict[str, int]:
                     """
                     select id, analysis_status, bpm, key, source_path, beat_points,
                            cue_points, transition_windows, stems, stem_activity,
-                           stem_activity_windows, stem_quality_profile
+                           stem_activity_windows, stem_quality_profile, drum_analysis
                     from library_songs
                     where source_path is not null and source_path <> ''
                     """

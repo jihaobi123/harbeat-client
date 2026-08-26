@@ -8,6 +8,8 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from .drum_analysis import analyze_drum_stem, empty_drum_analysis
+
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 
 
@@ -47,7 +49,15 @@ def _reconstruction_score(stems: dict[str, np.ndarray], original_path: str | Non
   return float(np.clip(1.0 - error, 0.0, 1.0))
 
 
-def analyze_stem_files(stem_paths: dict[str, str] | None, *, original_path: str | None = None, window_sec: float = 2.0) -> dict[str, Any]:
+def analyze_stem_files(
+  stem_paths: dict[str, str] | None,
+  *,
+  original_path: str | None = None,
+  window_sec: float = 2.0,
+  bpm: float | None = None,
+  beat_points: list[float] | None = None,
+  downbeats: list[float] | None = None,
+) -> dict[str, Any]:
   available = {name: path for name, path in (stem_paths or {}).items() if name in STEM_NAMES and path and os.path.isfile(path)}
   loaded: dict[str, np.ndarray] = {}
   sample_rate = 0
@@ -63,7 +73,7 @@ def analyze_stem_files(stem_paths: dict[str, str] | None, *, original_path: str 
 
   completeness = len(loaded) / len(STEM_NAMES)
   if not loaded or sample_rate <= 0:
-    return {"has_complete_stems": False, "stem_quality_score": 0.0, "stem_quality_method": "completeness_reconstruction_proxy", "stem_quality_profile": {"method": "completeness_reconstruction_proxy", "completeness": 0.0, "reconstruction_score": 0.0}, "stem_activity": {name: 0.0 for name in STEM_NAMES}, "stem_activity_windows": [], "intro_is_clean": False, "outro_is_clean": False, "intro_clean_score": 0.0, "outro_clean_score": 0.0, "has_drum_loop": False}
+    return {"has_complete_stems": False, "stem_quality_score": 0.0, "stem_quality_method": "completeness_reconstruction_proxy", "stem_quality_profile": {"method": "completeness_reconstruction_proxy", "completeness": 0.0, "reconstruction_score": 0.0}, "stem_activity": {name: 0.0 for name in STEM_NAMES}, "stem_activity_windows": [], "intro_is_clean": False, "outro_is_clean": False, "intro_clean_score": 0.0, "outro_clean_score": 0.0, "has_drum_loop": False, "drum_analysis": empty_drum_analysis()}
 
   length = min(len(audio) for audio in loaded.values())
   window_samples = max(1, int(sample_rate * window_sec))
@@ -76,4 +86,13 @@ def analyze_stem_files(stem_paths: dict[str, str] | None, *, original_path: str 
   vocals, drums, bass = curves["vocals"], curves["drums"], curves["bass"]
   intro_clean_score = float(np.clip(1.0 - (0.8 * vocals[0]) - (0.2 * bass[0]), 0.0, 1.0)) if completeness == 1.0 and vocals and bass else 0.0
   outro_clean_score = float(np.clip(1.0 - (0.8 * vocals[-1]) - (0.2 * bass[-1]), 0.0, 1.0)) if completeness == 1.0 and vocals and bass else 0.0
-  return {"has_complete_stems": completeness == 1.0, "stem_quality_score": round(float(np.clip(quality, 0.0, 1.0)), 4), "stem_quality_method": "completeness_reconstruction_proxy", "stem_quality_profile": {"method": "completeness_reconstruction_proxy", "completeness": round(completeness, 4), "reconstruction_score": round(reconstruction, 4)}, "stem_activity": activity, "stem_activity_windows": windows, "intro_is_clean": bool(completeness == 1.0 and vocals and vocals[0] < 0.25), "outro_is_clean": bool(completeness == 1.0 and vocals and vocals[-1] < 0.25), "intro_clean_score": round(intro_clean_score, 4), "outro_clean_score": round(outro_clean_score, 4), "has_drum_loop": bool(drums and activity["drums"] >= 0.35 and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6)}
+  drum_analysis = analyze_drum_stem(
+    loaded.get("drums"),
+    sample_rate,
+    bpm=bpm,
+    beat_points=beat_points,
+    downbeats=downbeats,
+    separation_quality=quality,
+    density_window_sec=window_sec,
+  )
+  return {"has_complete_stems": completeness == 1.0, "stem_quality_score": round(float(np.clip(quality, 0.0, 1.0)), 4), "stem_quality_method": "completeness_reconstruction_proxy", "stem_quality_profile": {"method": "completeness_reconstruction_proxy", "completeness": round(completeness, 4), "reconstruction_score": round(reconstruction, 4)}, "stem_activity": activity, "stem_activity_windows": windows, "intro_is_clean": bool(completeness == 1.0 and vocals and vocals[0] < 0.25), "outro_is_clean": bool(completeness == 1.0 and vocals and vocals[-1] < 0.25), "intro_clean_score": round(intro_clean_score, 4), "outro_clean_score": round(outro_clean_score, 4), "has_drum_loop": bool(drums and activity["drums"] >= 0.35 and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6), "drum_analysis": drum_analysis}

@@ -19,9 +19,11 @@ class AnalysisTests(unittest.TestCase):
       original_path=os.path.join(td,'original.wav'); sf.write(original_path,original,sr)
       result=analyze_stem_files(paths,original_path=original_path,window_sec=2.0)
     self.assertTrue(result['has_complete_stems']); self.assertTrue(result['intro_is_clean']); self.assertGreater(result['stem_quality_score'],.9)
+    self.assertIn('drum_analysis', result)
 
   def test_missing_stem_is_incomplete(self):
     with tempfile.TemporaryDirectory() as td:
       p=os.path.join(td,'vocals.wav'); sf.write(p,np.zeros(2000),1000)
       result=analyze_stem_files({'vocals':p})
     self.assertFalse(result['has_complete_stems']); self.assertEqual(result['stem_quality_profile']['completeness'],.25)
+    self.assertEqual(result['drum_analysis']['status'], 'unavailable')

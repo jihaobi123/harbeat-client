@@ -60,6 +60,7 @@ class LibrarySong(Base):
     stem_activity_windows: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
     stem_quality_score: Mapped[float | None] = mapped_column(Float)
     stem_quality_profile: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    drum_analysis: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     intro_is_clean: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)
     outro_is_clean: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)
     intro_clean_score: Mapped[float | None] = mapped_column(Float)

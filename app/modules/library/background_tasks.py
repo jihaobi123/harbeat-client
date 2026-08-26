@@ -47,11 +47,18 @@ def apply_stem_analysis(song) -> None:
     from app.modules.library.stem_analysis import analyze_stem_files
 
     existing_vocal_events = list(getattr(song, "vocal_events", None) or [])
-    result = analyze_stem_files(song.stems, original_path=song.source_path)
+    result = analyze_stem_files(
+        song.stems,
+        original_path=song.source_path,
+        bpm=float(getattr(song, "bpm", 0.0) or 0.0),
+        beat_points=list(getattr(song, "beat_points", None) or []),
+        downbeats=list(getattr(song, "downbeats", None) or []),
+    )
     song.stem_activity = result["stem_activity"]
     song.stem_activity_windows = result["stem_activity_windows"]
     song.stem_quality_score = result["stem_quality_score"]
     song.stem_quality_profile = result["stem_quality_profile"]
+    song.drum_analysis = result["drum_analysis"]
     song.intro_is_clean = _int_bool(result["intro_is_clean"])
     song.outro_is_clean = _int_bool(result["outro_is_clean"])
     song.intro_clean_score = result["intro_clean_score"]
@@ -312,7 +319,7 @@ def copy_analysis_from(source: object, target: object) -> None:
                   "vocal_events", "bass_risk_windows",
                   "transition_windows", "transition_recommendations",
                   "downbeats", "phrase_map", "key_confidence",
-                  "stem_activity", "stem_activity_windows", "stem_quality_score", "stem_quality_profile",
+                  "stem_activity", "stem_activity_windows", "stem_quality_score", "stem_quality_profile", "drum_analysis",
                   "intro_is_clean", "outro_is_clean", "intro_clean_score", "outro_clean_score",
                   "has_drum_loop",
                   "music_features", "dance_styles", "dance_style_scores", "dance_style_status",

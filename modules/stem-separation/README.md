@@ -19,6 +19,21 @@ Partial output is a failure for stem-aware playback. The caller may decide to
 use a non-stem render, but this module never silently claims that a partial
 separation is complete.
 
+## Drum analysis
+
+When `drums.wav` is available, `analyze_stem_files` also returns
+`drum_analysis` with:
+
+- confidence-gated Kick, Snare, and Hi-hat event candidates;
+- a 2-second density curve;
+- a downbeat-aligned 16-step dominant pattern and stability score;
+- fill candidates, per-class confidence, and quality flags.
+
+Pass `bpm`, `beat_points`, and `downbeats` from the rhythm pipeline. Without a
+beat grid, event detection remains available but pattern output is explicitly
+marked for review. This deterministic spectral implementation is DJ metadata,
+not a claim of ground-truth drum transcription.
+
 ## Runtime behavior preserved from Jetson
 
 - Reuse existing `htdemucs/<source-stem-name>/*.wav` files.
@@ -34,4 +49,10 @@ to Git.
 
 ```powershell
 py -m unittest discover modules/stem-separation/tests -v
+```
+
+The application-level regression tests are:
+
+```bash
+PYTHONPATH=. pytest -q app/tests/test_drum_analysis.py app/tests/test_stem_analysis.py
 ```

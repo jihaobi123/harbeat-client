@@ -7,6 +7,8 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from app.modules.library.drum_analysis import analyze_drum_stem, empty_drum_analysis
+
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 
 
@@ -56,6 +58,9 @@ def analyze_stem_files(
     *,
     original_path: str | None = None,
     window_sec: float = 2.0,
+    bpm: float | None = None,
+    beat_points: list[float] | None = None,
+    downbeats: list[float] | None = None,
 ) -> dict[str, Any]:
     """Analyze real separated stems into planner-ready activity metadata."""
     available = {
@@ -92,6 +97,7 @@ def analyze_stem_files(
             "intro_clean_score": 0.0,
             "outro_clean_score": 0.0,
             "has_drum_loop": False,
+            "drum_analysis": empty_drum_analysis(),
         }
 
     length = min(len(audio) for audio in loaded.values())
@@ -129,6 +135,15 @@ def analyze_stem_files(
         0.0,
         1.0,
     )) if completeness == 1.0 and vocals and bass else 0.0
+    drum_analysis = analyze_drum_stem(
+        loaded.get("drums"),
+        sample_rate,
+        bpm=bpm,
+        beat_points=beat_points,
+        downbeats=downbeats,
+        separation_quality=quality,
+        density_window_sec=window_sec,
+    )
 
     return {
         "has_complete_stems": completeness == 1.0,
@@ -149,4 +164,5 @@ def analyze_stem_files(
             drums and activity["drums"] >= 0.35
             and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6
         ),
+        "drum_analysis": drum_analysis,
     }
