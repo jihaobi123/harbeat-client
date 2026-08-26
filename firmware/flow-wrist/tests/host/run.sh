@@ -4,7 +4,8 @@ set -euo pipefail
 test_bin="$(mktemp /tmp/flow-core-test.XXXXXX)"
 protocol_bin="$(mktemp /tmp/flow-protocol-test.XXXXXX)"
 power_bin="$(mktemp /tmp/flow-power-test.XXXXXX)"
-trap 'rm -f "$test_bin" "$protocol_bin" "$power_bin"' EXIT
+carousel_bin="$(mktemp /tmp/flow-carousel-test.XXXXXX)"
+trap 'rm -f "$test_bin" "$protocol_bin" "$power_bin" "$carousel_bin"' EXIT
 
 clang -std=c11 -Wall -Wextra -Werror \
   -Icomponents/flow_core/include \
@@ -33,3 +34,11 @@ clang -std=c11 -Wall -Wextra -Werror \
   -o "$power_bin"
 
 "$power_bin"
+
+clang -std=c11 -Wall -Wextra -Werror \
+  -Icomponents/flow_ui/include \
+  tests/host/test_carousel_model.c \
+  components/flow_ui/flow_carousel_model.c \
+  -o "$carousel_bin"
+
+"$carousel_bin"
