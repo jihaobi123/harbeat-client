@@ -11,6 +11,7 @@
 static QueueHandle_t s_render_queue;
 static QueueHandle_t s_action_queue;
 static flow_app_state_t s_app_state;
+static uint32_t s_next_command_id = 1;
 
 static void publish_state(void)
 {
@@ -54,6 +55,7 @@ static void app_task(void *context)
             break;
         case FLOW_UI_ACTION_SET_ENERGY:
         case FLOW_UI_ACTION_SET_STYLE:
+            flow_state_begin_command(&s_app_state, s_next_command_id++);
             break;
         }
         publish_state();

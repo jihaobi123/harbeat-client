@@ -52,15 +52,15 @@ static const char *status_detail(const flow_app_state_t *state)
     }
 }
 
-static void create_status_page(const flow_app_state_t *state)
+void flow_ui_status_create(lv_obj_t *root, const flow_app_state_t *state)
 {
-    lv_obj_set_flex_flow(s_root, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(s_root,
+    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(root,
                           LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
 
-    lv_obj_t *mark = lv_obj_create(s_root);
+    lv_obj_t *mark = lv_obj_create(root);
     lv_obj_remove_style_all(mark);
     lv_obj_set_size(mark, 88, 88);
     lv_obj_set_style_radius(mark, LV_RADIUS_CIRCLE, 0);
@@ -77,14 +77,14 @@ static void create_status_page(const flow_app_state_t *state)
     lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
     lv_obj_center(dot);
 
-    lv_obj_t *title = lv_label_create(s_root);
+    lv_obj_t *title = lv_label_create(root);
     lv_label_set_text(title, status_title(state));
     lv_obj_set_width(title, LV_PCT(100));
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(title, flow_color_ink(), 0);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_26, 0);
 
-    lv_obj_t *detail = lv_label_create(s_root);
+    lv_obj_t *detail = lv_label_create(root);
     lv_label_set_text(detail, status_detail(state));
     lv_obj_set_style_text_color(detail, flow_color_muted(), 0);
     lv_obj_set_style_text_font(detail, &lv_font_montserrat_12, 0);
@@ -100,7 +100,7 @@ static void render_named_status(const char *title_text, const char *detail_text)
     }
     s_root = create_root();
     s_last_screen = FLOW_SCREEN_CONNECTING;
-    create_status_page(&state);
+    flow_ui_status_create(s_root, &state);
 
     lv_obj_t *title = lv_obj_get_child(s_root, 1);
     lv_obj_t *detail = lv_obj_get_child(s_root, 2);
@@ -135,7 +135,18 @@ void flow_ui_render(const flow_app_state_t *state)
 
     s_root = create_root();
     s_last_screen = state->screen;
-    create_status_page(state);
+    switch (state->screen) {
+    case FLOW_SCREEN_HOME:
+        flow_ui_home_create(s_root, state);
+        break;
+    case FLOW_SCREEN_ENERGY:
+    case FLOW_SCREEN_STYLE:
+        flow_ui_carousel_create(s_root, state);
+        break;
+    default:
+        flow_ui_status_create(s_root, state);
+        break;
+    }
 }
 
 void flow_ui_show_offline(void)
