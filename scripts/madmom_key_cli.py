@@ -8,8 +8,18 @@ from __future__ import annotations
 
 import json
 import sys
+import collections
+import collections.abc
 
 import numpy as np
+
+# madmom 0.16.1 still imports these aliases from ``collections``. Python 3.10
+# moved them to ``collections.abc``; keep the compatibility shim isolated in
+# this adapter instead of patching the application process.
+for _name in ("MutableSequence", "MutableMapping", "Mapping", "Sequence"):
+    if not hasattr(collections, _name):
+        setattr(collections, _name, getattr(collections.abc, _name))
+
 from madmom.features.key import CNNKeyRecognitionProcessor, KEY_LABELS
 
 

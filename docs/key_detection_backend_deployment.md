@@ -70,7 +70,8 @@ madmom 0.16.1 不适合直接加载进项目的 Python 3.12 进程。使用 Pyth
 
 ```bash
 python3.10 -m venv /opt/harbeat-madmom
-/opt/harbeat-madmom/bin/pip install "numpy<1.24" scipy cython madmom==0.16.1
+/opt/harbeat-madmom/bin/pip install "setuptools<81" wheel "cython<3" "numpy<1.24" "scipy<1.11"
+/opt/harbeat-madmom/bin/pip install --no-build-isolation madmom==0.16.1
 export KEY_MADMOM_COMMAND="/opt/harbeat-madmom/bin/python /app/scripts/madmom_key_cli.py"
 ```
 
