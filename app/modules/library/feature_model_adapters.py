@@ -198,7 +198,12 @@ def _torchcrepe_route(audio_path: str | None, config: FeatureModelConfig) -> dic
         hop_length = 160
         device = config.torchcrepe_device
         if device == "auto":
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            if torch.cuda.is_available():
+                device = "cuda:0"
+            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
         tensor = torch.from_numpy(np.asarray(audio, dtype=np.float32)).unsqueeze(0).to(device)
         with torch.no_grad():
             pitch, periodicity = torchcrepe.predict(
@@ -314,7 +319,11 @@ def collect_mature_model_evidence(
     stem_paths = stem_paths or {}
     drums_path = stem_paths.get("drums")
     bass_path = stem_paths.get("bass")
-    tag_audio = original_path if original_path and os.path.isfile(original_path) else stem_paths.get("other")
+    # Percussion labels are substantially more reliable on the isolated drum
+    # stem than on a vocal-heavy full mix.  Whole-track sonic descriptors still
+    # come from the local signal path and can be replaced by a separate worker
+    # in a future route without weakening drum-tag evidence.
+    tag_audio = drums_path or (original_path if original_path and os.path.isfile(original_path) else stem_paths.get("other"))
     routes = {
         "drum_transcription": _run_json_command(
             config.drum_command,

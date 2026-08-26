@@ -65,6 +65,11 @@ reports/baselines/*.tar.gz
 # External reference material
 _external/
 
+# Local real-song feature-validation data contains copyrighted audio clips and
+# machine-specific source paths.  Keep it local; only code and aggregate
+# conclusions belong in Git.
+reports/pre_style_validation_*/
+
 # Flutter / Android build outputs and caches
 mobile/android/build/
 mobile/.flutter-plugins

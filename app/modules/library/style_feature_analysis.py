@@ -61,6 +61,7 @@ def _feature(
     return {
         "detected": bool(score >= threshold),
         "score": round(score, 4),
+        "decision_threshold": round(float(threshold), 4),
         "confidence": round(confidence, 4),
         "time_ranges": list(time_ranges or []),
         "evidence": dict(evidence or {}),
@@ -636,6 +637,7 @@ def _mature_event_feature(
 
 
 def _apply_mature_model_evidence(
+    rhythm: dict[str, dict],
     low: dict[str, dict],
     percussion: dict[str, dict],
     sonic: dict[str, dict],
@@ -717,7 +719,7 @@ def _apply_mature_model_evidence(
             "closed_hihat": ("hi-hat", "closed hi-hat"),
             "open_hihat": ("open hi-hat",),
             "ride_crash": ("cymbal", "ride cymbal", "crash cymbal"),
-            "shaker": ("rattle", "maraca", "shaker"),
+            "shaker": ("rattle", "rattle (instrument)", "maraca", "shaker"),
             "tambourine": ("tambourine",),
             "cowbell_clave": ("cowbell", "clave", "wood block"),
             "conga_bongo": ("bongo", "conga"),
@@ -736,6 +738,20 @@ def _apply_mature_model_evidence(
                     "matched_label": label,
                 },
                 time_ranges=tag_ranges.get(label, []),
+                data_quality=1.0,
+            )
+        roll_score, roll_label = _best_tag(scores, ("drum roll",))
+        if roll_label is not None:
+            rhythm["hihat_roll"] = _feature(
+                roll_score,
+                threshold=0.30,
+                evidence={
+                    "source_type": "mature_audio_tagger",
+                    "engine": tag_route.get("engine"),
+                    "matched_label": roll_label,
+                    "semantic_note": "general drum roll; hi-hat identity requires drum-stem evidence",
+                },
+                time_ranges=tag_ranges.get(roll_label, []),
                 data_quality=1.0,
             )
         acoustic_score, acoustic_label = _best_tag(scores, ("acoustic music", "acoustic guitar", "piano"))
@@ -835,6 +851,7 @@ def analyze_style_features(
     percussion, percussion_quality = _percussion_features(arrays.get("drums"), sr, drum_analysis, duration)
     sonic, sonic_quality = _sonic_features(original_audio, arrays.get("other"), sr)
     selected_models = _apply_mature_model_evidence(
+        rhythm,
         low,
         percussion,
         sonic,

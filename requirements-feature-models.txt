@@ -4,6 +4,11 @@
 # torchcrepe: MIT, monophonic F0 tracking on the Demucs bass stem.
 torchcrepe>=0.0.23,<0.1
 
+# PANNs Cnn14: MIT inference code, AudioSet percussion/music tag evidence.
+# The deployment must separately record the selected checkpoint and dataset
+# terms; weights are intentionally not committed to this repository.
+panns-inference>=0.1.1,<0.2
+
 # Spotify Basic Pitch is intentionally not pinned into the Python 3.12 API
 # image because its TensorFlow runtime support differs by platform. Deploy it
 # in a compatible isolated worker or add a version validated for the target.

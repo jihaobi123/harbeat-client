@@ -133,7 +133,8 @@ def test_pre_style_features_prefer_detailed_model_events_and_semantics() -> None
     }
 
     selected = _apply_mature_model_evidence(
-        low, percussion, sonic, model_evidence=evidence, duration=30.0,
+        {"hihat_roll": _feature(0.0)}, low, percussion, sonic,
+        model_evidence=evidence, duration=30.0,
     )
 
     assert percussion["clap"]["detected"] is True

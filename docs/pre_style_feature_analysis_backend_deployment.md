@@ -22,7 +22,7 @@ Demucs stems
   drums.wav -> 专用鼓转录worker -> Kick/Snare/Hi-hat/Tom/Cymbal
              -> 失败时 spectral_flux_fallback
   bass.wav   -> torchcrepe + Spotify Basic Pitch -> 音高、音符、滑音交叉证据
-  full mix   -> YAMNet/PANNs worker -> 乐器/打击乐时间窗标签
+  drums.wav  -> YAMNet/PANNs worker -> 乐器/打击乐时间窗标签
   beat/downbeat + 鼓点 -> 确定性节奏语法
 ```
 
@@ -43,6 +43,17 @@ pip install -r requirements-feature-models.txt
 
 Spotify Basic Pitch建议使用其官方支持的独立Python环境，避免TensorFlow版本
 影响主API。鼓组和音频标签同样可使用独立worker，只要遵守下面的JSON协议。
+
+PANNs参考worker已随仓库提供。权重不进入Git，部署时下载并记录SHA256：
+
+```bash
+export PANN_CHECKPOINT=/opt/harbeat-models/Cnn14_mAP=0.431.pth
+export FEATURE_AUDIO_TAGGER_COMMAND='python scripts/panns_audio_tagger.py --audio {audio} --checkpoint /opt/harbeat-models/Cnn14_mAP=0.431.pth'
+```
+
+该worker按4秒窗口分析`drums.wav`，默认2秒步长，返回每个标签的时间范围。
+PANNs依赖首次运行还会在`~/panns_data`准备AudioSet类别表；生产镜像应在构建阶段
+预置该文件，避免worker运行时下载。
 
 ## 4. 外部模型worker协议
 
@@ -100,6 +111,7 @@ YAMNet/PANNs标签示例：
 ```bash
 PYTHONPATH=. .venv/bin/python -m pytest -q \
   app/tests/test_feature_model_adapters.py \
+  app/tests/test_feature_validation.py \
   app/tests/test_drum_analysis.py \
   app/tests/test_stem_analysis.py
 ```
@@ -107,3 +119,21 @@ PYTHONPATH=. .venv/bin/python -m pytest -q \
 自动测试验证协议、路由选择、降级行为和结构计算。真实准确率必须使用人工逐击
 标注的歌曲集分别计算每类Precision、Recall和F1；合成测试成绩不能替代真实
 歌曲准确率。
+
+真实歌曲可使用最小人工复核流程。它会自动接受高置信度结果，仅为阈值附近、
+模型冲突或808/Log Drum等高风险语义生成6秒片段：
+
+```bash
+PYTHONPATH=. python scripts/validate_pre_style_features.py manifest \
+  --input-dir /data/audio --stem-root /data/stems \
+  --rhythm-root /data/rhythm-raw --output /data/validation/manifest.json
+
+PYTHONPATH=. python scripts/validate_pre_style_features.py analyze \
+  --manifest /data/validation/manifest.json \
+  --output-dir /data/validation \
+  --panns-checkpoint "$PANN_CHECKPOINT" --max-review-items 8
+```
+
+人工只需打开`/data/validation/review/index.html`，听原曲上下文和分轨重点，完成
+页面上保留的少量选择并导出JSON。真实歌曲、分轨、片段及机器绝对路径不得提交
+到Git。

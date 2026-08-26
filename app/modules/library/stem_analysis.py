@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import librosa
 import numpy as np
 import soundfile as sf
 
@@ -15,8 +16,15 @@ STEM_NAMES = ("vocals", "drums", "bass", "other")
 
 
 def _load_mono(path: str) -> tuple[np.ndarray, int]:
-    audio, sr = sf.read(path, dtype="float32", always_2d=True)
-    return np.mean(audio, axis=1), int(sr)
+    try:
+        audio, sr = sf.read(path, dtype="float32", always_2d=True)
+        return np.mean(audio, axis=1), int(sr)
+    except sf.SoundFileError:
+        # Some otherwise valid MP3 streams fail in libsndfile.  Audioread/
+        # ffmpeg remains able to decode them, so keep reconstruction scoring
+        # available instead of failing the complete feature-analysis job.
+        audio, sr = librosa.load(path, sr=None, mono=True)
+        return np.asarray(audio, dtype=np.float32), int(sr)
 
 
 def _rms(audio: np.ndarray) -> float:
