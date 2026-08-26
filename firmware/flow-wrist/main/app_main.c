@@ -1,5 +1,6 @@
 #include "bsp/esp-bsp.h"
 #include "esp_err.h"
+#include "esp_log.h"
 #include "esp_random.h"
 #include "flow_ble.h"
 #include "flow_core.h"
@@ -21,6 +22,8 @@ static QueueHandle_t s_snapshot_queue;
 static QueueHandle_t s_connection_queue;
 static flow_app_state_t s_app_state;
 static uint32_t s_next_command_id;
+static bool s_touch_was_pressed;
+static const char *const TAG = "flow_app";
 
 static void publish_state(void)
 {
@@ -31,6 +34,7 @@ static void publish_state(void)
 static void ui_action_handler(const flow_ui_action_t *action, void *context)
 {
     (void)context;
+    ESP_LOGI(TAG, "UI action: %d", (int)action->type);
     flow_power_note_activity();
     xQueueSend(s_action_queue, action, 0);
 }
@@ -58,14 +62,24 @@ static void connection_handler(bool connected, void *context)
 static void render_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
+    bool touch_pressed = false;
     for (lv_indev_t *input = lv_indev_get_next(NULL);
          input != NULL;
          input = lv_indev_get_next(input)) {
         if (lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) {
+            touch_pressed = true;
+            if (!s_touch_was_pressed) {
+                lv_point_t point;
+                lv_indev_get_point(input, &point);
+                ESP_LOGI(TAG, "Touch pressed at (%ld, %ld)",
+                         (long)point.x,
+                         (long)point.y);
+            }
             flow_power_note_activity();
             break;
         }
     }
+    s_touch_was_pressed = touch_pressed;
     flow_app_state_t latest;
     if (xQueueReceive(s_render_queue, &latest, 0) == pdTRUE) {
         flow_ui_render(&latest);
@@ -167,17 +181,27 @@ void app_main(void)
 
     lv_display_t *display = bsp_display_start();
     ESP_ERROR_CHECK(display == NULL ? ESP_FAIL : ESP_OK);
+    ESP_LOGI(TAG, "Display and touch initialized");
     ESP_ERROR_CHECK(bsp_display_lock(0) ? ESP_OK : ESP_FAIL);
     flow_ui_init(ui_action_handler, NULL);
     flow_ui_render(&s_app_state);
+    lv_obj_update_layout(lv_screen_active());
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(display);
     lv_timer_create(render_timer_cb, 30, NULL);
     bsp_display_unlock();
+    ESP_LOGI(TAG, "Initial UI rendered");
     ESP_ERROR_CHECK(flow_power_init(battery_handler, NULL));
+    ESP_LOGI(TAG, "Power service initialized");
 
-    xTaskCreate(app_task, "flow_app", 4096, NULL, 5, NULL);
+    ESP_ERROR_CHECK(xTaskCreate(app_task, "flow_app", 4096, NULL, 5, NULL) == pdPASS
+                        ? ESP_OK
+                        : ESP_ERR_NO_MEM);
 #if CONFIG_FLOW_SIMULATOR
     ESP_ERROR_CHECK(flow_simulator_start(snapshot_handler, NULL));
+    ESP_LOGI(TAG, "Hub simulator started");
 #else
     ESP_ERROR_CHECK(flow_ble_init(snapshot_handler, connection_handler, NULL));
+    ESP_LOGI(TAG, "BLE service started");
 #endif
 }

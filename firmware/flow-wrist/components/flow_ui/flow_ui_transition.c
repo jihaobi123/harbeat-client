@@ -8,6 +8,7 @@ static lv_obj_t *s_phase_label;
 static lv_obj_t *s_energy_label;
 static lv_obj_t *s_bpm_label;
 static lv_obj_t *s_busy_feedback;
+static lv_timer_t *s_busy_timer;
 static lv_timer_t *s_complete_timer;
 
 static lv_obj_t *card(lv_obj_t *root,
@@ -47,9 +48,26 @@ static const char *phase_text(flow_phase_t phase)
 static void hide_busy_cb(lv_timer_t *timer)
 {
     (void)timer;
+    s_busy_timer = NULL;
     if (s_busy_feedback != NULL) {
         lv_obj_add_flag(s_busy_feedback, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+static void transition_root_delete_cb(lv_event_t *event)
+{
+    if (lv_event_get_code(event) != LV_EVENT_DELETE) {
+        return;
+    }
+    if (s_busy_timer != NULL) {
+        lv_timer_delete(s_busy_timer);
+        s_busy_timer = NULL;
+    }
+    s_countdown_label = NULL;
+    s_phase_label = NULL;
+    s_energy_label = NULL;
+    s_bpm_label = NULL;
+    s_busy_feedback = NULL;
 }
 
 static void transition_touch_cb(lv_event_t *event)
@@ -58,8 +76,11 @@ static void transition_touch_cb(lv_event_t *event)
         return;
     }
     lv_obj_clear_flag(s_busy_feedback, LV_OBJ_FLAG_HIDDEN);
-    lv_timer_t *timer = lv_timer_create(hide_busy_cb, 1200, NULL);
-    lv_timer_set_repeat_count(timer, 1);
+    if (s_busy_timer != NULL) {
+        lv_timer_delete(s_busy_timer);
+    }
+    s_busy_timer = lv_timer_create(hide_busy_cb, 1200, NULL);
+    lv_timer_set_repeat_count(s_busy_timer, 1);
 }
 
 static void create_record_card(lv_obj_t *root,
@@ -111,9 +132,11 @@ void flow_ui_transition_update(const flow_app_state_t *state)
 
 void flow_ui_transition_create(lv_obj_t *root, const flow_app_state_t *state)
 {
+    s_busy_timer = NULL;
     s_complete_timer = NULL;
     lv_obj_add_flag(root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(root, transition_touch_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(root, transition_root_delete_cb, LV_EVENT_DELETE, NULL);
 
     lv_obj_t *title = lv_label_create(root);
     lv_label_set_text(title, "CHANGE IS IN MOTION.");

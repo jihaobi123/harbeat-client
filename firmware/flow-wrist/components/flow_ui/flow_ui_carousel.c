@@ -28,11 +28,16 @@ static const char *const s_style_labels[] = {
 
 typedef struct {
     bool energy_mode;
-    bool gesture_consumed;
+    bool pointer_tracking;
     uint8_t current_index;
     uint8_t preview_index;
+    int32_t press_x;
+    int32_t press_y;
+    int32_t pointer_x;
+    int32_t pointer_y;
     lv_obj_t *poster;
     lv_obj_t *feedback;
+    lv_timer_t *feedback_timer;
 } carousel_context_t;
 
 static carousel_context_t s_carousel;
@@ -49,18 +54,35 @@ static uint8_t style_index(const char *style)
 
 static void hide_feedback_cb(lv_timer_t *timer)
 {
-    lv_obj_t *feedback = lv_timer_get_user_data(timer);
-    if (feedback != NULL) {
-        lv_obj_add_flag(feedback, LV_OBJ_FLAG_HIDDEN);
+    (void)timer;
+    s_carousel.feedback_timer = NULL;
+    if (s_carousel.feedback != NULL) {
+        lv_obj_add_flag(s_carousel.feedback, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+static void carousel_root_delete_cb(lv_event_t *event)
+{
+    if (lv_event_get_code(event) != LV_EVENT_DELETE) {
+        return;
+    }
+    if (s_carousel.feedback_timer != NULL) {
+        lv_timer_delete(s_carousel.feedback_timer);
+        s_carousel.feedback_timer = NULL;
+    }
+    s_carousel.poster = NULL;
+    s_carousel.feedback = NULL;
 }
 
 static void show_feedback(const char *text)
 {
     lv_label_set_text(s_carousel.feedback, text);
     lv_obj_clear_flag(s_carousel.feedback, LV_OBJ_FLAG_HIDDEN);
-    lv_timer_t *timer = lv_timer_create(hide_feedback_cb, 900, s_carousel.feedback);
-    lv_timer_set_repeat_count(timer, 1);
+    if (s_carousel.feedback_timer != NULL) {
+        lv_timer_delete(s_carousel.feedback_timer);
+    }
+    s_carousel.feedback_timer = lv_timer_create(hide_feedback_cb, 900, NULL);
+    lv_timer_set_repeat_count(s_carousel.feedback_timer, 1);
 }
 
 static void render_poster(void)
@@ -165,11 +187,26 @@ static void emit_selection(void)
 static void poster_event_cb(lv_event_t *event)
 {
     const lv_event_code_t code = lv_event_get_code(event);
-    if (code == LV_EVENT_GESTURE) {
+    if (code == LV_EVENT_PRESSED) {
         lv_indev_t *input = lv_indev_active();
         if (input != NULL) {
-            s_carousel.gesture_consumed = true;
-            move_preview(lv_indev_get_gesture_dir(input));
+            lv_point_t point;
+            lv_indev_get_point(input, &point);
+            s_carousel.press_x = point.x;
+            s_carousel.press_y = point.y;
+            s_carousel.pointer_x = point.x;
+            s_carousel.pointer_y = point.y;
+            s_carousel.pointer_tracking = true;
+        }
+        return;
+    }
+    if (code == LV_EVENT_PRESSING && s_carousel.pointer_tracking) {
+        lv_indev_t *input = lv_indev_active();
+        if (input != NULL) {
+            lv_point_t point;
+            lv_indev_get_point(input, &point);
+            s_carousel.pointer_x = point.x;
+            s_carousel.pointer_y = point.y;
         }
         return;
     }
@@ -177,14 +214,21 @@ static void poster_event_cb(lv_event_t *event)
         return;
     }
 
-    if (!s_carousel.gesture_consumed) {
-        if (s_carousel.preview_index == s_carousel.current_index) {
-            show_feedback("CURRENT / ALREADY LIVE");
-        } else {
-            emit_selection();
-        }
+    const int32_t delta_x = s_carousel.pointer_x - s_carousel.press_x;
+    const int32_t delta_y = s_carousel.pointer_y - s_carousel.press_y;
+    const int32_t horizontal_distance = delta_x < 0 ? -delta_x : delta_x;
+    const int32_t vertical_distance = delta_y < 0 ? -delta_y : delta_y;
+    s_carousel.pointer_tracking = false;
+
+    if (horizontal_distance >= 35 && horizontal_distance > vertical_distance) {
+        move_preview(delta_x < 0 ? LV_DIR_LEFT : LV_DIR_RIGHT);
+        return;
     }
-    s_carousel.gesture_consumed = false;
+    if (s_carousel.preview_index == s_carousel.current_index) {
+        show_feedback("CURRENT / ALREADY LIVE");
+    } else {
+        emit_selection();
+    }
 }
 
 static void back_event_cb(lv_event_t *event)
@@ -198,6 +242,7 @@ static void back_event_cb(lv_event_t *event)
 void flow_ui_carousel_create(lv_obj_t *root, const flow_app_state_t *state)
 {
     memset(&s_carousel, 0, sizeof(s_carousel));
+    lv_obj_add_event_cb(root, carousel_root_delete_cb, LV_EVENT_DELETE, NULL);
     s_carousel.energy_mode = state->screen == FLOW_SCREEN_ENERGY;
     s_carousel.current_index = s_carousel.energy_mode
         ? (uint8_t)(state->snapshot.current.energy - 1)

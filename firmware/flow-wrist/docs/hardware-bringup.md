@@ -8,6 +8,8 @@
 - CMake：3.30.2
 - Ninja：1.12.1
 - 目标芯片：ESP32-S3
+- 实测 Flash：32 MB
+- 实测 PSRAM：8 MB Octal PSRAM
 - 开发板：Waveshare ESP32-S3-Touch-AMOLED-2.06
 - BSP：`waveshare/esp32_s3_touch_amoled_2_06` 2.0.0
 - LVGL：9.5.0
@@ -26,7 +28,7 @@ source "$HOME/.espressif/tools/activate_idf_v5.5.5.sh"
 2. 按住 BOOT 后重新插入 USB-C。
 3. 等串口出现后松开 BOOT。
 
-截至 2026-08-26，本机还未检测到 `/dev/cu.usbmodem*`，因此可以完成主机测试和固件编译，但烧录与屏幕实机验收需要接入开发板。
+2026-08-27 已通过 `/dev/cu.usbmodem1101` 识别到 ESP32-S3 rev 0.2，并完成首次模拟器固件烧录。串口名称可能在重新插拔后变化，烧录脚本仍应每次动态检测。
 
 ## BSP 共享资源
 
