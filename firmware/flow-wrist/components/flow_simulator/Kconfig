@@ -1,0 +1,7 @@
+menu "Flow Wrist"
+    config FLOW_SIMULATOR
+        bool "Enable local Hub simulator"
+        default y
+        help
+            Drive the UI without an RK3588 Hub. Disable for BLE integration.
+endmenu
