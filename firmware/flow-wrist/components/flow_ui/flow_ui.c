@@ -6,6 +6,7 @@ static flow_ui_action_handler_t s_action_handler;
 static void *s_action_context;
 static lv_obj_t *s_root;
 static flow_screen_t s_last_screen = FLOW_SCREEN_OFF;
+static uint32_t s_last_revision;
 
 static lv_obj_t *create_root(void)
 {
@@ -127,7 +128,14 @@ void flow_ui_render(const flow_app_state_t *state)
         return;
     }
     if (s_root != NULL && state->screen == s_last_screen) {
-        return;
+        if (state->screen == FLOW_SCREEN_TRANSITION) {
+            flow_ui_transition_update(state);
+            s_last_revision = state->snapshot.revision;
+            return;
+        }
+        if (state->snapshot.revision == s_last_revision) {
+            return;
+        }
     }
     if (s_root != NULL) {
         lv_obj_delete(s_root);
@@ -135,6 +143,7 @@ void flow_ui_render(const flow_app_state_t *state)
 
     s_root = create_root();
     s_last_screen = state->screen;
+    s_last_revision = state->snapshot.revision;
     switch (state->screen) {
     case FLOW_SCREEN_HOME:
         flow_ui_home_create(s_root, state);
@@ -142,6 +151,15 @@ void flow_ui_render(const flow_app_state_t *state)
     case FLOW_SCREEN_ENERGY:
     case FLOW_SCREEN_STYLE:
         flow_ui_carousel_create(s_root, state);
+        break;
+    case FLOW_SCREEN_TRANSITION:
+        flow_ui_transition_create(s_root, state);
+        break;
+    case FLOW_SCREEN_COMPLETE:
+        flow_ui_complete_create(s_root, state);
+        break;
+    case FLOW_SCREEN_ERROR:
+        flow_ui_error_create(s_root, state);
         break;
     default:
         flow_ui_status_create(s_root, state);
