@@ -32,7 +32,11 @@ Essentia 当前算法不原生输出 downbeat，因此不参与小节投票。�
 - 所有线路分析同一份已解码波形，规避不同 MP3 解码器的时间偏移；
 - 两路 downbeat 在默认 `±70 ms` 内进行一对一匹配；
 - 两条序列 F1 不低于 `0.70` 时视为一致；
-- 三路一致或两路多数时优先输出 All-In-One 的完整序列，其次 Beat This、madmom；
+- 投票前按最终 BPM 与 4/4 拍计算期望小节周期，默认偏差超过 `12%` 的路线不参与投票；
+- 半小节、2/3 小节、1.5 倍小节和双小节层级分别标记为周期错误；
+- 两条周期合法的序列相差整数拍时标记 `phase_conflict`，不再默认选择 All-In-One；
+- 获胜组内优先选择能覆盖前两个小节的路线，防止前奏 downbeat 被整体跳过；
+- 周期、相位和前奏均正常时，仍按 All-In-One、Beat This、madmom 顺序选择完整网格；
 - 原生模型无多数时，本地重音序列只用于打破平票，并强制标记人工复核；
 - 三路全部失败时输出本地重音结果并标记人工复核；
 - 不对时间戳简单取平均，确保最终结果仍是一条完整、连续的模型网格。
@@ -78,6 +82,8 @@ DOWNBEAT_ENABLE_MADMOM=true
 DOWNBEAT_MATCH_TOLERANCE_MS=70
 DOWNBEAT_AGREEMENT_F1=0.70
 DOWNBEAT_MADMOM_BEATS_PER_BAR=4
+DOWNBEAT_PERIOD_TOLERANCE=0.12
+DOWNBEAT_MAX_INTRO_BARS=2.0
 ```
 
 建议 Beat This 保持 CPU，All-In-One 使用可用加速器，使两条 PyTorch 路径能够
@@ -190,9 +196,20 @@ POST /api/library/songs/{song_id}/analyze
 | `majority` | 三路可用，其中两路形成多数 |
 | `degraded_agreement` | 只有部分线路可用且至少两路一致 |
 | `no_majority` | 没有两路一致，需人工复核 |
+| `period_filtered` | 至少一路周期不符合最终 BPM，已淘汰后选择合法路线 |
+| `phase_conflict` | 合法路线的小节周期相同，但第一拍相差一个或多个整数拍 |
+| `period_fallback` | 所有原生路线周期均不合法，回退本地重音结果 |
 
 小节状态另外包含 `accent_tiebreak`（模型冲突，由重音路线裁决）和 `fallback`
 （原生小节模型全部不可用）；二者都会设置 `needs_review=true`。
+
+小节明细新增以下字段，后端应原样保存并传给复核界面：
+
+- `eligible_count`：通过周期校验的原生路线数；
+- `expected_bar_period_seconds`：由最终 BPM 和拍号计算的期望小节时长；
+- `period_validation`：各路线的周期、比例、错误类型和前奏覆盖情况；
+- `rejected_engines`：因周期不合法被淘汰的路线；
+- `phase_conflicts`：整数拍相位冲突及偏移拍数。
 
 ## 8. 验证命令
 

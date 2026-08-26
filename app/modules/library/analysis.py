@@ -20,6 +20,8 @@ ESSENTIA_ANALYSIS_SAMPLE_RATE = 44100
 BPM_CONSENSUS_TOLERANCE = 2.0
 DOWNBEAT_MATCH_TOLERANCE_SECONDS = 0.07
 DOWNBEAT_AGREEMENT_F1 = 0.70
+DOWNBEAT_PERIOD_TOLERANCE = 0.12
+DOWNBEAT_MAX_INTRO_BARS = 2.0
 
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
@@ -54,6 +56,20 @@ def _downbeat_agreement_f1() -> float:
         return float(np.clip(float(os.getenv("DOWNBEAT_AGREEMENT_F1", "0.70")), 0.1, 1.0))
     except (TypeError, ValueError):
         return DOWNBEAT_AGREEMENT_F1
+
+
+def _downbeat_period_tolerance() -> float:
+    try:
+        return float(np.clip(float(os.getenv("DOWNBEAT_PERIOD_TOLERANCE", "0.12")), 0.03, 0.35))
+    except (TypeError, ValueError):
+        return DOWNBEAT_PERIOD_TOLERANCE
+
+
+def _downbeat_max_intro_bars() -> float:
+    try:
+        return float(np.clip(float(os.getenv("DOWNBEAT_MAX_INTRO_BARS", "2.0")), 0.5, 8.0))
+    except (TypeError, ValueError):
+        return DOWNBEAT_MAX_INTRO_BARS
 
 
 def _madmom_beats_per_bar() -> tuple[int, ...]:
@@ -1540,6 +1556,105 @@ def _downbeat_match_metrics(
     }
 
 
+def _downbeat_period_profile(
+    values: list[float] | np.ndarray,
+    *,
+    bpm: float | None,
+    beats_per_bar: int,
+    period_tolerance: float,
+    max_intro_bars: float,
+) -> dict:
+    points = np.asarray(values, dtype=float)
+    points = np.sort(points[np.isfinite(points)])
+    intervals = np.diff(points)
+    median_period = float(np.median(intervals)) if len(intervals) else None
+    expected_period = (
+        float(beats_per_bar * 60.0 / bpm)
+        if bpm is not None and np.isfinite(bpm) and bpm > 0 and beats_per_bar > 0
+        else None
+    )
+    ratio = (
+        float(median_period / expected_period)
+        if median_period is not None and expected_period is not None and expected_period > 0
+        else None
+    )
+    compatible = ratio is None or abs(ratio - 1.0) <= period_tolerance
+    issue = None
+    if ratio is not None and not compatible:
+        aliases = {
+            "half_bar": 0.5,
+            "two_thirds_bar": 2.0 / 3.0,
+            "three_halves_bar": 1.5,
+            "double_bar": 2.0,
+        }
+        issue, alias_ratio = min(aliases.items(), key=lambda item: abs(ratio - item[1]))
+        if abs(ratio - alias_ratio) > period_tolerance:
+            issue = "period_mismatch"
+    first_downbeat = float(points[0]) if len(points) else None
+    intro_coverage_ok = (
+        True
+        if first_downbeat is None or expected_period is None
+        else first_downbeat <= expected_period * max_intro_bars
+    )
+    return {
+        "median_period_seconds": round(median_period, 4) if median_period is not None else None,
+        "expected_period_seconds": round(expected_period, 4) if expected_period is not None else None,
+        "period_ratio": round(ratio, 4) if ratio is not None else None,
+        "compatible": bool(compatible),
+        "issue": issue,
+        "first_downbeat_seconds": round(first_downbeat, 4) if first_downbeat is not None else None,
+        "intro_coverage_ok": bool(intro_coverage_ok),
+    }
+
+
+def _downbeat_phase_metrics(
+    first: list[float] | np.ndarray,
+    second: list[float] | np.ndarray,
+    *,
+    bpm: float | None,
+    beats_per_bar: int,
+    tolerance: float,
+    period_tolerance: float,
+) -> dict:
+    left = np.asarray(first, dtype=float)
+    right = np.asarray(second, dtype=float)
+    left = np.sort(left[np.isfinite(left)])
+    right = np.sort(right[np.isfinite(right)])
+    if bpm is None or bpm <= 0 or len(left) < 2 or len(right) < 2:
+        return {"is_phase_conflict": False, "shift_seconds": None, "shift_beats": None}
+
+    periods = [float(np.median(np.diff(values))) for values in (left, right)]
+    period = float(np.mean(periods))
+    expected_period = float(beats_per_bar * 60.0 / bpm)
+    if period <= 0 or abs(period / expected_period - 1.0) > period_tolerance:
+        return {"is_phase_conflict": False, "shift_seconds": None, "shift_beats": None}
+
+    # The first stable phrase carries the clearest bar phase. Later breakdowns
+    # can make a model emit extra half-bars and hide an otherwise obvious
+    # integer-beat phase shift when taking a whole-song median.
+    def circular_phase(values: np.ndarray) -> float:
+        angles = 2.0 * np.pi * values[:12] / period
+        mean_angle = float(np.angle(np.mean(np.exp(1j * angles))))
+        return (mean_angle % (2.0 * np.pi)) * period / (2.0 * np.pi)
+
+    left_phase = circular_phase(left)
+    right_phase = circular_phase(right)
+    shift_seconds = abs((right_phase - left_phase + period / 2.0) % period - period / 2.0)
+    beat_seconds = 60.0 / bpm
+    shift_beats = int(round(shift_seconds / beat_seconds))
+    residual = abs(shift_seconds - shift_beats * beat_seconds)
+    is_conflict = bool(
+        shift_seconds > tolerance
+        and 1 <= shift_beats < beats_per_bar
+        and residual <= max(tolerance, beat_seconds * 0.2)
+    )
+    return {
+        "is_phase_conflict": is_conflict,
+        "shift_seconds": round(shift_seconds, 4),
+        "shift_beats": shift_beats if is_conflict else None,
+    }
+
+
 def _choose_downbeat_consensus(
     results: dict[str, dict],
     *,
@@ -1547,26 +1662,58 @@ def _choose_downbeat_consensus(
     tolerance: float = DOWNBEAT_MATCH_TOLERANCE_SECONDS,
     agreement_f1: float = DOWNBEAT_AGREEMENT_F1,
     preferred_engine: str = "all_in_one",
+    bpm: float | None = None,
+    beats_per_bar: int = 4,
+    period_tolerance: float = DOWNBEAT_PERIOD_TOLERANCE,
+    max_intro_bars: float = DOWNBEAT_MAX_INTRO_BARS,
 ) -> tuple[list[float], dict]:
-    """Choose a coherent native downbeat sequence, using accents only as fallback/tie-break."""
-    valid = {
+    """Choose a BPM-compatible downbeat sequence and expose period/phase conflicts."""
+    native_valid = {
         name: value for name, value in results.items()
         if len(value.get("downbeats") or []) >= 2
     }
     priority = {"all_in_one": 0, "beat_this": 1, "madmom": 2}
+    period_validation = {
+        name: _downbeat_period_profile(
+            value["downbeats"],
+            bpm=bpm,
+            beats_per_bar=beats_per_bar,
+            period_tolerance=period_tolerance,
+            max_intro_bars=max_intro_bars,
+        )
+        for name, value in native_valid.items()
+    }
+    valid = {
+        name: value for name, value in native_valid.items()
+        if period_validation[name]["compatible"]
+    }
     names = sorted(valid, key=lambda name: priority.get(name, 99))
+    all_names = sorted(native_valid, key=lambda name: priority.get(name, 99))
     pair_metrics: dict[str, dict] = {}
     agreeing_pairs: set[frozenset[str]] = set()
-    for index, first_name in enumerate(names):
-        for second_name in names[index + 1:]:
+    phase_conflicts: dict[str, dict] = {}
+    for index, first_name in enumerate(all_names):
+        for second_name in all_names[index + 1:]:
             metrics = _downbeat_match_metrics(
-                valid[first_name]["downbeats"],
-                valid[second_name]["downbeats"],
+                native_valid[first_name]["downbeats"],
+                native_valid[second_name]["downbeats"],
                 tolerance=tolerance,
             )
             pair_metrics[f"{first_name}:{second_name}"] = metrics
-            if float(metrics["f1"]) >= agreement_f1:
+            pair_is_eligible = first_name in valid and second_name in valid
+            if pair_is_eligible and float(metrics["f1"]) >= agreement_f1:
                 agreeing_pairs.add(frozenset((first_name, second_name)))
+            elif pair_is_eligible:
+                phase = _downbeat_phase_metrics(
+                    native_valid[first_name]["downbeats"],
+                    native_valid[second_name]["downbeats"],
+                    bpm=bpm,
+                    beats_per_bar=beats_per_bar,
+                    tolerance=tolerance,
+                    period_tolerance=period_tolerance,
+                )
+                if phase["is_phase_conflict"]:
+                    phase_conflicts[f"{first_name}:{second_name}"] = phase
 
     groups: list[list[str]] = []
     for mask in range(1, 1 << len(names)):
@@ -1577,7 +1724,8 @@ def _choose_downbeat_consensus(
         ):
             groups.append(group)
 
-    available_count = len(valid)
+    available_count = len(native_valid)
+    eligible_count = len(valid)
     winning_group = max(
         groups,
         key=lambda group: (
@@ -1590,56 +1738,107 @@ def _choose_downbeat_consensus(
     has_model_agreement = len(winning_group) >= 2
     accent_metrics = {
         name: _downbeat_match_metrics(value["downbeats"], accent_fallback, tolerance=tolerance)
-        for name, value in valid.items()
+        for name, value in native_valid.items()
     }
 
+    def selection_rank(name: str) -> tuple:
+        profile = period_validation[name]
+        return (
+            bool(profile["intro_coverage_ok"]),
+            float(accent_metrics[name]["f1"]),
+            float(native_valid[name].get("confidence", 0.0)),
+            -priority.get(name, 99),
+        )
+
+    def agreement_rank(name: str) -> tuple:
+        profile = period_validation[name]
+        return (
+            bool(profile["intro_coverage_ok"]),
+            name == preferred_engine,
+            float(accent_metrics[name]["f1"]),
+            float(native_valid[name].get("confidence", 0.0)),
+            -priority.get(name, 99),
+        )
+
     if has_model_agreement:
-        selected_engine = min(winning_group, key=lambda name: priority.get(name, 99))
+        selected_engine = max(winning_group, key=agreement_rank)
+        coverage_override = selected_engine != min(
+            winning_group, key=lambda name: priority.get(name, 99)
+        )
         status = (
-            "unanimous" if len(winning_group) == available_count == 3
+            "unanimous" if len(winning_group) == eligible_count == available_count == 3
             else "majority" if available_count == 3
             else "degraded_agreement"
         )
-        needs_review = available_count < 3
+        needs_review = bool(
+            available_count < 3
+            or eligible_count < available_count
+            or coverage_override
+            or any(not period_validation[name]["intro_coverage_ok"] for name in winning_group)
+        )
     elif names:
         accent_winner = max(
             names,
-            key=lambda name: (float(accent_metrics[name]["f1"]), -priority.get(name, 99)),
+            key=selection_rank,
         )
-        selected_engine = accent_winner if float(accent_metrics[accent_winner]["f1"]) >= agreement_f1 else names[0]
+        selected_engine = accent_winner
         winning_group = [selected_engine]
-        status = "accent_tiebreak" if selected_engine == accent_winner and float(accent_metrics[accent_winner]["f1"]) >= agreement_f1 else "no_majority"
+        if phase_conflicts:
+            status = "phase_conflict"
+        elif eligible_count < available_count:
+            status = "period_filtered"
+        elif float(accent_metrics[accent_winner]["f1"]) >= agreement_f1:
+            status = "accent_tiebreak"
+        else:
+            status = "no_majority"
         needs_review = True
     else:
+        fallback_status = "period_fallback" if native_valid else "fallback"
         return list(accent_fallback), {
             "selected_engine": "accent_fallback",
             "winning_engines": [],
             "agreement_count": 0,
-            "available_count": 0,
-            "status": "fallback",
+            "available_count": available_count,
+            "eligible_count": 0,
+            "status": fallback_status,
             "needs_review": True,
             "tolerance_ms": round(tolerance * 1000.0, 2),
             "agreement_f1_threshold": agreement_f1,
-            "pair_metrics": {},
-            "accent_metrics": {},
+            "period_tolerance": period_tolerance,
+            "expected_bar_period_seconds": (
+                round(float(beats_per_bar * 60.0 / bpm), 4) if bpm is not None and bpm > 0 else None
+            ),
+            "period_validation": period_validation,
+            "rejected_engines": all_names,
+            "phase_conflicts": phase_conflicts,
+            "pair_metrics": pair_metrics,
+            "accent_metrics": accent_metrics,
         }
 
-    selected = [round(float(value), 3) for value in valid[selected_engine]["downbeats"]]
+    selected = [round(float(value), 3) for value in native_valid[selected_engine]["downbeats"]]
     return selected, {
         "selected_engine": selected_engine,
-        "selected_engine_name": valid[selected_engine].get("engine"),
+        "selected_engine_name": native_valid[selected_engine].get("engine"),
         "winning_engines": winning_group,
         "agreement_count": len(winning_group),
         "available_count": available_count,
+        "eligible_count": eligible_count,
         "status": status,
         "needs_review": needs_review,
         "tolerance_ms": round(tolerance * 1000.0, 2),
         "agreement_f1_threshold": agreement_f1,
+        "period_tolerance": period_tolerance,
+        "expected_bar_period_seconds": (
+            round(float(beats_per_bar * 60.0 / bpm), 4) if bpm is not None and bpm > 0 else None
+        ),
+        "period_validation": period_validation,
+        "rejected_engines": [name for name in all_names if name not in valid],
+        "phase_conflicts": phase_conflicts,
         "pair_metrics": pair_metrics,
         "accent_metrics": accent_metrics,
         "model_confidences": {
             name: round(float(value.get("confidence", 0.0)), 4)
-            for name, value in valid.items()
+            for name, value in native_valid.items()
         },
     }
 
@@ -2562,6 +2761,10 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         accent_fallback=accent_downbeats,
         tolerance=_downbeat_match_tolerance(),
         agreement_f1=_downbeat_agreement_f1(),
+        bpm=bpm,
+        beats_per_bar=4,
+        period_tolerance=_downbeat_period_tolerance(),
+        max_intro_bars=_downbeat_max_intro_bars(),
     )
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
     time_signature = _detect_time_signature(beat_times, downbeats, bpm=bpm)
