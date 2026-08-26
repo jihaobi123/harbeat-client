@@ -2,7 +2,8 @@
 set -euo pipefail
 
 test_bin="$(mktemp /tmp/flow-core-test.XXXXXX)"
-trap 'rm -f "$test_bin"' EXIT
+protocol_bin="$(mktemp /tmp/flow-protocol-test.XXXXXX)"
+trap 'rm -f "$test_bin" "$protocol_bin"' EXIT
 
 clang -std=c11 -Wall -Wextra -Werror \
   -Icomponents/flow_core/include \
@@ -11,3 +12,15 @@ clang -std=c11 -Wall -Wextra -Werror \
   -o "$test_bin"
 
 "$test_bin"
+
+clang -std=c11 -Wall -Wextra -Werror \
+  -Icomponents/flow_core/include \
+  -Icomponents/flow_protocol/include \
+  -Imanaged_components/espressif__cbor/tinycbor/src \
+  tests/host/test_protocol_schema.c \
+  components/flow_protocol/flow_protocol.c \
+  managed_components/espressif__cbor/tinycbor/src/cborencoder.c \
+  managed_components/espressif__cbor/tinycbor/src/cborparser.c \
+  -o "$protocol_bin"
+
+"$protocol_bin"
