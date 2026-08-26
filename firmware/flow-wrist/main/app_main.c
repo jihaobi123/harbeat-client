@@ -1,7 +1,64 @@
 #include "bsp/esp-bsp.h"
 #include "esp_err.h"
+#include "flow_core.h"
+#include "flow_ui.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "lvgl.h"
 #include "nvs_flash.h"
+
+static QueueHandle_t s_render_queue;
+static QueueHandle_t s_action_queue;
+static flow_app_state_t s_app_state;
+
+static void publish_state(void)
+{
+    xQueueOverwrite(s_render_queue, &s_app_state);
+}
+
+static void ui_action_handler(const flow_ui_action_t *action, void *context)
+{
+    (void)context;
+    xQueueSend(s_action_queue, action, 0);
+}
+
+static void render_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    flow_app_state_t latest;
+    if (xQueueReceive(s_render_queue, &latest, 0) == pdTRUE) {
+        flow_ui_render(&latest);
+    }
+}
+
+static void app_task(void *context)
+{
+    (void)context;
+    flow_ui_action_t action;
+    while (true) {
+        if (xQueueReceive(s_action_queue, &action, portMAX_DELAY) != pdTRUE) {
+            continue;
+        }
+
+        switch (action.type) {
+        case FLOW_UI_ACTION_OPEN_ENERGY:
+            flow_state_open_control(&s_app_state, FLOW_SCREEN_ENERGY);
+            break;
+        case FLOW_UI_ACTION_OPEN_STYLE:
+            flow_state_open_control(&s_app_state, FLOW_SCREEN_STYLE);
+            break;
+        case FLOW_UI_ACTION_BACK:
+        case FLOW_UI_ACTION_COMPLETE_TIMEOUT:
+            flow_state_return_home(&s_app_state);
+            break;
+        case FLOW_UI_ACTION_SET_ENERGY:
+        case FLOW_UI_ACTION_SET_STYLE:
+            break;
+        }
+        publish_state();
+    }
+}
 
 void app_main(void)
 {
@@ -12,18 +69,20 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    s_render_queue = xQueueCreate(1, sizeof(flow_app_state_t));
+    s_action_queue = xQueueCreate(8, sizeof(flow_ui_action_t));
+    ESP_ERROR_CHECK((s_render_queue != NULL && s_action_queue != NULL)
+                        ? ESP_OK
+                        : ESP_ERR_NO_MEM);
+    flow_state_init(&s_app_state);
+
     lv_display_t *display = bsp_display_start();
     ESP_ERROR_CHECK(display == NULL ? ESP_FAIL : ESP_OK);
     ESP_ERROR_CHECK(bsp_display_lock(0) ? ESP_OK : ESP_FAIL);
-
-    lv_obj_t *screen = lv_screen_active();
-    lv_obj_set_style_bg_color(screen, lv_color_hex(0xFFF8ED), 0);
-
-    lv_obj_t *label = lv_label_create(screen);
-    lv_label_set_text(label, "FLOW WRIST\nBRING-UP");
-    lv_obj_set_style_text_color(label, lv_color_hex(0x11110F), 0);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_center(label);
-
+    flow_ui_init(ui_action_handler, NULL);
+    flow_ui_render(&s_app_state);
+    lv_timer_create(render_timer_cb, 30, NULL);
     bsp_display_unlock();
+
+    xTaskCreate(app_task, "flow_app", 4096, NULL, 5, NULL);
 }
