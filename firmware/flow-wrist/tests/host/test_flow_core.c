@@ -61,6 +61,12 @@ static void test_global_lock_and_transition(void)
     assert(!flow_state_open_control(&state, FLOW_SCREEN_ENERGY));
     flow_state_return_home(&state);
     assert(state.screen == FLOW_SCREEN_TRANSITION);
+
+    flow_snapshot_t rejected_busy = make_snapshot(9, FLOW_PHASE_REJECTED, true);
+    rejected_busy.ack_id = 43;
+    strcpy(rejected_busy.error, "busy");
+    assert(flow_state_apply_snapshot(&state, &rejected_busy) == FLOW_APPLY_OK);
+    assert(state.screen == FLOW_SCREEN_TRANSITION);
 }
 
 static void test_revisions_completion_and_new_session(void)

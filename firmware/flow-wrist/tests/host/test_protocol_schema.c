@@ -65,6 +65,76 @@ static size_t encode_snapshot(uint8_t *buffer,
     return cbor_encoder_get_buffer_size(&root, buffer);
 }
 
+static size_t encode_catalog(uint8_t *buffer,
+                             size_t capacity,
+                             uint8_t version,
+                             uint8_t energy_max,
+                             bool include_all_styles)
+{
+    static const char *const ids[] = {"hiphop", "breaking", "funk", "locking"};
+    CborEncoder root;
+    CborEncoder map;
+    CborEncoder styles;
+    cbor_encoder_init(&root, buffer, capacity, 0);
+    assert(cbor_encoder_create_map(&root, &map, 5) == CborNoError);
+    encode_key(&map, "v");
+    assert(cbor_encode_uint(&map, version) == CborNoError);
+    encode_key(&map, "kind");
+    assert(cbor_encode_text_stringz(&map, "catalog") == CborNoError);
+    encode_key(&map, "energy_min");
+    assert(cbor_encode_uint(&map, 1) == CborNoError);
+    encode_key(&map, "energy_max");
+    assert(cbor_encode_uint(&map, energy_max) == CborNoError);
+    encode_key(&map, "styles");
+    size_t style_count = include_all_styles ? 4 : 3;
+    assert(cbor_encoder_create_array(&map, &styles, style_count) == CborNoError);
+    for (size_t index = 0; index < style_count; ++index) {
+        CborEncoder style;
+        assert(cbor_encoder_create_map(&styles, &style, 3) == CborNoError);
+        encode_key(&style, "id");
+        assert(cbor_encode_text_stringz(&style, ids[index]) == CborNoError);
+        encode_key(&style, "label");
+        assert(cbor_encode_text_stringz(&style, ids[index]) == CborNoError);
+        encode_key(&style, "order");
+        assert(cbor_encode_uint(&style, index + 1) == CborNoError);
+        assert(cbor_encoder_close_container(&styles, &style) == CborNoError);
+    }
+    assert(cbor_encoder_close_container(&map, &styles) == CborNoError);
+    assert(cbor_encoder_close_container(&root, &map) == CborNoError);
+    return cbor_encoder_get_buffer_size(&root, buffer);
+}
+
+static size_t encode_idle_snapshot(uint8_t *buffer, size_t capacity)
+{
+    CborEncoder root;
+    CborEncoder map;
+    cbor_encoder_init(&root, buffer, capacity, 0);
+    assert(cbor_encoder_create_map(&root, &map, 11) == CborNoError);
+    encode_key(&map, "v");
+    assert(cbor_encode_uint(&map, 1) == CborNoError);
+    encode_key(&map, "kind");
+    assert(cbor_encode_text_stringz(&map, "snapshot") == CborNoError);
+    encode_key(&map, "session_id");
+    assert(cbor_encode_text_stringz(&map, "8f3a19d04b7c221e") == CborNoError);
+    encode_key(&map, "revision");
+    assert(cbor_encode_uint(&map, 1) == CborNoError);
+    encode_key(&map, "ack_id");
+    assert(cbor_encode_uint(&map, 0) == CborNoError);
+    encode_key(&map, "phase");
+    assert(cbor_encode_text_stringz(&map, "idle") == CborNoError);
+    encode_key(&map, "locked");
+    assert(cbor_encode_boolean(&map, false) == CborNoError);
+    encode_key(&map, "eta_ms");
+    assert(cbor_encode_uint(&map, 0) == CborNoError);
+    encode_music(&map, "current", 3, "hiphop", 96);
+    encode_key(&map, "target");
+    assert(cbor_encode_null(&map) == CborNoError);
+    encode_key(&map, "error");
+    assert(cbor_encode_null(&map) == CborNoError);
+    assert(cbor_encoder_close_container(&root, &map) == CborNoError);
+    return cbor_encoder_get_buffer_size(&root, buffer);
+}
+
 static void test_command_validation(void)
 {
     flow_command_t command = {
@@ -157,6 +227,13 @@ static void test_snapshot_decoding(void)
     assert(strcmp(snapshot.target.style, "breaking") == 0);
     assert(snapshot.target.bpm == 108);
 
+    size = encode_idle_snapshot(buffer, sizeof(buffer));
+    assert(flow_protocol_decode_snapshot(buffer, size, &snapshot) == 0);
+    assert(snapshot.phase == FLOW_PHASE_IDLE);
+    assert(snapshot.target.energy == snapshot.current.energy);
+    assert(strcmp(snapshot.target.style, snapshot.current.style) == 0);
+    assert(snapshot.error[0] == '\0');
+
     size = encode_snapshot(buffer, sizeof(buffer), "not-hex-12345678", "preparing", 5, "breaking");
     assert(flow_protocol_decode_snapshot(buffer, size, &snapshot) == -1);
 
@@ -175,11 +252,29 @@ static void test_snapshot_decoding(void)
     assert(flow_protocol_decode_snapshot(buffer, size, &snapshot) == -1);
 }
 
+static void test_catalog_validation(void)
+{
+    uint8_t buffer[384];
+    size_t size = encode_catalog(buffer, sizeof(buffer), 1, 5, true);
+    assert(flow_protocol_validate_catalog(buffer, size));
+
+    size = encode_catalog(buffer, sizeof(buffer), 2, 5, true);
+    assert(!flow_protocol_validate_catalog(buffer, size));
+
+    size = encode_catalog(buffer, sizeof(buffer), 1, 6, true);
+    assert(!flow_protocol_validate_catalog(buffer, size));
+
+    size = encode_catalog(buffer, sizeof(buffer), 1, 5, false);
+    assert(!flow_protocol_validate_catalog(buffer, size));
+    assert(!flow_protocol_validate_catalog(NULL, 0));
+}
+
 int main(void)
 {
     test_command_validation();
     test_command_encoding();
     test_snapshot_decoding();
+    test_catalog_validation();
     puts("flow_protocol tests passed");
     return 0;
 }

@@ -14,6 +14,12 @@ static bool has_exact_session_id(const char *session_id)
     return terminator == session_id + FLOW_SESSION_ID_LENGTH;
 }
 
+static bool error_equals(const char *error, const char *expected)
+{
+    return memchr(error, '\0', sizeof(((flow_snapshot_t *)0)->error)) != NULL &&
+           strcmp(error, expected) == 0;
+}
+
 static bool valid_snapshot(const flow_snapshot_t *snapshot)
 {
     if (snapshot == NULL || !has_exact_session_id(snapshot->session_id)) {
@@ -85,6 +91,10 @@ flow_apply_result_t flow_state_apply_snapshot(flow_app_state_t *state,
 
     state->snapshot = *snapshot;
     state->has_snapshot = true;
+    if (state->pending_command_id != 0 &&
+        snapshot->ack_id == state->pending_command_id) {
+        state->pending_command_id = 0;
+    }
 
     switch (snapshot->phase) {
     case FLOW_PHASE_IDLE:
@@ -99,6 +109,12 @@ flow_apply_result_t flow_state_apply_snapshot(flow_app_state_t *state,
         state->screen = FLOW_SCREEN_COMPLETE;
         break;
     case FLOW_PHASE_REJECTED:
+        if (snapshot->locked && error_equals(snapshot->error, "busy")) {
+            state->screen = FLOW_SCREEN_TRANSITION;
+            break;
+        }
+        state->screen = FLOW_SCREEN_ERROR;
+        break;
     case FLOW_PHASE_ERROR:
         state->screen = FLOW_SCREEN_ERROR;
         break;

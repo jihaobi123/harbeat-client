@@ -20,6 +20,7 @@ typedef struct {
 } flow_command_t;
 
 bool flow_protocol_validate_command(const flow_command_t *command);
+bool flow_protocol_validate_catalog(const uint8_t *data, size_t size);
 int flow_protocol_encode_command(const flow_command_t *command,
                                  uint8_t *buffer,
                                  size_t capacity,

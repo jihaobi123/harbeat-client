@@ -3,7 +3,8 @@ set -euo pipefail
 
 test_bin="$(mktemp /tmp/flow-core-test.XXXXXX)"
 protocol_bin="$(mktemp /tmp/flow-protocol-test.XXXXXX)"
-trap 'rm -f "$test_bin" "$protocol_bin"' EXIT
+power_bin="$(mktemp /tmp/flow-power-test.XXXXXX)"
+trap 'rm -f "$test_bin" "$protocol_bin" "$power_bin"' EXIT
 
 clang -std=c11 -Wall -Wextra -Werror \
   -Icomponents/flow_core/include \
@@ -24,3 +25,11 @@ clang -std=c11 -Wall -Wextra -Werror \
   -o "$protocol_bin"
 
 "$protocol_bin"
+
+clang -std=c11 -Wall -Wextra -Werror \
+  -Icomponents/flow_power/include \
+  tests/host/test_power_policy.c \
+  components/flow_power/flow_power_policy.c \
+  -o "$power_bin"
+
+"$power_bin"

@@ -144,6 +144,59 @@ static bool decode_bool(const CborValue *map, const char *key, bool *result)
            cbor_value_get_boolean(&value, result) == CborNoError;
 }
 
+bool flow_protocol_validate_catalog(const uint8_t *data, size_t size)
+{
+    if (data == NULL || size == 0) {
+        return false;
+    }
+
+    CborParser parser;
+    CborValue root;
+    CborValue styles;
+    CborValue iterator;
+    uint64_t version = 0;
+    uint64_t energy_min = 0;
+    uint64_t energy_max = 0;
+    char kind[12];
+    uint8_t known_mask = 0;
+
+    if (cbor_parser_init(data, size, 0, &parser, &root) != CborNoError ||
+        !cbor_value_is_map(&root) ||
+        !decode_uint(&root, "v", UINT8_MAX, &version) || version != 1 ||
+        !decode_text(&root, "kind", kind, sizeof(kind), false) ||
+        strcmp(kind, "catalog") != 0 ||
+        !decode_uint(&root, "energy_min", UINT8_MAX, &energy_min) ||
+        !decode_uint(&root, "energy_max", UINT8_MAX, &energy_max) ||
+        energy_min != 1 || energy_max != 5 ||
+        !find_value(&root, "styles", &styles) ||
+        !cbor_value_is_array(&styles) ||
+        cbor_value_enter_container(&styles, &iterator) != CborNoError) {
+        return false;
+    }
+
+    while (!cbor_value_at_end(&iterator)) {
+        char id[FLOW_STYLE_ID_MAX];
+        if (!cbor_value_is_map(&iterator) ||
+            !decode_text(&iterator, "id", id, sizeof(id), false)) {
+            return false;
+        }
+        if (strcmp(id, "hiphop") == 0) {
+            known_mask |= 1u << 0;
+        } else if (strcmp(id, "breaking") == 0) {
+            known_mask |= 1u << 1;
+        } else if (strcmp(id, "funk") == 0) {
+            known_mask |= 1u << 2;
+        } else if (strcmp(id, "locking") == 0) {
+            known_mask |= 1u << 3;
+        }
+        if (cbor_value_advance(&iterator) != CborNoError) {
+            return false;
+        }
+    }
+
+    return known_mask == 0x0f;
+}
+
 static bool decode_music(const CborValue *map,
                          const char *key,
                          flow_music_state_t *music)
@@ -161,6 +214,34 @@ static bool decode_music(const CborValue *map,
     music->energy = (uint8_t)energy;
     music->bpm = (uint16_t)bpm;
     return true;
+}
+
+static bool decode_target(const CborValue *map,
+                          const flow_music_state_t *current,
+                          flow_music_state_t *target)
+{
+    CborValue value;
+    if (!find_value(map, "target", &value)) {
+        return false;
+    }
+    if (cbor_value_is_null(&value)) {
+        *target = *current;
+        return true;
+    }
+    return decode_music(map, "target", target);
+}
+
+static bool decode_error(const CborValue *map, char *error, size_t capacity)
+{
+    CborValue value;
+    if (!find_value(map, "error", &value)) {
+        return false;
+    }
+    if (cbor_value_is_null(&value)) {
+        error[0] = '\0';
+        return true;
+    }
+    return decode_text(map, "error", error, capacity, true);
 }
 
 static bool valid_session_id(const char *session_id)
@@ -235,8 +316,8 @@ int flow_protocol_decode_snapshot(const uint8_t *data,
         !decode_bool(&root, "locked", &decoded.locked) ||
         !decode_uint(&root, "eta_ms", UINT32_MAX, &eta_ms) ||
         !decode_music(&root, "current", &decoded.current) ||
-        !decode_music(&root, "target", &decoded.target) ||
-        !decode_text(&root, "error", decoded.error, sizeof(decoded.error), true)) {
+        !decode_target(&root, &decoded.current, &decoded.target) ||
+        !decode_error(&root, decoded.error, sizeof(decoded.error))) {
         return -1;
     }
 

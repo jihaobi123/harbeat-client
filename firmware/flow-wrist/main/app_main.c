@@ -1,6 +1,9 @@
 #include "bsp/esp-bsp.h"
 #include "esp_err.h"
+#include "esp_random.h"
+#include "flow_ble.h"
 #include "flow_core.h"
+#include "flow_power.h"
 #include "flow_protocol.h"
 #include "flow_simulator.h"
 #include "flow_ui.h"
@@ -15,18 +18,27 @@
 static QueueHandle_t s_render_queue;
 static QueueHandle_t s_action_queue;
 static QueueHandle_t s_snapshot_queue;
+static QueueHandle_t s_connection_queue;
 static flow_app_state_t s_app_state;
-static uint32_t s_next_command_id = 1;
+static uint32_t s_next_command_id;
 
 static void publish_state(void)
 {
+    flow_power_set_transition_active(s_app_state.screen == FLOW_SCREEN_TRANSITION);
     xQueueOverwrite(s_render_queue, &s_app_state);
 }
 
 static void ui_action_handler(const flow_ui_action_t *action, void *context)
 {
     (void)context;
+    flow_power_note_activity();
     xQueueSend(s_action_queue, action, 0);
+}
+
+static void battery_handler(uint8_t percentage, void *context)
+{
+    (void)context;
+    flow_ble_set_battery(percentage);
 }
 
 static void snapshot_handler(const flow_snapshot_t *snapshot, void *context)
@@ -35,9 +47,25 @@ static void snapshot_handler(const flow_snapshot_t *snapshot, void *context)
     xQueueSend(s_snapshot_queue, snapshot, 0);
 }
 
+#if !CONFIG_FLOW_SIMULATOR
+static void connection_handler(bool connected, void *context)
+{
+    (void)context;
+    xQueueSend(s_connection_queue, &connected, 0);
+}
+#endif
+
 static void render_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
+    for (lv_indev_t *input = lv_indev_get_next(NULL);
+         input != NULL;
+         input = lv_indev_get_next(input)) {
+        if (lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) {
+            flow_power_note_activity();
+            break;
+        }
+    }
     flow_app_state_t latest;
     if (xQueueReceive(s_render_queue, &latest, 0) == pdTRUE) {
         flow_ui_render(&latest);
@@ -49,6 +77,14 @@ static void app_task(void *context)
     (void)context;
     flow_ui_action_t action;
     while (true) {
+        bool connected;
+        while (xQueueReceive(s_connection_queue, &connected, 0) == pdTRUE) {
+            if (!connected) {
+                s_app_state.screen = FLOW_SCREEN_CONNECTING;
+                publish_state();
+            }
+        }
+
         flow_snapshot_t snapshot;
         while (xQueueReceive(s_snapshot_queue, &snapshot, 0) == pdTRUE) {
             if (flow_state_apply_snapshot(&s_app_state, &snapshot) == FLOW_APPLY_OK) {
@@ -84,10 +120,18 @@ static void app_task(void *context)
             memcpy(command.style, action.style, sizeof(command.style));
             if (flow_state_begin_command(&s_app_state, command.id) == FLOW_COMMAND_STARTED) {
                 ++s_next_command_id;
+                if (s_next_command_id == 0) {
+                    s_next_command_id = 1;
+                }
 #if CONFIG_FLOW_SIMULATOR
                 if (flow_simulator_submit(&command) != ESP_OK) {
                     s_app_state.screen = FLOW_SCREEN_ERROR;
                     strcpy(s_app_state.snapshot.error, "internal_error");
+                }
+#else
+                if (flow_ble_send_command(&command) != ESP_OK) {
+                    s_app_state.screen = FLOW_SCREEN_ERROR;
+                    strcpy(s_app_state.snapshot.error, "transport_error");
                 }
 #endif
             }
@@ -110,11 +154,16 @@ void app_main(void)
     s_render_queue = xQueueCreate(1, sizeof(flow_app_state_t));
     s_action_queue = xQueueCreate(8, sizeof(flow_ui_action_t));
     s_snapshot_queue = xQueueCreate(8, sizeof(flow_snapshot_t));
+    s_connection_queue = xQueueCreate(2, sizeof(bool));
     ESP_ERROR_CHECK((s_render_queue != NULL && s_action_queue != NULL &&
-                     s_snapshot_queue != NULL)
+                     s_snapshot_queue != NULL && s_connection_queue != NULL)
                         ? ESP_OK
                         : ESP_ERR_NO_MEM);
     flow_state_init(&s_app_state);
+    s_next_command_id = esp_random();
+    if (s_next_command_id == 0) {
+        s_next_command_id = 1;
+    }
 
     lv_display_t *display = bsp_display_start();
     ESP_ERROR_CHECK(display == NULL ? ESP_FAIL : ESP_OK);
@@ -123,9 +172,12 @@ void app_main(void)
     flow_ui_render(&s_app_state);
     lv_timer_create(render_timer_cb, 30, NULL);
     bsp_display_unlock();
+    ESP_ERROR_CHECK(flow_power_init(battery_handler, NULL));
 
     xTaskCreate(app_task, "flow_app", 4096, NULL, 5, NULL);
 #if CONFIG_FLOW_SIMULATOR
     ESP_ERROR_CHECK(flow_simulator_start(snapshot_handler, NULL));
+#else
+    ESP_ERROR_CHECK(flow_ble_init(snapshot_handler, connection_handler, NULL));
 #endif
 }

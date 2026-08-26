@@ -1,4 +1,5 @@
 /build/
+/build-ble/
 /managed_components/
 /sdkconfig
 /sdkconfig.old
