@@ -28,6 +28,21 @@ def _tone_events(
     return audio, times
 
 
+def _separate_note_events(sr: int = 8000) -> np.ndarray:
+    """Distinct notes create range between events, but no within-event slide."""
+    audio = np.zeros(sr * 8, dtype=np.float32)
+    frequencies = [40.0, 48.0, 60.0, 72.0, 54.0, 45.0, 67.0]
+    event_length = int(0.72 * sr)
+    local_time = np.arange(event_length) / sr
+    envelope = np.exp(-local_time * 2.4)
+    for index, frequency in enumerate(frequencies):
+        start = int((0.5 + index) * sr)
+        audio[start:start + event_length] += (
+            0.6 * np.sin(2 * np.pi * frequency * local_time) * envelope
+        ).astype(np.float32)
+    return audio
+
+
 def _drum_track(sr: int, duration: float, times: list[float]) -> np.ndarray:
     audio = np.zeros(int(sr * duration), dtype=np.float32)
     burst_length = int(0.045 * sr)
@@ -90,6 +105,27 @@ def test_bass_slide_is_reported_separately_from_808_identity() -> None:
     assert "bass_pitch_spectral_fallback_used" in result["quality_flags"]
     assert "low_frequency_melody" in result["features"]
     assert "bass_reply_pattern" in result["features"]
+
+
+def test_pitch_range_between_separate_notes_is_not_a_bass_slide() -> None:
+    sr = 8000
+    bass = _separate_note_events(sr)
+
+    result = analyze_bass_features(
+        bass,
+        np.zeros_like(bass),
+        sr,
+        drum_analysis={"events": {"kick": []}},
+        beat_points=np.arange(0, 8, 0.5),
+        original_audio=bass,
+    )
+
+    slide = result["features"]["bass_slide"]
+    melody = result["features"]["low_frequency_melody"]
+    assert slide["detected"] is False
+    assert slide["evidence"]["slide_event_count"] == 0
+    assert melody["evidence"]["event_pitch_range_semitones"] > 4.0
+    assert "meaningful_interval_fraction" in melody["evidence"]
 
 
 def test_pyin_tracks_fundamental_when_second_harmonic_is_stronger() -> None:

@@ -317,21 +317,54 @@ def analyze_bass_features(
     sustain_score = _clamp((average("decay_sec") - 0.16) / 0.48)
     aligned_fraction = average("kick_aligned")
     transient_score = _clamp(average("drum_transient_ratio") / 0.8)
-    slide_events = [
+    pyin_events = [
         item for item in events
-        if abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12
+        if item.get("pitch_method") == "pyin_candidate_segment"
+        and float(item.get("voiced_strength", 0.0)) >= PYIN_MIN_VOICED_PROB
+        and float(item.get("fundamental_hz", 0.0)) > 0
     ]
-    slide_score = _clamp(len(slide_events) / max(1.0, len(events) * 0.22))
-    pitched_fundamentals = [
-        float(item["fundamental_hz"]) for item in events
-        if float(item.get("fundamental_hz", 0.0)) > 0
+    pitch_evidence_coverage = len(pyin_events) / max(1, len(events))
+    pitch_track_quality = (
+        float(np.mean([float(item["voiced_strength"]) for item in pyin_events]))
+        if pyin_events else 0.0
+    )
+    slide_events = [
+        item for item in pyin_events
+        if 2.5 <= abs(float(item["pitch_motion_semitones"])) <= 12.0
+        and float(item["decay_sec"]) >= 0.12
     ]
-    if len(pitched_fundamentals) >= 3:
-        midi_events = 69.0 + 12.0 * np.log2(np.asarray(pitched_fundamentals) / 440.0)
+    # A slide must be visible inside voiced event-local F0 tracks.  Spectral
+    # peak jumps and a large range across separate notes are not slide proof.
+    slide_score = _clamp(
+        len(slide_events) / max(2.0, len(pyin_events) * 0.28)
+    ) * _clamp(pitch_evidence_coverage / 0.45)
+    pitched_sequence = [
+        (float(item["time"]), float(item["fundamental_hz"]))
+        for item in pyin_events
+    ]
+    if len(pitched_sequence) >= 3:
+        midi_events = 69.0 + 12.0 * np.log2(
+            np.asarray([value for _, value in pitched_sequence]) / 440.0
+        )
         pitch_range = float(np.percentile(midi_events, 90) - np.percentile(midi_events, 10))
-        melody_score = _clamp((pitch_range - 1.0) / 5.0) * _clamp(len(midi_events) / 6.0)
+        intervals = np.abs(np.diff(midi_events))
+        meaningful_fraction = float(np.mean((intervals >= 0.45) & (intervals <= 7.0)))
+        implausible_fraction = float(np.mean(intervals > 12.0))
+        pitch_diversity = _clamp((len(np.unique(np.round(midi_events * 2.0) / 2.0)) - 1) / 8.0)
+        pitch_span = _clamp((pitch_range - 1.0) / 12.0)
+        sequence_quality = _clamp(1.0 - implausible_fraction / 0.25)
+        melody_score = _clamp(
+            0.42 * meaningful_fraction
+            + 0.24 * pitch_diversity
+            + 0.18 * pitch_span
+            + 0.16 * sequence_quality
+        ) * _clamp(pitch_evidence_coverage / 0.55)
     else:
         pitch_range = 0.0
+        meaningful_fraction = 0.0
+        implausible_fraction = 0.0
+        pitch_diversity = 0.0
+        sequence_quality = 0.0
         melody_score = 0.0
 
     mix_values = [item["mix_low_consistency"] for item in events if item["mix_low_consistency"] is not None]
@@ -378,6 +411,7 @@ def analyze_bass_features(
     }
     source_quality = _clamp(source_quality)
     pitch_estimator_quality = 0.82 if pitch_methods == ["pyin_candidate_segment"] else 0.55
+    pitch_reliability_cap = 1.0 if pitch_methods == ["pyin_candidate_segment"] else 0.62
 
     def feature(
         score: float,
@@ -388,6 +422,9 @@ def analyze_bass_features(
         sources: list[str],
         time_ranges: list[dict[str, Any]] | None = None,
         evidence: dict[str, Any] | None = None,
+        coverage: float = 1.0,
+        stability: float = 1.0,
+        reliability_cap: float = 1.0,
     ) -> dict[str, Any]:
         return make_feature_evidence(
             score,
@@ -396,6 +433,9 @@ def analyze_bass_features(
             measurement_confidence=quality if confidence is None else confidence,
             source_quality=source_quality,
             estimator_quality=estimator_quality,
+            coverage=coverage,
+            stability=stability,
+            reliability_cap=reliability_cap,
             quality_flags=flags,
             sources=sources,
             analysis_method=method,
@@ -414,15 +454,32 @@ def analyze_bass_features(
         "bass_pitch_stability": feature(
             stability_score,
             estimator_quality=pitch_estimator_quality,
+            coverage=pitch_evidence_coverage,
+            stability=pitch_track_quality,
+            reliability_cap=pitch_reliability_cap,
             sources=["bass_stem"],
-            evidence={**common, "mean_pitch_stability": round(stability_score, 4)},
+            evidence={
+                **common,
+                "mean_pitch_stability": round(stability_score, 4),
+                "voiced_event_coverage": round(pitch_evidence_coverage, 4),
+            },
         ),
         "bass_slide": feature(
             slide_score,
             estimator_quality=pitch_estimator_quality,
+            coverage=pitch_evidence_coverage,
+            stability=pitch_track_quality,
+            reliability_cap=pitch_reliability_cap,
             sources=["bass_stem"],
-            time_ranges=_ranges(events, lambda item: abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12),
-            evidence={**common, "minimum_motion_semitones": 2.5, "slide_event_count": len(slide_events)},
+            time_ranges=_ranges(slide_events, lambda item: True),
+            evidence={
+                **common,
+                "motion_range_semitones": [2.5, 12.0],
+                "slide_event_count": len(slide_events),
+                "voiced_event_count": len(pyin_events),
+                "voiced_event_coverage": round(pitch_evidence_coverage, 4),
+                "semantic_rule": "voiced event-local F0 motion; pitch differences between separate notes do not count as slides",
+            },
         ),
         "kick_bass_alignment": feature(
             aligned_fraction,
@@ -440,6 +497,8 @@ def analyze_bass_features(
             threshold=0.62,
             confidence=quality * (0.85 if drums is None else 1.0),
             estimator_quality=0.58,
+            coverage=max(pitch_evidence_coverage, _clamp(len(events) / 6.0)),
+            reliability_cap=0.68 if "spectral_peak_fallback" in pitch_methods else 1.0,
             sources=required_sources,
             time_ranges=_ranges(events, lambda item: item["sub_ratio_25_95_hz"] >= 0.42 and item["pitch_stability"] >= 0.55),
             evidence={
@@ -458,12 +517,16 @@ def analyze_bass_features(
             sliding_808,
             threshold=0.62,
             estimator_quality=min(0.65, pitch_estimator_quality),
+            coverage=pitch_evidence_coverage,
+            stability=pitch_track_quality,
+            reliability_cap=pitch_reliability_cap,
             sources=required_sources,
-            time_ranges=_ranges(events, lambda item: abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12),
+            time_ranges=_ranges(slide_events, lambda item: True),
             evidence={
                 **common,
                 "sub_808_identity_score": round(identity_808, 4),
                 "bass_slide_score": round(slide_score, 4),
+                "voiced_event_coverage": round(pitch_evidence_coverage, 4),
                 "semantic_rule": "requires sustained harmonic bass evidence and measured pitch motion",
             },
         ),
@@ -499,8 +562,19 @@ def analyze_bass_features(
         "low_frequency_melody": feature(
             melody_score,
             estimator_quality=pitch_estimator_quality,
+            coverage=pitch_evidence_coverage,
+            stability=sequence_quality,
+            reliability_cap=pitch_reliability_cap,
             sources=["bass_stem"],
-            evidence={**common, "event_pitch_range_semitones": round(pitch_range, 4)},
+            evidence={
+                **common,
+                "event_pitch_range_semitones": round(pitch_range, 4),
+                "meaningful_interval_fraction": round(meaningful_fraction, 4),
+                "implausible_interval_fraction": round(implausible_fraction, 4),
+                "pitch_diversity": round(pitch_diversity, 4),
+                "voiced_event_coverage": round(pitch_evidence_coverage, 4),
+                "semantic_rule": "repeated, plausible pitch movement across voiced bass events; range alone is insufficient",
+            },
         ),
         "bass_reply_pattern": feature(
             reply_score,
