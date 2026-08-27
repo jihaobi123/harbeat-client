@@ -35,7 +35,11 @@ def test_four_on_floor_and_backbeat_use_explicit_16_step_targets() -> None:
     assert result["features"]["backbeat_2_4"]["detected"] is True
     assert result["features"]["two_step"]["detected"] is False
     assert result["features"]["four_on_floor"]["evidence"]["template"]["kick_steps"] == [0, 4, 8, 12]
-    assert result["windows"][0]["bar_count"] == 8
+    assert {window["bar_count"] for window in result["windows"]} == {4, 8}
+    evidence = result["features"]["four_on_floor"]["evidence"]
+    assert evidence["global_score"] > 0.9
+    assert evidence["stable_window_score"] > 0.9
+    assert evidence["best_stable_window"]["window_bars"] in {4, 8}
 
 
 def test_dembow_and_tamborzao_are_scored_as_distinct_templates() -> None:
@@ -63,3 +67,41 @@ def test_missing_bar_grid_is_unknown_not_no_rhythm() -> None:
 
     assert result["status"] == "unavailable"
     assert result["features"]["four_on_floor"]["detected"] is None
+
+
+def test_local_pattern_needs_song_coverage_before_detection() -> None:
+    beats, downbeats = _grid(bars=16)
+    analysis = {
+        "events": {
+            "kick": _events_for_steps([0, 4, 8, 12], bars=4),
+            "snare": _events_for_steps([4, 12], bars=16),
+            "hihat": _events_for_steps([2, 6, 10, 14], bars=16),
+        }
+    }
+
+    result = analyze_rhythm_features(
+        analysis, bpm=120, beat_points=beats, downbeats=downbeats, duration=32.0
+    )
+    feature = result["features"]["four_on_floor"]
+
+    assert feature["evidence"]["stable_window_score"] > feature["evidence"]["global_score"]
+    assert feature["evidence"]["stable_song_coverage"] == 0.25
+    assert feature["detected"] is False
+
+
+def test_short_track_uses_four_bar_window_without_becoming_unavailable() -> None:
+    beats, downbeats = _grid(bars=4)
+    analysis = {
+        "events": {
+            "kick": _events_for_steps([0, 4, 8, 12], bars=4),
+            "snare": _events_for_steps([4, 12], bars=4),
+            "hihat": _events_for_steps([2, 6, 10, 14], bars=4),
+        }
+    }
+
+    result = analyze_rhythm_features(
+        analysis, bpm=120, beat_points=beats, downbeats=downbeats, duration=8.0
+    )
+
+    assert result["features"]["four_on_floor"]["availability"] == "available"
+    assert [window["bar_count"] for window in result["windows"]] == [4]

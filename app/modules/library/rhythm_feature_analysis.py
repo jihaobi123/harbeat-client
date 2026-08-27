@@ -8,7 +8,7 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v1"
+RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v2"
 RHYTHM_FEATURES = (
     "four_on_floor", "backbeat_2_4", "halftime_snare_3", "jersey_club",
     "tamborzao", "dembow", "tresillo", "two_step", "drill_hat",
@@ -93,6 +93,78 @@ def _aggregate(scores: list[float]) -> tuple[float, list[int]]:
     return float(np.mean(scores)), [index for index, score in enumerate(scores) if score >= 0.60]
 
 
+def _longest_run(values: list[bool]) -> int:
+    best = current = 0
+    for value in values:
+        current = current + 1 if value else 0
+        best = max(best, current)
+    return best
+
+
+def _adaptive_windows(
+    raw: dict[str, list[float]], bars: np.ndarray, analyzed: int,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    windows: list[dict[str, Any]] = []
+    best_by_feature: dict[str, dict[str, Any]] = {}
+    for bar_count in (4, 8, 16):
+        if analyzed < bar_count:
+            continue
+        stride = max(1, bar_count // 4)
+        starts = list(range(0, analyzed - bar_count + 1, stride))
+        final_start = analyzed - bar_count
+        if final_start not in starts:
+            starts.append(final_start)
+        for start in starts:
+            end = start + bar_count
+            feature_metrics = {}
+            for name, scores in raw.items():
+                values = np.asarray(scores[start:end], dtype=float)
+                if not len(values):
+                    continue
+                matched = (values >= 0.58).tolist()
+                template_match = float(np.mean(values))
+                coverage = float(np.mean(matched))
+                continuity = _longest_run(matched) / len(values)
+                variance = float(np.var(values))
+                stability = _clamp(1.0 - float(np.std(values)) / 0.35)
+                stable_score = _clamp(
+                    template_match * continuity * np.sqrt(max(coverage, 0.0)) * stability
+                )
+                metrics = {
+                    "template_match": round(template_match, 4),
+                    "continuity": round(continuity, 4),
+                    "coverage": round(coverage, 4),
+                    "cross_bar_variance": round(variance, 4),
+                    "stability": round(stability, 4),
+                    "stable_score": round(stable_score, 4),
+                }
+                feature_metrics[name] = metrics
+                candidate = {
+                    "start_bar": start,
+                    "end_bar": end,
+                    "window_bars": bar_count,
+                    "start": round(float(bars[start]), 4),
+                    "end": round(float(bars[end]), 4),
+                    **metrics,
+                }
+                previous = best_by_feature.get(name)
+                if previous is None or candidate["stable_score"] > previous["stable_score"]:
+                    best_by_feature[name] = candidate
+            windows.append({
+                "start": round(float(bars[start]), 4),
+                "end": round(float(bars[end]), 4),
+                "start_bar": start,
+                "end_bar": end,
+                "bar_count": bar_count,
+                "features": feature_metrics,
+                # Compatibility summary used by existing diagnostics.
+                "scores": {
+                    name: metrics["template_match"] for name, metrics in feature_metrics.items()
+                },
+            })
+    return windows, best_by_feature
+
+
 def analyze_rhythm_features(
     drum_analysis: dict | None,
     *,
@@ -101,7 +173,7 @@ def analyze_rhythm_features(
     downbeats,
     duration: float,
 ) -> dict[str, Any]:
-    method = "bar_aligned_16_step_templates_v1"
+    method = "adaptive_bar_aligned_16_step_templates_v2"
     bars = _bars(downbeats, beat_points, bpm, duration)
     if len(bars) < 2:
         return {
@@ -192,6 +264,16 @@ def analyze_rhythm_features(
     consistency = _clamp(1.0 - float(np.std(offbeat_delays)) / 0.12) if len(offbeat_delays) >= 3 else 0.0
     swing_score = _clamp(max(0.0, median_delay - 0.025) / 0.14 * consistency)
 
+    windows, best_by_name = _adaptive_windows(raw, bars, analyzed)
+    flags = []
+    if analyzed < 8:
+        flags.append("fewer_than_8_valid_bars")
+    if quality < 0.55:
+        flags.append("low_rhythm_evidence_quality")
+    drum_source_quality = _clamp(
+        float(((drum_analysis or {}).get("confidence") or {}).get("overall", 0.75) or 0.0)
+    )
+
     templates = {
         "four_on_floor": {"kick_steps": [0, 4, 8, 12], "conflicts": ["syncopated_kick"]},
         "backbeat_2_4": {"snare_steps": [4, 12]},
@@ -208,12 +290,20 @@ def analyze_rhythm_features(
     features = {}
     matched_by_name = {}
     for name, scores in raw.items():
-        score, matched = _aggregate(scores)
+        global_score, matched = _aggregate(scores)
+        song_coverage = len(matched) / max(analyzed, 1)
+        best_window = best_by_name.get(name)
+        stable_score = float((best_window or {}).get("stable_score", global_score))
+        score = _clamp(0.55 * global_score + 0.30 * stable_score + 0.15 * song_coverage)
         matched_by_name[name] = matched
         features[name] = make_feature_evidence(
             score,
             threshold=0.58,
             confidence=quality,
+            measurement_confidence=quality,
+            source_quality=drum_source_quality,
+            estimator_quality=0.84,
+            quality_flags=flags,
             sources=["bpm", "beat_grid", "downbeat_grid", "drum_transcription"],
             analysis_method=method,
             time_ranges=_ranges(matched, bars),
@@ -221,13 +311,22 @@ def analyze_rhythm_features(
                 "bars_analyzed": analyzed,
                 "grid_resolution": 16,
                 "template": templates[name],
-                "mean_template_score": round(score, 4),
+                "mean_template_score": round(global_score, 4),
+                "global_score": round(global_score, 4),
+                "stable_window_score": round(stable_score, 4),
+                "stable_song_coverage": round(song_coverage, 4),
+                "best_stable_window": best_window,
+                "window_sizes_bars": [4, 8, 16],
             },
         )
     features["swing"] = make_feature_evidence(
         swing_score,
         threshold=0.55,
         confidence=_clamp(len(offbeat_delays) / 16.0),
+        measurement_confidence=_clamp(len(offbeat_delays) / 16.0),
+        source_quality=drum_source_quality,
+        estimator_quality=0.75,
+        quality_flags=flags,
         sources=["beat_grid", "drum_transcription"],
         analysis_method="microtiming_offbeat_delay_v1",
         evidence={
@@ -237,23 +336,6 @@ def analyze_rhythm_features(
         },
     )
 
-    windows = []
-    for start in range(0, analyzed, 8):
-        end = min(analyzed, start + 8)
-        windows.append({
-            "start": round(float(bars[start]), 4),
-            "end": round(float(bars[end]), 4),
-            "bar_count": end - start,
-            "scores": {
-                name: round(float(np.mean(scores[start:end])), 4)
-                for name, scores in raw.items() if scores[start:end]
-            },
-        })
-    flags = []
-    if analyzed < 8:
-        flags.append("fewer_than_8_valid_bars")
-    if quality < 0.55:
-        flags.append("low_rhythm_evidence_quality")
     return {
         "version": RHYTHM_FEATURE_VERSION,
         "status": "ready" if quality >= 0.55 else "degraded",
