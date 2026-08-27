@@ -23,6 +23,24 @@ def _count(values) -> int:
     return 0 if values is None else len(values)
 
 
+def _tempo_family(bpm: float | None) -> dict[str, Any]:
+    if bpm is None or not np.isfinite(bpm) or bpm <= 0:
+        return {
+            "status": "unavailable", "half": None, "base": None, "double": None,
+            "octave_relation_detected": False,
+        }
+    value = float(bpm)
+    return {
+        "status": "candidate_levels_only",
+        "half": round(value / 2.0, 4),
+        "base": round(value, 4),
+        "double": round(value * 2.0, 4),
+        # No second tempo observation is supplied to this layer, so exposing
+        # candidates must not be misreported as a detected conflict.
+        "octave_relation_detected": False,
+    }
+
+
 def empty_high_frequency_features(reason: str = "required_audio_unavailable") -> dict[str, Any]:
     feature = unavailable_feature(
         reason,
@@ -172,6 +190,7 @@ def analyze_high_frequency_features(
         "reason": None,
         "music_context": {
             "bpm": bpm,
+            "tempo_family": _tempo_family(bpm),
             "beat_count": _count(beat_points),
             "downbeat_count": _count(downbeats),
             "key_profile": dict(key_profile or {}),
