@@ -144,6 +144,12 @@ def _render_report(payload: dict) -> str:
             f"- 风格：版本={styles.get('version', 'unknown')}；状态={styles.get('status', 'unknown')}；可靠度={float(styles.get('reliability', 0.0) or 0.0):.3f}；置信度={float(styles.get('confidence', 0.0) or 0.0):.3f}；需复核={styles.get('needs_review', True)}",
             f"- Drum Loop：{stem.get('has_drum_loop')}；重复分数={float((stem.get('drum_loop_analysis') or {}).get('score', 0.0) or 0.0):.3f}",
             f"- 复核原因：{'、'.join(styles.get('review_reasons') or []) or '无'}",
+            "- 多标签：" + (
+                "、".join(
+                    f"{item.get('name')} {float(item.get('score', 0.0)):.3f}"
+                    for item in (styles.get("detected_styles") or [])
+                ) or "无达到完整检测条件的标签"
+            ),
             "",
             "| 排名 | 风格 | 分数 | 可靠度 | 置信度 | 覆盖率 | 支持证据 | 反对证据 |",
             "|---:|---|---:|---:|---:|---:|---|---|",

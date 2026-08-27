@@ -13,6 +13,8 @@ from app.modules.library.high_frequency_style_taxonomy import (
 
 
 STYLE_ANALYSIS_VERSION = "high_frequency_style_analysis_v3"
+MODEL_ROUTE_SUPPORT_FLOOR = 0.10
+MODEL_LABEL_COMPONENT_FLOOR = 0.02
 
 # Explicit label bridges for the optional Discogs/open-label route.  Exact or
 # close musical synonyms are direct; broader neighbouring subgenres are marked
@@ -243,12 +245,18 @@ def _model_label_mapping(features: dict[str, Any]) -> dict[str, Any]:
             "raw_labels": [],
             "mapped_styles": {},
             "unmapped_labels": [],
+            "ignored_low_score_labels": [],
             "out_of_taxonomy": False,
         }
     raw_labels = (route.get("result") or {}).get("labels") or []
+    peak_score = _clamp(
+        raw_labels[0].get("score", 0.0) or 0.0
+    ) if raw_labels and isinstance(raw_labels[0], dict) else 0.0
+    route_support_enabled = peak_score >= MODEL_ROUTE_SUPPORT_FLOOR
     normalized_labels = []
     mapped_candidates: dict[str, list[dict[str, Any]]] = {}
     unmapped = []
+    ignored_low_score = []
     for item in raw_labels[:25]:
         if not isinstance(item, dict) or not item.get("label"):
             continue
@@ -257,6 +265,9 @@ def _model_label_mapping(features: dict[str, Any]) -> dict[str, Any]:
         subtype = _normalized_model_subtype(raw_label)
         normalized = {"label": raw_label, "subtype": subtype, "score": round(score, 4)}
         normalized_labels.append(normalized)
+        if not route_support_enabled or score < MODEL_LABEL_COMPONENT_FLOOR:
+            ignored_low_score.append(normalized)
+            continue
         candidates = []
         for style_id, (direct_terms, adjacent_terms) in MODEL_STYLE_LABEL_RULES.items():
             if subtype in direct_terms:
@@ -318,6 +329,10 @@ def _model_label_mapping(features: dict[str, Any]) -> dict[str, Any]:
         "raw_labels": normalized_labels[:10],
         "mapped_styles": mapped,
         "unmapped_labels": unmapped[:10],
+        "ignored_low_score_labels": ignored_low_score[:10],
+        "route_support_floor": MODEL_ROUTE_SUPPORT_FLOOR,
+        "component_support_floor": MODEL_LABEL_COMPONENT_FLOOR,
+        "route_support_enabled": route_support_enabled,
         "out_of_taxonomy": out_of_taxonomy,
     }
 
@@ -355,11 +370,14 @@ def empty_style_analysis(reason: str = "pre_style_features_unavailable") -> dict
         "needs_review": True,
         "review_reasons": [reason],
         "top_styles": [],
+        "primary_style": None,
+        "detected_styles": [],
         "styles": [],
         "group_scores": {},
         "model_label_evidence": {
             "status": "unavailable", "raw_labels": [], "mapped_styles": {},
-            "unmapped_labels": [], "out_of_taxonomy": False,
+            "unmapped_labels": [], "ignored_low_score_labels": [],
+            "out_of_taxonomy": False,
         },
         "out_of_taxonomy": False,
         "confidence": 0.0,
@@ -384,6 +402,7 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
     for rank, item in enumerate(styles, 1):
         item["rank"] = rank
     top = styles[:3]
+    detected_styles = [item for item in styles if item["detected"]]
     top_score = top[0]["score"] if top else 0.0
     margin = top_score - top[1]["score"] if len(top) >= 2 else top_score
     review_reasons = []
@@ -423,6 +442,8 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
         "needs_review": bool(review_reasons),
         "review_reasons": review_reasons,
         "top_styles": top,
+        "primary_style": top[0] if top else None,
+        "detected_styles": detected_styles,
         "styles": styles,
         "group_scores": group_scores,
         "model_label_evidence": model_mapping,

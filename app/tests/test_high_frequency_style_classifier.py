@@ -58,6 +58,8 @@ def test_house_wins_from_four_floor_electronic_and_metallic_evidence() -> None:
     assert result["top_styles"][0]["bpm_fit"] == 1.0
     assert result["decision"]["normalization"] == "absolute_scores_not_forced_to_sum_to_one"
     assert len(result["styles"]) == 21
+    assert result["primary_style"]["style_id"] == "house"
+    assert any(item["style_id"] == "house" for item in result["detected_styles"])
 
 
 def test_drill_requires_hat_and_bass_motion_not_merely_generic_trap_808() -> None:
@@ -141,6 +143,8 @@ def test_missing_v4_features_returns_unavailable_result() -> None:
 
     assert result["status"] == "unavailable"
     assert result["top_styles"] == []
+    assert result["primary_style"] is None
+    assert result["detected_styles"] == []
 
 
 def test_each_style_rule_can_win_from_its_own_complete_evidence_signature() -> None:
@@ -267,3 +271,22 @@ def test_related_house_model_labels_combine_with_bounded_support() -> None:
     assert house["model_support"]["support"] > 0.52
     assert len(house["model_support"]["sources"]) == 3
     assert house["model_adjustment"] <= 0.18
+
+
+def test_weak_model_label_is_retained_but_does_not_reorder_native_scores() -> None:
+    payload = _with_model_labels(_payload(120, {
+        "rhythm_grammar.four_on_floor": 0.90,
+        "percussion_timbre.sustained_metallic": 0.72,
+        "production.acoustic_production": 0.70,
+        "production.brightness": 0.78,
+        "low_frequency.kick_bass_alignment": 0.65,
+        "low_frequency.low_frequency_melody": 0.62,
+        "harmony.chord_change_activity": 0.58,
+    }), [{"label": "Electronic---House", "score": 0.06}])
+
+    result = classify_high_frequency_styles(payload)
+    house = next(item for item in result["styles"] if item["style_id"] == "house")
+
+    assert house["model_adjustment"] == 0.0
+    assert result["model_label_evidence"]["raw_labels"][0]["score"] == 0.06
+    assert result["model_label_evidence"]["ignored_low_score_labels"][0]["subtype"] == "house"
