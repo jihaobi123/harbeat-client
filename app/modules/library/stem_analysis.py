@@ -10,7 +10,10 @@ import soundfile as sf
 
 from app.modules.library.drum_analysis import analyze_drum_stem, empty_drum_analysis
 from app.modules.library.feature_model_adapters import collect_mature_model_evidence
-from app.modules.library.style_feature_analysis import analyze_style_features, empty_style_features
+from app.modules.library.high_frequency_feature_analysis import (
+    analyze_high_frequency_features,
+    empty_high_frequency_features,
+)
 
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 
@@ -71,6 +74,7 @@ def analyze_stem_files(
     bpm: float | None = None,
     beat_points: list[float] | None = None,
     downbeats: list[float] | None = None,
+    key_profile: dict | None = None,
 ) -> dict[str, Any]:
     """Analyze real separated stems into planner-ready activity metadata."""
     available = {
@@ -108,7 +112,7 @@ def analyze_stem_files(
             "outro_clean_score": 0.0,
             "has_drum_loop": False,
             "drum_analysis": empty_drum_analysis(),
-            "feature_analysis": empty_style_features(),
+            "feature_analysis": empty_high_frequency_features(),
             "model_evidence": {"status": "unavailable", "routes": {}},
         }
 
@@ -161,13 +165,14 @@ def analyze_stem_files(
         density_window_sec=window_sec,
         model_route=(model_evidence.get("routes") or {}).get("drum_transcription"),
     )
-    feature_analysis = analyze_style_features(
+    feature_analysis = analyze_high_frequency_features(
         loaded,
         sample_rate,
         bpm=bpm,
         beat_points=beat_points,
         downbeats=downbeats,
         drum_analysis=drum_analysis,
+        key_profile=key_profile,
         # Reconstruct from already-loaded stems inside the analyzer.  Avoid a
         # second full-song decode and keep memory bounded in background jobs.
         original_audio=None,

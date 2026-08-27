@@ -53,6 +53,7 @@ def apply_stem_analysis(song) -> None:
         bpm=float(getattr(song, "bpm", 0.0) or 0.0),
         beat_points=list(getattr(song, "beat_points", None) or []),
         downbeats=list(getattr(song, "downbeats", None) or []),
+        key_profile=dict(getattr(song, "key_profile", None) or {}),
     )
     song.stem_activity = result["stem_activity"]
     song.stem_activity_windows = result["stem_activity_windows"]
