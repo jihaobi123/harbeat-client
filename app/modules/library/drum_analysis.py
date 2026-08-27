@@ -13,7 +13,7 @@ import librosa
 import numpy as np
 
 
-DRUM_ANALYSIS_VERSION = "drum_transcription_consensus_v2"
+DRUM_ANALYSIS_VERSION = "drum_transcription_consensus_v3"
 DRUM_CLASSES = ("kick", "snare", "hihat", "tom", "cymbal")
 CORE_DRUM_CLASSES = ("kick", "snare", "hihat")
 
@@ -71,15 +71,23 @@ def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[s
             try:
                 timestamp = float(event["time"])
                 confidence = float(event.get("confidence", event.get("probability", 0.75)))
-                velocity = int(round(float(event.get("velocity", 35 + 92 * confidence))))
             except (KeyError, TypeError, ValueError):
                 continue
             if timestamp < 0 or not np.isfinite(timestamp):
                 continue
+            raw_velocity = event.get("velocity")
+            try:
+                velocity = int(np.clip(round(float(raw_velocity)), 1, 127)) if raw_velocity is not None else None
+            except (TypeError, ValueError):
+                velocity = None
             normalized[name].append({
                 "time": round(timestamp, 4),
                 "confidence": round(float(np.clip(confidence, 0.0, 1.0)), 4),
-                "velocity": int(np.clip(velocity, 1, 127)),
+                "detector_confidence": round(float(np.clip(confidence, 0.0, 1.0)), 4),
+                "relative_intensity": None,
+                "intensity_source": "pending_waveform_measurement",
+                "velocity": velocity,
+                "velocity_source": "model" if velocity is not None else "unavailable",
             })
     for name in DRUM_CLASSES:
         normalized[name].sort(key=lambda item: item["time"])
@@ -142,9 +150,33 @@ def _pick_events(
         events.append({
             "time": round(float(index * hop_length / sr), 4),
             "confidence": round(float(0.35 + 0.65 * strength), 4),
-            "velocity": int(round(35 + 92 * strength)),
+            "detector_confidence": round(float(0.35 + 0.65 * strength), 4),
+            "relative_intensity": None,
+            "intensity_source": "pending_waveform_measurement",
+            "velocity": None,
+            "velocity_source": "unavailable",
         })
     return events
+
+
+def _attach_relative_intensity(
+    events: dict[str, list[dict]], audio: np.ndarray, sr: int,
+) -> None:
+    """Measure hit strength from audio, independently of detector certainty."""
+    for name, values in events.items():
+        raw: list[float] = []
+        for event in values:
+            center = int(round(float(event["time"]) * sr))
+            start = max(0, center - int(0.010 * sr))
+            end = min(len(audio), center + int(0.090 * sr))
+            clip = np.asarray(audio[start:end], dtype=float)
+            raw.append(float(np.sqrt(np.mean(np.square(clip)))) if len(clip) else 0.0)
+        reference = float(np.percentile(raw, 90)) if raw else 0.0
+        for event, event_rms in zip(values, raw):
+            relative = float(np.clip(event_rms / (reference + 1e-10), 0.0, 1.0)) if reference > 0 else 0.0
+            event["relative_intensity"] = round(relative, 4)
+            event["intensity_source"] = "local_waveform_rms_same_family_p90"
+            event["event_rms"] = round(event_rms, 6)
 
 
 def _remove_spectral_leakage(
@@ -415,6 +447,7 @@ def analyze_drum_stem(
         events = {**core_events, "tom": [], "cymbal": []}
         selected_engine = "spectral_flux_fallback"
         detector_mode = "fallback"
+    _attach_relative_intensity(events, mono, sr)
     duration = len(mono) / sr
     beat_grid = _float_points(beat_points)
     bars = _bar_grid(bpm=bpm, beat_points=beat_points, downbeats=downbeats, duration=duration)

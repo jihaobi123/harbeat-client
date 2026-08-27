@@ -53,6 +53,42 @@ def test_drum_analyzer_detects_three_classes_and_pattern() -> None:
     assert result["pattern"]["stability"] >= 2 / 3
     assert result["confidence"]["overall"] >= 0.58
     assert result["density_curve"]
+    all_events = [event for values in result["events"].values() for event in values]
+    assert all(event["velocity"] is None for event in all_events)
+    assert all(event["velocity_source"] == "unavailable" for event in all_events)
+    assert all(event["relative_intensity"] is not None for event in all_events)
+    assert any(
+        event["relative_intensity"] != event["detector_confidence"]
+        for event in all_events
+    )
+
+
+def test_model_velocity_is_kept_only_when_explicitly_supplied() -> None:
+    audio, sr, beats, downbeats = _synthetic_drum_loop()
+    model_route = {
+        "status": "ready",
+        "engine": "fixture",
+        "result": {
+            "events": {
+                "kick": [
+                    {"time": 0.0, "confidence": 0.92, "velocity": 74},
+                    {"time": 1.0, "confidence": 0.91},
+                ]
+            }
+        },
+    }
+
+    result = analyze_drum_stem(
+        audio, sr, bpm=120.0, beat_points=beats, downbeats=downbeats,
+        model_route=model_route,
+    )
+
+    first, second = result["events"]["kick"]
+    assert first["velocity"] == 74
+    assert first["velocity_source"] == "model"
+    assert second["velocity"] is None
+    assert second["velocity_source"] == "unavailable"
+    assert first["detector_confidence"] == 0.92
 
 
 def test_drum_analyzer_degrades_without_beat_grid() -> None:

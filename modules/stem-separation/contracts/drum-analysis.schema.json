@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "harbeat://modules/stem-separation/drum-analysis/v2",
+  "$id": "harbeat://modules/stem-separation/drum-analysis/v3",
   "title": "HarBeat drum analysis",
   "type": "object",
   "required": [
@@ -8,7 +8,7 @@
     "density_curve", "pattern", "fills", "confidence", "quality_flags", "engine_routes"
   ],
   "properties": {
-    "version": {"const": "drum_transcription_consensus_v2"},
+    "version": {"const": "drum_transcription_consensus_v3"},
     "source": {"const": "demucs_drums_stem"},
     "selected_engine": {"type": "string"},
     "detector_mode": {"enum": ["dedicated_model", "fallback"]},
@@ -54,11 +54,18 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["time", "confidence", "velocity"],
+        "required": [
+          "time", "confidence", "detector_confidence", "relative_intensity",
+          "intensity_source", "velocity", "velocity_source"
+        ],
         "properties": {
           "time": {"type": "number", "minimum": 0},
           "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-          "velocity": {"type": "integer", "minimum": 0, "maximum": 127}
+          "detector_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "relative_intensity": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "intensity_source": {"type": "string"},
+          "velocity": {"type": ["integer", "null"], "minimum": 0, "maximum": 127},
+          "velocity_source": {"enum": ["model", "unavailable"]}
         }
       }
     }
