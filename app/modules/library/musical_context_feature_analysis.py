@@ -9,12 +9,17 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-MUSICAL_CONTEXT_VERSION = "musical_context_features_v1"
-VOCAL_FEATURES = ("rap_delivery", "singing", "vocal_chop")
+MUSICAL_CONTEXT_VERSION = "musical_context_features_v2"
+VOCAL_FEATURES = (
+    "rap_delivery", "singing", "vocal_chop", "vocal_density",
+    "syllabic_activity", "pitch_sustain_ratio", "melodic_contour",
+    "vocal_chop_repetition",
+)
 HARMONY_FEATURES = ("harmonic_complexity", "jazz_soul_harmony", "chord_change_activity")
 PRODUCTION_FEATURES = (
     "brightness", "dark_timbre", "distortion", "lofi_texture", "sample_texture",
     "electronic_production", "acoustic_production", "rage_synth",
+    "rage_synth_candidate",
 )
 
 
@@ -39,7 +44,7 @@ def _ranges(mask: np.ndarray, hop: int, sr: int, minimum_frames: int = 1) -> lis
 
 
 def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict], float, dict]:
-    method = "vocal_activity_pitch_rhythm_v1"
+    method = "vocal_activity_pitch_rhythm_v2"
     if vocals is None or len(vocals) < sr:
         return ({
             name: unavailable_feature(
@@ -98,6 +103,23 @@ def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict]
     if len(intervals) >= 3:
         repetition = _clamp(1.0 - float(np.std(intervals)) / max(float(np.mean(intervals)), 1e-6))
     vocal_chop = _clamp(0.62 * short_fraction + 0.38 * repetition)
+    valid_runs = []
+    run = 0
+    for value in valid:
+        if value:
+            run += 1
+        elif run:
+            valid_runs.append(run)
+            run = 0
+    if run:
+        valid_runs.append(run)
+    sustained_voiced_frames = sum(value for value in valid_runs if value * hop / sr >= 0.25)
+    pitch_sustain_ratio = sustained_voiced_frames / max(int(np.sum(active[:len(valid)])), 1)
+    syllabic_activity = _clamp(articulation_rate / 6.5)
+    melodic_contour = _clamp(
+        0.62 * _clamp(melodic_range / 12.0)
+        + 0.38 * _clamp(pitch_motion / 2.5)
+    )
     quality = _clamp(activity / 0.35) * _clamp(len(vocals) / (sr * 20.0))
     evidence = {
         "vocal_activity_fraction": round(activity, 4),
@@ -106,6 +128,7 @@ def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict]
         "voiced_confidence": round(voiced_confidence, 4),
         "melodic_range_semitones": round(melodic_range, 4),
         "median_pitch_motion_semitones": round(pitch_motion, 4),
+        "pitch_sustain_ratio": round(pitch_sustain_ratio, 4),
     }
     return ({
         "rap_delivery": make_feature_evidence(
@@ -125,6 +148,37 @@ def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict]
                 "maximum_short_region_sec": 0.75,
                 "repetition_score": round(repetition, 4),
             },
+        ),
+        "vocal_density": make_feature_evidence(
+            _clamp(activity / 0.70), threshold=0.55, confidence=quality,
+            source_quality=0.75, estimator_quality=0.82,
+            sources=["vocals_stem"], analysis_method=method,
+            time_ranges=active_ranges, evidence=evidence,
+        ),
+        "syllabic_activity": make_feature_evidence(
+            syllabic_activity, threshold=0.55, confidence=quality,
+            source_quality=0.75, estimator_quality=0.72,
+            sources=["vocals_stem"], analysis_method=method,
+            time_ranges=active_ranges, evidence=evidence,
+        ),
+        "pitch_sustain_ratio": make_feature_evidence(
+            pitch_sustain_ratio, threshold=0.55, confidence=quality,
+            source_quality=0.75, estimator_quality=0.80,
+            sources=["vocals_stem"], analysis_method=method,
+            time_ranges=active_ranges, evidence=evidence,
+        ),
+        "melodic_contour": make_feature_evidence(
+            melodic_contour, threshold=0.55, confidence=quality,
+            source_quality=0.75, estimator_quality=0.76,
+            sources=["vocals_stem"], analysis_method=method,
+            time_ranges=active_ranges, evidence=evidence,
+        ),
+        "vocal_chop_repetition": make_feature_evidence(
+            vocal_chop, threshold=0.60, confidence=quality,
+            source_quality=0.75, estimator_quality=0.64,
+            sources=["vocals_stem", "beat_grid"], analysis_method=method,
+            time_ranges=short_ranges,
+            evidence={"short_region_fraction": round(short_fraction, 4), "repetition_score": round(repetition, 4)},
         ),
     }, quality, evidence)
 
@@ -187,7 +241,7 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
 
 
 def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr: int) -> tuple[dict[str, dict], float]:
-    method = "spectral_production_profile_v1"
+    method = "multi_evidence_production_profile_v2"
     audio = source if source is not None and len(source) >= sr else other
     if audio is None or len(audio) < sr:
         return ({
@@ -199,20 +253,40 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
     audio = np.asarray(audio, dtype=float)
     if len(audio) > sr * 90:
         audio = audio[(len(audio) - sr * 90) // 2:][:sr * 90]
-    spectrum = np.abs(librosa.stft(audio, n_fft=2048, hop_length=512)) + 1e-10
+    n_fft = min(2048, 2 ** int(np.floor(np.log2(max(len(audio), 512)))))
+    production_hop = max(128, n_fft // 4)
+    spectrum = np.abs(librosa.stft(audio, n_fft=n_fft, hop_length=production_hop)) + 1e-10
     centroid = float(np.mean(librosa.feature.spectral_centroid(S=spectrum, sr=sr)))
     rolloff = float(np.mean(librosa.feature.spectral_rolloff(S=spectrum, sr=sr, roll_percent=0.85)))
     flatness = float(np.mean(librosa.feature.spectral_flatness(S=spectrum)))
     zcr = float(np.mean(librosa.feature.zero_crossing_rate(audio)))
     crest = float(np.max(np.abs(audio)) / (np.sqrt(np.mean(np.square(audio))) + 1e-8))
+    absolute = np.abs(audio)
+    clipping_ratio = float(np.mean(absolute >= max(0.98 * float(np.max(absolute)), 1e-8)))
+    frame_rms = librosa.feature.rms(y=audio, frame_length=2048, hop_length=512)[0]
+    noise_floor_ratio = float(np.percentile(frame_rms, 10) / (np.median(frame_rms) + 1e-8))
+    onset_envelope = librosa.onset.onset_strength(y=audio, sr=sr, hop_length=512)
+    transient_contrast = float(
+        np.percentile(onset_envelope, 95) / (np.mean(onset_envelope) + 1e-8)
+    ) if len(onset_envelope) else 0.0
     harmonic, percussive = librosa.effects.hpss(audio)
     harmonic_ratio = float(np.sqrt(np.mean(np.square(harmonic))) / (np.sqrt(np.mean(np.square(audio))) + 1e-8))
     brightness = _clamp((centroid - 900.0) / 3300.0)
     dark = _clamp((1800.0 - centroid) / 1200.0)
-    distortion = _clamp(0.42 * _clamp(flatness / 0.18) + 0.38 * _clamp((4.6 - crest) / 3.2) + 0.20 * _clamp(zcr / 0.18))
-    lofi = _clamp(0.48 * (1.0 - _clamp(rolloff / 8500.0)) + 0.28 * _clamp(flatness / 0.16) + 0.24 * _clamp(zcr / 0.16))
-    acoustic = _clamp(0.58 * harmonic_ratio + 0.24 * (1.0 - _clamp(flatness / 0.20)) + 0.18 * (1.0 - distortion))
-    electronic = _clamp(0.46 * brightness + 0.30 * _clamp(flatness / 0.20) + 0.24 * (1.0 - acoustic))
+    distortion = _clamp(
+        0.25 * _clamp(flatness / 0.18)
+        + 0.25 * _clamp((4.6 - crest) / 3.2)
+        + 0.20 * _clamp(zcr / 0.18)
+        + 0.18 * _clamp(clipping_ratio / 0.08)
+        + 0.12 * _clamp(noise_floor_ratio / 0.55)
+    )
+    lofi = _clamp(
+        0.34 * (1.0 - _clamp(rolloff / min(8500.0, sr * 0.46)))
+        + 0.22 * _clamp(flatness / 0.16)
+        + 0.18 * _clamp(noise_floor_ratio / 0.55)
+        + 0.14 * _clamp((3.5 - transient_contrast) / 2.5)
+        + 0.12 * _clamp(zcr / 0.16)
+    )
 
     mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13, hop_length=1024)
     if mfcc.shape[1] >= 8:
@@ -220,8 +294,24 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
         lag_frames = max(1, int(round(2.0 * sr / 1024)))
         similarities = np.sum(normalized[:, lag_frames:] * normalized[:, :-lag_frames], axis=0)
         sample_texture = _clamp((float(np.percentile(similarities, 90)) - 0.55) / 0.38)
+        repeat_similarity = float(np.percentile(similarities, 90))
+        envelope_variance = _clamp(float(np.mean(np.std(normalized, axis=1))) / 0.22)
     else:
         sample_texture = 0.0
+        repeat_similarity = 0.0
+        envelope_variance = 0.0
+    acoustic = _clamp(
+        0.36 * harmonic_ratio
+        + 0.24 * envelope_variance
+        + 0.20 * (1.0 - _clamp(repeat_similarity))
+        + 0.20 * (1.0 - distortion)
+    )
+    electronic = _clamp(
+        0.30 * brightness
+        + 0.25 * _clamp(flatness / 0.20)
+        + 0.25 * _clamp(repeat_similarity)
+        + 0.20 * (1.0 - acoustic)
+    )
     other_audio = np.asarray(other, dtype=float) if other is not None and len(other) >= sr else audio
     other_centroid = float(np.mean(librosa.feature.spectral_centroid(y=other_audio, sr=sr)))
     other_flatness = float(np.mean(librosa.feature.spectral_flatness(y=other_audio)))
@@ -238,6 +328,11 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
         "zero_crossing_rate": round(zcr, 5),
         "crest_factor": round(crest, 4),
         "harmonic_energy_ratio": round(harmonic_ratio, 4),
+        "clipping_candidate_ratio": round(clipping_ratio, 5),
+        "noise_floor_ratio": round(noise_floor_ratio, 4),
+        "transient_contrast": round(transient_contrast, 4),
+        "sample_repeat_similarity": round(repeat_similarity, 4),
+        "spectral_envelope_variance": round(envelope_variance, 4),
         "other_stem_centroid_hz": round(other_centroid, 3),
     }
     scores = {
@@ -249,10 +344,16 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
         "electronic_production": electronic,
         "acoustic_production": acoustic,
         "rage_synth": rage,
+        "rage_synth_candidate": rage,
     }
     return ({
         name: make_feature_evidence(
             score, threshold=0.60, confidence=quality, sources=["full_mix", "other_stem"],
+            source_quality=0.75,
+            estimator_quality=(
+                0.58 if name in {"distortion", "lofi_texture", "rage_synth", "rage_synth_candidate"}
+                else 0.68
+            ),
             analysis_method=method, evidence=evidence,
         ) for name, score in scores.items()
     }, quality)
@@ -265,11 +366,18 @@ def analyze_musical_context_features(
     original_audio: np.ndarray | None,
     sr: int,
     key_profile: dict | None = None,
+    native_other: np.ndarray | None = None,
+    native_original_audio: np.ndarray | None = None,
+    native_sr: int | None = None,
 ) -> dict[str, Any]:
     vocal, vocal_quality, vocal_summary = _vocal_features(vocals, sr)
     harmonic_source = other if other is not None and len(other) >= sr else original_audio
     harmony, harmony_quality = _harmony_features(harmonic_source, sr, key_profile)
-    production, production_quality = _production_features(original_audio, other, sr)
+    production_source = native_other if native_other is not None else other
+    production_sr = int(native_sr or sr)
+    production, production_quality = _production_features(
+        native_original_audio, production_source, production_sr,
+    )
     quality = float(np.mean([vocal_quality, harmony_quality, production_quality]))
     flags = []
     if vocal_quality == 0:

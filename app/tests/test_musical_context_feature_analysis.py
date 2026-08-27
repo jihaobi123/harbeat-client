@@ -23,6 +23,10 @@ def test_sustained_pitched_vocal_produces_explicit_singing_evidence() -> None:
     assert singing["score"] > result["vocal_delivery"]["rap_delivery"]["score"]
     assert singing["evidence"]["voiced_fraction"] > 0.5
     assert singing["sources"] == ["vocals_stem"]
+    assert "vocal_density" in result["vocal_delivery"]
+    assert "syllabic_activity" in result["vocal_delivery"]
+    assert "pitch_sustain_ratio" in result["vocal_delivery"]
+    assert "melodic_contour" in result["vocal_delivery"]
 
 
 def test_production_and_harmony_expose_measured_threshold_evidence() -> None:
@@ -39,7 +43,10 @@ def test_production_and_harmony_expose_measured_threshold_evidence() -> None:
     production = result["production"]["electronic_production"]
     assert "mean_active_pitch_classes" in harmony["evidence"]
     assert "spectral_centroid_hz" in production["evidence"]
+    assert "clipping_candidate_ratio" in production["evidence"]
+    assert "sample_repeat_similarity" in production["evidence"]
     assert harmony["analysis_method"] == "chroma_harmony_activity_v1"
+    assert "rage_synth_candidate" in result["production"]
 
 
 def test_missing_sources_stay_unavailable() -> None:

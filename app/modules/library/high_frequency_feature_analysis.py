@@ -85,6 +85,18 @@ def analyze_high_frequency_features(
         name: np.asarray(value, dtype=np.float32)
         for name, value in stems.items() if value is not None and len(value)
     }
+    if original_audio is not None and len(original_audio):
+        native_mix = np.asarray(original_audio, dtype=np.float32)
+    else:
+        native_lengths = [len(value) for value in native_arrays.values()]
+        native_length = min(native_lengths) if native_lengths else 0
+        native_mix = (
+            sum(
+                (value[:native_length] for value in native_arrays.values()),
+                np.zeros(native_length, dtype=np.float32),
+            )
+            if native_length else None
+        )
     arrays, analysis_sr = _resample_stems(native_arrays, sr)
     if original_audio is not None and len(original_audio):
         mix = np.asarray(original_audio, dtype=np.float32)
@@ -117,6 +129,9 @@ def analyze_high_frequency_features(
         original_audio=mix,
         sr=analysis_sr,
         key_profile=key_profile,
+        native_other=native_arrays.get("other"),
+        native_original_audio=native_mix,
+        native_sr=sr,
     )
     groups = {
         "rhythm_grammar": rhythm["features"],
