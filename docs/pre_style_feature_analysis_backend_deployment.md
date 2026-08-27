@@ -2,8 +2,9 @@
 
 ## 1. 模块边界
 
-本模块只输出可测量的音频证据，不输出音乐风格名称。结果写入
-`music_features.pre_style_features`，供后续独立的风格分类模块读取。
+本模块主体只输出可测量的音频证据。可选的开源风格模型标签以独立辅助路由保存，
+由后续 21 类分类模块限幅使用，不能替代原生特征和必需条件。结果写入
+`music_features.pre_style_features`，供后续风格分类模块读取。
 
 当前输出六组证据：
 
@@ -29,13 +30,14 @@ Demucs stems
   beat/downbeat + 鼓点 -> 直线/三连音网格 + 16步节奏语法 + 4/8/16小节稳定窗口
 ```
 
-鼓转录线路返回 `status`、`engine`、`elapsed_seconds`、`license`、`error` 和
-`result`。其他特征由当前时频模块计算，结果通过 `analysis_method`、`sources`、
-`quality_flags` 和 `evidence` 保留依据。
+鼓转录与辅助风格标签线路均返回 `status`、`engine`、`elapsed_seconds`、
+`license`、`error` 和 `result`。其他特征由当前时频模块计算，结果通过
+`analysis_method`、`sources`、`quality_flags` 和 `evidence` 保留依据。
 
 ## 3. 安装
 
-基础API依赖保持不变。只有需要专用鼓转录时才部署独立worker。
+基础 API 依赖保持不变。只有需要专用鼓转录或辅助风格标签时才部署独立 worker
+或配置本地 Essentia Discogs 模型；程序不会自动下载权重。
 
 ## 4. 外部模型worker协议
 
@@ -43,11 +45,20 @@ Demucs stems
 
 ```bash
 FEATURE_DRUM_TRANSCRIBER_COMMAND="python /opt/harbeat-models/drum_worker.py --audio {audio}"
+FEATURE_STYLE_TAGGER_COMMAND="python /opt/harbeat-models/style_worker.py --audio {audio}"
+# 或使用本地 Essentia Discogs EffNet（不要与 worker 同时配置）
+ESSENTIA_DISCOGS_MODEL_PATH="/opt/harbeat-models/discogs-effnet-bs64-1.pb"
+ESSENTIA_DISCOGS_METADATA_PATH="/opt/harbeat-models/discogs-effnet-bs64-1.json"
 FEATURE_MODEL_TIMEOUT_SECONDS=300
 ```
 
 命令通过参数数组直接执行，不经过Shell。命令必须包含 `{audio}`，并在标准输出
 只返回一个JSON对象。
+
+风格 worker 的 `result.labels` 使用 `[{"label": "Electronic---House",
+"score": 0.81}]` 结构。本地 Essentia 路由会保存模型名、版本、帧数、聚合方法和
+前 25 个原始标签。分类器最多增加 0.18 辅助分，且不会绕过 21 类规则的必需证据；
+邻近或无法映射的顶部标签会设置 `out_of_taxonomy=true` 并要求复核。
 
 鼓转录示例：
 
