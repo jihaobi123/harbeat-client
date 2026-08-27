@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 让真实 BLE 固件在找不到 Hub 时进入只读主页，并扩大、内缩能量页和风格页的返回键。
+**Goal:** 让真实 BLE 固件在找不到 Hub 时进入主页并浏览能量/风格选项，但离线选择只提示连接 Hub、绝不发送或缓存命令；同时扩大、内缩返回键。
 
-**Architecture:** 状态层新增一个不依赖 Hub 的 `view_home` 导航动作。UI 在链路未就绪时根据当前页面显示连接页或只读主页，发送入口仍由离线遮罩和现有 READY 检查阻断。返回键位置由可测试的纯 C 布局函数提供，LVGL 只消费布局结果。
+**Architecture:** 状态层允许无 Snapshot 时在 HOME、ENERGY、STYLE 之间导航，但 `flow_state_begin_command` 仍要求真实 Snapshot。UI 移除覆盖主页的透明拦截层，离线轮播以默认预览数据初始化；点击选项只显示 `CONNECT HUB TO SEND`，不会产生 UI command。应用层在非 READY 状态只放行打开页面和返回动作。返回键位置由可测试的纯 C 布局函数提供，LVGL 只消费布局结果。
 
 **Tech Stack:** ESP-IDF 5.5.5、LVGL 9.5.0、C11、FreeRTOS、现有 Mac host tests
+
+> Task 1–5 已由 `777f237` 与 `ad3fe59` 完成。Task 6 是用户确认后的离线浏览修正，取代 Task 3 中“离线遮罩阻断卡片”和“无人物占位”的旧约束。
 
 ---
 
@@ -324,3 +326,65 @@ git add firmware/flow-wrist/components/flow_core/include/flow_core.h \
   firmware/flow-wrist/docs/AI-DEVELOPMENT-HANDOFF.md
 git commit -m "fix: allow offline wrist home navigation"
 ```
+
+### Task 6: 离线浏览能量与风格轮播
+
+**Files:**
+- Modify: `firmware/flow-wrist/components/flow_core/flow_core.c`
+- Modify: `firmware/flow-wrist/tests/host/test_flow_core.c`
+- Modify: `firmware/flow-wrist/components/flow_ui/flow_ui.c`
+- Modify: `firmware/flow-wrist/components/flow_ui/flow_ui_carousel.c`
+- Modify: `firmware/flow-wrist/main/app_main.c`
+- Modify: `firmware/flow-wrist/docs/AI-DEVELOPMENT-HANDOFF.md`
+
+- [ ] **Step 1: 写失败测试，锁定离线导航和禁止发送边界**
+
+把现有离线主页测试扩展为：无 Snapshot 时可打开 ENERGY、返回 HOME、打开 STYLE；但调用 `flow_state_begin_command` 仍返回 `FLOW_COMMAND_BLOCKED`。
+
+- [ ] **Step 2: 确认测试先失败**
+
+Run: `cd firmware/flow-wrist && ./tests/host/run.sh`
+
+Expected: `flow_state_open_control` 的离线断言失败。
+
+- [ ] **Step 3: 最小修改状态层**
+
+让 `flow_state_open_control` 和 `flow_state_return_home` 不再依赖 `has_snapshot`，继续阻止锁定态、发送态、过渡态和无效目标页面。不要放宽 `flow_state_begin_command`。
+
+- [ ] **Step 4: 确认主机测试通过**
+
+Run: `./tests/host/run.sh`
+
+Expected: 所有 host tests 通过。
+
+- [ ] **Step 5: 移除透明点击拦截层并渲染离线轮播**
+
+在 `flow_ui_render` 中，非 READY 时允许 HOME、ENERGY、STYLE 使用各自真实 UI；其他页面仍显示连接页。离线轮播通过 `flow_state_home_music` 取得安全的默认预览值，避免直接读取空 Snapshot。
+
+- [ ] **Step 6: 离线选择只给反馈，不产生 command**
+
+给轮播上下文记录 `hub_ready`。离线点击当前或其他选项时统一显示 `CONNECT HUB TO SEND` 并直接返回，不调用 `flow_ui_emit`，不缓存选择，也不改变默认预览。左右滑动和返回键保持可用。
+
+- [ ] **Step 7: 应用层只放行离线导航**
+
+在 READY 守卫之前处理 `OPEN_ENERGY`、`OPEN_STYLE` 和 `BACK`；其余离线 action 保持忽略。这样即使 UI 将来误发 SET action，状态层与应用层仍有第二道阻断。
+
+- [ ] **Step 8: 简单验证、双构建和烧录**
+
+Run:
+
+```bash
+git diff --check
+./tests/host/run.sh
+source /Users/jihaobi/.espressif/tools/activate_idf_v5.5.5.sh
+idf.py -B build-sim build
+idf.py -B build-ble build
+test -c /dev/cu.usbmodem1101
+idf.py -B build-ble -p /dev/cu.usbmodem1101 flash
+```
+
+Expected: 主机测试和两个构建通过，烧录校验成功。
+
+- [ ] **Step 9: 更新交接文档并提交**
+
+记录离线浏览的操作方式、安全边界和联调预期。仅提交本任务涉及的明确文件。
