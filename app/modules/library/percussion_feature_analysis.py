@@ -116,12 +116,6 @@ def _range(item: dict[str, Any]) -> dict[str, float]:
     return {"start": round(item["time"], 4), "end": round(item["time"] + min(0.5, item["decay_sec"]), 4)}
 
 
-def _fraction(items: list[dict[str, Any]], predicate, target_fraction: float) -> float:
-    if not items:
-        return 0.0
-    return _clamp(sum(bool(predicate(item)) for item in items) / max(len(items) * target_fraction, 1.0))
-
-
 def analyze_percussion_features(
     drums: np.ndarray | None,
     sr: int,
@@ -148,6 +142,13 @@ def analyze_percussion_features(
     duration = len(drums) / sr
     input_events = _events(drum_analysis)
     flags = []
+    detector_mode = str((drum_analysis or {}).get("detector_mode") or "unknown")
+    spectral_proxy = detector_mode == "fallback" or (
+        (drum_analysis or {}).get("selected_engine") == "spectral_flux_fallback"
+    )
+    reliability_cap = 0.55 if spectral_proxy else 1.0
+    if spectral_proxy:
+        flags.append("percussion_uses_spectral_drum_proxy")
     if sr <= 22050:
         flags.append("native_high_frequency_band_limited")
     if not input_events:
@@ -162,7 +163,15 @@ def analyze_percussion_features(
     ]
     snare = [item for item in descriptors if item["input_class"] in {"snare", "clap", "rim", "rimshot"}]
     high = [item for item in descriptors if item["input_class"] in {"hihat", "cymbal", "ride", "crash"}]
-    low_mid = [item for item in descriptors if item["input_class"] in {"kick", "tom", "percussion", "unassigned"}]
+    # Kick energy is not evidence for toms, surdos or hand drums.  The old
+    # comparison pool included every kick and made low_pitched_drum saturate
+    # on ordinary dance tracks.
+    low_mid = [
+        item for item in descriptors
+        if item["input_class"] in {
+            "tom", "percussion", "conga", "bongo", "hand_drum", "unassigned",
+        }
+    ]
 
     predicates = {
         "full_snare": lambda x: 700 <= x["spectral_centroid_hz"] <= 4200 and x["decay_sec"] >= 0.075 and x["mid_ratio_250_4000_hz"] >= 0.35,
@@ -252,7 +261,16 @@ def analyze_percussion_features(
     for name in predicates:
         items = comparison[name]
         matched = matches[name]
-        score = _fraction(items, predicates[name], 0.32)
+        matched_fraction = len(matched) / max(1, len(items))
+        matched_support = _clamp(len(matched) / max(3.0, duration * 0.25))
+        # Ratio states how characteristic the relevant family is; support
+        # prevents one favourable transient from producing a full score.
+        score = _clamp(matched_fraction * (0.70 + 0.30 * matched_support))
+        family_coverage = _clamp(len(items) / max(4.0, duration * 0.35))
+        family_stability = (
+            float(np.mean([item["input_confidence"] for item in items]))
+            if items else quality
+        )
         features[name] = make_feature_evidence(
             score,
             threshold=0.58,
@@ -260,6 +278,9 @@ def analyze_percussion_features(
             measurement_confidence=quality,
             source_quality=source_quality,
             estimator_quality=0.68 if name in {"tonal_percussion", "hand_drum_family"} else 0.74,
+            coverage=max(family_coverage, quality * 0.5),
+            stability=family_stability,
+            reliability_cap=reliability_cap,
             quality_flags=flags,
             sources=["drums_stem", "drum_transcription"],
             analysis_method=method,
@@ -267,6 +288,9 @@ def analyze_percussion_features(
             evidence={
                 "matched_event_count": len(matched),
                 "comparison_event_count": len(items),
+                "matched_event_fraction": round(matched_fraction, 4),
+                "matched_event_support": round(matched_support, 4),
+                "drum_detector_mode": detector_mode,
                 "candidate_labels": candidate_names.get(name, []),
                 "frequency_rule_hz": {
                     "short_metallic_min_centroid": 2500,
@@ -283,6 +307,9 @@ def analyze_percussion_features(
         measurement_confidence=quality,
         source_quality=source_quality,
         estimator_quality=0.74,
+        coverage=max(high_activity_coverage, _clamp(len(high) / max(4.0, duration * 0.5))),
+        stability=max(interval_consistency, quality * 0.5),
+        reliability_cap=reliability_cap,
         quality_flags=flags,
         sources=["drums_stem", "drum_transcription"],
         analysis_method=method,
@@ -297,6 +324,7 @@ def analyze_percussion_features(
             "high_band_activity_coverage": round(high_activity_coverage, 4),
             "high_band_flatness": round(high_flatness, 4),
             "analysis_sample_rate": sr,
+            "drum_detector_mode": detector_mode,
             "candidate_labels": candidate_names["continuous_high_percussion"],
         },
     )
@@ -307,6 +335,9 @@ def analyze_percussion_features(
         measurement_confidence=quality,
         source_quality=source_quality,
         estimator_quality=0.66,
+        coverage=_clamp(len(tonal) / max(4.0, duration * 0.25)),
+        stability=_clamp(repeated / max(1, len(tonal))) if tonal else quality * 0.5,
+        reliability_cap=reliability_cap,
         quality_flags=flags,
         sources=["drums_stem"],
         analysis_method=method,
@@ -315,6 +346,7 @@ def analyze_percussion_features(
             "tonal_event_count": len(tonal),
             "largest_repeated_pitch_bin_count": repeated,
             "pitch_resolution": "semitone",
+            "drum_detector_mode": detector_mode,
         },
     )
     return {

@@ -81,3 +81,26 @@ def test_native_rate_analysis_preserves_air_band_evidence() -> None:
     assert evidence["high_band_floor_hz"] == 6000.0
     assert evidence["high_band_energy_ratio"] > 0.1
     assert any(event["air_ratio_8000_hz_plus"] > 0.5 for event in result["events"])
+
+
+def test_spectral_fallback_kicks_do_not_imply_low_pitched_percussion() -> None:
+    sr = 12000
+    audio = np.zeros(sr * 5, dtype=np.float32)
+    times = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    local = np.arange(int(0.22 * sr)) / sr
+    kick = np.sin(2 * np.pi * 75.0 * local) * np.exp(-local * 24.0) * 0.7
+    for value in times:
+        _burst(audio, sr, value, kick)
+    analysis = {
+        "detector_mode": "fallback",
+        "selected_engine": "spectral_flux_fallback",
+        "events": {"kick": [{"time": value, "confidence": 0.55} for value in times]},
+    }
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    low = result["features"]["low_pitched_drum"]
+    assert low["score"] == 0.0
+    assert low["evidence"]["comparison_event_count"] == 0
+    assert low["quality"]["reliability_cap"] == 0.55
+    assert "percussion_uses_spectral_drum_proxy" in result["quality_flags"]
