@@ -210,15 +210,19 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.electronic_production": 0.7,
     }, negative={"rhythm_grammar.four_on_floor": 0.7}, required_any=[["rhythm_grammar.two_step"]]),
     "trap_soul": _style("Trap-Soul", PARTY_BAR, [(60, 88), (120, 176)], {
-        "rhythm_grammar.halftime_snare_3": 0.9,
-        "low_frequency.sustained_harmonic_bass_candidate": 0.8,
-        "low_frequency.808_timbre_candidate": 0.2,
+        "rhythm_grammar.halftime_snare_3": 1.2,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.35,
+        "low_frequency.808_timbre_candidate": 0.9,
         "vocal_delivery.singing": 1.4,
         "harmony.jazz_soul_harmony": 0.8,
         "production.dark_timbre": 0.5,
-        "rhythm_grammar.swing": 0.4,
-    }, negative={"production.rage_synth_candidate": 0.6},
-        required_any=[["vocal_delivery.singing"], ["low_frequency.sustained_harmonic_bass_candidate", "rhythm_grammar.halftime_snare_3"]]),
+        "rhythm_grammar.swing": 0.3,
+    }, negative={"production.rage_synth_candidate": 0.6, "rhythm_grammar.four_on_floor": 1.0},
+        required_any=[
+            ["vocal_delivery.singing"],
+            ["rhythm_grammar.halftime_snare_3"],
+            ["low_frequency.808_timbre_candidate", "production.dark_timbre"],
+        ]),
 }
 
 

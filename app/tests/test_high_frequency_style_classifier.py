@@ -71,6 +71,33 @@ def test_drill_requires_hat_and_bass_motion_not_merely_generic_trap_808() -> Non
     assert drill_scores["drill"] > drill_scores["trap"]
 
 
+def test_trap_soul_is_suppressed_by_four_floor_without_independent_808_timbre() -> None:
+    common = {
+        "vocal_delivery.singing": 0.84,
+        "rhythm_grammar.halftime_snare_3": 0.76,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.82,
+        "harmony.jazz_soul_harmony": 0.45,
+    }
+    disco_like = classify_high_frequency_styles(_payload(122, {
+        **common,
+        "low_frequency.808_timbre_candidate": 0.18,
+        "production.dark_timbre": 0.20,
+        "rhythm_grammar.four_on_floor": 0.94,
+    }))
+    trap_soul_like = classify_high_frequency_styles(_payload(74, {
+        **common,
+        "low_frequency.808_timbre_candidate": 0.86,
+        "production.dark_timbre": 0.72,
+        "rhythm_grammar.four_on_floor": 0.08,
+    }))
+
+    disco_score = next(item for item in disco_like["styles"] if item["style_id"] == "trap_soul")
+    trap_soul_score = next(item for item in trap_soul_like["styles"] if item["style_id"] == "trap_soul")
+    assert disco_score["required_evidence_ratio"] < 1.0
+    assert trap_soul_score["required_evidence_ratio"] == 1.0
+    assert trap_soul_score["score"] > disco_score["score"] + 0.20
+
+
 def test_unavailable_feature_reduces_coverage_instead_of_becoming_negative() -> None:
     payload = _payload(110, {
         "low_frequency.low_percussive_bass_candidate": 0.92,

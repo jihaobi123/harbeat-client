@@ -177,13 +177,20 @@ def _event_descriptor(
         pitch_motion = 0.0
         voiced_strength = 0.0
 
-    harmonic_energy = 0.0
+    fundamental_energy = 0.0
+    upper_harmonic_energy = 0.0
     if fundamental > 0:
         for multiple in (1, 2, 3, 4, 5):
             center = fundamental * multiple
             width = max(4.0, center * 0.045)
-            harmonic_energy += _band_energy(power, frequencies, center - width, center + width)
+            value = _band_energy(power, frequencies, center - width, center + width)
+            if multiple == 1:
+                fundamental_energy = value
+            else:
+                upper_harmonic_energy += value
+    harmonic_energy = fundamental_energy + upper_harmonic_energy
     harmonic_ratio = _clamp(harmonic_energy / reference_energy)
+    fundamental_purity = _clamp(fundamental_energy / (harmonic_energy + 1e-12))
 
     frame_length = min(1024, len(clip))
     rms = librosa.feature.rms(y=clip, frame_length=frame_length, hop_length=128, center=False)[0]
@@ -223,6 +230,7 @@ def _event_descriptor(
         "pitch_stability": round(pitch_stability, 4),
         "pitch_motion_semitones": round(pitch_motion, 4),
         "harmonic_ratio_f0_to_5f0": round(harmonic_ratio, 4),
+        "fundamental_purity": round(fundamental_purity, 4),
         "voiced_strength": round(voiced_strength, 4),
         "pitch_method": pitch_track["method"],
         "decay_sec": round(max(0.0, decay_sec), 4),
@@ -305,6 +313,7 @@ def analyze_bass_features(
     sub_score = _clamp(average("sub_ratio_25_95_hz") / 0.72)
     stability_score = average("pitch_stability")
     harmonic_score = _clamp(average("harmonic_ratio_f0_to_5f0") / 0.72)
+    sine_dominance_score = _clamp((average("fundamental_purity") - 0.58) / 0.32)
     sustain_score = _clamp((average("decay_sec") - 0.16) / 0.48)
     aligned_fraction = average("kick_aligned")
     transient_score = _clamp(average("drum_transient_ratio") / 0.8)
@@ -327,11 +336,17 @@ def analyze_bass_features(
 
     mix_values = [item["mix_low_consistency"] for item in events if item["mix_low_consistency"] is not None]
     mix_consistency = _clamp(float(np.mean(mix_values)) / 0.68) if mix_values else 0.5
+    sustained_harmonic_score = _clamp(
+        0.30 * stability_score
+        + 0.25 * harmonic_score
+        + 0.25 * sustain_score
+        + 0.20 * sub_score
+    )
     identity_808 = _clamp(
-        0.28 * sub_score
-        + 0.22 * stability_score
-        + 0.18 * harmonic_score
-        + 0.17 * sustain_score
+        0.30 * sub_score
+        + 0.25 * sine_dominance_score
+        + 0.18 * sustain_score
+        + 0.12 * stability_score
         + 0.10 * max(aligned_fraction, transient_score)
         + 0.05 * mix_consistency
     )
@@ -432,10 +447,11 @@ def analyze_bass_features(
                 "sub_score": round(sub_score, 4),
                 "pitch_stability_score": round(stability_score, 4),
                 "harmonic_score": round(harmonic_score, 4),
+                "sine_dominance_score": round(sine_dominance_score, 4),
                 "sustain_score": round(sustain_score, 4),
                 "kick_or_drum_transient_score": round(max(aligned_fraction, transient_score), 4),
                 "mix_consistency_score": round(mix_consistency, 4),
-                "semantic_rule": "candidate only: pitched sustained sub body with compatible harmonic and transient evidence",
+                "semantic_rule": "candidate only: sub-dominant sustained body with fundamental-dominant timbre and compatible transient evidence",
             },
         ),
         "sliding_bass_candidate": feature(
@@ -468,12 +484,17 @@ def analyze_bass_features(
             },
         ),
         "sustained_harmonic_bass_candidate": feature(
-            identity_808,
+            sustained_harmonic_score,
             threshold=0.60,
             estimator_quality=0.68,
             sources=["bass_stem", "drums_stem"],
             time_ranges=_ranges(events, lambda item: item["pitch_stability"] >= 0.55 and item["decay_sec"] >= 0.20),
-            evidence={**common, "sustain_score": round(sustain_score, 4), "harmonic_score": round(harmonic_score, 4)},
+            evidence={
+                **common,
+                "sustain_score": round(sustain_score, 4),
+                "harmonic_score": round(harmonic_score, 4),
+                "semantic_rule": "pitched and sustained bass behaviour; does not imply an 808 timbre",
+            },
         ),
         "low_frequency_melody": feature(
             melody_score,

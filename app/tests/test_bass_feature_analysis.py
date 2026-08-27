@@ -64,6 +64,11 @@ def test_808_identity_uses_bass_body_and_drum_attack_without_requiring_slide() -
         "candidate", "probable", "confirmed",
     }
     assert result["features"]["808_timbre_candidate"]["quality"]["estimator_quality"] == 0.58
+    assert "sine_dominance_score" in result["features"]["808_timbre_candidate"]["evidence"]
+    assert (
+        result["features"]["sustained_harmonic_bass_candidate"]["score"]
+        != result["features"]["808_timbre_candidate"]["score"]
+    )
 
 
 def test_bass_slide_is_reported_separately_from_808_identity() -> None:
