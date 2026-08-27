@@ -19,6 +19,7 @@ static const char *const s_style_labels[] = {
 
 typedef struct {
     bool energy_mode;
+    bool hub_ready;
     bool pointer_tracking;
     bool animating;
     uint8_t current_index;
@@ -120,7 +121,9 @@ static void render_page(lv_obj_t *page, uint8_t index)
     lv_obj_set_style_text_color(label, flow_color_ink(), 0);
 
     lv_obj_t *instruction = lv_label_create(page);
-    lv_label_set_text(instruction, "DRAG TO PREVIEW  /  TAP TO SEND");
+    lv_label_set_text(instruction, s_carousel.hub_ready
+        ? "DRAG TO PREVIEW  /  TAP TO SEND"
+        : "DRAG TO PREVIEW  /  CONNECT TO SEND");
     lv_obj_align(instruction, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_style_text_font(instruction, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(instruction, flow_color_ink(), 0);
@@ -186,6 +189,11 @@ static void snap_to(const flow_carousel_release_t *release)
 
 static void emit_selection(void)
 {
+    if (!s_carousel.hub_ready) {
+        show_feedback("CONNECT HUB TO SEND");
+        return;
+    }
+
     flow_ui_action_t action = {0};
     if (s_carousel.energy_mode) {
         action.type = FLOW_UI_ACTION_SET_ENERGY;
@@ -241,7 +249,9 @@ static void poster_event_cb(lv_event_t *event)
 
     if (abs_x < 12 && abs_y < 12) {
         layout_pages(0);
-        if (s_carousel.preview_index == s_carousel.current_index) {
+        if (!s_carousel.hub_ready) {
+            emit_selection();
+        } else if (s_carousel.preview_index == s_carousel.current_index) {
             show_feedback("CURRENT / ALREADY LIVE");
         } else {
             emit_selection();
@@ -288,9 +298,11 @@ void flow_ui_carousel_create(lv_obj_t *root, const flow_app_state_t *state)
     memset(&s_carousel, 0, sizeof(s_carousel));
     lv_obj_add_event_cb(root, carousel_root_delete_cb, LV_EVENT_DELETE, NULL);
     s_carousel.energy_mode = state->screen == FLOW_SCREEN_ENERGY;
+    s_carousel.hub_ready = state->link_state == FLOW_LINK_READY;
+    const flow_music_state_t music = flow_state_home_music(state, NULL);
     s_carousel.current_index = s_carousel.energy_mode
-        ? (uint8_t)(state->snapshot.current.energy - 1)
-        : style_index(state->snapshot.current.style);
+        ? (uint8_t)(music.energy - 1)
+        : style_index(music.style);
     s_carousel.preview_index = s_carousel.current_index;
 
     const flow_back_button_layout_t back_layout = flow_carousel_back_button_layout();

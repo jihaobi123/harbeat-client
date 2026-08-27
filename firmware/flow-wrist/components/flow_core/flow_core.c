@@ -58,7 +58,10 @@ flow_command_result_t flow_state_begin_command(flow_app_state_t *state,
 
 bool flow_state_open_control(flow_app_state_t *state, flow_screen_t screen)
 {
-    if (!state->has_snapshot || state->snapshot.locked ||
+    if (state->snapshot.locked ||
+        (state->screen != FLOW_SCREEN_HOME &&
+         state->screen != FLOW_SCREEN_ENERGY &&
+         state->screen != FLOW_SCREEN_STYLE) ||
         (screen != FLOW_SCREEN_ENERGY && screen != FLOW_SCREEN_STYLE)) {
         return false;
     }
@@ -98,7 +101,7 @@ flow_music_state_t flow_state_home_music(const flow_app_state_t *state,
 
 void flow_state_return_home(flow_app_state_t *state)
 {
-    if (state->has_snapshot && !state->snapshot.locked &&
+    if (!state->snapshot.locked &&
         state->screen != FLOW_SCREEN_SENDING &&
         state->screen != FLOW_SCREEN_TRANSITION) {
         state->screen = FLOW_SCREEN_HOME;

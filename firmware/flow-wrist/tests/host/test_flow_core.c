@@ -41,14 +41,20 @@ static void test_connecting_to_home_and_navigation(void)
     assert(!flow_state_open_control(&state, FLOW_SCREEN_COMPLETE));
 }
 
-static void test_connecting_can_view_read_only_home(void)
+static void test_offline_home_can_browse_controls_but_not_send(void)
 {
     flow_app_state_t state;
     flow_state_init(&state);
     assert(flow_state_view_home(&state));
     assert(state.screen == FLOW_SCREEN_HOME);
     assert(!state.has_snapshot);
-    assert(!flow_state_open_control(&state, FLOW_SCREEN_ENERGY));
+    assert(flow_state_open_control(&state, FLOW_SCREEN_ENERGY));
+    assert(state.screen == FLOW_SCREEN_ENERGY);
+    flow_state_return_home(&state);
+    assert(state.screen == FLOW_SCREEN_HOME);
+    assert(flow_state_open_control(&state, FLOW_SCREEN_STYLE));
+    assert(state.screen == FLOW_SCREEN_STYLE);
+    assert(flow_state_begin_command(&state, 42) == FLOW_COMMAND_BLOCKED);
 
     state.screen = FLOW_SCREEN_TRANSITION;
     state.snapshot.locked = true;
@@ -159,7 +165,7 @@ static void test_invalid_snapshots_are_ignored(void)
 int main(void)
 {
     test_connecting_to_home_and_navigation();
-    test_connecting_can_view_read_only_home();
+    test_offline_home_can_browse_controls_but_not_send();
     test_offline_home_uses_full_preview_music();
     test_global_lock_and_transition();
     test_revisions_completion_and_new_session();

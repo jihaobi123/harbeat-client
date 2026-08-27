@@ -150,7 +150,9 @@ void flow_ui_render(const flow_app_state_t *state)
     if (state->link_state != FLOW_LINK_READY) {
         if (state->screen == FLOW_SCREEN_HOME) {
             flow_ui_home_create(s_root, state);
-            flow_ui_offline_overlay(s_root);
+        } else if (state->screen == FLOW_SCREEN_ENERGY ||
+                   state->screen == FLOW_SCREEN_STYLE) {
+            flow_ui_carousel_create(s_root, state);
         } else {
             flow_ui_connection_create(s_root, state);
         }

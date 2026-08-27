@@ -109,7 +109,25 @@ static void process_ui_action(const flow_ui_action_t *action)
         return;
     }
     if (s_app_state.link_state != FLOW_LINK_READY) {
-        ESP_LOGW(TAG, "Ignored control while Hub link is not ready");
+        bool changed = false;
+        switch (action->type) {
+        case FLOW_UI_ACTION_OPEN_ENERGY:
+            changed = flow_state_open_control(&s_app_state, FLOW_SCREEN_ENERGY);
+            break;
+        case FLOW_UI_ACTION_OPEN_STYLE:
+            changed = flow_state_open_control(&s_app_state, FLOW_SCREEN_STYLE);
+            break;
+        case FLOW_UI_ACTION_BACK:
+            flow_state_return_home(&s_app_state);
+            changed = s_app_state.screen == FLOW_SCREEN_HOME;
+            break;
+        default:
+            ESP_LOGW(TAG, "Ignored control while Hub link is not ready");
+            break;
+        }
+        if (changed) {
+            publish_state();
+        }
         return;
     }
 
