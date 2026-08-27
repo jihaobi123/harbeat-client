@@ -53,17 +53,17 @@ def _reconstruction_score(
     original_path: str | None,
     expected_sr: int,
     length: int,
-) -> float:
+) -> tuple[float | None, str]:
     if not original_path or not os.path.isfile(original_path):
-        return 0.75
+        return None, "original_audio_unavailable"
     original, sr = _load_mono(original_path)
     if sr != expected_sr or len(original) == 0:
-        return 0.5
+        return None, "original_audio_incompatible"
     length = min(length, len(original))
     reconstructed = sum(audio[:length] for audio in stems.values())
     reference = _rms(original[:length]) + 1e-8
     error = _rms(reconstructed - original[:length]) / reference
-    return float(np.clip(1.0 - error, 0.0, 1.0))
+    return float(np.clip(1.0 - error, 0.0, 1.0)), "waveform_reconstruction"
 
 
 def analyze_stem_files(
@@ -100,9 +100,15 @@ def analyze_stem_files(
             "stem_quality_score": 0.0,
             "stem_quality_method": "completeness_reconstruction_proxy",
             "stem_quality_profile": {
-                "method": "completeness_reconstruction_proxy",
+                "method": "reconstruction_completeness_proxy_v2",
                 "completeness": 0.0,
                 "reconstruction_score": 0.0,
+                "reconstruction_quality": None,
+                "reconstruction_method": "unavailable",
+                "separation_reliability": None,
+                "leakage_risk": None,
+                "source_quality_proxy": 0.0,
+                "quality_status": "unavailable",
             },
             "stem_activity": {name: 0.0 for name in STEM_NAMES},
             "stem_activity_windows": [],
@@ -136,8 +142,15 @@ def analyze_stem_files(
         name: round(float(np.mean(curves[name])), 4) if curves[name] else 0.0
         for name in STEM_NAMES
     }
-    reconstruction = _reconstruction_score(loaded, original_path, sample_rate, length)
-    quality = completeness * (0.75 + 0.25 * reconstruction)
+    reconstruction, reconstruction_method = _reconstruction_score(
+        loaded, original_path, sample_rate, length
+    )
+    # Keep the historical score stable for automix consumers, but no longer
+    # present it as separation purity.  Missing reconstruction evidence uses
+    # the previous neutral component only for this compatibility alias.
+    reconstruction_component = 0.75 if reconstruction is None else reconstruction
+    quality = completeness * (0.75 + 0.25 * reconstruction_component)
+    source_quality_proxy = min(0.85, quality)
     vocals = curves["vocals"]
     drums = curves["drums"]
     bass = curves["bass"]
@@ -184,9 +197,19 @@ def analyze_stem_files(
         "stem_quality_score": round(float(np.clip(quality, 0.0, 1.0)), 4),
         "stem_quality_method": "completeness_reconstruction_proxy",
         "stem_quality_profile": {
-            "method": "completeness_reconstruction_proxy",
+            "method": "reconstruction_completeness_proxy_v2",
             "completeness": round(completeness, 4),
-            "reconstruction_score": round(reconstruction, 4),
+            # Compatibility alias.  New consumers should use the nullable,
+            # explicitly measured reconstruction_quality field below.
+            "reconstruction_score": round(reconstruction_component, 4),
+            "reconstruction_quality": (
+                round(reconstruction, 4) if reconstruction is not None else None
+            ),
+            "reconstruction_method": reconstruction_method,
+            "separation_reliability": None,
+            "leakage_risk": None,
+            "source_quality_proxy": round(source_quality_proxy, 4),
+            "quality_status": "reconstruction_only",
         },
         "stem_activity": activity,
         "stem_activity_windows": windows,

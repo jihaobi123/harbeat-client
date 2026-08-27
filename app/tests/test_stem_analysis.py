@@ -61,6 +61,13 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertGreater(result["stem_quality_score"], 0.9)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 1.0)
         self.assertGreater(result["stem_quality_profile"]["reconstruction_score"], 0.9)
+        self.assertGreater(result["stem_quality_profile"]["reconstruction_quality"], 0.9)
+        self.assertEqual(
+            result["stem_quality_profile"]["reconstruction_method"],
+            "waveform_reconstruction",
+        )
+        self.assertIsNone(result["stem_quality_profile"]["separation_reliability"])
+        self.assertEqual(result["stem_quality_profile"]["quality_status"], "reconstruction_only")
 
     def test_stem_analysis_degrades_when_required_stem_is_missing(self):
         with tempfile.TemporaryDirectory() as td:
@@ -74,6 +81,11 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertEqual(result["intro_clean_score"], 0.0)
         self.assertEqual(result["outro_clean_score"], 0.0)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 0.25)
+        self.assertIsNone(result["stem_quality_profile"]["reconstruction_quality"])
+        self.assertEqual(
+            result["stem_quality_profile"]["reconstruction_method"],
+            "original_audio_unavailable",
+        )
         self.assertFalse(result["has_drum_loop"])
         self.assertEqual(result["drum_analysis"]["status"], "unavailable")
         self.assertIn("feature_analysis", result)
