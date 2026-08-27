@@ -35,6 +35,10 @@ class RefreshStyleEvidenceRequest(BaseModel):
     force: bool = False
 
 
+class RefreshHighFrequencyStylesRequest(BaseModel):
+    refresh_features: bool = False
+
+
 class NormalizeSongRequest(BaseModel):
     target_lufs: float = -14.0
 
@@ -381,6 +385,61 @@ def refresh_style_evidence_endpoint(
         )
     db.refresh(song)
     return APIResponse(data=LibrarySongData.model_validate(song))
+
+
+@router.get("/songs/{song_id}/high-frequency-styles", response_model=APIResponse[dict])
+def get_high_frequency_styles_endpoint(
+    song_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return feature evidence and explainable 21-style ranking separately."""
+    song = _get_owned_song(db, song_id, current_user.id)
+    music_features = dict(song.music_features or {})
+    return APIResponse(data={
+        "song_id": song.id,
+        "pre_style_features": music_features.get("pre_style_features", {}),
+        "style_analysis": music_features.get("high_frequency_styles", {}),
+    })
+
+
+@router.post("/songs/{song_id}/refresh-high-frequency-styles", response_model=APIResponse[dict])
+def refresh_high_frequency_styles_endpoint(
+    song_id: str,
+    payload: RefreshHighFrequencyStylesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Re-score stored evidence, optionally rebuilding stem-based features."""
+    song = _get_owned_song(db, song_id, current_user.id)
+    try:
+        from app.modules.library.background_tasks import (
+            apply_high_frequency_style_analysis,
+            apply_stem_analysis,
+        )
+
+        if payload.refresh_features:
+            if not song.stems:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="separated stems are required to refresh features",
+                )
+            apply_stem_analysis(song)
+            result = (song.music_features or {}).get("high_frequency_styles", {})
+        else:
+            result = apply_high_frequency_style_analysis(song)
+        db.add(song)
+        db.commit()
+        db.refresh(song)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"high-frequency style refresh failed: {exc}",
+        ) from exc
+    return APIResponse(data={"song_id": song.id, "style_analysis": result})
 
 
 @router.post("/songs/{song_id}/separate-stems", response_model=APIResponse[dict])

@@ -63,6 +63,7 @@ def apply_stem_analysis(song) -> None:
     music_features = dict(getattr(song, "music_features", {}) or {})
     music_features["pre_style_features"] = result.get("feature_analysis", {})
     song.music_features = music_features
+    apply_high_frequency_style_analysis(song, result.get("feature_analysis", {}))
     song.intro_is_clean = _int_bool(result["intro_is_clean"])
     song.outro_is_clean = _int_bool(result["outro_is_clean"])
     song.intro_clean_score = result["intro_clean_score"]
@@ -95,6 +96,18 @@ def apply_stem_analysis(song) -> None:
     except Exception:
         pass  # keep original label-based windows
     apply_dancefloor_profile(song)
+
+
+def apply_high_frequency_style_analysis(song, feature_analysis: dict | None = None) -> dict:
+    """Classify and persist the 21 music styles without touching DJ styles."""
+    from app.modules.library.high_frequency_style_classifier import classify_high_frequency_styles
+
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    features = feature_analysis or music_features.get("pre_style_features") or {}
+    result = classify_high_frequency_styles(features)
+    music_features["high_frequency_styles"] = result
+    song.music_features = music_features
+    return result
 
 
 def apply_dj_fingerprint(db, song) -> None:
