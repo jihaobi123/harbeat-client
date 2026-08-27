@@ -223,6 +223,114 @@ def _remove_spectral_leakage(
     return {"kick": kick, "snare": snare, "hihat": events["hihat"]}
 
 
+def _resolve_spectral_competition(
+    events: dict[str, list[dict]],
+    *,
+    low: np.ndarray,
+    mid: np.ndarray,
+    high: np.ndarray,
+    sr: int,
+    hop_length: int,
+) -> dict[str, list[dict]]:
+    """Resolve cross-band duplicates produced by the fallback detector.
+
+    The proxy has no learned instrument identity.  Nearby candidates therefore
+    compete on band evidence.  A kick+hat or snare+hat pair may survive when
+    both bands are independently strong, but one broadband transient may not
+    become all three drum classes.
+    """
+    candidates = sorted(
+        (float(event["time"]), name, event)
+        for name in CORE_DRUM_CLASSES for event in events[name]
+    )
+    clusters: list[list[tuple[float, str, dict]]] = []
+    for candidate in candidates:
+        if not clusters or candidate[0] - clusters[-1][-1][0] > 0.035:
+            clusters.append([candidate])
+        else:
+            clusters[-1].append(candidate)
+
+    resolved = {name: [] for name in CORE_DRUM_CLASSES}
+    for cluster in clusters:
+        center = float(np.mean([item[0] for item in cluster]))
+        candidate_frames = {
+            int(np.clip(round(item[0] * sr / hop_length), 0, len(mid) - 1))
+            for item in cluster
+        }
+        frame = max(
+            candidate_frames,
+            key=lambda value: float(low[value] + mid[value] + high[value]),
+        )
+        band = {"kick": float(low[frame]), "snare": float(mid[frame]), "hihat": float(high[frame])}
+        discriminant = {
+            "kick": band["kick"] - 0.28 * band["snare"] - 0.08 * band["hihat"],
+            "snare": band["snare"] + 0.18 * band["hihat"] - 0.38 * band["kick"],
+            "hihat": band["hihat"] - 0.30 * band["kick"] - 0.12 * band["snare"],
+        }
+        eligible = [
+            name for name, floor in {"kick": 0.45, "snare": 0.50, "hihat": 0.50}.items()
+            if band[name] >= floor
+        ]
+        if not eligible:
+            continue
+        eligible.sort(key=lambda name: discriminant[name], reverse=True)
+        selected = [eligible[0]]
+        if len(eligible) >= 2:
+            pair = {eligible[0], eligible[1]}
+            independent_pair = (
+                pair == {"kick", "hihat"}
+                and band["kick"] >= 0.50 and band["hihat"] >= 0.50
+                and band["snare"] <= max(band["kick"], band["hihat"])
+            ) or (
+                pair == {"snare", "hihat"}
+                and band["snare"] >= 0.72 and band["hihat"] >= 0.72
+                and band["kick"] <= 0.55
+            )
+            if independent_pair:
+                selected.append(eligible[1])
+        for name in selected:
+            matching = [item[2] for item in cluster if item[1] == name]
+            source = min(matching, key=lambda item: abs(float(item["time"]) - center)) if matching else cluster[0][2]
+            confidence = min(0.62, 0.30 + 0.32 * max(0.0, band[name]))
+            resolved[name].append({
+                **source,
+                "time": round(center, 4),
+                "confidence": round(confidence, 4),
+                "detector_confidence": round(confidence, 4),
+                "classification_margin": round(
+                    discriminant[name] - max(
+                        (value for other, value in discriminant.items() if other != name),
+                        default=0.0,
+                    ),
+                    4,
+                ),
+            })
+    # Preserve clear single-band events that lost a close competition only
+    # because another detector peak was a few frames later.
+    dominance = {
+        "kick": lambda frame: low[frame] >= 0.80 * mid[frame],
+        "snare": lambda frame: mid[frame] >= 0.75 * low[frame] and mid[frame] >= 0.65 * high[frame],
+        "hihat": lambda frame: high[frame] >= 0.85 * mid[frame],
+    }
+    for name in CORE_DRUM_CLASSES:
+        for source in events[name]:
+            timestamp = float(source["time"])
+            if any(abs(timestamp - float(item["time"])) <= 0.05 for item in resolved[name]):
+                continue
+            frame = int(np.clip(round(timestamp * sr / hop_length), 0, len(mid) - 1))
+            if not dominance[name](frame):
+                continue
+            confidence = min(0.62, float(source.get("detector_confidence", 0.5)))
+            resolved[name].append({
+                **source,
+                "confidence": round(confidence, 4),
+                "detector_confidence": round(confidence, 4),
+                "classification_margin": 0.0,
+            })
+        resolved[name].sort(key=lambda item: float(item["time"]))
+    return resolved
+
+
 def _density_curve(events: dict[str, list[dict]], duration: float, window_sec: float) -> list[dict]:
     count = max(1, int(np.ceil(duration / window_sec)))
     raw: list[dict] = []
@@ -510,6 +618,9 @@ def analyze_drum_stem(
             sr=sr,
             hop_length=hop_length,
         )
+        core_events = _resolve_spectral_competition(
+            core_events, low=low, mid=mid, high=high, sr=sr, hop_length=hop_length,
+        )
         events = {**core_events, "tom": [], "cymbal": []}
         selected_engine = "spectral_flux_fallback"
         detector_mode = "fallback"
@@ -533,6 +644,8 @@ def analyze_drum_stem(
         0.0,
         1.0,
     ))
+    if detector_mode == "fallback":
+        overall = min(overall, 0.58)
     class_confidence = {
         name: round(float(np.mean([event["confidence"] for event in values])), 4) if values else 0.0
         for name, values in events.items()
@@ -558,7 +671,7 @@ def analyze_drum_stem(
         "source": "demucs_drums_stem",
         "selected_engine": selected_engine,
         "detector_mode": detector_mode,
-        "status": "ready" if overall >= 0.58 else "degraded",
+        "status": "ready" if detector_mode == "dedicated_model" and overall >= 0.58 else "degraded",
         "needs_review": bool(flags),
         "reason": None,
         "events": events,

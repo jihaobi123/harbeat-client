@@ -45,7 +45,7 @@ def test_drum_analyzer_detects_three_classes_and_pattern() -> None:
         separation_quality=0.95,
     )
 
-    assert result["status"] == "ready"
+    assert result["status"] == "degraded"
     assert result["counts"]["kick"] >= 6
     assert result["counts"]["snare"] >= 6
     assert result["counts"]["hihat"] >= 20
@@ -56,10 +56,12 @@ def test_drum_analyzer_detects_three_classes_and_pattern() -> None:
     assert result["pattern"]["dominant"]["snare"].count("S") >= 2
     assert result["pattern"]["stability"] >= 2 / 3
     assert result["confidence"]["overall"] >= 0.58
+    assert result["confidence"]["overall"] <= 0.58
+    all_events = [event for values in result["events"].values() for event in values]
+    assert max(event["detector_confidence"] for event in all_events) <= 0.62
     assert result["density_curve"]
     assert result["metrical_alignment"]["grid_type"] == "straight_16th"
     assert result["metrical_alignment"]["subdivision_alignment"] > 0.8
-    all_events = [event for values in result["events"].values() for event in values]
     assert all(event["velocity"] is None for event in all_events)
     assert all(event["velocity_source"] == "unavailable" for event in all_events)
     assert all(event["relative_intensity"] is not None for event in all_events)
@@ -138,7 +140,7 @@ def test_drum_analyzer_degrades_without_beat_grid() -> None:
     audio, sr, _beats, _downbeats = _synthetic_drum_loop()
     result = analyze_drum_stem(audio, sr, separation_quality=0.9)
 
-    assert result["status"] == "ready"
+    assert result["status"] == "degraded"
     assert result["needs_review"] is True
     assert "beat_grid_unavailable" in result["quality_flags"]
     assert result["pattern"]["bars_analyzed"] == 0

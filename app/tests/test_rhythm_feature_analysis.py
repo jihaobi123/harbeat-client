@@ -105,3 +105,27 @@ def test_short_track_uses_four_bar_window_without_becoming_unavailable() -> None
 
     assert result["features"]["four_on_floor"]["availability"] == "available"
     assert [window["bar_count"] for window in result["windows"]] == [4]
+
+
+def test_dense_snare_proxy_does_not_confirm_backbeat_and_halftime_together() -> None:
+    beats, downbeats = _grid()
+    analysis = {
+        "detector_mode": "fallback",
+        "confidence": {"overall": 0.58},
+        "events": {
+            "kick": _events_for_steps([0, 4, 8, 12]),
+            "snare": _events_for_steps([0, 4, 8, 12]),
+            "hihat": _events_for_steps([0, 2, 4, 6, 8, 10, 12, 14]),
+        },
+    }
+
+    result = analyze_rhythm_features(
+        analysis, bpm=120, beat_points=beats, downbeats=downbeats, duration=24.0
+    )
+    backbeat = result["features"]["backbeat_2_4"]
+    halftime = result["features"]["halftime_snare_3"]
+
+    assert not (backbeat["detected"] and halftime["detected"])
+    assert backbeat["reliability"] <= 0.55
+    assert halftime["reliability"] <= 0.55
+    assert "rhythm_uses_spectral_drum_proxy" in result["quality_flags"]

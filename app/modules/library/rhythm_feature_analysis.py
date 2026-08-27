@@ -73,7 +73,7 @@ def _match(steps: set[int], targets: set[int]) -> float:
     hits = len(steps & targets)
     recall = hits / len(targets)
     precision = hits / max(len(steps), 1)
-    return 0.72 * recall + 0.28 * precision
+    return 0.60 * recall + 0.40 * precision
 
 
 def _combined(kick: set[int], snare: set[int], kick_target: set[int], snare_target: set[int]) -> float:
@@ -213,8 +213,13 @@ def analyze_rhythm_features(
         p = percussion[index] if index < len(percussion) else set()
         union = k | s | h | p
         four = _match(k, {0, 4, 8, 12})
-        backbeat = _match(s, {4, 12})
-        halftime = _match(s, {8})
+        raw_backbeat = _match(s, {4, 12})
+        raw_halftime = _match(s, {8})
+        # A dense or duplicated snare stream used to satisfy both grammars.
+        # Treat the competing skeleton as counter-evidence while still
+        # allowing a small ghost-note contribution.
+        backbeat = _clamp(raw_backbeat - 0.35 * raw_halftime)
+        halftime = _clamp(raw_halftime - 0.45 * raw_backbeat)
         tresillo = max(_match(union, {0, 6, 12}), _match(union, {0, 6, 10}))
         offbeat_kicks = sum(step % 4 != 0 for step in k) / max(len(k), 1)
         offbeat_drums = sum(step % 4 != 0 for step in (k | s | p)) / max(len(k | s | p), 1)
@@ -273,6 +278,9 @@ def analyze_rhythm_features(
     drum_source_quality = _clamp(
         float(((drum_analysis or {}).get("confidence") or {}).get("overall", 0.75) or 0.0)
     )
+    fallback_source = (drum_analysis or {}).get("detector_mode") == "fallback"
+    if fallback_source:
+        flags.append("rhythm_uses_spectral_drum_proxy")
 
     templates = {
         "four_on_floor": {"kick_steps": [0, 4, 8, 12], "conflicts": ["syncopated_kick"]},
@@ -303,6 +311,10 @@ def analyze_rhythm_features(
             measurement_confidence=quality,
             source_quality=drum_source_quality,
             estimator_quality=0.84,
+            reliability_cap=0.55 if fallback_source else 1.0,
+            coverage=max(song_coverage, 1.0 / max(analyzed, 1)),
+            stability=float((best_window or {}).get("stability", 0.5)),
+            calibration_status="proxy_limited" if fallback_source else "provisional",
             quality_flags=flags,
             sources=["bpm", "beat_grid", "downbeat_grid", "drum_transcription"],
             analysis_method=method,
@@ -317,6 +329,12 @@ def analyze_rhythm_features(
                 "stable_song_coverage": round(song_coverage, 4),
                 "best_stable_window": best_window,
                 "window_sizes_bars": [4, 8, 16],
+                "source_detector_mode": (drum_analysis or {}).get("detector_mode", "unknown"),
+            },
+            raw_measurements={
+                "mean_template_score": round(global_score, 4),
+                "matched_bar_count": len(matched),
+                "bars_analyzed": analyzed,
             },
         )
     features["swing"] = make_feature_evidence(
