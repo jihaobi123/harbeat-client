@@ -150,23 +150,12 @@ void flow_ui_offline_overlay(lv_obj_t *root)
     lv_obj_remove_style_all(blocker);
     lv_obj_set_size(blocker, LV_PCT(100), LV_PCT(100));
     lv_obj_set_pos(blocker, 0, 0);
-    lv_obj_set_style_bg_color(blocker, flow_color_paper(), 0);
-    lv_obj_set_style_bg_opa(blocker, LV_OPA_30, 0);
     lv_obj_add_flag(blocker, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(blocker, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *banner = lv_obj_create(blocker);
-    lv_obj_set_size(banner, LV_PCT(100), 72);
-    lv_obj_align(banner, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_radius(banner, 16, 0);
-    lv_obj_set_style_bg_color(banner, flow_color_pink(), 0);
-    lv_obj_set_style_border_color(banner, flow_color_ink(), 0);
-    lv_obj_set_style_border_width(banner, 3, 0);
-    lv_obj_clear_flag(banner, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t *label = lv_label_create(banner);
-    lv_label_set_text(label, "HUB OFFLINE  /  RECONNECTING...");
-    lv_obj_center(label);
-    lv_obj_set_style_text_color(label, flow_color_ink(), 0);
+    lv_obj_t *label = lv_label_create(blocker);
+    lv_label_set_text(label, "HUB OFFLINE");
+    lv_obj_align(label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_set_style_text_color(label, flow_color_pink(), 0);
     lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
 }

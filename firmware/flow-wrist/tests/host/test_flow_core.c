@@ -56,6 +56,29 @@ static void test_connecting_can_view_read_only_home(void)
     assert(state.screen == FLOW_SCREEN_TRANSITION);
 }
 
+static void test_offline_home_uses_full_preview_music(void)
+{
+    flow_app_state_t state;
+    flow_state_init(&state);
+
+    bool preview = false;
+    flow_music_state_t music = flow_state_home_music(&state, &preview);
+    assert(preview);
+    assert(music.energy == 3);
+    assert(strcmp(music.style, "hiphop") == 0);
+    assert(music.bpm == 96);
+
+    state.has_snapshot = true;
+    state.snapshot.current.energy = 5;
+    strcpy(state.snapshot.current.style, "locking");
+    state.snapshot.current.bpm = 112;
+    music = flow_state_home_music(&state, &preview);
+    assert(!preview);
+    assert(music.energy == 5);
+    assert(strcmp(music.style, "locking") == 0);
+    assert(music.bpm == 112);
+}
+
 static void test_global_lock_and_transition(void)
 {
     flow_app_state_t state;
@@ -137,6 +160,7 @@ int main(void)
 {
     test_connecting_to_home_and_navigation();
     test_connecting_can_view_read_only_home();
+    test_offline_home_uses_full_preview_music();
     test_global_lock_and_transition();
     test_revisions_completion_and_new_session();
     test_invalid_snapshots_are_ignored();

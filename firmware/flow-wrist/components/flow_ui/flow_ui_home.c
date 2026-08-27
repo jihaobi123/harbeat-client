@@ -63,8 +63,9 @@ static void add_card_text(lv_obj_t *card,
 
 void flow_ui_home_create(lv_obj_t *root, const flow_app_state_t *state)
 {
-    const bool has_snapshot = state->has_snapshot;
     const bool hub_ready = state->link_state == FLOW_LINK_READY;
+    bool preview = false;
+    const flow_music_state_t music = flow_state_home_music(state, &preview);
 
     lv_obj_t *title = lv_label_create(root);
     lv_label_set_text(title, "WHAT SHIFTS\nNEXT?");
@@ -84,24 +85,19 @@ void flow_ui_home_create(lv_obj_t *root, const flow_app_state_t *state)
                                         flow_color_yellow(),
                                         FLOW_UI_ACTION_OPEN_ENERGY);
     char energy_value[8];
-    if (has_snapshot) {
-        lv_snprintf(energy_value,
-                    sizeof(energy_value),
-                    "%02u / 05",
-                    state->snapshot.current.energy);
-    } else {
-        lv_snprintf(energy_value, sizeof(energy_value), "-- / 05");
-    }
+    lv_snprintf(energy_value,
+                sizeof(energy_value),
+                "%02u / 05",
+                music.energy);
     add_card_text(energy_card,
                   "ENERGY",
                   energy_value,
-                  hub_ready ? "TAP TO SHIFT  >" : "WAITING FOR HUB");
-    if (has_snapshot) {
-        lv_obj_t *energy_art = lv_obj_create(energy_card);
-        lv_obj_remove_style_all(energy_art);
-        lv_obj_align(energy_art, LV_ALIGN_RIGHT_MID, 4, 0);
-        flow_ui_art_energy(energy_art, state->snapshot.current.energy);
-    }
+                  hub_ready ? "TAP TO SHIFT  >" :
+                              (preview ? "PREVIEW ONLY" : "WAITING FOR HUB"));
+    lv_obj_t *energy_art = lv_obj_create(energy_card);
+    lv_obj_remove_style_all(energy_art);
+    lv_obj_align(energy_art, LV_ALIGN_RIGHT_MID, 4, 0);
+    flow_ui_art_energy(energy_art, music.energy);
 
     lv_obj_t *style_card = create_card(root,
                                        252,
@@ -109,24 +105,20 @@ void flow_ui_home_create(lv_obj_t *root, const flow_app_state_t *state)
                                        FLOW_UI_ACTION_OPEN_STYLE);
     add_card_text(style_card,
                   "STYLE",
-                  has_snapshot ? state->snapshot.current.style : "NO DATA",
-                  hub_ready ? "TAP TO SHIFT  >" : "WAITING FOR HUB");
-    if (has_snapshot) {
-        lv_obj_t *style_art = lv_obj_create(style_card);
-        lv_obj_remove_style_all(style_art);
-        lv_obj_align(style_art, LV_ALIGN_RIGHT_MID, 4, 0);
-        flow_ui_art_style(style_art, state->snapshot.current.style);
-    }
+                  music.style,
+                  hub_ready ? "TAP TO SHIFT  >" :
+                              (preview ? "PREVIEW ONLY" : "WAITING FOR HUB"));
+    lv_obj_t *style_art = lv_obj_create(style_card);
+    lv_obj_remove_style_all(style_art);
+    lv_obj_align(style_art, LV_ALIGN_RIGHT_MID, 4, 0);
+    flow_ui_art_style(style_art, music.style);
 
     lv_obj_t *footer = lv_label_create(root);
-    if (has_snapshot) {
-        lv_label_set_text_fmt(footer,
-                              "%u BPM  /  %s",
-                              state->snapshot.current.bpm,
-                              hub_ready ? "READY" : "LAST SYNC");
-    } else {
-        lv_label_set_text(footer, "-- BPM  /  OFFLINE");
-    }
+    lv_label_set_text_fmt(footer,
+                          "%u BPM  /  %s",
+                          music.bpm,
+                          hub_ready ? "READY" :
+                                      (preview ? "PREVIEW" : "LAST SYNC"));
     lv_obj_align(footer, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_style_text_font(footer, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(footer, flow_color_muted(), 0);

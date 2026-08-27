@@ -78,6 +78,24 @@ bool flow_state_view_home(flow_app_state_t *state)
     return true;
 }
 
+flow_music_state_t flow_state_home_music(const flow_app_state_t *state,
+                                         bool *is_preview)
+{
+    const bool preview = state == NULL || !state->has_snapshot;
+    flow_music_state_t music = {
+        .energy = 3,
+        .bpm = 96,
+    };
+    strcpy(music.style, "hiphop");
+    if (!preview) {
+        music = state->snapshot.current;
+    }
+    if (is_preview != NULL) {
+        *is_preview = preview;
+    }
+    return music;
+}
+
 void flow_state_return_home(flow_app_state_t *state)
 {
     if (state->has_snapshot && !state->snapshot.locked &&

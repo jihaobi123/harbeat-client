@@ -81,4 +81,6 @@ flow_command_result_t flow_state_begin_command(flow_app_state_t *state,
                                                uint32_t command_id);
 bool flow_state_open_control(flow_app_state_t *state, flow_screen_t screen);
 bool flow_state_view_home(flow_app_state_t *state);
+flow_music_state_t flow_state_home_music(const flow_app_state_t *state,
+                                         bool *is_preview);
 void flow_state_return_home(flow_app_state_t *state);
