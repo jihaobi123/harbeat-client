@@ -242,9 +242,12 @@ def _harmony_features(
         )
         mean_change = float(np.mean(differences))
         upper_change = float(np.percentile(differences, 75))
+        # Beat-local timbre and voicing create a non-zero chroma distance even
+        # without a harmonic transition.  Subtract that floor and use a broad
+        # continuous range so ordinary arrangements do not saturate at 1.0.
         change_activity = _clamp(
-            0.55 * _clamp(mean_change / 0.18)
-            + 0.45 * _clamp(upper_change / 0.32)
+            0.60 * _clamp((mean_change - 0.06) / 0.30)
+            + 0.40 * _clamp((upper_change - 0.10) / 0.45)
         )
         change_coverage = _clamp(len(differences) / 24.0)
         change_stability = _clamp(1.0 - float(np.std(differences)) / 0.35)
@@ -269,6 +272,7 @@ def _harmony_features(
         "chroma_change_activity": round(change_activity, 4),
         "mean_adjacent_chord_distance": round(mean_change, 4),
         "upper_quartile_chord_distance": round(upper_change, 4),
+        "chord_distance_noise_floor": {"mean": 0.06, "upper_quartile": 0.10},
         "harmony_sampling_mode": sampling_mode,
         "harmonic_state_count": int(synchronous_array.shape[1]),
         "existing_key_tonal_clarity": round(tonal_clarity, 4),
