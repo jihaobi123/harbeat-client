@@ -14,9 +14,14 @@ from app.modules.library.feature_model_adapters import (
 )
 
 
-def _disabled_config(*, drum_command: str | None = None) -> FeatureModelConfig:
+def _disabled_config(
+    *,
+    drum_command: str | None = None,
+    style_command: str | None = None,
+) -> FeatureModelConfig:
     return FeatureModelConfig(
         drum_command=drum_command,
+        style_command=style_command,
         timeout_seconds=10.0,
     )
 
@@ -43,6 +48,32 @@ def test_json_worker_contract_is_collected_without_shell_execution() -> None:
     assert route["engine"] == "adtof-test"
     assert route["result"]["events"]["tom"] == [1.0]
     assert result["ready_routes"] == ["drum_transcription"]
+
+
+def test_style_worker_labels_remain_a_separate_auxiliary_route() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        audio_path = os.path.join(directory, "song.wav")
+        sf.write(audio_path, np.zeros(8000, dtype=np.float32), 8000)
+        worker_path = os.path.join(directory, "style_worker.py")
+        with open(worker_path, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import json\n"
+                "print(json.dumps({'engine':'style-test','license':'test-only','labels':["
+                "{'label':'Electronic---House','score':0.81},"
+                "{'label':'Funk / Soul---Disco','score':0.24}]}))\n"
+            )
+        command = f'{sys.executable} "{worker_path}" "{{audio}}"'
+        result = collect_mature_model_evidence(
+            {},
+            original_path=audio_path,
+            config=_disabled_config(style_command=command),
+        )
+
+    route = result["routes"]["style_tags"]
+    assert route["status"] == "ready"
+    assert route["result"]["labels"][0]["label"] == "Electronic---House"
+    assert result["ready_routes"] == ["style_tags"]
+    assert result["routes"]["drum_transcription"]["status"] == "disabled"
 
 
 def test_dedicated_drum_model_replaces_spectral_fallback() -> None:
