@@ -1,4 +1,4 @@
-"""Event-level Bass, 808 and Log Drum feature analysis.
+"""Event-level bass behaviour and low-frequency timbre candidate analysis.
 
 The analyser uses the Bass stem for pitched body, the Drums stem/event list for
 the attack, and the full mix only as a consistency check.  A bass slide is kept
@@ -17,16 +17,29 @@ from app.modules.library.style_feature_evidence import (
 )
 
 
-BASS_FEATURE_VERSION = "bass_features_v1"
+BASS_FEATURE_VERSION = "bass_features_v2"
 BASS_FEATURE_NAMES = (
     "sub_bass",
     "bass_pitch_stability",
     "bass_slide",
     "kick_bass_alignment",
+    "sustained_harmonic_bass_candidate",
+    "sliding_bass_candidate",
+    "low_percussive_bass_candidate",
+    "low_frequency_melody",
+    "bass_reply_pattern",
+    "808_timbre_candidate",
+    "log_drum_candidate",
     "sub_808",
     "sliding_808",
     "log_drum",
 )
+
+BASS_F0_MIN_HZ = 30.0
+BASS_F0_MAX_HZ = 300.0
+PYIN_FRAME_LENGTH = 4096
+PYIN_HOP_LENGTH = 256
+PYIN_MIN_VOICED_PROB = 0.60
 
 
 def _clamp(value: float) -> float:
@@ -73,20 +86,57 @@ def _band_energy(power: np.ndarray, frequencies: np.ndarray, low: float, high: f
     return float(np.sum(power[mask]))
 
 
-def _pitch_track(clip: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
-    n_fft = 4096
-    hop = 256
-    spectrum = np.abs(librosa.stft(clip, n_fft=n_fft, hop_length=hop))
-    frequencies = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-    mask = (frequencies >= 28.0) & (frequencies <= 220.0)
+def _spectral_peak_pitch_track(clip: np.ndarray, sr: int) -> dict[str, Any]:
+    spectrum = np.abs(librosa.stft(
+        clip, n_fft=PYIN_FRAME_LENGTH, hop_length=PYIN_HOP_LENGTH,
+    ))
+    frequencies = librosa.fft_frequencies(sr=sr, n_fft=PYIN_FRAME_LENGTH)
+    mask = (frequencies >= BASS_F0_MIN_HZ) & (frequencies <= BASS_F0_MAX_HZ)
     low = spectrum[mask]
     if not low.size:
-        return np.asarray([]), np.asarray([])
+        return {"f0_hz": np.asarray([]), "voiced_prob": np.asarray([]), "method": "unavailable"}
     strengths = np.max(low, axis=0)
     pitches = frequencies[mask][np.argmax(low, axis=0)]
     gate = max(float(np.percentile(strengths, 45)), 1e-8)
     voiced = strengths >= gate
-    return pitches[voiced], strengths[voiced]
+    normalized = strengths[voiced] / (float(np.max(strengths)) + 1e-12)
+    return {
+        "f0_hz": pitches[voiced],
+        "voiced_prob": normalized,
+        "method": "spectral_peak_fallback",
+    }
+
+
+def _pitch_track(clip: np.ndarray, sr: int) -> dict[str, Any]:
+    """Estimate an event-local F0 trajectory, retaining an explicit fallback."""
+    if len(clip) < PYIN_FRAME_LENGTH or sr <= 2 * BASS_F0_MAX_HZ:
+        return _spectral_peak_pitch_track(clip, sr)
+    try:
+        f0, voiced, probability = librosa.pyin(
+            np.asarray(clip, dtype=float),
+            fmin=BASS_F0_MIN_HZ,
+            fmax=min(BASS_F0_MAX_HZ, sr / 2.0 - 1.0),
+            sr=sr,
+            frame_length=PYIN_FRAME_LENGTH,
+            hop_length=PYIN_HOP_LENGTH,
+            fill_na=np.nan,
+        )
+        probability = np.asarray(probability, dtype=float)
+        valid = (
+            np.asarray(voiced, dtype=bool)
+            & np.isfinite(f0)
+            & np.isfinite(probability)
+            & (probability >= PYIN_MIN_VOICED_PROB)
+        )
+        if int(np.sum(valid)) >= 3:
+            return {
+                "f0_hz": np.asarray(f0[valid], dtype=float),
+                "voiced_prob": probability[valid],
+                "method": "pyin_candidate_segment",
+            }
+    except (ValueError, FloatingPointError):
+        pass
+    return _spectral_peak_pitch_track(clip, sr)
 
 
 def _event_descriptor(
@@ -110,16 +160,17 @@ def _event_descriptor(
     reference_energy = _band_energy(power, frequencies, 20.0, 1000.0) + 1e-12
     sub_ratio = _band_energy(power, frequencies, 25.0, 95.0) / reference_energy
 
-    pitches, strengths = _pitch_track(clip, sr)
+    pitch_track = _pitch_track(clip, sr)
+    pitches = pitch_track["f0_hz"]
+    voiced_prob = pitch_track["voiced_prob"]
     if len(pitches) >= 3:
         midi = 69.0 + 12.0 * np.log2(np.maximum(pitches, 1e-6) / 440.0)
         fundamental = float(np.median(pitches))
         pitch_spread = float(np.median(np.abs(midi - np.median(midi))))
         pitch_stability = _clamp(1.0 - pitch_spread / 1.6)
-        positions = np.arange(len(midi), dtype=float)
-        slope = float(np.polyfit(positions, midi, 1)[0]) if len(midi) >= 4 else 0.0
-        pitch_motion = slope * max(len(midi) - 1, 0)
-        voiced_strength = _clamp(float(np.mean(strengths)) / (float(np.max(magnitude)) + 1e-12))
+        edge = max(1, len(midi) // 4)
+        pitch_motion = float(np.median(midi[-edge:]) - np.median(midi[:edge]))
+        voiced_strength = _clamp(float(np.mean(voiced_prob)))
     else:
         fundamental = 0.0
         pitch_stability = 0.0
@@ -173,6 +224,7 @@ def _event_descriptor(
         "pitch_motion_semitones": round(pitch_motion, 4),
         "harmonic_ratio_f0_to_5f0": round(harmonic_ratio, 4),
         "voiced_strength": round(voiced_strength, 4),
+        "pitch_method": pitch_track["method"],
         "decay_sec": round(max(0.0, decay_sec), 4),
         "attack_body_ratio": round(float(attack_body_ratio), 4),
         "kick_distance_sec": None if kick_distance is None else round(kick_distance, 4),
@@ -197,9 +249,10 @@ def analyze_bass_features(
     drum_analysis: dict | None = None,
     beat_points: list[float] | np.ndarray | None = None,
     original_audio: np.ndarray | None = None,
+    source_quality: float = 0.75,
 ) -> dict[str, Any]:
     """Analyse Bass-stem events and return style-independent evidence."""
-    method = "bass_stft_event_fusion_v1"
+    method = "bass_candidate_segment_pyin_v2"
     required_sources = ["bass_stem", "drums_stem", "full_mix"]
     if bass is None or sr <= 0 or len(bass) < sr:
         return {
@@ -241,6 +294,9 @@ def analyze_bass_features(
         flags.append("full_mix_unavailable")
     if not len(kick_times):
         flags.append("kick_events_unavailable")
+    pitch_methods = sorted({str(item.get("pitch_method")) for item in events})
+    if "spectral_peak_fallback" in pitch_methods:
+        flags.append("bass_pitch_spectral_fallback_used")
 
     def average(key: str) -> float:
         values = [float(item[key]) for item in events if item.get(key) is not None]
@@ -257,6 +313,17 @@ def analyze_bass_features(
         if abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12
     ]
     slide_score = _clamp(len(slide_events) / max(1.0, len(events) * 0.22))
+    pitched_fundamentals = [
+        float(item["fundamental_hz"]) for item in events
+        if float(item.get("fundamental_hz", 0.0)) > 0
+    ]
+    if len(pitched_fundamentals) >= 3:
+        midi_events = 69.0 + 12.0 * np.log2(np.asarray(pitched_fundamentals) / 440.0)
+        pitch_range = float(np.percentile(midi_events, 90) - np.percentile(midi_events, 10))
+        melody_score = _clamp((pitch_range - 1.0) / 5.0) * _clamp(len(midi_events) / 6.0)
+    else:
+        pitch_range = 0.0
+        melody_score = 0.0
 
     mix_values = [item["mix_low_consistency"] for item in events if item["mix_low_consistency"] is not None]
     mix_consistency = _clamp(float(np.mean(mix_values)) / 0.68) if mix_values else 0.5
@@ -279,6 +346,7 @@ def analyze_bass_features(
             (_nearest_distance(float(value), beat_array) or 9.0) <= 0.075 for value in onsets
         ]))
     syncopation = 1.0 - beat_alignment if len(beat_array) else 0.5
+    reply_score = _clamp(syncopation * (1.0 - aligned_fraction) * _clamp(len(events) / 6.0))
     log_drum_score = _clamp(
         0.25 * percussive
         + 0.22 * stability_score
@@ -290,48 +358,74 @@ def analyze_bass_features(
     common = {
         "event_count": len(events),
         "frequency_scope_hz": [25, 1000],
+        "pitch_methods": pitch_methods,
+        "minimum_voiced_probability": PYIN_MIN_VOICED_PROB,
     }
-    features = {
-        "sub_bass": make_feature_evidence(
-            sub_score,
-            confidence=quality,
-            sources=["bass_stem"],
+    source_quality = _clamp(source_quality)
+    pitch_estimator_quality = 0.82 if pitch_methods == ["pyin_candidate_segment"] else 0.55
+
+    def feature(
+        score: float,
+        *,
+        threshold: float = 0.55,
+        estimator_quality: float = 0.72,
+        confidence: float | None = None,
+        sources: list[str],
+        time_ranges: list[dict[str, Any]] | None = None,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return make_feature_evidence(
+            score,
+            threshold=threshold,
+            confidence=quality if confidence is None else confidence,
+            measurement_confidence=quality if confidence is None else confidence,
+            source_quality=source_quality,
+            estimator_quality=estimator_quality,
+            quality_flags=flags,
+            sources=sources,
             analysis_method=method,
+            time_ranges=time_ranges,
+            evidence=evidence,
+        )
+
+    features = {
+        "sub_bass": feature(
+            sub_score,
+            estimator_quality=0.78,
+            sources=["bass_stem"],
             time_ranges=_ranges(events, lambda item: item["sub_ratio_25_95_hz"] >= 0.42),
             evidence={**common, "mean_sub_ratio_25_95_hz": round(average("sub_ratio_25_95_hz"), 4)},
         ),
-        "bass_pitch_stability": make_feature_evidence(
+        "bass_pitch_stability": feature(
             stability_score,
-            confidence=quality,
+            estimator_quality=pitch_estimator_quality,
             sources=["bass_stem"],
-            analysis_method=method,
             evidence={**common, "mean_pitch_stability": round(stability_score, 4)},
         ),
-        "bass_slide": make_feature_evidence(
+        "bass_slide": feature(
             slide_score,
-            confidence=quality,
+            estimator_quality=pitch_estimator_quality,
             sources=["bass_stem"],
-            analysis_method=method,
             time_ranges=_ranges(events, lambda item: abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12),
             evidence={**common, "minimum_motion_semitones": 2.5, "slide_event_count": len(slide_events)},
         ),
-        "kick_bass_alignment": make_feature_evidence(
+        "kick_bass_alignment": feature(
             aligned_fraction,
             confidence=quality if len(kick_times) else 0.0,
+            estimator_quality=0.80,
             sources=["bass_stem", "drums_stem"],
-            analysis_method=method,
             evidence={**common, "kick_event_count": len(kick_times), "tolerance_sec": 0.085},
         ) if len(kick_times) else unavailable_feature(
             "kick_events_unavailable",
             sources=["bass_stem", "drums_stem"],
             analysis_method=method,
         ),
-        "sub_808": make_feature_evidence(
+        "808_timbre_candidate": feature(
             identity_808,
             threshold=0.62,
             confidence=quality * (0.85 if drums is None else 1.0),
+            estimator_quality=0.58,
             sources=required_sources,
-            analysis_method=method,
             time_ranges=_ranges(events, lambda item: item["sub_ratio_25_95_hz"] >= 0.42 and item["pitch_stability"] >= 0.55),
             evidence={
                 **common,
@@ -341,29 +435,27 @@ def analyze_bass_features(
                 "sustain_score": round(sustain_score, 4),
                 "kick_or_drum_transient_score": round(max(aligned_fraction, transient_score), 4),
                 "mix_consistency_score": round(mix_consistency, 4),
-                "semantic_rule": "808 identity requires pitched sub body plus harmonic/sustain evidence; slide is not required",
+                "semantic_rule": "candidate only: pitched sustained sub body with compatible harmonic and transient evidence",
             },
         ),
-        "sliding_808": make_feature_evidence(
+        "sliding_bass_candidate": feature(
             sliding_808,
             threshold=0.62,
-            confidence=quality,
+            estimator_quality=min(0.65, pitch_estimator_quality),
             sources=required_sources,
-            analysis_method=method,
             time_ranges=_ranges(events, lambda item: abs(item["pitch_motion_semitones"]) >= 2.5 and item["decay_sec"] >= 0.12),
             evidence={
                 **common,
                 "sub_808_identity_score": round(identity_808, 4),
                 "bass_slide_score": round(slide_score, 4),
-                "semantic_rule": "requires both 808 identity and bass pitch motion",
+                "semantic_rule": "requires sustained harmonic bass evidence and measured pitch motion",
             },
         ),
-        "log_drum": make_feature_evidence(
+        "low_percussive_bass_candidate": feature(
             log_drum_score,
             threshold=0.62,
-            confidence=quality,
+            estimator_quality=0.62,
             sources=["bass_stem", "drums_stem", "beat_grid"],
-            analysis_method=method,
             time_ranges=_ranges(events, lambda item: item["attack_body_ratio"] >= 1.4 and item["decay_sec"] <= 0.48),
             evidence={
                 **common,
@@ -375,7 +467,39 @@ def analyze_bass_features(
                 "semantic_rule": "pitched low percussion with attack, decay and rhythmic reply behaviour",
             },
         ),
+        "sustained_harmonic_bass_candidate": feature(
+            identity_808,
+            threshold=0.60,
+            estimator_quality=0.68,
+            sources=["bass_stem", "drums_stem"],
+            time_ranges=_ranges(events, lambda item: item["pitch_stability"] >= 0.55 and item["decay_sec"] >= 0.20),
+            evidence={**common, "sustain_score": round(sustain_score, 4), "harmonic_score": round(harmonic_score, 4)},
+        ),
+        "low_frequency_melody": feature(
+            melody_score,
+            estimator_quality=pitch_estimator_quality,
+            sources=["bass_stem"],
+            evidence={**common, "event_pitch_range_semitones": round(pitch_range, 4)},
+        ),
+        "bass_reply_pattern": feature(
+            reply_score,
+            estimator_quality=0.70,
+            sources=["bass_stem", "drums_stem", "beat_grid"],
+            evidence={**common, "syncopation_score": round(syncopation, 4), "kick_separation_score": round(1.0 - aligned_fraction, 4)},
+        ),
     }
+    # Compatibility aliases remain readable for persisted v3 rules.  The v2
+    # taxonomy migration consumes the canonical behaviour/candidate names.
+    for legacy, canonical in {
+        "sub_808": "808_timbre_candidate",
+        "sliding_808": "sliding_bass_candidate",
+        "log_drum": "low_percussive_bass_candidate",
+        "log_drum_candidate": "low_percussive_bass_candidate",
+    }.items():
+        features[legacy] = {
+            **features[canonical],
+            "deprecated_alias_for": canonical,
+        }
     return {
         "version": BASS_FEATURE_VERSION,
         "status": "ready" if quality >= 0.55 else "degraded",

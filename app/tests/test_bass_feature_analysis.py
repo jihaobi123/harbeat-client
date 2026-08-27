@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.bass_feature_analysis import analyze_bass_features
+from app.modules.library.bass_feature_analysis import _pitch_track, analyze_bass_features
 
 
 def _tone_events(
@@ -59,6 +59,11 @@ def test_808_identity_uses_bass_body_and_drum_attack_without_requiring_slide() -
     assert result["features"]["bass_slide"]["detected"] is False
     assert result["features"]["sliding_808"]["detected"] is False
     assert result["features"]["sub_808"]["sources"] == ["bass_stem", "drums_stem", "full_mix"]
+    assert result["features"]["sub_808"]["deprecated_alias_for"] == "808_timbre_candidate"
+    assert result["features"]["808_timbre_candidate"]["evidence_level"] in {
+        "candidate", "probable", "confirmed",
+    }
+    assert result["features"]["808_timbre_candidate"]["quality"]["estimator_quality"] == 0.58
 
 
 def test_bass_slide_is_reported_separately_from_808_identity() -> None:
@@ -76,6 +81,23 @@ def test_bass_slide_is_reported_separately_from_808_identity() -> None:
     assert result["features"]["bass_slide"]["score"] > 0.0
     assert "sub_808_identity_score" in result["features"]["sliding_808"]["evidence"]
     assert result["features"]["kick_bass_alignment"]["detected"] is None
+    assert any(event["pitch_method"] == "pyin_candidate_segment" for event in result["events"])
+    assert "bass_pitch_spectral_fallback_used" in result["quality_flags"]
+    assert "low_frequency_melody" in result["features"]
+    assert "bass_reply_pattern" in result["features"]
+
+
+def test_pyin_tracks_fundamental_when_second_harmonic_is_stronger() -> None:
+    sr = 8000
+    time = np.arange(sr, dtype=float) / sr
+    clip = 0.25 * np.sin(2 * np.pi * 48.0 * time)
+    clip += 0.75 * np.sin(2 * np.pi * 96.0 * time)
+
+    track = _pitch_track(clip.astype(np.float32), sr)
+
+    assert track["method"] == "pyin_candidate_segment"
+    assert 46.0 <= float(np.median(track["f0_hz"])) <= 50.0
+    assert float(np.mean(track["voiced_prob"])) >= 0.60
 
 
 def test_missing_bass_stem_is_unavailable_not_negative() -> None:

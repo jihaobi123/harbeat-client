@@ -16,6 +16,10 @@ from typing import Any, Iterable
 VALIDATION_VERSION = "pre_style_validation_v2"
 
 HIGH_RISK_SEMANTIC = {
+    "808_timbre_candidate",
+    "log_drum_candidate",
+    "low_percussive_bass_candidate",
+    "sustained_harmonic_bass_candidate",
     "sub_808",
     "sliding_808",
     "log_drum",
@@ -30,7 +34,8 @@ HIGH_RISK_SEMANTIC = {
     "rage_synth",
 }
 EVENT_FEATURES = HIGH_RISK_SEMANTIC | {
-    "bass_slide", "full_snare", "continuous_high_percussion", "repeated_tonal_motif",
+    "bass_slide", "sliding_bass_candidate", "bass_reply_pattern",
+    "full_snare", "continuous_high_percussion", "repeated_tonal_motif",
     "jersey_club", "tamborzao", "drill_hat", "breakbeat", "afro_syncopation",
 }
 DETERMINISTIC_RHYTHM = {
@@ -120,7 +125,11 @@ def _representative_ranges(
 
 
 def _review_options(feature_name: str) -> list[str]:
-    if feature_name in {"sub_bass", "sub_808", "bass_slide", "sliding_808", "log_drum"}:
+    if feature_name in {
+        "sub_bass", "sub_808", "bass_slide", "sliding_808", "log_drum",
+        "808_timbre_candidate", "sliding_bass_candidate",
+        "low_percussive_bass_candidate", "log_drum_candidate",
+    }:
         return ["sub_bass", "808", "sliding_808", "log_drum", "other_bass", "absent", "uncertain"]
     if feature_name in HIGH_RISK_SEMANTIC or feature_name in {"closed_hihat", "general_percussion"}:
         return [feature_name, "other_percussion", "absent", "uncertain"]
