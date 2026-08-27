@@ -100,6 +100,23 @@ class DjFxAutomationPoint(BaseModel):
     eq_high_db: float = 0.0
 
 
+class OnlineMixSafety(BaseModel):
+    online_mix_safe: bool
+    recommended_mode: str
+    fallback_mode: str
+    min_prepare_sec: float = 0.0
+    preload_before_sec: float = 0.0
+    reasons: list[str] = Field(default_factory=list)
+
+
+class MixControlTimeline(BaseModel):
+    transition_id: str
+    mode: str
+    start_at_from_time_sec: float
+    duration_sec: float
+    events: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class DjTransitionPlanItem(BaseModel):
     from_song_id: int
     to_song_id: int
@@ -116,6 +133,8 @@ class DjTransitionPlanItem(BaseModel):
     transition_technique: str = "crossfade"
     energy_target: str
     fx_automation: list[DjFxAutomationPoint] = Field(default_factory=list)
+    online_mix_safety: OnlineMixSafety | None = None
+    mix_control_timeline: MixControlTimeline | None = None
     score: float = 0.0
 
 
