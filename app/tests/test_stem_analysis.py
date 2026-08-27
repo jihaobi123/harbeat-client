@@ -38,7 +38,14 @@ class StemAnalysisTests(unittest.TestCase):
             sf.write(original_path, original, sr)
 
             with patch.dict(os.environ, {"FEATURE_DRUM_TRANSCRIBER_COMMAND": ""}):
-                result = analyze_stem_files(paths, original_path=original_path, window_sec=2.0)
+                result = analyze_stem_files(
+                    paths,
+                    original_path=original_path,
+                    window_sec=2.0,
+                    bpm=120.0,
+                    beat_points=np.arange(0.0, duration, 0.5).tolist(),
+                    downbeats=np.arange(0.0, duration + 0.01, 2.0).tolist(),
+                )
 
         self.assertEqual(len(result["stem_activity_windows"]), 4)
         self.assertLess(result["stem_activity_windows"][0]["vocals"], 0.1)
@@ -48,6 +55,15 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertGreater(result["intro_clean_score"], 0.7)
         self.assertLess(result["outro_clean_score"], 0.3)
         self.assertTrue(result["has_drum_loop"])
+        self.assertGreater(result["drum_loop_analysis"]["score"], 0.62)
+        self.assertEqual(
+            result["drum_loop_analysis"]["method"],
+            "bar_aligned_log_mel_self_similarity_v1",
+        )
+        self.assertIn(
+            "sampled_loop_tendency",
+            result["feature_analysis"]["feature_groups"]["production"],
+        )
         self.assertIn("drum_analysis", result)
         self.assertIn("feature_analysis", result)
         self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v4")

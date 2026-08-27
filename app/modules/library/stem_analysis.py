@@ -14,6 +14,7 @@ from app.modules.library.high_frequency_feature_analysis import (
     analyze_high_frequency_features,
     empty_high_frequency_features,
 )
+from app.modules.library.style_feature_evidence import make_feature_evidence
 
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 
@@ -64,6 +65,71 @@ def _reconstruction_score(
     reference = _rms(original[:length]) + 1e-8
     error = _rms(reconstructed - original[:length]) / reference
     return float(np.clip(1.0 - error, 0.0, 1.0)), "waveform_reconstruction"
+
+
+def _drum_loop_repetition(
+    drums: np.ndarray | None,
+    sr: int,
+    *,
+    bpm: float | None,
+    beat_points: list[float] | None,
+    downbeats: list[float] | None,
+) -> dict[str, Any]:
+    """Measure adjacent bar repetition instead of drum activity duration."""
+    if drums is None or sr <= 0 or len(drums) < sr:
+        return {"status": "unavailable", "score": 0.0, "bar_count": 0, "similarities": []}
+    bars = np.asarray([] if downbeats is None else downbeats, dtype=float)
+    bars = np.sort(bars[np.isfinite(bars) & (bars >= 0)])
+    if len(bars) < 3:
+        beats = np.asarray([] if beat_points is None else beat_points, dtype=float)
+        beats = np.sort(beats[np.isfinite(beats) & (beats >= 0)])
+        if len(beats) >= 12:
+            bars = beats[::4]
+        elif bpm and np.isfinite(bpm) and bpm > 0:
+            bars = np.arange(0.0, len(drums) / sr, 240.0 / bpm)
+    if len(bars) < 3:
+        return {"status": "unavailable", "score": 0.0, "bar_count": 0, "similarities": []}
+
+    vectors = []
+    used_ranges = []
+    for start, end in list(zip(bars[:-1], bars[1:]))[:96]:
+        clip = np.asarray(drums[int(start * sr):int(end * sr)], dtype=float)
+        if len(clip) < int(0.5 * sr):
+            continue
+        mel = librosa.feature.melspectrogram(
+            y=clip, sr=sr, n_fft=min(2048, max(512, 2 ** int(np.floor(np.log2(len(clip)))))),
+            hop_length=256, n_mels=24, power=2.0,
+        )
+        log_mel = librosa.power_to_db(mel + 1e-12, ref=np.max)
+        target = np.linspace(0.0, 1.0, 16)
+        source = np.linspace(0.0, 1.0, log_mel.shape[1])
+        resized = np.vstack([np.interp(target, source, row) for row in log_mel])
+        vector = resized.ravel()
+        vector -= float(np.mean(vector))
+        norm = float(np.linalg.norm(vector))
+        if norm <= 1e-8:
+            continue
+        vectors.append(vector / norm)
+        used_ranges.append({"start": round(float(start), 4), "end": round(float(end), 4)})
+    similarities = [
+        float(np.clip(np.dot(left, right), -1.0, 1.0))
+        for left, right in zip(vectors[:-1], vectors[1:])
+    ]
+    if len(similarities) < 2:
+        return {"status": "unavailable", "score": 0.0, "bar_count": len(vectors), "similarities": []}
+    normalized = np.clip((np.asarray(similarities) - 0.45) / 0.50, 0.0, 1.0)
+    repeated_fraction = float(np.mean(np.asarray(similarities) >= 0.82))
+    score = float(np.clip(0.65 * np.mean(normalized) + 0.35 * repeated_fraction, 0.0, 1.0))
+    return {
+        "status": "ready",
+        "method": "bar_aligned_log_mel_self_similarity_v1",
+        "score": round(score, 4),
+        "bar_count": len(vectors),
+        "adjacent_pair_count": len(similarities),
+        "repeated_pair_fraction": round(repeated_fraction, 4),
+        "similarities": [round(value, 4) for value in similarities[:95]],
+        "time_ranges": used_ranges[:48],
+    }
 
 
 def analyze_stem_files(
@@ -168,6 +234,10 @@ def analyze_stem_files(
         available,
         original_path=original_path,
     )
+    loop_analysis = _drum_loop_repetition(
+        loaded.get("drums"), sample_rate, bpm=bpm,
+        beat_points=beat_points, downbeats=downbeats,
+    )
     drum_analysis = analyze_drum_stem(
         loaded.get("drums"),
         sample_rate,
@@ -191,6 +261,21 @@ def analyze_stem_files(
         original_audio=None,
         model_evidence=model_evidence,
     )
+    production = (feature_analysis.get("feature_groups") or {}).get("production")
+    if isinstance(production, dict):
+        production["sampled_loop_tendency"] = make_feature_evidence(
+            float(loop_analysis.get("score", 0.0)),
+            threshold=0.62,
+            confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+            measurement_confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+            source_quality=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+            estimator_quality=0.72,
+            sources=["drums_stem", "bar_grid"],
+            analysis_method="bar_aligned_log_mel_self_similarity_v1",
+            time_ranges=list(loop_analysis.get("time_ranges") or []),
+            evidence=loop_analysis,
+        )
+    feature_analysis.setdefault("music_context", {})["drum_loop_analysis"] = loop_analysis
 
     return {
         "has_complete_stems": completeness == 1.0,
@@ -217,10 +302,8 @@ def analyze_stem_files(
         "outro_is_clean": bool(completeness == 1.0 and vocals and vocals[-1] < 0.25),
         "intro_clean_score": round(intro_clean_score, 4),
         "outro_clean_score": round(outro_clean_score, 4),
-        "has_drum_loop": bool(
-            drums and activity["drums"] >= 0.35
-            and sum(value >= 0.3 for value in drums) / len(drums) >= 0.6
-        ),
+        "has_drum_loop": bool(loop_analysis.get("score", 0.0) >= 0.62),
+        "drum_loop_analysis": loop_analysis,
         "drum_analysis": drum_analysis,
         "feature_analysis": feature_analysis,
         "model_evidence": model_evidence,
