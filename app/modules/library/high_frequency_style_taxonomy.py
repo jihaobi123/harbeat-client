@@ -22,6 +22,7 @@ def _style(
     negative: dict[str, float] | None = None,
     required_any: list[list[str]] | None = None,
     minimum_evidence: int = 3,
+    requirement_threshold: float = 0.46,
 ) -> dict[str, Any]:
     return {
         "name": name,
@@ -31,6 +32,7 @@ def _style(
         "negative": negative or {},
         "required_any": required_any or [],
         "minimum_evidence": minimum_evidence,
+        "requirement_threshold": requirement_threshold,
     }
 
 
@@ -65,7 +67,7 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.acoustic_production": 0.8,
         "harmony.chord_change_activity": 0.5,
     }, required_any=[
-        ["rhythm_grammar.backbeat_2_4", "rhythm_grammar.breakbeat"],
+        ["rhythm_grammar.backbeat_2_4", "rhythm_grammar.breakbeat", "rhythm_grammar.four_on_floor"],
         ["low_frequency.low_frequency_melody", "low_frequency.bass_reply_pattern", "low_frequency.kick_bass_alignment"],
     ]),
     "breakbeat": _style("Breakbeat", FREESTYLE_CYPHER, [(90, 145)], {
@@ -128,23 +130,19 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.acoustic_production": 0.4,
     }, negative={"production.rage_synth_candidate": 0.7}, required_any=[["vocal_delivery.singing"]]),
     "disco": _style("Disco", PARTY_BAR, [(105, 132)], {
-        "rhythm_grammar.four_on_floor": 1.5,
-        "rhythm_grammar.backbeat_2_4": 0.7,
-        "percussion_timbre.sustained_metallic": 0.8,
-        "production.acoustic_production": 0.35,
-        "production.brightness": 0.6,
-        "low_frequency.kick_bass_alignment": 0.5,
-        "low_frequency.low_frequency_melody": 0.8,
-        "harmony.chord_change_activity": 0.7,
+        "rhythm_grammar.four_on_floor": 1.4,
+        "rhythm_grammar.backbeat_2_4": 0.4,
+        "percussion_timbre.sustained_metallic": 1.2,
+        "production.acoustic_production": 0.25,
+        "production.brightness": 0.45,
+        "low_frequency.kick_bass_alignment": 0.4,
+        "low_frequency.low_frequency_melody": 0.35,
+        "harmony.chord_change_activity": 0.45,
     }, negative={"production.dark_timbre": 0.5},
         required_any=[
             ["rhythm_grammar.four_on_floor"],
-            [
-                "percussion_timbre.sustained_metallic",
-                "low_frequency.low_frequency_melody",
-                "harmony.chord_change_activity",
-            ],
-        ]),
+            ["percussion_timbre.sustained_metallic"],
+        ], requirement_threshold=0.42),
     "jersey_club": _style("Jersey Club", PARTY_BAR, [(130, 152)], {
         "rhythm_grammar.jersey_club": 1.9,
         "vocal_delivery.vocal_chop_repetition": 1.0,
@@ -213,7 +211,11 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.brightness": 0.7,
         "production.electronic_production": 0.8,
         "vocal_delivery.rap_delivery": 0.4,
-    }, required_any=[["production.rage_synth_candidate", "production.electronic_production"], ["low_frequency.sustained_harmonic_bass_candidate", "low_frequency.sub_bass"]]),
+    }, required_any=[
+        ["production.rage_synth_candidate"],
+        ["production.distortion"],
+        ["low_frequency.sustained_harmonic_bass_candidate", "low_frequency.sub_bass"],
+    ]),
     "uk_garage": _style("UK Garage", PARTY_BAR, [(125, 142)], {
         "rhythm_grammar.two_step": 1.7,
         "rhythm_grammar.swing": 1.0,

@@ -230,3 +230,40 @@ def test_unmapped_top_model_label_is_explicitly_out_of_taxonomy() -> None:
     assert result["out_of_taxonomy"] is True
     assert "top_model_label_outside_or_adjacent_to_21_style_taxonomy" in result["review_reasons"]
     assert result["model_label_evidence"]["unmapped_labels"][0]["subtype"] == "k-pop"
+
+
+def test_rage_requires_rage_synth_and_distortion_not_generic_bright_electronic_audio() -> None:
+    result = classify_high_frequency_styles(_payload(148, {
+        "low_frequency.sustained_harmonic_bass_candidate": 0.84,
+        "low_frequency.sub_bass": 0.78,
+        "production.rage_synth_candidate": 0.18,
+        "production.distortion": 0.20,
+        "production.brightness": 0.94,
+        "production.electronic_production": 0.82,
+        "vocal_delivery.rap_delivery": 0.20,
+    }))
+
+    rage = next(item for item in result["styles"] if item["style_id"] == "rage")
+    assert rage["required_evidence_ratio"] < 1.0
+    assert rage["detected"] is False
+
+
+def test_related_house_model_labels_combine_with_bounded_support() -> None:
+    payload = _with_model_labels(_payload(126, {
+        "rhythm_grammar.four_on_floor": 0.86,
+        "production.electronic_production": 0.78,
+        "production.brightness": 0.68,
+        "percussion_timbre.sustained_metallic": 0.62,
+        "rhythm_grammar.backbeat_2_4": 0.55,
+    }), [
+        {"label": "Electronic---House", "score": 0.52},
+        {"label": "Electronic---Electro House", "score": 0.31},
+        {"label": "Electronic---Deep House", "score": 0.18},
+    ])
+
+    result = classify_high_frequency_styles(payload)
+    house = next(item for item in result["styles"] if item["style_id"] == "house")
+
+    assert house["model_support"]["support"] > 0.52
+    assert len(house["model_support"]["sources"]) == 3
+    assert house["model_adjustment"] <= 0.18

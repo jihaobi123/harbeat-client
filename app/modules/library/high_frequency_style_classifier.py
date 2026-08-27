@@ -26,10 +26,14 @@ MODEL_STYLE_LABEL_RULES = {
     "soul_neo_soul": (("neo soul", "soul"), ("contemporary r&b",)),
     "jazz_hiphop": (("jazz rap",), ("instrumental hip hop",)),
     "afro_afrobeats": (("afrobeat", "afrobeats"), ("afro house",)),
-    "house": (("house",), ("euro house", "garage house", "italo house", "hip-house")),
+    "house": (("house",), (
+        "euro house", "garage house", "italo house", "hip-house", "electro house",
+        "progressive house", "tropical house", "deep house", "ghetto house",
+        "tech house", "tribal house", "acid house",
+    )),
     "grime_uk_hiphop": (("grime", "uk hip hop"), ("bassline",)),
     "rnb": (("rhythm & blues", "r&b"), ("contemporary r&b",)),
-    "disco": (("disco", "nu-disco", "post-disco"), ("boogie", "dance-pop", "eurodance")),
+    "disco": (("disco", "nu-disco", "post-disco", "italo-disco", "space disco"), ("boogie", "dance-pop", "eurodance")),
     "jersey_club": (("jersey club",), ()),
     "drill": (("drill",), ("uk drill",)),
     "amapiano": (("amapiano",), ()),
@@ -168,7 +172,7 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
         best = max(candidates, default=(0.0, None, 0.0, 0.0))
         requirements.append({
             "alternatives": alternatives,
-            "satisfied": best[0] >= 0.46,
+            "satisfied": best[0] >= float(rule.get("requirement_threshold", 0.46)),
             "best_feature": best[1],
             "best_effective_score": round(float(best[0]), 4),
         })
@@ -217,6 +221,7 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
         "evidence_count": evidence_count,
         "minimum_evidence": rule["minimum_evidence"],
         "required_evidence_ratio": round(required_ratio, 4),
+        "requirement_threshold": round(float(rule.get("requirement_threshold", 0.46)), 4),
         "requirements": requirements,
         "positive_evidence": positive_evidence,
         "negative_evidence": negative_evidence,
@@ -242,7 +247,7 @@ def _model_label_mapping(features: dict[str, Any]) -> dict[str, Any]:
         }
     raw_labels = (route.get("result") or {}).get("labels") or []
     normalized_labels = []
-    mapped: dict[str, dict[str, Any]] = {}
+    mapped_candidates: dict[str, list[dict[str, Any]]] = {}
     unmapped = []
     for item in raw_labels[:25]:
         if not isinstance(item, dict) or not item.get("label"):
@@ -263,18 +268,40 @@ def _model_label_mapping(features: dict[str, Any]) -> dict[str, Any]:
             continue
         for style_id, mapping_type, mapping_weight in candidates:
             support = score * mapping_weight
-            current = mapped.get(style_id)
-            if current is None or support > current["support"]:
-                mapped[style_id] = {
-                    "support": round(support, 4),
+            mapped_candidates.setdefault(style_id, []).append({
+                    "weighted_support": support,
                     "mapping_type": mapping_type,
                     "raw_label": raw_label,
                     "raw_score": round(score, 4),
+            })
+    mapped = {}
+    for style_id, sources in mapped_candidates.items():
+        sources.sort(key=lambda value: value["weighted_support"], reverse=True)
+        combined_support = 1.0 - float(np.prod([
+            1.0 - _clamp(value["weighted_support"]) for value in sources
+        ]))
+        mapped[style_id] = {
+            "support": round(combined_support, 4),
+            "mapping_type": "direct" if any(
+                value["mapping_type"] == "direct" for value in sources
+            ) else "adjacent",
+            "raw_label": sources[0]["raw_label"],
+            "raw_score": sources[0]["raw_score"],
+            "sources": [
+                {
+                    "raw_label": value["raw_label"],
+                    "raw_score": value["raw_score"],
+                    "mapping_type": value["mapping_type"],
+                    "weighted_support": round(value["weighted_support"], 4),
                 }
+                for value in sources[:8]
+            ],
+        }
     top_raw = normalized_labels[0] if normalized_labels else None
     top_mappings = [
-        value for value in mapped.values()
-        if top_raw and value["raw_label"] == top_raw["label"]
+        source
+        for value in mapped.values() for source in value.get("sources", [])
+        if top_raw and source["raw_label"] == top_raw["label"]
     ]
     out_of_taxonomy = bool(
         top_raw and top_raw["score"] >= 0.25
