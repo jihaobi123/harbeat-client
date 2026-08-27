@@ -15,7 +15,7 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-PERCUSSION_FEATURE_VERSION = "percussion_timbre_features_v1"
+PERCUSSION_FEATURE_VERSION = "percussion_timbre_features_v2"
 PERCUSSION_FAMILIES = (
     "full_snare",
     "wide_clap",
@@ -108,6 +108,7 @@ def _descriptor(audio: np.ndarray, sr: int, event: dict[str, Any]) -> dict[str, 
         "low_ratio_45_250_hz": round(ratio(45.0, 250.0), 4),
         "mid_ratio_250_4000_hz": round(ratio(250.0, 4000.0), 4),
         "high_ratio_4000_hz_plus": round(ratio(4000.0, sr / 2.0 + 1.0), 4),
+        "air_ratio_8000_hz_plus": round(ratio(8000.0, sr / 2.0 + 1.0), 4),
     }
 
 
@@ -126,8 +127,9 @@ def analyze_percussion_features(
     sr: int,
     *,
     drum_analysis: dict | None = None,
+    source_quality: float = 0.75,
 ) -> dict[str, Any]:
-    method = "percussion_stft_event_families_v1"
+    method = "native_rate_percussion_event_families_v2"
     if drums is None or sr <= 0 or len(drums) < sr:
         return {
             "version": PERCUSSION_FEATURE_VERSION,
@@ -146,6 +148,8 @@ def analyze_percussion_features(
     duration = len(drums) / sr
     input_events = _events(drum_analysis)
     flags = []
+    if sr <= 22050:
+        flags.append("native_high_frequency_band_limited")
     if not input_events:
         flags.append("drum_transcription_unavailable_using_onsets")
         input_events = [
@@ -190,15 +194,48 @@ def analyze_percussion_features(
     high_times = np.asarray([item["time"] for item in high], dtype=float)
     high_rate = len(high_times) / max(duration, 1.0)
     intervals = np.diff(high_times)
-    continuity = _clamp(high_rate / 5.5)
+    event_rate_score = _clamp(high_rate / 5.5)
+    interval_consistency = 0.0
     if len(intervals) >= 4:
-        continuity *= _clamp(1.0 - float(np.std(intervals)) / max(float(np.mean(intervals)), 1e-6))
+        interval_consistency = _clamp(
+            1.0 - float(np.std(intervals)) / max(float(np.mean(intervals)), 1e-6)
+        )
+
+    # Native-rate frame evidence separates a genuinely continuous noisy high
+    # layer from a few isolated cymbal events.  It supplements event rate; it
+    # does not claim a specific shaker or tambourine identity.
+    n_fft = 2048 if sr >= 32000 else 1024
+    hop = n_fft // 4
+    spectrum = np.abs(librosa.stft(drums, n_fft=n_fft, hop_length=hop)) + 1e-12
+    frequencies = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
+    high_floor = 6000.0 if sr >= 24000 else min(4000.0, sr * 0.32)
+    high_mask = frequencies >= high_floor
+    high_energy = np.sum(np.square(spectrum[high_mask]), axis=0) if np.any(high_mask) else np.zeros(spectrum.shape[1])
+    total_energy = np.sum(np.square(spectrum), axis=0) + 1e-12
+    high_ratio_frames = high_energy / total_energy
+    high_band_ratio = float(np.mean(high_ratio_frames)) if len(high_ratio_frames) else 0.0
+    activity_threshold = float(np.percentile(high_energy, 55)) if len(high_energy) else 0.0
+    high_activity_coverage = (
+        float(np.mean(high_energy > max(activity_threshold, 1e-12))) if len(high_energy) else 0.0
+    )
+    high_magnitude = spectrum[high_mask] if np.any(high_mask) else np.empty((0, spectrum.shape[1]))
+    high_flatness = (
+        float(np.mean(np.exp(np.mean(np.log(high_magnitude), axis=0)) / np.mean(high_magnitude, axis=0)))
+        if high_magnitude.size else 0.0
+    )
+    continuity = _clamp(
+        0.35 * event_rate_score
+        + 0.25 * interval_consistency
+        + 0.20 * _clamp(high_band_ratio / 0.18)
+        + 0.20 * high_activity_coverage
+    )
 
     tonal = matches["tonal_percussion"]
     pitch_bins = [int(round(12 * np.log2(item["dominant_frequency_hz"] / 440.0))) for item in tonal]
     repeated = max(Counter(pitch_bins).values(), default=0)
     motif_score = _clamp(repeated / max(3.0, len(tonal) * 0.35))
     quality = _clamp(len(descriptors) / max(16.0, duration * 0.8))
+    source_quality = _clamp(source_quality)
 
     candidate_names = {
         "wide_clap": ["clap"],
@@ -220,6 +257,10 @@ def analyze_percussion_features(
             score,
             threshold=0.58,
             confidence=quality,
+            measurement_confidence=quality,
+            source_quality=source_quality,
+            estimator_quality=0.68 if name in {"tonal_percussion", "hand_drum_family"} else 0.74,
+            quality_flags=flags,
             sources=["drums_stem", "drum_transcription"],
             analysis_method=method,
             time_ranges=[_range(item) for item in matched[:48]],
@@ -239,12 +280,23 @@ def analyze_percussion_features(
         continuity,
         threshold=0.52,
         confidence=quality,
+        measurement_confidence=quality,
+        source_quality=source_quality,
+        estimator_quality=0.74,
+        quality_flags=flags,
         sources=["drums_stem", "drum_transcription"],
         analysis_method=method,
         time_ranges=[_range(item) for item in high[:48]],
         evidence={
             "high_event_rate_hz": round(high_rate, 4),
             "inter_event_count": len(intervals),
+            "event_rate_score": round(event_rate_score, 4),
+            "interval_consistency": round(interval_consistency, 4),
+            "high_band_floor_hz": round(high_floor, 1),
+            "high_band_energy_ratio": round(high_band_ratio, 4),
+            "high_band_activity_coverage": round(high_activity_coverage, 4),
+            "high_band_flatness": round(high_flatness, 4),
+            "analysis_sample_rate": sr,
             "candidate_labels": candidate_names["continuous_high_percussion"],
         },
     )
@@ -252,6 +304,10 @@ def analyze_percussion_features(
         motif_score,
         threshold=0.58,
         confidence=quality,
+        measurement_confidence=quality,
+        source_quality=source_quality,
+        estimator_quality=0.66,
+        quality_flags=flags,
         sources=["drums_stem"],
         analysis_method=method,
         time_ranges=[_range(item) for item in tonal[:48]],
@@ -268,4 +324,5 @@ def analyze_percussion_features(
         "events": descriptors,
         "confidence": round(quality, 4),
         "quality_flags": flags,
+        "analysis_sample_rate": sr,
     }

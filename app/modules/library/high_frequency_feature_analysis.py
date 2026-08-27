@@ -81,7 +81,11 @@ def analyze_high_frequency_features(
     if sr <= 0 or not any(value is not None and len(value) for value in stems.values()):
         return empty_high_frequency_features()
     duration = max(len(value) for value in stems.values() if value is not None and len(value)) / sr
-    arrays, analysis_sr = _resample_stems(stems, sr)
+    native_arrays = {
+        name: np.asarray(value, dtype=np.float32)
+        for name, value in stems.items() if value is not None and len(value)
+    }
+    arrays, analysis_sr = _resample_stems(native_arrays, sr)
     if original_audio is not None and len(original_audio):
         mix = np.asarray(original_audio, dtype=np.float32)
         if sr != analysis_sr:
@@ -105,7 +109,7 @@ def analyze_high_frequency_features(
         original_audio=mix,
     )
     percussion = analyze_percussion_features(
-        arrays.get("drums"), analysis_sr, drum_analysis=drum_analysis,
+        native_arrays.get("drums"), sr, drum_analysis=drum_analysis,
     )
     context = analyze_musical_context_features(
         vocals=arrays.get("vocals"),
@@ -157,6 +161,8 @@ def analyze_high_frequency_features(
             "downbeat_count": _count(downbeats),
             "key_profile": dict(key_profile or {}),
             "analysis_sample_rate": analysis_sr,
+            "high_frequency_sample_rate": sr,
+            "sampling_strategy": "dual_rate_native_percussion_v1",
             "duration": round(duration, 4),
         },
         "feature_groups": groups,

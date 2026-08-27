@@ -32,6 +32,9 @@ def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -
 
     assert result["version"] == "pre_style_evidence_v4"
     assert result["music_context"]["bpm"] == 120.0
+    assert result["music_context"]["analysis_sample_rate"] == 22050
+    assert result["music_context"]["high_frequency_sample_rate"] == sr
+    assert result["analysis_modules"]["percussion"]["analysis_sample_rate"] == sr
     assert result["feature_groups"]["rhythm_grammar"]["four_on_floor"]["availability"] == "available"
     assert "sub_808" in result["feature_groups"]["low_frequency"]
     assert "wide_clap" in result["feature_groups"]["percussion_timbre"]

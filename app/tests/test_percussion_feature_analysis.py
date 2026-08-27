@@ -60,3 +60,24 @@ def test_missing_drums_stem_is_unknown() -> None:
 
     assert result["status"] == "unavailable"
     assert result["features"]["wide_clap"]["detected"] is None
+
+
+def test_native_rate_analysis_preserves_air_band_evidence() -> None:
+    sr = 44100
+    duration = 4.0
+    audio = np.zeros(int(sr * duration), dtype=np.float32)
+    times = list(np.arange(0.2, duration - 0.06, 0.125))
+    local_time = np.arange(int(0.06 * sr)) / sr
+    burst = np.sin(2 * np.pi * 14000 * local_time) * np.exp(-local_time * 70) * 0.35
+    for value in times:
+        _burst(audio, sr, value, burst)
+    analysis = {"events": {"hihat": [{"time": value} for value in times]}}
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    evidence = result["features"]["continuous_high_percussion"]["evidence"]
+    assert result["analysis_sample_rate"] == 44100
+    assert "native_high_frequency_band_limited" not in result["quality_flags"]
+    assert evidence["high_band_floor_hz"] == 6000.0
+    assert evidence["high_band_energy_ratio"] > 0.1
+    assert any(event["air_ratio_8000_hz_plus"] > 0.5 for event in result["events"])
