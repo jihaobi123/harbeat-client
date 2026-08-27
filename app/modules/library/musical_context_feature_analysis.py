@@ -186,8 +186,13 @@ def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict]
     }, quality, evidence)
 
 
-def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | None) -> tuple[dict[str, dict], float]:
-    method = "chroma_harmony_activity_v1"
+def _harmony_features(
+    source: np.ndarray | None,
+    sr: int,
+    key_profile: dict | None,
+    beat_points: list[float] | np.ndarray | None = None,
+) -> tuple[dict[str, dict], float]:
+    method = "beat_synchronous_chroma_harmony_v2"
     if source is None or len(source) < sr:
         return ({
             name: unavailable_feature(
@@ -199,7 +204,8 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
     harmonic, _ = librosa.effects.hpss(source)
     # STFT chroma remains valid at low deployment sample rates where the
     # default high-octave CQT basis can exceed Nyquist.
-    chroma = librosa.feature.chroma_stft(y=harmonic, sr=sr, n_fft=4096, hop_length=512)
+    hop = 512
+    chroma = librosa.feature.chroma_stft(y=harmonic, sr=sr, n_fft=4096, hop_length=hop)
     normalized = chroma / (np.sum(chroma, axis=0, keepdims=True) + 1e-10)
     entropy = -np.sum(normalized * np.log2(normalized + 1e-10), axis=0) / np.log2(12.0)
     active_pitch_classes = np.sum(normalized >= 0.10, axis=0)
@@ -207,10 +213,48 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
         0.55 * float(np.mean(entropy))
         + 0.45 * _clamp((float(np.mean(active_pitch_classes)) - 2.0) / 4.5)
     )
-    differences = 1.0 - np.sum(normalized[:, 1:] * normalized[:, :-1], axis=0) / (
-        np.linalg.norm(normalized[:, 1:], axis=0) * np.linalg.norm(normalized[:, :-1], axis=0) + 1e-10
-    )
-    change_activity = _clamp(float(np.mean(differences)) / 0.42) if len(differences) else 0.0
+    beat_array = np.asarray([] if beat_points is None else beat_points, dtype=float)
+    beat_array = beat_array[np.isfinite(beat_array)]
+    beat_frames = np.unique(np.clip(
+        librosa.time_to_frames(beat_array, sr=sr, hop_length=hop), 0, chroma.shape[1] - 1,
+    )) if len(beat_array) else np.asarray([], dtype=int)
+    synchronous = []
+    if len(beat_frames) >= 4:
+        for start, end in zip(beat_frames[:-1], beat_frames[1:]):
+            if end > start:
+                synchronous.append(np.mean(normalized[:, start:end], axis=1))
+        sampling_mode = "beat_synchronous"
+        change_reliability_cap = 1.0
+    else:
+        block_frames = max(1, int(round(0.5 * sr / hop)))
+        for start in range(0, normalized.shape[1] - block_frames + 1, block_frames):
+            synchronous.append(np.mean(normalized[:, start:start + block_frames], axis=1))
+        sampling_mode = "fixed_500ms_fallback"
+        change_reliability_cap = 0.72
+    synchronous_array = np.asarray(synchronous, dtype=float).T if synchronous else np.empty((12, 0))
+    if synchronous_array.shape[1] >= 2:
+        differences = 1.0 - np.sum(
+            synchronous_array[:, 1:] * synchronous_array[:, :-1], axis=0,
+        ) / (
+            np.linalg.norm(synchronous_array[:, 1:], axis=0)
+            * np.linalg.norm(synchronous_array[:, :-1], axis=0)
+            + 1e-10
+        )
+        mean_change = float(np.mean(differences))
+        upper_change = float(np.percentile(differences, 75))
+        change_activity = _clamp(
+            0.55 * _clamp(mean_change / 0.18)
+            + 0.45 * _clamp(upper_change / 0.32)
+        )
+        change_coverage = _clamp(len(differences) / 24.0)
+        change_stability = _clamp(1.0 - float(np.std(differences)) / 0.35)
+    else:
+        differences = np.asarray([])
+        mean_change = 0.0
+        upper_change = 0.0
+        change_activity = 0.0
+        change_coverage = 0.0
+        change_stability = 0.0
     extended_chord_fraction = float(np.mean(active_pitch_classes >= 4))
     tonal_clarity = _clamp(float((key_profile or {}).get("tonal_clarity", 0.5) or 0.5))
     jazz_soul = _clamp(
@@ -223,6 +267,10 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
         "mean_active_pitch_classes": round(float(np.mean(active_pitch_classes)), 4),
         "extended_chord_frame_fraction": round(extended_chord_fraction, 4),
         "chroma_change_activity": round(change_activity, 4),
+        "mean_adjacent_chord_distance": round(mean_change, 4),
+        "upper_quartile_chord_distance": round(upper_change, 4),
+        "harmony_sampling_mode": sampling_mode,
+        "harmonic_state_count": int(synchronous_array.shape[1]),
         "existing_key_tonal_clarity": round(tonal_clarity, 4),
         "semantic_rule": "jazz_soul_harmony is a harmonic-language candidate, not a chord-name transcription",
     }
@@ -241,13 +289,20 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
         "chord_change_activity": make_feature_evidence(
             change_activity, threshold=0.58, confidence=quality, sources=sources,
             source_quality=0.75, estimator_quality=0.72,
+            coverage=change_coverage, stability=change_stability,
+            reliability_cap=change_reliability_cap,
             analysis_method=method, evidence=evidence,
         ),
     }, quality)
 
 
-def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr: int) -> tuple[dict[str, dict], float]:
-    method = "multi_evidence_production_profile_v2"
+def _production_features(
+    source: np.ndarray | None,
+    other: np.ndarray | None,
+    sr: int,
+    beat_points: list[float] | np.ndarray | None = None,
+) -> tuple[dict[str, dict], float]:
+    method = "beat_synchronous_production_profile_v3"
     audio = source if source is not None and len(source) >= sr else other
     if audio is None or len(audio) < sr:
         return ({
@@ -257,8 +312,11 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
             ) for name in PRODUCTION_FEATURES
         }, 0.0)
     audio = np.asarray(audio, dtype=float)
+    trim_offset_sec = 0.0
     if len(audio) > sr * 90:
-        audio = audio[(len(audio) - sr * 90) // 2:][:sr * 90]
+        trim_start = (len(audio) - sr * 90) // 2
+        trim_offset_sec = trim_start / sr
+        audio = audio[trim_start:][:sr * 90]
     n_fft = min(2048, 2 ** int(np.floor(np.log2(max(len(audio), 512)))))
     production_hop = max(128, n_fft // 4)
     spectrum = np.abs(librosa.stft(audio, n_fft=n_fft, hop_length=production_hop)) + 1e-10
@@ -294,17 +352,58 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
         + 0.12 * _clamp(zcr / 0.16)
     )
 
-    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13, hop_length=1024)
-    if mfcc.shape[1] >= 8:
-        normalized = mfcc / (np.linalg.norm(mfcc, axis=0, keepdims=True) + 1e-10)
-        lag_frames = max(1, int(round(2.0 * sr / 1024)))
-        similarities = np.sum(normalized[:, lag_frames:] * normalized[:, :-lag_frames], axis=0)
-        sample_texture = _clamp((float(np.percentile(similarities, 90)) - 0.55) / 0.38)
-        repeat_similarity = float(np.percentile(similarities, 90))
-        envelope_variance = _clamp(float(np.mean(np.std(normalized, axis=1))) / 0.22)
+    mfcc_hop = 1024
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13, hop_length=mfcc_hop)
+    beat_array = np.asarray([] if beat_points is None else beat_points, dtype=float) - trim_offset_sec
+    beat_array = beat_array[
+        np.isfinite(beat_array) & (beat_array >= 0.0) & (beat_array <= len(audio) / sr)
+    ]
+    beat_frames = np.unique(np.clip(
+        librosa.time_to_frames(beat_array, sr=sr, hop_length=mfcc_hop), 0, mfcc.shape[1] - 1,
+    )) if len(beat_array) else np.asarray([], dtype=int)
+    beat_vectors = []
+    if len(beat_frames) >= 12:
+        for start, end in zip(beat_frames[:-1], beat_frames[1:]):
+            if end > start:
+                beat_vectors.append(np.mean(mfcc[1:, start:end], axis=1))
+        repeat_sampling_mode = "beat_synchronous_lags_4_8_16"
+        repeat_reliability_cap = 1.0
+    else:
+        block_frames = max(1, int(round(2.0 * sr / mfcc_hop)))
+        for start in range(0, mfcc.shape[1] - block_frames + 1, block_frames):
+            beat_vectors.append(np.mean(mfcc[1:, start:start + block_frames], axis=1))
+        repeat_sampling_mode = "fixed_2s_fallback"
+        repeat_reliability_cap = 0.65
+    if len(beat_vectors) >= 8:
+        vectors = np.asarray(beat_vectors, dtype=float).T
+        vectors -= np.mean(vectors, axis=1, keepdims=True)
+        vectors /= np.linalg.norm(vectors, axis=0, keepdims=True) + 1e-10
+        requested_lags = (4, 8, 16) if repeat_sampling_mode.startswith("beat_") else (1, 2, 4)
+        lag_similarities = {
+            lag: np.sum(vectors[:, lag:] * vectors[:, :-lag], axis=0)
+            for lag in requested_lags if vectors.shape[1] > lag + 3
+        }
+        all_similarities = np.concatenate(list(lag_similarities.values())) if lag_similarities else np.asarray([])
+        lag_medians = [float(np.median(values)) for values in lag_similarities.values() if len(values)]
+        repeat_similarity = float(np.percentile(all_similarities, 75)) if len(all_similarities) else 0.0
+        recurrence_coverage = float(np.mean(all_similarities >= 0.72)) if len(all_similarities) else 0.0
+        repeat_stability = _clamp(
+            1.0 - float(np.std(lag_medians)) / 0.35
+        ) if len(lag_medians) >= 2 else 0.5
+        sample_texture = _clamp((repeat_similarity - 0.42) / 0.42)
+        sample_texture *= _clamp(recurrence_coverage / 0.40)
+        # A single favourable lag is common in ordinary arrangements.  Loop
+        # texture requires recurrence to persist across bar-scale lags.
+        sample_texture *= 0.35 + 0.65 * repeat_stability
+        envelope_variance = _clamp(float(np.mean(np.std(vectors, axis=1))) / 0.35)
+        repeat_coverage = _clamp(len(all_similarities) / 48.0)
     else:
         sample_texture = 0.0
         repeat_similarity = 0.0
+        recurrence_coverage = 0.0
+        repeat_stability = 0.0
+        repeat_coverage = 0.0
+        lag_medians = []
         envelope_variance = 0.0
     acoustic = _clamp(
         0.36 * harmonic_ratio
@@ -338,6 +437,10 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
         "noise_floor_ratio": round(noise_floor_ratio, 4),
         "transient_contrast": round(transient_contrast, 4),
         "sample_repeat_similarity": round(repeat_similarity, 4),
+        "sample_recurrence_coverage": round(recurrence_coverage, 4),
+        "sample_repeat_stability": round(repeat_stability, 4),
+        "sample_repeat_lag_medians": [round(value, 4) for value in lag_medians],
+        "sample_repeat_sampling_mode": repeat_sampling_mode,
         "spectral_envelope_variance": round(envelope_variance, 4),
         "other_stem_centroid_hz": round(other_centroid, 3),
     }
@@ -360,6 +463,9 @@ def _production_features(source: np.ndarray | None, other: np.ndarray | None, sr
                 0.58 if name in {"distortion", "lofi_texture", "rage_synth", "rage_synth_candidate"}
                 else 0.68
             ),
+            coverage=repeat_coverage if name == "sample_texture" else 1.0,
+            stability=repeat_stability if name == "sample_texture" else 1.0,
+            reliability_cap=repeat_reliability_cap if name == "sample_texture" else 1.0,
             analysis_method=method, evidence=evidence,
         ) for name, score in scores.items()
     }, quality)
@@ -375,14 +481,17 @@ def analyze_musical_context_features(
     native_other: np.ndarray | None = None,
     native_original_audio: np.ndarray | None = None,
     native_sr: int | None = None,
+    beat_points: list[float] | np.ndarray | None = None,
 ) -> dict[str, Any]:
     vocal, vocal_quality, vocal_summary = _vocal_features(vocals, sr)
     harmonic_source = other if other is not None and len(other) >= sr else original_audio
-    harmony, harmony_quality = _harmony_features(harmonic_source, sr, key_profile)
+    harmony, harmony_quality = _harmony_features(
+        harmonic_source, sr, key_profile, beat_points,
+    )
     production_source = native_other if native_other is not None else other
     production_sr = int(native_sr or sr)
     production, production_quality = _production_features(
-        native_original_audio, production_source, production_sr,
+        native_original_audio, production_source, production_sr, beat_points,
     )
     quality = float(np.mean([vocal_quality, harmony_quality, production_quality]))
     flags = []

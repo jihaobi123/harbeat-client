@@ -150,6 +150,7 @@ def analyze_high_frequency_features(
         native_other=native_arrays.get("other"),
         native_original_audio=native_mix,
         native_sr=sr,
+        beat_points=beat_points,
     )
     groups = {
         "rhythm_grammar": rhythm["features"],
