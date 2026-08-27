@@ -1,8 +1,8 @@
 id: stem-separation
-version: 0.4.0
+version: 0.5.0
 owners:
   - jetson
-purpose: Offline Demucs separation plus drum transcription and v3 style-ready feature analysis.
+purpose: Offline Demucs separation plus v3 drum transcription and v4 style-ready feature analysis.
 inputs:
   - original audio path
   - optional existing stem paths
@@ -45,6 +45,6 @@ tests:
 contracts:
   - modules/stem-separation/contracts/stem-result.schema.json
   - modules/stem-separation/contracts/drum-analysis.schema.json
-  - modules/stem-separation/contracts/pre-style-features-v3.schema.json
+  - modules/stem-separation/contracts/pre-style-features-v4.schema.json
 artifact_sha256: pending
 rollback_artifact: git tag module/stem-separation/v0.1.0

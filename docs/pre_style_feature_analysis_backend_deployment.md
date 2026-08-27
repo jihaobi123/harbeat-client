@@ -8,7 +8,7 @@
 当前输出六组证据：
 
 - `rhythm_grammar`：四踩、Backbeat、Halftime、Jersey、Tamborzão、Dembow、Tresillo、Two-step、Drill Hat、Breakbeat、Swing、Afro Syncopation；
-- `low_frequency`：Sub Bass、Bass音高稳定性、Bass滑音、Kick/Bass对齐、808、Sliding 808、Log Drum；
+- `low_frequency`：Sub Bass、候选区段 pYIN、Bass滑音、Kick/Bass对齐、低频旋律/回答和808/Log Drum候选；
 - `percussion_timbre`：Snare/Clap/Rim家族、短/长金属声、有音高鼓、手鼓、连续高频层和音高型动机；
 - `vocal_delivery`：Rap、演唱和Vocal Chop；
 - `harmony`：和声复杂度、Jazz/Soul和声候选与和弦变化活跃度；
@@ -25,8 +25,8 @@
 Demucs stems
   drums.wav -> 专用鼓转录worker -> Kick/Snare/Hi-hat/Tom/Cymbal
              -> 失败时 spectral_flux_fallback
-  bass.wav   -> 当前STFT事件模块 -> 低频主体、基频、谐波、滑音、808与Log Drum
-  beat/downbeat + 鼓点 -> 16步节奏语法
+  bass.wav   -> 候选区段pYIN + 频谱fallback -> F0、滑音、低频行为与音色候选
+  beat/downbeat + 鼓点 -> 直线/三连音网格 + 16步节奏语法 + 4/8/16小节稳定窗口
 ```
 
 鼓转录线路返回 `status`、`engine`、`elapsed_seconds`、`license`、`error` 和
@@ -90,11 +90,11 @@ PYTHONPATH=. .venv/bin/python -m pytest -q \
 模型冲突或808/Log Drum等高风险语义生成6秒片段：
 
 ```bash
-PYTHONPATH=. python scripts/validate_pre_style_features.py manifest \
+PYTHONPATH=. .venv/bin/python scripts/validate_pre_style_features.py manifest \
   --input-dir /data/audio --stem-root /data/stems \
   --rhythm-root /data/rhythm-raw --output /data/validation/manifest.json
 
-PYTHONPATH=. python scripts/validate_pre_style_features.py analyze \
+PYTHONPATH=. .venv/bin/python scripts/validate_pre_style_features.py analyze \
   --manifest /data/validation/manifest.json \
   --output-dir /data/validation --max-review-items 8
 ```

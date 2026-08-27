@@ -3,7 +3,7 @@
 ## 1. 当前实现
 
 鼓组分析使用 Demucs `htdemucs` 输出的 `drums.wav`，当前协议为
-`drum_transcription_consensus_v2`：
+`drum_transcription_consensus_v3`：
 
 1. 优先读取专用鼓转录worker的Kick、Snare、Hi-hat、Tom、Cymbal事件；
 2. 模型不可用或返回无效协议时，自动降级到原有三频段谱通量检测；
@@ -24,7 +24,7 @@
 
 ```json
 {
-  "version": "drum_transcription_consensus_v2",
+  "version": "drum_transcription_consensus_v3",
   "source": "demucs_drums_stem",
   "selected_engine": "licensed_drum_transcriber",
   "detector_mode": "dedicated_model",
