@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 
-STYLE_TAXONOMY_VERSION = "high_frequency_styles_v1"
+STYLE_TAXONOMY_VERSION = "high_frequency_styles_v2"
 FREESTYLE_CYPHER = "freestyle_cypher"
 PARTY_BAR = "party_bar"
 
@@ -42,17 +42,18 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.lofi_texture": 1.0,
         "production.acoustic_production": 0.5,
         "vocal_delivery.rap_delivery": 0.7,
-    }, negative={"rhythm_grammar.four_on_floor": 0.8, "low_frequency.sliding_808": 0.6},
+    }, negative={"rhythm_grammar.four_on_floor": 0.8, "low_frequency.sliding_bass_candidate": 0.6},
         required_any=[["rhythm_grammar.backbeat_2_4"], ["production.sample_texture", "production.lofi_texture"]]),
     "trap": _style("Trap", FREESTYLE_CYPHER, [(65, 88), (130, 176)], {
         "rhythm_grammar.halftime_snare_3": 1.2,
-        "low_frequency.sub_808": 1.4,
+        "low_frequency.sustained_harmonic_bass_candidate": 1.1,
+        "low_frequency.808_timbre_candidate": 0.3,
         "rhythm_grammar.drill_hat": 0.35,
         "low_frequency.bass_slide": 0.25,
         "percussion_timbre.short_metallic": 1.0,
         "vocal_delivery.rap_delivery": 0.6,
     }, negative={"rhythm_grammar.four_on_floor": 0.8},
-        required_any=[["rhythm_grammar.halftime_snare_3", "low_frequency.sub_808"]]),
+        required_any=[["rhythm_grammar.halftime_snare_3"], ["low_frequency.sustained_harmonic_bass_candidate", "low_frequency.sub_bass"]]),
     "funk": _style("Funk", FREESTYLE_CYPHER, [(90, 122)], {
         "rhythm_grammar.backbeat_2_4": 1.0,
         "rhythm_grammar.breakbeat": 0.8,
@@ -60,7 +61,7 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "low_frequency.kick_bass_alignment": 0.9,
         "production.acoustic_production": 0.8,
         "harmony.chord_change_activity": 0.5,
-    }, negative={"low_frequency.sub_808": 0.5},
+    }, negative={"low_frequency.sustained_harmonic_bass_candidate": 0.4},
         required_any=[["rhythm_grammar.backbeat_2_4"], ["low_frequency.kick_bass_alignment"]]),
     "breakbeat": _style("Breakbeat", FREESTYLE_CYPHER, [(90, 145)], {
         "rhythm_grammar.breakbeat": 1.7,
@@ -120,7 +121,7 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "rhythm_grammar.backbeat_2_4": 0.6,
         "rhythm_grammar.halftime_snare_3": 0.4,
         "production.acoustic_production": 0.4,
-    }, negative={"production.rage_synth": 0.7}, required_any=[["vocal_delivery.singing"]]),
+    }, negative={"production.rage_synth_candidate": 0.7}, required_any=[["vocal_delivery.singing"]]),
     "disco": _style("Disco", PARTY_BAR, [(105, 132)], {
         "rhythm_grammar.four_on_floor": 1.5,
         "rhythm_grammar.backbeat_2_4": 0.7,
@@ -132,7 +133,7 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         required_any=[["rhythm_grammar.four_on_floor"], ["production.acoustic_production"]]),
     "jersey_club": _style("Jersey Club", PARTY_BAR, [(130, 152)], {
         "rhythm_grammar.jersey_club": 1.9,
-        "vocal_delivery.vocal_chop": 1.0,
+        "vocal_delivery.vocal_chop_repetition": 1.0,
         "percussion_timbre.short_metallic": 0.5,
         "production.electronic_production": 0.8,
         "low_frequency.sub_bass": 0.5,
@@ -141,19 +142,23 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "rhythm_grammar.halftime_snare_3": 1.0,
         "rhythm_grammar.drill_hat": 1.3,
         "low_frequency.bass_slide": 1.0,
-        "low_frequency.sliding_808": 0.9,
+        "low_frequency.sliding_bass_candidate": 0.7,
+        "low_frequency.808_timbre_candidate": 0.2,
         "production.dark_timbre": 0.8,
         "vocal_delivery.rap_delivery": 0.5,
     }, negative={"rhythm_grammar.four_on_floor": 0.9},
-        required_any=[["rhythm_grammar.drill_hat"], ["low_frequency.bass_slide", "low_frequency.sliding_808"]]),
+        required_any=[["rhythm_grammar.drill_hat"], ["low_frequency.bass_slide", "low_frequency.sliding_bass_candidate"]]),
     "amapiano": _style("Amapiano", PARTY_BAR, [(106, 116)], {
-        "low_frequency.log_drum": 1.9,
+        "low_frequency.bass_reply_pattern": 1.2,
+        "low_frequency.low_percussive_bass_candidate": 0.8,
+        "low_frequency.low_frequency_melody": 0.5,
         "rhythm_grammar.afro_syncopation": 0.9,
         "percussion_timbre.continuous_high_percussion": 0.7,
         "percussion_timbre.hand_drum_family": 0.6,
         "harmony.jazz_soul_harmony": 0.5,
         "vocal_delivery.singing": 0.4,
-    }, negative={"rhythm_grammar.dembow": 0.5}, required_any=[["low_frequency.log_drum"]]),
+    }, negative={"rhythm_grammar.dembow": 0.5},
+        required_any=[["rhythm_grammar.afro_syncopation"], ["low_frequency.bass_reply_pattern", "low_frequency.low_percussive_bass_candidate"]]),
     "moombahton": _style("Moombahton", PARTY_BAR, [(95, 116)], {
         "rhythm_grammar.dembow": 1.4,
         "rhythm_grammar.four_on_floor": 0.8,
@@ -177,40 +182,43 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
     }, negative={"rhythm_grammar.dembow": 0.4}, required_any=[["rhythm_grammar.tamborzao"]]),
     "memphis_trap": _style("Memphis Trap", PARTY_BAR, [(60, 82), (120, 164)], {
         "rhythm_grammar.halftime_snare_3": 1.0,
-        "low_frequency.sub_808": 1.0,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.8,
+        "low_frequency.808_timbre_candidate": 0.2,
         "percussion_timbre.tonal_percussion": 0.9,
         "percussion_timbre.repeated_tonal_motif": 1.0,
         "production.lofi_texture": 0.7,
         "production.dark_timbre": 0.6,
         "vocal_delivery.rap_delivery": 0.5,
     }, negative={"rhythm_grammar.four_on_floor": 0.6},
-        required_any=[["rhythm_grammar.halftime_snare_3", "low_frequency.sub_808"], ["percussion_timbre.repeated_tonal_motif"]]),
+        required_any=[["rhythm_grammar.halftime_snare_3", "low_frequency.sustained_harmonic_bass_candidate"], ["percussion_timbre.repeated_tonal_motif"]]),
     "rage": _style("Rage", PARTY_BAR, [(70, 88), (140, 176)], {
-        "low_frequency.sub_808": 1.0,
-        "production.rage_synth": 1.8,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.8,
+        "low_frequency.808_timbre_candidate": 0.2,
+        "production.rage_synth_candidate": 1.4,
         "production.distortion": 0.9,
         "production.brightness": 0.7,
         "production.electronic_production": 0.8,
         "vocal_delivery.rap_delivery": 0.4,
-    }, required_any=[["production.rage_synth"], ["low_frequency.sub_808"]]),
+    }, required_any=[["production.rage_synth_candidate", "production.electronic_production"], ["low_frequency.sustained_harmonic_bass_candidate", "low_frequency.sub_bass"]]),
     "uk_garage": _style("UK Garage", PARTY_BAR, [(125, 142)], {
         "rhythm_grammar.two_step": 1.7,
         "rhythm_grammar.swing": 1.0,
         "rhythm_grammar.backbeat_2_4": 0.7,
         "low_frequency.sub_bass": 0.7,
-        "vocal_delivery.vocal_chop": 0.5,
+        "vocal_delivery.vocal_chop_repetition": 0.5,
         "vocal_delivery.singing": 0.4,
         "production.electronic_production": 0.7,
     }, negative={"rhythm_grammar.four_on_floor": 0.7}, required_any=[["rhythm_grammar.two_step"]]),
     "trap_soul": _style("Trap-Soul", PARTY_BAR, [(60, 88), (120, 176)], {
         "rhythm_grammar.halftime_snare_3": 0.9,
-        "low_frequency.sub_808": 1.0,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.8,
+        "low_frequency.808_timbre_candidate": 0.2,
         "vocal_delivery.singing": 1.4,
         "harmony.jazz_soul_harmony": 0.8,
         "production.dark_timbre": 0.5,
         "rhythm_grammar.swing": 0.4,
-    }, negative={"production.rage_synth": 0.6},
-        required_any=[["vocal_delivery.singing"], ["low_frequency.sub_808", "rhythm_grammar.halftime_snare_3"]]),
+    }, negative={"production.rage_synth_candidate": 0.6},
+        required_any=[["vocal_delivery.singing"], ["low_frequency.sustained_harmonic_bass_candidate", "rhythm_grammar.halftime_snare_3"]]),
 }
 
 

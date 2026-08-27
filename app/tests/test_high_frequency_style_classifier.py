@@ -17,7 +17,7 @@ def _payload(bpm: float, values: dict[str, float], *, status: str = "ready") -> 
         group, name = path.split(".", 1)
         groups.setdefault(group, {})[name] = _feature(score)
     return {
-        "version": "pre_style_evidence_v3",
+        "version": "pre_style_evidence_v4",
         "status": status,
         "music_context": {"bpm": bpm},
         "feature_groups": groups,
@@ -44,7 +44,8 @@ def test_house_wins_from_four_floor_electronic_and_metallic_evidence() -> None:
 def test_drill_requires_hat_and_bass_motion_not_merely_generic_trap_808() -> None:
     common = {
         "rhythm_grammar.halftime_snare_3": 0.88,
-        "low_frequency.sub_808": 0.90,
+        "low_frequency.sustained_harmonic_bass_candidate": 0.90,
+        "low_frequency.808_timbre_candidate": 0.70,
         "vocal_delivery.rap_delivery": 0.78,
         "production.dark_timbre": 0.82,
         "rhythm_grammar.four_on_floor": 0.05,
@@ -53,14 +54,14 @@ def test_drill_requires_hat_and_bass_motion_not_merely_generic_trap_808() -> Non
         **common,
         "rhythm_grammar.drill_hat": 0.15,
         "low_frequency.bass_slide": 0.12,
-        "low_frequency.sliding_808": 0.05,
+        "low_frequency.sliding_bass_candidate": 0.05,
         "percussion_timbre.short_metallic": 0.75,
     }))
     drill = classify_high_frequency_styles(_payload(140, {
         **common,
         "rhythm_grammar.drill_hat": 0.93,
         "low_frequency.bass_slide": 0.88,
-        "low_frequency.sliding_808": 0.82,
+        "low_frequency.sliding_bass_candidate": 0.82,
         "percussion_timbre.short_metallic": 0.75,
     }))
 
@@ -72,7 +73,8 @@ def test_drill_requires_hat_and_bass_motion_not_merely_generic_trap_808() -> Non
 
 def test_unavailable_feature_reduces_coverage_instead_of_becoming_negative() -> None:
     payload = _payload(110, {
-        "low_frequency.log_drum": 0.92,
+        "low_frequency.low_percussive_bass_candidate": 0.92,
+        "low_frequency.bass_reply_pattern": 0.88,
         "rhythm_grammar.afro_syncopation": 0.82,
         "percussion_timbre.continuous_high_percussion": 0.74,
     }, status="degraded")
@@ -88,8 +90,8 @@ def test_unavailable_feature_reduces_coverage_instead_of_becoming_negative() -> 
     assert result["needs_review"] is True
 
 
-def test_missing_v3_features_returns_unavailable_result() -> None:
-    result = classify_high_frequency_styles({"version": "pre_style_evidence_v3"})
+def test_missing_v4_features_returns_unavailable_result() -> None:
+    result = classify_high_frequency_styles({"version": "pre_style_evidence_v4"})
 
     assert result["status"] == "unavailable"
     assert result["top_styles"] == []
@@ -103,3 +105,31 @@ def test_each_style_rule_can_win_from_its_own_complete_evidence_signature() -> N
         result = classify_high_frequency_styles(_payload((low + high) / 2, values))
 
         assert result["top_styles"][0]["style_id"] == style_id
+
+
+def test_style_confidence_is_capped_by_feature_reliability() -> None:
+    payload = _payload(124, {
+        "rhythm_grammar.four_on_floor": 1.0,
+        "rhythm_grammar.backbeat_2_4": 1.0,
+        "percussion_timbre.sustained_metallic": 1.0,
+        "production.electronic_production": 1.0,
+        "production.brightness": 1.0,
+    })
+    for group in payload["feature_groups"].values():
+        for feature in group.values():
+            feature["reliability"] = 0.60
+            feature["confidence"] = 0.60
+            feature["quality"] = {
+                "measurement_confidence": 0.8,
+                "source_quality": 0.7,
+                "estimator_quality": 0.6,
+                "calibration_status": "provisional",
+            }
+
+    result = classify_high_frequency_styles(payload)
+    house = next(item for item in result["styles"] if item["style_id"] == "house")
+
+    assert house["score"] > 0.6
+    assert house["reliability"] <= 0.60
+    assert house["confidence"] <= house["reliability"]
+    assert house["quality"]["estimator_quality"] == 0.6

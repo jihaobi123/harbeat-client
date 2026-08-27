@@ -133,14 +133,17 @@ def _vocal_features(vocals: np.ndarray | None, sr: int) -> tuple[dict[str, dict]
     return ({
         "rap_delivery": make_feature_evidence(
             rap, threshold=0.58, confidence=quality, sources=["vocals_stem"],
+            source_quality=0.75, estimator_quality=0.70,
             analysis_method=method, time_ranges=active_ranges, evidence=evidence,
         ),
         "singing": make_feature_evidence(
             singing, threshold=0.58, confidence=quality, sources=["vocals_stem"],
+            source_quality=0.75, estimator_quality=0.78,
             analysis_method=method, time_ranges=active_ranges, evidence=evidence,
         ),
         "vocal_chop": make_feature_evidence(
             vocal_chop, threshold=0.60, confidence=quality, sources=["vocals_stem", "beat_grid"],
+            source_quality=0.75, estimator_quality=0.64,
             analysis_method=method, time_ranges=short_ranges,
             evidence={
                 "active_region_count": len(active_ranges),
@@ -227,14 +230,17 @@ def _harmony_features(source: np.ndarray | None, sr: int, key_profile: dict | No
     return ({
         "harmonic_complexity": make_feature_evidence(
             complexity, threshold=0.60, confidence=quality, sources=sources,
+            source_quality=0.75, estimator_quality=0.70,
             analysis_method=method, evidence=evidence,
         ),
         "jazz_soul_harmony": make_feature_evidence(
             jazz_soul, threshold=0.64, confidence=quality, sources=sources,
+            source_quality=0.75, estimator_quality=0.58,
             analysis_method=method, evidence=evidence,
         ),
         "chord_change_activity": make_feature_evidence(
             change_activity, threshold=0.58, confidence=quality, sources=sources,
+            source_quality=0.75, estimator_quality=0.72,
             analysis_method=method, evidence=evidence,
         ),
     }, quality)

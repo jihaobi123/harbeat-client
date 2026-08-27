@@ -12,7 +12,16 @@ from app.modules.library.high_frequency_style_taxonomy import (
 )
 
 
-STYLE_ANALYSIS_VERSION = "high_frequency_style_analysis_v1"
+STYLE_ANALYSIS_VERSION = "high_frequency_style_analysis_v2"
+
+FEATURE_COMPATIBILITY_ALIASES = {
+    "low_frequency.sustained_harmonic_bass_candidate": "low_frequency.sub_808",
+    "low_frequency.808_timbre_candidate": "low_frequency.sub_808",
+    "low_frequency.sliding_bass_candidate": "low_frequency.sliding_808",
+    "low_frequency.low_percussive_bass_candidate": "low_frequency.log_drum",
+    "vocal_delivery.vocal_chop_repetition": "vocal_delivery.vocal_chop",
+    "production.rage_synth_candidate": "production.rage_synth",
+}
 
 
 def _clamp(value: float) -> float:
@@ -22,6 +31,9 @@ def _clamp(value: float) -> float:
 def _feature(groups: dict, path: str) -> dict[str, Any] | None:
     group, name = path.split(".", 1)
     value = (groups.get(group) or {}).get(name)
+    if not isinstance(value, dict) and path in FEATURE_COMPATIBILITY_ALIASES:
+        legacy_group, legacy_name = FEATURE_COMPATIBILITY_ALIASES[path].split(".", 1)
+        value = (groups.get(legacy_group) or {}).get(legacy_name)
     return value if isinstance(value, dict) else None
 
 
@@ -35,7 +47,7 @@ def _available(feature: dict | None) -> bool:
 
 def _effective(feature: dict) -> tuple[float, float, float]:
     score = _clamp(feature.get("score", 0.0) or 0.0)
-    confidence = _clamp(feature.get("confidence", 0.0) or 0.0)
+    confidence = _clamp(feature.get("reliability", feature.get("confidence", 0.0)) or 0.0)
     # Confidence discounts uncertain evidence but never silently changes the
     # underlying acoustic score shown to the reviewer.
     effective = score * (0.55 + 0.45 * confidence)
@@ -58,6 +70,8 @@ def _evidence_item(path: str, feature: dict, weight: float, contribution: float)
         "feature": path,
         "score": round(score, 4),
         "confidence": round(confidence, 4),
+        "reliability": round(confidence, 4),
+        "quality": dict(feature.get("quality") or {}),
         "weight": round(float(weight), 4),
         "contribution": round(float(contribution), 4),
         "evidence_level": feature.get("evidence_level", "unavailable"),
@@ -70,6 +84,11 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
     available_weight = 0.0
     weighted_positive = 0.0
     confidence_weighted = 0.0
+    quality_weighted = {
+        "measurement_confidence": 0.0,
+        "source_quality": 0.0,
+        "estimator_quality": 0.0,
+    }
     positive_evidence = []
     missing = []
     evidence_count = 0
@@ -82,6 +101,9 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
         available_weight += weight
         weighted_positive += weight * effective
         confidence_weighted += weight * confidence
+        quality = feature.get("quality") or {}
+        for name in quality_weighted:
+            quality_weighted[name] += weight * _clamp(quality.get(name, confidence) or 0.0)
         if score >= 0.35:
             evidence_count += 1
             positive_evidence.append(_evidence_item(path, feature, weight, weight * effective))
@@ -89,6 +111,10 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
     positive_score = weighted_positive / max(available_weight, 1e-8)
     coverage = available_weight / max(positive_weight_total, 1e-8)
     evidence_confidence = confidence_weighted / max(available_weight, 1e-8)
+    quality_profile = {
+        name: value / max(available_weight, 1e-8)
+        for name, value in quality_weighted.items()
+    }
 
     negative_evidence = []
     negative_total = float(sum(rule["negative"].values()))
@@ -132,10 +158,12 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
     )
     coverage_factor = 0.48 + 0.52 * coverage
     final_score = _clamp(base * coverage_factor - 0.28 * negative_score)
-    confidence = _clamp(
-        0.48 * evidence_confidence + 0.30 * coverage + 0.12 * required_ratio
-        + 0.10 * (1.0 if bpm_available else 0.45)
+    reliability = _clamp(
+        evidence_confidence
+        * (0.60 + 0.40 * coverage)
+        * (0.85 + 0.15 * required_ratio)
     )
+    confidence = min(final_score, reliability)
     positive_evidence.sort(key=lambda item: item["contribution"], reverse=True)
     negative_evidence.sort(key=lambda item: item["contribution"], reverse=True)
     return {
@@ -144,7 +172,16 @@ def _score_style(style_id: str, rule: dict[str, Any], groups: dict, bpm: float |
         "group": rule["group"],
         "score": round(final_score, 4),
         "confidence": round(confidence, 4),
-        "detected": bool(final_score >= 0.55 and required_ratio >= 0.5 and evidence_count >= rule["minimum_evidence"]),
+        "reliability": round(reliability, 4),
+        "quality": {
+            **{name: round(value, 4) for name, value in quality_profile.items()},
+            "feature_coverage": round(coverage, 4),
+            "calibration_status": "provisional",
+        },
+        "detected": bool(
+            final_score >= 0.55 and reliability >= 0.45
+            and required_ratio >= 0.5 and evidence_count >= rule["minimum_evidence"]
+        ),
         "bpm_fit": round(bpm_score, 4),
         "bpm_available": bpm_available,
         "bpm_ranges": rule["bpm_ranges"],
@@ -170,6 +207,7 @@ def empty_style_analysis(reason: str = "pre_style_features_unavailable") -> dict
         "styles": [],
         "group_scores": {},
         "confidence": 0.0,
+        "reliability": 0.0,
     }
 
 
@@ -203,6 +241,8 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
         review_reasons.append("top_style_missing_required_evidence")
     if top and top[0]["confidence"] < 0.58:
         review_reasons.append("top_style_low_confidence")
+    if top and top[0]["reliability"] < 0.62:
+        review_reasons.append("top_style_low_evidence_reliability")
 
     group_scores = {}
     for group, style_ids in STYLE_GROUPS.items():
@@ -226,6 +266,7 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
         "styles": styles,
         "group_scores": group_scores,
         "confidence": round(confidence, 4),
+        "reliability": top[0]["reliability"] if top else 0.0,
         "decision": {
             "detection_threshold": 0.55,
             "review_margin_threshold": 0.07,

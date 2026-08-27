@@ -16,6 +16,9 @@ VALID_GROUP_FEATURES = {
     },
     "low_frequency": {
         "sub_bass", "bass_pitch_stability", "bass_slide", "kick_bass_alignment",
+        "sustained_harmonic_bass_candidate", "sliding_bass_candidate",
+        "low_percussive_bass_candidate", "low_frequency_melody",
+        "bass_reply_pattern", "808_timbre_candidate", "log_drum_candidate",
         "sub_808", "sliding_808", "log_drum",
     },
     "percussion_timbre": {
@@ -24,11 +27,16 @@ VALID_GROUP_FEATURES = {
         "hand_drum_family", "continuous_high_percussion", "tonal_percussion",
         "repeated_tonal_motif",
     },
-    "vocal_delivery": {"rap_delivery", "singing", "vocal_chop"},
+    "vocal_delivery": {
+        "rap_delivery", "singing", "vocal_chop", "vocal_density",
+        "syllabic_activity", "pitch_sustain_ratio", "melodic_contour",
+        "vocal_chop_repetition",
+    },
     "harmony": {"harmonic_complexity", "jazz_soul_harmony", "chord_change_activity"},
     "production": {
         "brightness", "dark_timbre", "distortion", "lofi_texture", "sample_texture",
         "electronic_production", "acoustic_production", "rage_synth",
+        "rage_synth_candidate",
     },
 }
 
@@ -49,7 +57,7 @@ def test_every_style_rule_has_bpm_positive_and_required_evidence() -> None:
         assert rule["minimum_evidence"] >= 1
 
 
-def test_all_rule_feature_paths_exist_in_the_v3_feature_contract() -> None:
+def test_all_rule_feature_paths_exist_in_the_v4_feature_contract() -> None:
     for style_id, rule in STYLE_DEFINITIONS.items():
         paths = set(rule["positive"]) | set(rule["negative"])
         paths |= {path for requirement in rule["required_any"] for path in requirement}
