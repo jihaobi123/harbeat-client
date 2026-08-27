@@ -284,7 +284,7 @@ export async function addSongsToPlaylist(playlistId: number, librarySongIds: str
 
 // ---- Stem Separation ----
 export async function separateStems(songId: string) {
-  return request<{ stems: { vocals: string; drums: string; bass: string; other: string } }>(
+  return request<{ song_id: string; analysis_status: string }>(
     `/api/library/songs/${songId}/separate-stems`, { method: 'POST' }
   )
 }

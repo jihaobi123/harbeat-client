@@ -83,3 +83,10 @@ class LibrarySong(Base):
 
     # Relationship to catalog Song (for tags/recommendations)
     song = relationship("Song", foreign_keys=[song_id], lazy="joined")
+
+    @property
+    def analysis_stages(self) -> dict:
+        """Expose the persisted pipeline state without adding a duplicate DB column."""
+        features = self.music_features or {}
+        pipeline = features.get("analysis_pipeline", {})
+        return dict(pipeline.get("stages", {})) if isinstance(pipeline, dict) else {}

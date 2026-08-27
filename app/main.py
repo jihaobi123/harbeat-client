@@ -34,9 +34,17 @@ def _schedule_pending_analyses():
 
     db = SessionLocal()
     try:
-        # Pick up songs never analyzed AND songs stuck in "analyzing" (interrupted by restart)
+        # Pick up queued songs and every stage that may have been interrupted by restart.
         pending = db.query(LibrarySong).filter(
-            LibrarySong.analysis_status.in_(["none", "pending", "analyzing"])
+            LibrarySong.analysis_status.in_([
+                "none",
+                "pending",
+                "analyzing",
+                "core_analyzing",
+                "stem_separating",
+                "feature_analyzing",
+                "style_analyzing",
+            ])
         ).all()
         to_analyze = [s.id for s in pending if s.source_path and os.path.isfile(s.source_path)]
         db.close()

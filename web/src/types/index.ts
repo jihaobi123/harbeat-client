@@ -23,6 +23,13 @@ export interface LibrarySong {
   camelot_key: string | null
   energy: number | null
   analysis_status: string
+  analysis_stages: Record<string, {
+    status: string
+    started_at?: string
+    finished_at?: string
+    updated_at?: string
+    error?: string
+  }>
   beat_points: number[]
   cue_points: CuePoint[]
   stems: { vocals: string; drums: string; bass: string; other: string } | null

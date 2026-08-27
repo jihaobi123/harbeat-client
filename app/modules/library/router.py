@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -190,6 +190,7 @@ def create_library_song_endpoint(
 
 @router.post("/upload", response_model=APIResponse[LibrarySongData])
 def upload_audio_endpoint(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: str = Form(""),
     artist: str = Form("Unknown Artist"),
@@ -268,6 +269,13 @@ def upload_audio_endpoint(
         created_at=datetime.utcnow(),
     )
     song = create_or_replace_library_song(db, payload)
+    from app.modules.library.background_tasks import queue_song_analysis, run_analysis_and_separation
+
+    queue_song_analysis(song)
+    db.add(song)
+    db.commit()
+    db.refresh(song)
+    background_tasks.add_task(run_analysis_and_separation, song.id)
     return APIResponse(data=LibrarySongData.model_validate(song))
 
 
@@ -295,68 +303,26 @@ def delete_library_song_endpoint(
 @router.post("/songs/{song_id}/analyze", response_model=APIResponse[LibrarySongData])
 def analyze_library_song_endpoint(
     song_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.modules.library.models import LibrarySong
-    song = db.get(LibrarySong, song_id)
-    if not song:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
-    if song.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    song = _get_owned_song(db, song_id, current_user.id)
     if not song.source_path or not os.path.isfile(song.source_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="audio file not found on disk")
 
-    try:
-        from app.modules.library.analysis import analyze_audio_file
-        result = analyze_audio_file(song.source_path)
-    except Exception as e:
-        song.analysis_status = "error"
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"analysis failed: {e}")
+    if song.analysis_status in {
+        "pending", "core_analyzing", "stem_separating", "feature_analyzing", "style_analyzing",
+    }:
+        return APIResponse(data=LibrarySongData.model_validate(song))
 
-    song.bpm = result["bpm"]
-    song.duration = result["duration"]
-    song.key = result.get("key")
-    song.camelot_key = result.get("camelot_key")
-    song.energy = result.get("energy")
-    song.beat_points = result.get("beat_points", [])
-    song.bpm_curve = result.get("bpm_curve", [])
-    song.tempo_stability = result.get("tempo_stability")
-    song.beat_confidence = result.get("beat_confidence")
-    song.beat_confidence_details = result.get("beat_confidence_details", {})
-    song.beat_grid_offset = result.get("beat_grid_offset")
-    song.beat_grid_interval = result.get("beat_grid_interval")
-    song.beat_engines_used = result.get("beat_engines_used", [])
-    song.beat_needs_review = int(result.get("beat_needs_review", False))
-    song.energy_curve = result.get("energy_curve", [])
-    song.loudness_profile = result.get("loudness_profile", {})
-    song.time_signature = result.get("time_signature", {})
-    groove = result.get("groove", {})
-    song.groove_score = groove.get("score") if groove else None
-    song.groove_profile = groove if groove else {}
-    song.danceability_score = result.get("danceability_score")
-    song.dancefloor_profile = result.get("dancefloor_profile", {})
-    song.dj_hot_cues = result.get("dj_hot_cues", [])
-    song.transition_windows = result.get("transition_windows", [])
-    song.transition_recommendations = result.get("transition_recommendations", [])
-    song.downbeats = result.get("downbeats", [])
-    song.phrase_map = result.get("phrase_map", [])
-    song.key_confidence = result.get("key_confidence")
-    song.key_profile = result.get("key_profile", {})
-    # Add IDs to cue points for frontend
-    raw_cues = result.get("cue_points", [])
-    song.cue_points = [
-        {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
-        for i, c in enumerate(raw_cues)
-    ]
-    from app.modules.library.background_tasks import apply_dj_fingerprint
-    from app.modules.library.external_metadata import run_enrich_song_external_metadata
-    apply_dj_fingerprint(db, song)
-    run_enrich_song_external_metadata(db, song, force=False)
-    song.analysis_status = "completed"
+    from app.modules.library.background_tasks import queue_song_analysis, run_analysis_and_separation
+
+    queue_song_analysis(song)
+    db.add(song)
     db.commit()
     db.refresh(song)
+    background_tasks.add_task(run_analysis_and_separation, song.id)
     return APIResponse(data=LibrarySongData.model_validate(song))
 
 
@@ -444,73 +410,19 @@ def refresh_high_frequency_styles_endpoint(
 @router.post("/songs/{song_id}/separate-stems", response_model=APIResponse[dict])
 def separate_stems_endpoint(
     song_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Separate audio into stems (vocals, drums, bass, other) using demucs."""
-    from app.modules.library.models import LibrarySong
-    song = db.get(LibrarySong, song_id)
-    if not song:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="song not found")
-    if song.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not your song")
+    """Queue the full pipeline; its stem phase produces vocals/drums/bass/other."""
+    song = _get_owned_song(db, song_id, current_user.id)
     if not song.source_path or not os.path.isfile(song.source_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="audio file not found on disk")
 
-    import subprocess
-    import sys
+    from app.modules.library.background_tasks import queue_song_analysis, run_analysis_and_separation
 
-    stems_base = os.path.join(os.path.dirname(os.path.abspath(song.source_path)), "..", "stems")
-    stems_base = os.path.abspath(stems_base)
-    os.makedirs(stems_base, exist_ok=True)
-
-    base_name = os.path.splitext(os.path.basename(song.source_path))[0]
-    stems_dir = os.path.join(stems_base, "htdemucs", base_name)
-    stem_names = ["vocals", "drums", "bass", "other"]
-
-    # Check if already separated
-    if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
-        stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
-        song.stems = stems
-        from app.modules.library.background_tasks import apply_stem_analysis
-        apply_stem_analysis(song)
-        from app.modules.library.background_tasks import apply_dj_fingerprint
-        apply_dj_fingerprint(db, song)
-        db.commit()
-        return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
-
-    # Run demucs
-    python_exe = sys.executable
-    try:
-        subprocess.run(
-            [python_exe, "-m", "demucs", "-n", "htdemucs", "-o", stems_base, song.source_path],
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"stem separation failed: {e.stderr or e.stdout or str(e)}",
-        )
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="demucs not installed. Run: pip install demucs",
-        )
-
-    if not all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="stem separation completed but output files not found",
-        )
-
-    stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
-    song.stems = stems
-    from app.modules.library.background_tasks import apply_stem_analysis
-    apply_stem_analysis(song)
-    from app.modules.library.background_tasks import apply_dj_fingerprint
-    apply_dj_fingerprint(db, song)
+    queue_song_analysis(song)
+    db.add(song)
     db.commit()
-    return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
+    background_tasks.add_task(run_analysis_and_separation, song.id)
+    return APIResponse(data={"song_id": song.id, "analysis_status": song.analysis_status})

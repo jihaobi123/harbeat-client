@@ -139,6 +139,7 @@ class LibrarySongUpdateRequest(BaseModel):
 
 class LibrarySongData(LibrarySongBase):
     user_id: int
+    analysis_stages: dict = Field(default_factory=dict)
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -161,6 +162,7 @@ class LibrarySongSummaryData(BaseModel):
     camelot_key: str | None = None
     energy: float | None = None
     analysis_status: str = "none"
+    analysis_stages: dict = Field(default_factory=dict)
     stems: dict | None = None
     cue_points: list[LibraryCuePoint] = Field(default_factory=list)
     beat_points: list[float] = Field(default_factory=list)

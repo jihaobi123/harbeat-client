@@ -5,10 +5,81 @@ import logging
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
+
+ANALYSIS_STAGE_KEYS = ("core", "stem_separation", "feature_analysis", "style_analysis")
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def update_analysis_stage(
+    song,
+    stage: str,
+    status: str,
+    *,
+    error: str | None = None,
+) -> None:
+    """Persist one pipeline transition inside the song's unified feature payload."""
+    if stage not in ANALYSIS_STAGE_KEYS:
+        raise ValueError(f"unknown analysis stage: {stage}")
+
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    pipeline = dict(music_features.get("analysis_pipeline", {}) or {})
+    stages = dict(pipeline.get("stages", {}) or {})
+    stage_state = dict(stages.get(stage, {}) or {})
+    now = _utc_now()
+    stage_state["status"] = status
+    stage_state["updated_at"] = now
+    if status == "running":
+        stage_state["started_at"] = now
+        stage_state.pop("finished_at", None)
+    elif status in {"completed", "error", "blocked"}:
+        stage_state["finished_at"] = now
+    if error:
+        stage_state["error"] = str(error)[:1000]
+    else:
+        stage_state.pop("error", None)
+    stages[stage] = stage_state
+    pipeline.update({
+        "version": "song_analysis_pipeline_v1",
+        "current_stage": stage if status == "running" else pipeline.get("current_stage"),
+        "stages": stages,
+        "updated_at": now,
+    })
+    music_features["analysis_pipeline"] = pipeline
+    song.music_features = music_features
+
+
+def set_analysis_pipeline_status(song, status: str) -> None:
+    music_features = dict(getattr(song, "music_features", {}) or {})
+    pipeline = dict(music_features.get("analysis_pipeline", {}) or {})
+    pipeline.update({
+        "version": "song_analysis_pipeline_v1",
+        "status": status,
+        "current_stage": None if status in {"pending", "completed", "partial", "error"} else pipeline.get("current_stage"),
+        "updated_at": _utc_now(),
+    })
+    music_features["analysis_pipeline"] = pipeline
+    song.music_features = music_features
+    song.analysis_status = status
+
+
+def queue_song_analysis(song) -> None:
+    """Mark a song as queued before dispatching the background worker."""
+    for stage in ANALYSIS_STAGE_KEYS:
+        update_analysis_stage(song, stage, "pending")
+    set_analysis_pipeline_status(song, "pending")
+
+
+def _commit_stage(db, song) -> None:
+    db.add(song)
+    db.commit()
 
 
 def _int_bool(value: object) -> int:
@@ -33,7 +104,7 @@ def apply_dancefloor_profile(song) -> None:
     song.dancefloor_profile = profile
 
 
-def apply_stem_analysis(song) -> None:
+def apply_stem_analysis(song, *, classify_styles: bool = True) -> None:
     """Persist planner-ready analysis for already separated stem files.
 
     Includes: stem activity windows, vocal events, bass risk windows,
@@ -63,7 +134,8 @@ def apply_stem_analysis(song) -> None:
     music_features = dict(getattr(song, "music_features", {}) or {})
     music_features["pre_style_features"] = result.get("feature_analysis", {})
     song.music_features = music_features
-    apply_high_frequency_style_analysis(song, result.get("feature_analysis", {}))
+    if classify_styles:
+        apply_high_frequency_style_analysis(song, result.get("feature_analysis", {}))
     song.intro_is_clean = _int_bool(result["intro_is_clean"])
     song.outro_is_clean = _int_bool(result["outro_is_clean"])
     song.intro_clean_score = result["intro_clean_score"]
@@ -127,23 +199,26 @@ def apply_dj_fingerprint(db, song) -> None:
 
 
 def run_analysis_and_separation(song_id: str) -> None:
-    """Run BPM/key analysis + demucs stem separation in background.
-
-    Called automatically after a song is downloaded.
-    Creates its own DB session since this runs outside the request lifecycle.
-    """
+    """Run and durably persist the full per-song analysis pipeline."""
     db = SessionLocal()
     try:
         from app.modules.library.models import LibrarySong
 
         song = db.get(LibrarySong, song_id)
-        if not song or not song.source_path or not os.path.isfile(song.source_path):
+        if not song:
+            logger.warning("[bg-analysis] song %s not found", song_id)
+            return
+        if not song.source_path or not os.path.isfile(song.source_path):
             logger.warning("[bg-analysis] song %s not found or no file", song_id)
+            update_analysis_stage(song, "core", "error", error="audio file not found")
+            update_analysis_stage(song, "stem_separation", "blocked", error="audio file is required")
+            update_analysis_stage(song, "feature_analysis", "blocked", error="stem separation is required")
+            update_analysis_stage(song, "style_analysis", "blocked", error="feature analysis is required")
+            set_analysis_pipeline_status(song, "error")
+            _commit_stage(db, song)
             return
 
-        # --- Phase 1: BPM / Key / Energy / Beat & Cue points ---
-        # Skip only when the planner-facing core fields are present.
-        # Older imports may have BPM/key but miss cues, phrases, or transition windows.
+        # Phase 1: BPM / Key / Energy / Beat & Cue points.
         core_ready = bool(
             song.bpm is not None
             and song.key
@@ -152,11 +227,18 @@ def run_analysis_and_separation(song_id: str) -> None:
             and song.transition_windows
         )
         if core_ready:
-            logger.info("[bg-analysis] skipping Phase 1 for %s (core analysis ready: BPM=%s Key=%s)", song_id, song.bpm, song.key)
+            update_analysis_stage(song, "core", "completed")
+            _commit_stage(db, song)
+            logger.info(
+                "[bg-analysis] skipping Phase 1 for %s (core analysis ready: BPM=%s Key=%s)",
+                song_id,
+                song.bpm,
+                song.key,
+            )
         else:
-            song.analysis_status = "analyzing"
-            db.commit()
-
+            update_analysis_stage(song, "core", "running")
+            set_analysis_pipeline_status(song, "core_analyzing")
+            _commit_stage(db, song)
             try:
                 from app.modules.library.analysis import analyze_audio_file
 
@@ -217,14 +299,21 @@ def run_analysis_and_separation(song_id: str) -> None:
                     {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
                     for i, c in enumerate(raw_cues)
                 ]
-                db.commit()
+                update_analysis_stage(song, "core", "completed")
+                _commit_stage(db, song)
                 logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
-            except Exception:
+            except Exception as exc:
                 logger.exception("[bg-analysis] analysis failed for %s", song_id)
-                song.analysis_status = "error"
-                db.commit()
+                db.rollback()
+                song = db.get(LibrarySong, song_id)
+                update_analysis_stage(song, "core", "error", error=str(exc))
+                _commit_stage(db, song)
 
-        # --- Phase 2: Stem separation (demucs) ---
+        # Phase 2: Stem separation. Store paths immediately when it succeeds.
+        stems_ready = False
+        update_analysis_stage(song, "stem_separation", "running")
+        set_analysis_pipeline_status(song, "stem_separating")
+        _commit_stage(db, song)
         try:
             stems_base = os.path.join(os.path.dirname(os.path.abspath(song.source_path)), "..", "stems")
             stems_base = os.path.abspath(stems_base)
@@ -255,13 +344,64 @@ def run_analysis_and_separation(song_id: str) -> None:
 
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
-                apply_stem_analysis(song)
+                stems_ready = True
+                update_analysis_stage(song, "stem_separation", "completed")
+                _commit_stage(db, song)
                 logger.info("[bg-analysis] stems separated for %s", song_id)
             else:
-                logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
-        except Exception:
+                raise FileNotFoundError("stem files were not produced by demucs")
+        except Exception as exc:
             logger.exception("[bg-analysis] stem separation failed for %s (non-fatal)", song_id)
+            db.rollback()
+            song = db.get(LibrarySong, song_id)
+            update_analysis_stage(song, "stem_separation", "error", error=str(exc))
+            update_analysis_stage(song, "feature_analysis", "blocked", error="stem separation is required")
+            update_analysis_stage(song, "style_analysis", "blocked", error="feature analysis is required")
+            _commit_stage(db, song)
 
+        # Phase 3: Stem-aware time/frequency feature analysis.
+        if stems_ready:
+            update_analysis_stage(song, "feature_analysis", "running")
+            set_analysis_pipeline_status(song, "feature_analyzing")
+            _commit_stage(db, song)
+            try:
+                apply_stem_analysis(song, classify_styles=False)
+                update_analysis_stage(song, "feature_analysis", "completed")
+                _commit_stage(db, song)
+                logger.info("[bg-analysis] feature analysis ready for %s", song_id)
+            except Exception as exc:
+                logger.exception("[bg-analysis] feature analysis failed for %s (non-fatal)", song_id)
+                db.rollback()
+                song = db.get(LibrarySong, song_id)
+                update_analysis_stage(song, "feature_analysis", "error", error=str(exc))
+                update_analysis_stage(song, "style_analysis", "blocked", error="feature analysis is required")
+                _commit_stage(db, song)
+
+        # Phase 4: Explainable 21-style classification from persisted features.
+        feature_status = (
+            (song.music_features or {})
+            .get("analysis_pipeline", {})
+            .get("stages", {})
+            .get("feature_analysis", {})
+            .get("status")
+        )
+        if feature_status == "completed":
+            update_analysis_stage(song, "style_analysis", "running")
+            set_analysis_pipeline_status(song, "style_analyzing")
+            _commit_stage(db, song)
+            try:
+                apply_high_frequency_style_analysis(song)
+                update_analysis_stage(song, "style_analysis", "completed")
+                _commit_stage(db, song)
+                logger.info("[bg-analysis] 21-style analysis ready for %s", song_id)
+            except Exception as exc:
+                logger.exception("[bg-analysis] style analysis failed for %s (non-fatal)", song_id)
+                db.rollback()
+                song = db.get(LibrarySong, song_id)
+                update_analysis_stage(song, "style_analysis", "error", error=str(exc))
+                _commit_stage(db, song)
+
+        # Optional downstream DJ fingerprint. Required stages above are already durable.
         try:
             apply_dj_fingerprint(db, song)
             logger.info("[bg-analysis] DJ fingerprint ready for %s", song_id)
@@ -269,7 +409,7 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.exception("[bg-analysis] DJ fingerprint failed for %s (non-fatal)", song_id)
             db.rollback()
 
-        # --- Phase 5: External metadata enrichment ---
+        # Optional external metadata enrichment.
         try:
             from app.modules.library.external_metadata import run_enrich_song_external_metadata
 
@@ -279,12 +419,34 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.exception("[bg-analysis] external style evidence failed for %s (non-fatal)", song_id)
             db.rollback()
 
-        # Mark completed regardless of stem separation outcome
-        song.analysis_status = "completed"
-        db.commit()
-    except Exception:
+        song = db.get(LibrarySong, song_id)
+        stages = (song.music_features or {}).get("analysis_pipeline", {}).get("stages", {})
+        stage_statuses = [stages.get(name, {}).get("status") for name in ANALYSIS_STAGE_KEYS]
+        if all(value == "completed" for value in stage_statuses):
+            final_status = "completed"
+        elif any(value == "completed" for value in stage_statuses):
+            final_status = "partial"
+        else:
+            final_status = "error"
+        set_analysis_pipeline_status(song, final_status)
+        _commit_stage(db, song)
+    except Exception as exc:
         logger.exception("[bg-analysis] unexpected error for %s", song_id)
         db.rollback()
+        try:
+            from app.modules.library.models import LibrarySong
+
+            song = db.get(LibrarySong, song_id)
+            if song is not None:
+                set_analysis_pipeline_status(song, "error")
+                music_features = dict(song.music_features or {})
+                pipeline = dict(music_features.get("analysis_pipeline", {}) or {})
+                pipeline["error"] = str(exc)[:1000]
+                music_features["analysis_pipeline"] = pipeline
+                song.music_features = music_features
+                _commit_stage(db, song)
+        except Exception:
+            db.rollback()
     finally:
         db.close()
 
