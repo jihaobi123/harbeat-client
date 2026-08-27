@@ -24,6 +24,25 @@ def test_available_feature_has_auditable_decision_and_sources() -> None:
     assert feature["detected"] is True
     assert feature["evidence_level"] == "confirmed"
     assert feature["sources"] == ["bass_stem", "drums_stem"]
+    assert feature["confidence"] == feature["reliability"]
+    assert feature["quality"]["measurement_confidence"] == 0.78
+    assert feature["quality"]["calibration_status"] == "provisional"
+
+
+def test_reliability_is_independent_from_match_score() -> None:
+    absent = make_feature_evidence(
+        0.0,
+        confidence=0.9,
+        measurement_confidence=0.9,
+        source_quality=0.8,
+        estimator_quality=0.7,
+        sources=["drums_stem"],
+        analysis_method="test_fixture",
+    )
+
+    assert absent["detected"] is False
+    assert absent["reliability"] == 0.82
+    assert absent["confidence"] == 0.82
 
 
 def test_unavailable_is_unknown_instead_of_negative() -> None:
@@ -39,16 +58,17 @@ def test_unavailable_is_unknown_instead_of_negative() -> None:
     assert feature["evidence_level"] == "unavailable"
 
 
-def test_v3_schema_describes_available_and_unavailable_features() -> None:
+def test_v4_schema_describes_quality_and_unavailable_features() -> None:
     schema_path = (
         Path(__file__).parents[2]
-        / "modules/stem-separation/contracts/pre-style-features-v3.schema.json"
+        / "modules/stem-separation/contracts/pre-style-features-v4.schema.json"
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["properties"]["version"]["const"] == STYLE_FEATURE_EVIDENCE_VERSION
     feature_schema = schema["$defs"]["feature"]
     assert set(feature_schema["required"]) >= {
-        "availability", "detected", "score", "evidence_level", "sources"
+        "availability", "detected", "score", "reliability", "quality",
+        "evidence_level", "sources"
     }
     unavailable_rule = feature_schema["allOf"][0]["then"]["properties"]
     assert unavailable_rule["detected"]["type"] == "null"

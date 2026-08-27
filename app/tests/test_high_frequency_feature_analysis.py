@@ -30,7 +30,7 @@ def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -
         drum_analysis=analysis, key_profile={"tonal_clarity": 0.8},
     )
 
-    assert result["version"] == "pre_style_evidence_v3"
+    assert result["version"] == "pre_style_evidence_v4"
     assert result["music_context"]["bpm"] == 120.0
     assert result["feature_groups"]["rhythm_grammar"]["four_on_floor"]["availability"] == "available"
     assert "sub_808" in result["feature_groups"]["low_frequency"]

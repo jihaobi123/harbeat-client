@@ -50,7 +50,7 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertTrue(result["has_drum_loop"])
         self.assertIn("drum_analysis", result)
         self.assertIn("feature_analysis", result)
-        self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v3")
+        self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v4")
         self.assertIn("feature_groups", result["feature_analysis"])
         self.assertIn("analysis_modules", result["feature_analysis"])
         self.assertIn("rhythm_grammar", result["feature_analysis"]["feature_groups"])
