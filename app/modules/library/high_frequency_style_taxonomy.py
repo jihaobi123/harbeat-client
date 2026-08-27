@@ -47,9 +47,9 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
     "trap": _style("Trap", FREESTYLE_CYPHER, [(65, 88), (130, 176)], {
         "rhythm_grammar.halftime_snare_3": 1.2,
         "low_frequency.sub_808": 1.4,
-        "rhythm_grammar.drill_hat": 0.9,
-        "low_frequency.bass_slide": 0.5,
-        "percussion_timbre.short_metallic": 0.6,
+        "rhythm_grammar.drill_hat": 0.35,
+        "low_frequency.bass_slide": 0.25,
+        "percussion_timbre.short_metallic": 1.0,
         "vocal_delivery.rap_delivery": 0.6,
     }, negative={"rhythm_grammar.four_on_floor": 0.8},
         required_any=[["rhythm_grammar.halftime_snare_3", "low_frequency.sub_808"]]),
