@@ -24,6 +24,25 @@ def _payload(bpm: float, values: dict[str, float], *, status: str = "ready") -> 
     }
 
 
+def _with_model_labels(payload: dict, labels: list[dict]) -> dict:
+    payload["model_evidence"] = {
+        "status": "ready",
+        "routes": {
+            "style_tags": {
+                "status": "ready",
+                "engine": "essentia_discogs_effnet",
+                "result": {
+                    "model_name": "EffnetDiscogs",
+                    "model_version": "1",
+                    "aggregation": "0.70*mean+0.30*p75",
+                    "labels": labels,
+                },
+            },
+        },
+    }
+    return payload
+
+
 def test_house_wins_from_four_floor_electronic_and_metallic_evidence() -> None:
     result = classify_high_frequency_styles(_payload(124, {
         "rhythm_grammar.four_on_floor": 0.96,
@@ -160,3 +179,54 @@ def test_style_confidence_is_capped_by_feature_reliability() -> None:
     assert house["reliability"] <= 0.60
     assert house["confidence"] <= house["reliability"]
     assert house["quality"]["estimator_quality"] == 0.6
+
+
+def test_disco_requires_more_than_four_floor_and_generic_acoustic_score() -> None:
+    result = classify_high_frequency_styles(_payload(120, {
+        "rhythm_grammar.four_on_floor": 0.94,
+        "rhythm_grammar.backbeat_2_4": 0.75,
+        "production.acoustic_production": 0.82,
+        "production.brightness": 0.62,
+        "low_frequency.kick_bass_alignment": 0.70,
+        "percussion_timbre.sustained_metallic": 0.12,
+        "low_frequency.low_frequency_melody": 0.10,
+        "harmony.chord_change_activity": 0.08,
+    }))
+
+    disco = next(item for item in result["styles"] if item["style_id"] == "disco")
+    assert disco["required_evidence_ratio"] == 0.5
+    assert disco["detected"] is False
+
+
+def test_auxiliary_model_support_is_bounded_and_keeps_native_score() -> None:
+    payload = _with_model_labels(_payload(124, {
+        "rhythm_grammar.four_on_floor": 0.93,
+        "rhythm_grammar.backbeat_2_4": 0.78,
+        "percussion_timbre.sustained_metallic": 0.75,
+        "production.electronic_production": 0.82,
+        "production.brightness": 0.70,
+        "rhythm_grammar.halftime_snare_3": 0.05,
+    }), [{"label": "Electronic---House", "score": 0.82}])
+
+    result = classify_high_frequency_styles(payload)
+    house = next(item for item in result["styles"] if item["style_id"] == "house")
+
+    assert house["score"] > house["native_score"]
+    assert 0.0 < house["model_adjustment"] <= 0.18
+    assert house["model_support"]["mapping_type"] == "direct"
+    assert result["model_label_evidence"]["raw_labels"][0]["subtype"] == "house"
+    assert result["out_of_taxonomy"] is False
+
+
+def test_unmapped_top_model_label_is_explicitly_out_of_taxonomy() -> None:
+    payload = _with_model_labels(_payload(118, {
+        "rhythm_grammar.four_on_floor": 0.72,
+        "production.electronic_production": 0.65,
+        "production.brightness": 0.60,
+    }), [{"label": "Pop---K-pop", "score": 0.64}])
+
+    result = classify_high_frequency_styles(payload)
+
+    assert result["out_of_taxonomy"] is True
+    assert "top_model_label_outside_or_adjacent_to_21_style_taxonomy" in result["review_reasons"]
+    assert result["model_label_evidence"]["unmapped_labels"][0]["subtype"] == "k-pop"
