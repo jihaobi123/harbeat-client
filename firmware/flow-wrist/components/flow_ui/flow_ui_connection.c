@@ -42,6 +42,14 @@ static void set_sweep_width(void *object, int32_t width)
     lv_obj_set_width((lv_obj_t *)object, width);
 }
 
+static void view_home_event_cb(lv_event_t *event)
+{
+    if (lv_event_get_code(event) == LV_EVENT_CLICKED) {
+        const flow_ui_action_t action = {.type = FLOW_UI_ACTION_VIEW_HOME};
+        flow_ui_emit(&action);
+    }
+}
+
 void flow_ui_connection_create(lv_obj_t *root, const flow_app_state_t *state)
 {
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
@@ -119,6 +127,21 @@ void flow_ui_connection_create(lv_obj_t *root, const flow_app_state_t *state)
         lv_anim_set_path_cb(&scan, lv_anim_path_ease_in_out);
         lv_anim_start(&scan);
     }
+
+    lv_obj_t *view_home = lv_button_create(root);
+    lv_obj_set_size(view_home, 250, 56);
+    lv_obj_set_style_radius(view_home, 16, 0);
+    lv_obj_set_style_bg_color(view_home, flow_color_paper(), 0);
+    lv_obj_set_style_border_color(view_home, flow_color_ink(), 0);
+    lv_obj_set_style_border_width(view_home, 3, 0);
+    lv_obj_set_style_shadow_width(view_home, 0, 0);
+    lv_obj_add_event_cb(view_home, view_home_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *view_home_label = lv_label_create(view_home);
+    lv_label_set_text(view_home_label, "VIEW HOME");
+    lv_obj_center(view_home_label);
+    lv_obj_set_style_text_font(view_home_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(view_home_label, flow_color_ink(), 0);
 }
 
 void flow_ui_offline_overlay(lv_obj_t *root)

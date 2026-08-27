@@ -293,9 +293,10 @@ void flow_ui_carousel_create(lv_obj_t *root, const flow_app_state_t *state)
         : style_index(state->snapshot.current.style);
     s_carousel.preview_index = s_carousel.current_index;
 
+    const flow_back_button_layout_t back_layout = flow_carousel_back_button_layout();
     lv_obj_t *back = lv_button_create(root);
-    lv_obj_set_pos(back, 0, 0);
-    lv_obj_set_size(back, 50, 42);
+    lv_obj_set_pos(back, back_layout.x, back_layout.y);
+    lv_obj_set_size(back, back_layout.width, back_layout.height);
     lv_obj_set_style_radius(back, 12, 0);
     lv_obj_set_style_bg_color(back, flow_color_paper(), 0);
     lv_obj_set_style_border_color(back, flow_color_ink(), 0);
@@ -308,7 +309,7 @@ void flow_ui_carousel_create(lv_obj_t *root, const flow_app_state_t *state)
 
     lv_obj_t *title = lv_label_create(root);
     lv_label_set_text(title, s_carousel.energy_mode ? "CHOOSE ENERGY" : "CHOOSE STYLE");
-    lv_obj_align(title, LV_ALIGN_TOP_RIGHT, 0, 8);
+    lv_obj_align(title, LV_ALIGN_TOP_RIGHT, 0, back_layout.title_y);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_18, 0);
     lv_obj_set_style_text_color(title, flow_color_ink(), 0);
 

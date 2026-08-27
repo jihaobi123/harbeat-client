@@ -68,3 +68,15 @@ flow_carousel_release_t flow_carousel_release(int32_t delta_x,
         : FLOW_CAROUSEL_WIDTH_PX;
     return result;
 }
+
+flow_back_button_layout_t flow_carousel_back_button_layout(void)
+{
+    const flow_back_button_layout_t layout = {
+        .x = 12,
+        .y = 8,
+        .width = 64,
+        .height = 52,
+        .title_y = 16,
+    };
+    return layout;
+}

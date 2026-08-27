@@ -41,6 +41,21 @@ static void test_connecting_to_home_and_navigation(void)
     assert(!flow_state_open_control(&state, FLOW_SCREEN_COMPLETE));
 }
 
+static void test_connecting_can_view_read_only_home(void)
+{
+    flow_app_state_t state;
+    flow_state_init(&state);
+    assert(flow_state_view_home(&state));
+    assert(state.screen == FLOW_SCREEN_HOME);
+    assert(!state.has_snapshot);
+    assert(!flow_state_open_control(&state, FLOW_SCREEN_ENERGY));
+
+    state.screen = FLOW_SCREEN_TRANSITION;
+    state.snapshot.locked = true;
+    assert(!flow_state_view_home(&state));
+    assert(state.screen == FLOW_SCREEN_TRANSITION);
+}
+
 static void test_global_lock_and_transition(void)
 {
     flow_app_state_t state;
@@ -121,6 +136,7 @@ static void test_invalid_snapshots_are_ignored(void)
 int main(void)
 {
     test_connecting_to_home_and_navigation();
+    test_connecting_can_view_read_only_home();
     test_global_lock_and_transition();
     test_revisions_completion_and_new_session();
     test_invalid_snapshots_are_ignored();

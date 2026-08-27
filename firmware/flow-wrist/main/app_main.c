@@ -99,8 +99,17 @@ static void render_timer_cb(lv_timer_t *timer)
 
 static void process_ui_action(const flow_ui_action_t *action)
 {
-    if (action == NULL || s_app_state.link_state != FLOW_LINK_READY) {
-        ESP_LOGW(TAG, "Ignored action while Hub link is not ready");
+    if (action == NULL) {
+        return;
+    }
+    if (action->type == FLOW_UI_ACTION_VIEW_HOME) {
+        if (flow_state_view_home(&s_app_state)) {
+            publish_state();
+        }
+        return;
+    }
+    if (s_app_state.link_state != FLOW_LINK_READY) {
+        ESP_LOGW(TAG, "Ignored control while Hub link is not ready");
         return;
     }
 
@@ -145,6 +154,8 @@ static void process_ui_action(const flow_ui_action_t *action)
         }
         break;
     }
+    case FLOW_UI_ACTION_VIEW_HOME:
+        break;
     }
     publish_state();
 }

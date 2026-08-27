@@ -67,6 +67,17 @@ bool flow_state_open_control(flow_app_state_t *state, flow_screen_t screen)
     return true;
 }
 
+bool flow_state_view_home(flow_app_state_t *state)
+{
+    if (state == NULL || state->snapshot.locked ||
+        state->screen == FLOW_SCREEN_SENDING ||
+        state->screen == FLOW_SCREEN_TRANSITION) {
+        return false;
+    }
+    state->screen = FLOW_SCREEN_HOME;
+    return true;
+}
+
 void flow_state_return_home(flow_app_state_t *state)
 {
     if (state->has_snapshot && !state->snapshot.locked &&

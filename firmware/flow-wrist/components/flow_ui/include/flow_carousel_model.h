@@ -12,6 +12,14 @@ typedef struct {
     uint16_t duration_ms;
 } flow_carousel_release_t;
 
+typedef struct {
+    int16_t x;
+    int16_t y;
+    int16_t width;
+    int16_t height;
+    int16_t title_y;
+} flow_back_button_layout_t;
+
 int32_t flow_carousel_drag_offset(int32_t delta_x, int32_t width);
 uint8_t flow_carousel_neighbor(uint8_t index,
                                int8_t step,
@@ -23,3 +31,4 @@ flow_carousel_release_t flow_carousel_release(int32_t delta_x,
                                                uint8_t index,
                                                uint8_t count,
                                                bool wrap);
+flow_back_button_layout_t flow_carousel_back_button_layout(void);
