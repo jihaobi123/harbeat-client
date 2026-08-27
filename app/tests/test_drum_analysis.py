@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.drum_analysis import analyze_drum_stem, empty_drum_analysis
+from app.modules.library.drum_analysis import (
+    _metrical_alignment,
+    analyze_drum_stem,
+    empty_drum_analysis,
+)
 
 
 def _add_tone(audio: np.ndarray, sr: int, at: float, frequency: float, duration: float, amplitude: float) -> None:
@@ -53,6 +57,8 @@ def test_drum_analyzer_detects_three_classes_and_pattern() -> None:
     assert result["pattern"]["stability"] >= 2 / 3
     assert result["confidence"]["overall"] >= 0.58
     assert result["density_curve"]
+    assert result["metrical_alignment"]["grid_type"] == "straight_16th"
+    assert result["metrical_alignment"]["subdivision_alignment"] > 0.8
     all_events = [event for values in result["events"].values() for event in values]
     assert all(event["velocity"] is None for event in all_events)
     assert all(event["velocity_source"] == "unavailable" for event in all_events)
@@ -89,6 +95,43 @@ def test_model_velocity_is_kept_only_when_explicitly_supplied() -> None:
     assert second["velocity"] is None
     assert second["velocity_source"] == "unavailable"
     assert first["detector_confidence"] == 0.92
+
+
+def test_triplet_events_select_triplet_grid_without_being_penalized() -> None:
+    beats = np.arange(0.0, 8.5, 0.5)
+    times = [
+        float(start + 2.0 * (end - start) / 3.0)
+        for start, end in zip(beats[:-1], beats[1:])
+    ]
+    events = {
+        name: ([{"time": value} for value in times] if name == "hihat" else [])
+        for name in ("kick", "snare", "hihat", "tom", "cymbal")
+    }
+
+    result = _metrical_alignment(events, beats)
+
+    assert result["grid_type"] == "triplet_12th"
+    assert result["subdivision_alignment"] > 0.95
+    assert result["phase_consistency"] > 0.95
+
+
+def test_random_events_have_lower_metrical_consistency() -> None:
+    beats = np.arange(0.0, 16.5, 0.5)
+    rng = np.random.default_rng(42)
+    random_times = sorted(rng.uniform(0.0, 16.0, 80))
+    regular_times = [float(value) for value in np.arange(0.0, 16.0, 0.125)]
+
+    def payload(times: list[float]) -> dict:
+        return {
+            name: ([{"time": value} for value in times] if name == "hihat" else [])
+            for name in ("kick", "snare", "hihat", "tom", "cymbal")
+        }
+
+    random_result = _metrical_alignment(payload(random_times), beats)
+    regular_result = _metrical_alignment(payload(regular_times), beats)
+
+    assert random_result["subdivision_alignment"] < regular_result["subdivision_alignment"]
+    assert random_result["phase_consistency"] < regular_result["phase_consistency"]
 
 
 def test_drum_analyzer_degrades_without_beat_grid() -> None:

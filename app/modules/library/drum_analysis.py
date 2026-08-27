@@ -36,6 +36,14 @@ def empty_drum_analysis(reason: str = "drums_stem_unavailable") -> dict[str, Any
             "syncopation": 0.0,
         },
         "fills": [],
+        "metrical_alignment": {
+            "grid_type": None,
+            "subdivision_alignment": 0.0,
+            "phase_consistency": 0.0,
+            "timing_deviation_ms": None,
+            "metrical_level_reliability": 0.0,
+            "candidates": {},
+        },
         "confidence": {"overall": 0.0, **{name: 0.0 for name in DRUM_CLASSES}},
         "quality_flags": [reason],
         "engine_routes": {},
@@ -377,18 +385,76 @@ def _pattern_and_fills(
     }, fills
 
 
-def _grid_alignment(events: dict[str, list[dict]], beat_points: np.ndarray, tolerance: float = 0.08) -> float:
+def _metrical_alignment(
+    events: dict[str, list[dict]], beat_points: np.ndarray,
+) -> dict[str, Any]:
+    """Compare drum events with straight and triplet metrical hypotheses."""
     all_times = np.asarray(
         [float(event["time"]) for name in DRUM_CLASSES for event in events[name]],
         dtype=float,
     )
-    if not len(all_times) or not len(beat_points):
-        return 0.5
-    aligned = 0
-    for value in all_times:
-        if float(np.min(np.abs(beat_points - value))) <= tolerance:
-            aligned += 1
-    return aligned / len(all_times)
+    intervals = np.diff(beat_points)
+    valid_intervals = intervals[np.isfinite(intervals) & (intervals > 1e-4)]
+    if not len(all_times) or len(beat_points) < 2 or not len(valid_intervals):
+        return {
+            "grid_type": None,
+            "subdivision_alignment": 0.5,
+            "phase_consistency": 0.5,
+            "systematic_offset_ms": None,
+            "timing_deviation_ms": None,
+            "metrical_level_reliability": 0.0,
+            "candidates": {},
+        }
+
+    hypotheses = {"straight_16th": 4, "triplet_12th": 3}
+    candidates: dict[str, dict[str, float]] = {}
+    for name, subdivisions in hypotheses.items():
+        signed_errors: list[float] = []
+        absolute_ms: list[float] = []
+        scores: list[float] = []
+        for value in all_times:
+            index = int(np.searchsorted(beat_points, value, side="right") - 1)
+            if index < 0 or index >= len(beat_points) - 1:
+                continue
+            beat_duration = float(beat_points[index + 1] - beat_points[index])
+            if beat_duration <= 1e-4:
+                continue
+            phase = (value - beat_points[index]) / beat_duration
+            nearest = round(phase * subdivisions) / subdivisions
+            error = float(phase - nearest)
+            half_cell = 0.5 / subdivisions
+            signed_errors.append(error)
+            absolute_ms.append(abs(error) * beat_duration * 1000.0)
+            scores.append(1.0 - min(1.0, abs(error) / half_cell))
+        if not scores:
+            continue
+        median_error = float(np.median(signed_errors))
+        mad = float(np.median(np.abs(np.asarray(signed_errors) - median_error)))
+        phase_consistency = float(np.clip(1.0 - mad / (0.5 / subdivisions), 0.0, 1.0))
+        alignment = float(np.mean(scores))
+        candidates[name] = {
+            "subdivision_alignment": round(alignment, 4),
+            "phase_consistency": round(phase_consistency, 4),
+            "systematic_offset_ms": round(
+                median_error * float(np.median(valid_intervals)) * 1000.0, 3
+            ),
+            "timing_deviation_ms": round(float(np.median(absolute_ms)), 3),
+            "score": round(0.72 * alignment + 0.28 * phase_consistency, 4),
+        }
+    if not candidates:
+        return _metrical_alignment(events, np.asarray([]))
+    grid_type, best = max(candidates.items(), key=lambda item: item[1]["score"])
+    interval_cv = float(np.std(valid_intervals) / (np.mean(valid_intervals) + 1e-8))
+    level_reliability = float(np.clip(1.0 - 2.5 * interval_cv, 0.0, 1.0))
+    return {
+        "grid_type": grid_type,
+        "subdivision_alignment": best["subdivision_alignment"],
+        "phase_consistency": best["phase_consistency"],
+        "systematic_offset_ms": best["systematic_offset_ms"],
+        "timing_deviation_ms": best["timing_deviation_ms"],
+        "metrical_level_reliability": round(level_reliability, 4),
+        "candidates": candidates,
+    }
 
 
 def analyze_drum_stem(
@@ -453,7 +519,8 @@ def analyze_drum_stem(
     bars = _bar_grid(bpm=bpm, beat_points=beat_points, downbeats=downbeats, duration=duration)
     pattern, fills = _pattern_and_fills(events, bars=bars, bpm=bpm)
     density = _density_curve(events, duration, density_window_sec)
-    alignment = _grid_alignment(events, beat_grid)
+    metrical = _metrical_alignment(events, beat_grid)
+    alignment = float(metrical["subdivision_alignment"])
     event_strength = float(np.mean([
         float(event["confidence"])
         for name in DRUM_CLASSES for event in events[name]
@@ -461,7 +528,8 @@ def analyze_drum_stem(
     overall = float(np.clip(
         0.45 * float(np.clip(separation_quality, 0.0, 1.0))
         + 0.30 * event_strength
-        + 0.25 * alignment,
+        + 0.15 * alignment
+        + 0.10 * float(metrical["phase_consistency"]),
         0.0,
         1.0,
     ))
@@ -473,7 +541,7 @@ def analyze_drum_stem(
     if not len(beat_grid):
         flags.append("beat_grid_unavailable")
     elif alignment < 0.45:
-        flags.append("low_beat_alignment")
+        flags.append("low_metrical_alignment")
     if len(_float_points(downbeats)) < 2:
         flags.append("downbeat_grid_unavailable")
     if pattern["bars_analyzed"] == 0:
@@ -498,10 +566,13 @@ def analyze_drum_stem(
         "density_curve": density,
         "pattern": pattern,
         "fills": fills,
+        "metrical_alignment": metrical,
         "confidence": {
             "overall": round(overall, 4),
             **class_confidence,
             "beat_alignment": round(float(alignment), 4),
+            "subdivision_alignment": round(float(alignment), 4),
+            "phase_consistency": metrical["phase_consistency"],
             "stem_quality": round(float(np.clip(separation_quality, 0.0, 1.0)), 4),
         },
         "quality_flags": flags,

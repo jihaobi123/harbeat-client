@@ -5,7 +5,8 @@
   "type": "object",
   "required": [
     "version", "source", "status", "needs_review", "events", "counts",
-    "density_curve", "pattern", "fills", "confidence", "quality_flags", "engine_routes"
+    "density_curve", "pattern", "fills", "metrical_alignment", "confidence",
+    "quality_flags", "engine_routes"
   ],
   "properties": {
     "version": {"const": "drum_transcription_consensus_v3"},
@@ -45,6 +46,7 @@
       "required": ["resolution", "bars_analyzed", "dominant", "stability", "syncopation"]
     },
     "fills": {"type": "array", "items": {"type": "object"}},
+    "metrical_alignment": {"type": "object"},
     "confidence": {"type": "object"},
     "quality_flags": {"type": "array", "items": {"type": "string"}},
     "engine_routes": {"type": "object"}
