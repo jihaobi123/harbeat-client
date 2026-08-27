@@ -43,6 +43,10 @@ def make_feature_evidence(
     estimator_quality: float = 1.0,
     calibration_status: str = "provisional",
     quality_flags: list[str] | None = None,
+    coverage: float = 1.0,
+    stability: float = 1.0,
+    reliability_cap: float = 1.0,
+    raw_measurements: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build an available feature decision using the v4 evidence contract.
 
@@ -57,7 +61,17 @@ def make_feature_evidence(
     )
     source = _clamp(source_quality)
     estimator = _clamp(estimator_quality)
-    reliability = _clamp(0.45 * measurement + 0.30 * source + 0.25 * estimator)
+    normalized_coverage = _clamp(coverage)
+    normalized_stability = _clamp(stability)
+    normalized_cap = _clamp(reliability_cap)
+    chain_quality = _clamp(0.45 * measurement + 0.30 * source + 0.25 * estimator)
+    # Coverage and stability describe whether the measurement generalises
+    # beyond a few favourable frames.  They do not alter acoustic match score,
+    # but they must reduce how strongly downstream decisions may trust it.
+    reliability = min(
+        normalized_cap,
+        chain_quality * np.sqrt(normalized_coverage * normalized_stability),
+    )
     detected = normalized_score >= threshold
     return {
         "availability": "available",
@@ -71,6 +85,9 @@ def make_feature_evidence(
             "source_quality": round(source, 4),
             "estimator_quality": round(estimator, 4),
             "calibration_status": calibration_status,
+            "coverage": round(normalized_coverage, 4),
+            "stability": round(normalized_stability, 4),
+            "reliability_cap": round(normalized_cap, 4),
         },
         "quality_flags": list(dict.fromkeys(quality_flags or [])),
         "evidence_level": evidence_level(
@@ -81,7 +98,10 @@ def make_feature_evidence(
         "analysis_method": analysis_method,
         "sources": list(dict.fromkeys(sources or [])),
         "time_ranges": list(time_ranges or []),
-        "evidence": dict(evidence or {}),
+        "evidence": {
+            **dict(evidence or {}),
+            "raw_measurements": dict(raw_measurements or {}),
+        },
     }
 
 
@@ -104,6 +124,9 @@ def unavailable_feature(
             "source_quality": 0.0,
             "estimator_quality": 0.0,
             "calibration_status": "unavailable",
+            "coverage": 0.0,
+            "stability": 0.0,
+            "reliability_cap": 0.0,
         },
         "quality_flags": [reason],
         "evidence_level": "unavailable",

@@ -45,6 +45,28 @@ def test_reliability_is_independent_from_match_score() -> None:
     assert absent["confidence"] == 0.82
 
 
+def test_coverage_stability_and_estimator_cap_limit_reliability_not_score() -> None:
+    feature = make_feature_evidence(
+        0.92,
+        confidence=0.95,
+        source_quality=0.9,
+        estimator_quality=0.9,
+        coverage=0.5,
+        stability=0.8,
+        reliability_cap=0.6,
+        raw_measurements={"matched_bars": 8, "bars_analyzed": 16},
+        sources=["drums_stem"],
+        analysis_method="spectral_proxy",
+    )
+
+    assert feature["score"] == 0.92
+    assert feature["reliability"] == 0.5834
+    assert feature["reliability"] <= 0.6
+    assert feature["quality"]["coverage"] == 0.5
+    assert feature["quality"]["stability"] == 0.8
+    assert feature["evidence"]["raw_measurements"]["matched_bars"] == 8
+
+
 def test_unavailable_is_unknown_instead_of_negative() -> None:
     feature = unavailable_feature(
         "bass_stem_unavailable",
