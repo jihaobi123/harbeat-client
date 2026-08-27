@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "flow_core.h"
+#include "flow_input_coordinator.h"
 
 typedef enum {
     FLOW_UI_ACTION_OPEN_ENERGY,
@@ -26,3 +27,4 @@ void flow_ui_init(flow_ui_action_handler_t handler, void *context);
 void flow_ui_render(const flow_app_state_t *state);
 void flow_ui_show_offline(void);
 void flow_ui_show_syncing(void);
+void flow_ui_apply_gesture(const flow_input_action_t *action);

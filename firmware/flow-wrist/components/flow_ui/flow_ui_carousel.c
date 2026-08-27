@@ -342,3 +342,33 @@ void flow_ui_carousel_create(lv_obj_t *root, const flow_app_state_t *state)
     lv_obj_set_style_text_color(s_carousel.feedback, flow_color_green(), 0);
     lv_obj_add_flag(s_carousel.feedback, LV_OBJ_FLAG_HIDDEN);
 }
+
+static void set_preview_index(uint8_t target)
+{
+    if (s_carousel.viewport == NULL || s_carousel.animating ||
+        target == s_carousel.preview_index || target >= item_count()) {
+        return;
+    }
+    const int8_t step = target > s_carousel.preview_index ? 1 : -1;
+    flow_carousel_release_t release = {
+        .step = step,
+        .target_offset = step > 0 ? -FLOW_CAROUSEL_WIDTH_PX :
+                                    FLOW_CAROUSEL_WIDTH_PX,
+        .duration_ms = FLOW_CAROUSEL_SNAP_MS,
+    };
+    snap_to(&release);
+}
+
+void flow_ui_carousel_set_energy(uint8_t energy)
+{
+    if (s_carousel.energy_mode && energy >= 1 && energy <= 5) {
+        set_preview_index((uint8_t)(energy - 1));
+    }
+}
+
+void flow_ui_carousel_set_style(const char *style_id)
+{
+    if (!s_carousel.energy_mode && style_id != NULL) {
+        set_preview_index(style_index(style_id));
+    }
+}

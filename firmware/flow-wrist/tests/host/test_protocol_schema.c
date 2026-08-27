@@ -256,9 +256,14 @@ static void test_catalog_validation(void)
 {
     uint8_t buffer[384];
     size_t size = encode_catalog(buffer, sizeof(buffer), 1, 5, true);
+    uint8_t version = 0;
+    assert(flow_protocol_read_version(buffer, size, &version));
+    assert(version == 1);
     assert(flow_protocol_validate_catalog(buffer, size));
 
     size = encode_catalog(buffer, sizeof(buffer), 2, 5, true);
+    assert(flow_protocol_read_version(buffer, size, &version));
+    assert(version == 2);
     assert(!flow_protocol_validate_catalog(buffer, size));
 
     size = encode_catalog(buffer, sizeof(buffer), 1, 6, true);
@@ -267,6 +272,7 @@ static void test_catalog_validation(void)
     size = encode_catalog(buffer, sizeof(buffer), 1, 5, false);
     assert(!flow_protocol_validate_catalog(buffer, size));
     assert(!flow_protocol_validate_catalog(NULL, 0));
+    assert(!flow_protocol_read_version(NULL, 0, &version));
 }
 
 int main(void)

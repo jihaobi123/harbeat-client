@@ -1,0 +1,4 @@
+bleak>=3.0,<4
+cbor2>=5.6,<6
+pyobjc-core>=12.2,<13; sys_platform == "darwin"
+pyobjc-framework-CoreBluetooth>=12.2,<13; sys_platform == "darwin"

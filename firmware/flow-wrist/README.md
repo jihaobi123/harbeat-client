@@ -10,6 +10,7 @@
 - BOOT 短按唤醒、自动降亮度与熄屏；
 - AXP2101 电量读取和标准 BLE Battery Service；
 - 无需 RK3588 的本地 Hub 流程模拟器。
+- QMI8658 无触控手势控制（实验版，需完成佩戴校准）。
 
 ## Mac 开发环境
 
@@ -52,3 +53,7 @@ idf.py -B build-ble -p "$serial_port" flash monitor
 ```
 
 不要在没有找到串口时跳过 `test` 强行烧录。板级检查见 [hardware-bringup.md](docs/hardware-bringup.md)，Hub 联调步骤见 [ble-test.md](docs/ble-test.md)。
+
+RK3588 对接先读 [BLE 协议 v1](docs/ble-protocol-v1.md)。[`tools/flow_hub_mock.py`](tools/flow_hub_mock.py) 提供相同的 Catalog、snapshot、命令 ACK 和 10–20 秒切换状态机；Linux/BlueZ 可完成全链路测试。部分 macOS 版本不会为命令行 CoreBluetooth 客户端触发自动配对，遇到这种情况按 [ble-test.md](docs/ble-test.md) 的验收边界处理。
+
+如果要把项目交给另一位开发者或 AI，直接发送 [Flow Wrist V0.1 开发接手手册](docs/AI-DEVELOPMENT-HANDOFF.md)。其中包含产品边界、代码结构、触控与手势、BLE 对接顺序、烧录方法、已验证结果和下一步清单。

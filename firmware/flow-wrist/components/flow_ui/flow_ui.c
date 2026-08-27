@@ -6,6 +6,7 @@ static flow_ui_action_handler_t s_action_handler;
 static void *s_action_context;
 static lv_obj_t *s_root;
 static flow_screen_t s_last_screen = FLOW_SCREEN_OFF;
+static flow_link_state_t s_last_link_state = FLOW_LINK_ADVERTISING;
 static uint32_t s_last_revision;
 
 static lv_obj_t *create_root(void)
@@ -127,7 +128,8 @@ void flow_ui_render(const flow_app_state_t *state)
     if (state == NULL) {
         return;
     }
-    if (s_root != NULL && state->screen == s_last_screen) {
+    if (s_root != NULL && state->screen == s_last_screen &&
+        state->link_state == s_last_link_state) {
         if (state->screen == FLOW_SCREEN_TRANSITION) {
             flow_ui_transition_update(state);
             s_last_revision = state->snapshot.revision;
@@ -143,7 +145,17 @@ void flow_ui_render(const flow_app_state_t *state)
 
     s_root = create_root();
     s_last_screen = state->screen;
+    s_last_link_state = state->link_state;
     s_last_revision = state->snapshot.revision;
+    if (state->link_state != FLOW_LINK_READY) {
+        if (state->has_snapshot && state->link_state == FLOW_LINK_ADVERTISING) {
+            flow_ui_home_create(s_root, state);
+            flow_ui_offline_overlay(s_root);
+        } else {
+            flow_ui_connection_create(s_root, state);
+        }
+        return;
+    }
     switch (state->screen) {
     case FLOW_SCREEN_HOME:
         flow_ui_home_create(s_root, state);

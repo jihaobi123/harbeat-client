@@ -28,6 +28,15 @@ typedef enum {
     FLOW_SCREEN_ERROR
 } flow_screen_t;
 
+typedef enum {
+    FLOW_LINK_ADVERTISING,
+    FLOW_LINK_SECURING,
+    FLOW_LINK_SYNCING_CATALOG,
+    FLOW_LINK_SYNCING_STATE,
+    FLOW_LINK_READY,
+    FLOW_LINK_VERSION_MISMATCH,
+} flow_link_state_t;
+
 typedef struct {
     uint8_t energy;
     char style[FLOW_STYLE_ID_MAX];
@@ -48,6 +57,7 @@ typedef struct {
 
 typedef struct {
     flow_screen_t screen;
+    flow_link_state_t link_state;
     flow_snapshot_t snapshot;
     uint32_t pending_command_id;
     bool has_snapshot;

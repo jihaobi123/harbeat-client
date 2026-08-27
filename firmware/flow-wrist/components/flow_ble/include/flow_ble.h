@@ -4,11 +4,13 @@
 #include <stdint.h>
 
 #include "esp_err.h"
+#include "flow_link_state.h"
 #include "flow_protocol.h"
 
 typedef void (*flow_ble_snapshot_handler_t)(const flow_snapshot_t *snapshot,
                                             void *context);
-typedef void (*flow_ble_connection_handler_t)(bool connected, void *context);
+typedef void (*flow_ble_connection_handler_t)(flow_link_state_t state,
+                                              void *context);
 
 esp_err_t flow_ble_init(flow_ble_snapshot_handler_t snapshot_handler,
                         flow_ble_connection_handler_t connection_handler,

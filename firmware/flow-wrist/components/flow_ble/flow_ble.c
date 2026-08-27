@@ -64,13 +64,34 @@ static flow_ble_connection_handler_t s_connection_handler;
 static void *s_handler_context;
 static TimerHandle_t s_indication_timer;
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
+static flow_link_inputs_t s_link_inputs;
+static flow_link_state_t s_reported_link_state;
+static bool s_has_reported_link_state;
 
 static int gap_event(struct ble_gap_event *event, void *arg);
 
 static bool ready_unlocked(void)
 {
-    return s_conn_handle != BLE_HS_CONN_HANDLE_NONE &&
-           s_command_subscribed && s_catalog_received && s_state_received;
+    return flow_link_resolve(&s_link_inputs) == FLOW_LINK_READY;
+}
+
+static void report_link_state(void)
+{
+    flow_ble_connection_handler_t handler = NULL;
+    void *context = NULL;
+    flow_link_state_t state;
+    portENTER_CRITICAL(&s_lock);
+    state = flow_link_resolve(&s_link_inputs);
+    if (!s_has_reported_link_state || state != s_reported_link_state) {
+        s_reported_link_state = state;
+        s_has_reported_link_state = true;
+        handler = s_connection_handler;
+        context = s_handler_context;
+    }
+    portEXIT_CRITICAL(&s_lock);
+    if (handler != NULL) {
+        handler(state, context);
+    }
 }
 
 static void deliver_snapshot_if_ready(void)
@@ -95,6 +116,25 @@ static int append_bytes(struct os_mbuf *om, const void *data, size_t size)
     return os_mbuf_append(om, data, size) == 0
         ? 0
         : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+static int access_command(uint16_t conn_handle,
+                          uint16_t attr_handle,
+                          struct ble_gatt_access_ctxt *ctxt,
+                          void *arg)
+{
+    (void)conn_handle;
+    (void)attr_handle;
+    (void)ctxt;
+    (void)arg;
+
+    /*
+     * NimBLE requires every characteristic definition to have an access
+     * callback, including server-only indication characteristics. Command
+     * values are emitted with ble_gatts_indicate_custom(), so no peer access
+     * operation is valid here.
+     */
+    return BLE_ATT_ERR_UNLIKELY;
 }
 
 static int access_characteristic(uint16_t conn_handle,
@@ -141,6 +181,13 @@ static int access_characteristic(uint16_t conn_handle,
 
     if (attribute == FLOW_ATTR_CATALOG) {
         if (!flow_protocol_validate_catalog(incoming, copied)) {
+            uint8_t version = 0;
+            if (flow_protocol_read_version(incoming, copied, &version) && version != 1) {
+                portENTER_CRITICAL(&s_lock);
+                s_link_inputs.version_mismatch = true;
+                portEXIT_CRITICAL(&s_lock);
+                report_link_state();
+            }
             ESP_LOGW(TAG, "Rejected invalid Catalog (%u bytes)", copied);
             return BLE_ATT_ERR_VALUE_NOT_ALLOWED;
         }
@@ -148,6 +195,7 @@ static int access_characteristic(uint16_t conn_handle,
         memcpy(s_catalog_raw, incoming, copied);
         s_catalog_size = copied;
         s_catalog_received = true;
+        s_link_inputs.catalog_received = true;
         portEXIT_CRITICAL(&s_lock);
         ESP_LOGI(TAG, "Catalog synchronized");
     } else {
@@ -161,8 +209,10 @@ static int access_characteristic(uint16_t conn_handle,
         s_state_size = copied;
         s_pending_snapshot = snapshot;
         s_state_received = true;
+        s_link_inputs.state_received = true;
         portEXIT_CRITICAL(&s_lock);
     }
+    report_link_state();
     deliver_snapshot_if_ready();
     return 0;
 }
@@ -174,6 +224,7 @@ static const struct ble_gatt_svc_def s_services[] = {
         .characteristics = (struct ble_gatt_chr_def[]) {
             {
                 .uuid = &s_command_uuid.u,
+                .access_cb = access_command,
                 .flags = BLE_GATT_CHR_F_INDICATE,
                 .val_handle = &s_command_handle,
             },
@@ -267,6 +318,8 @@ static void advertise(void)
                            &params, gap_event, NULL);
     if (rc != 0) {
         ESP_LOGE(TAG, "Advertising failed: %d", rc);
+    } else {
+        report_link_state();
     }
 }
 
@@ -317,6 +370,7 @@ static void reset_connection_state(void)
     s_state_received = false;
     s_catalog_size = 0;
     s_state_size = 0;
+    memset(&s_link_inputs, 0, sizeof(s_link_inputs));
     portEXIT_CRITICAL(&s_lock);
     if (s_indication_timer != NULL) {
         xTimerStop(s_indication_timer, 0);
@@ -334,20 +388,16 @@ static int gap_event(struct ble_gap_event *event, void *arg)
         }
         portENTER_CRITICAL(&s_lock);
         s_conn_handle = event->connect.conn_handle;
+        s_link_inputs.connected = true;
         portEXIT_CRITICAL(&s_lock);
-        ESP_LOGI(TAG, "Hub connected; requesting secure pairing");
-        (void)ble_gap_security_initiate(event->connect.conn_handle);
-        if (s_connection_handler != NULL) {
-            s_connection_handler(true, s_handler_context);
-        }
+        ESP_LOGI(TAG, "Hub connected; waiting for secure GATT access");
+        report_link_state();
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGW(TAG, "Hub disconnected: %d", event->disconnect.reason);
         reset_connection_state();
-        if (s_connection_handler != NULL) {
-            s_connection_handler(false, s_handler_context);
-        }
+        report_link_state();
         advertise();
         return 0;
 
@@ -359,12 +409,28 @@ static int gap_event(struct ble_gap_event *event, void *arg)
         if (event->subscribe.attr_handle == s_command_handle) {
             portENTER_CRITICAL(&s_lock);
             s_command_subscribed = event->subscribe.cur_indicate;
+            s_link_inputs.command_subscribed = event->subscribe.cur_indicate;
             portEXIT_CRITICAL(&s_lock);
             ESP_LOGI(TAG, "Command indication %s",
                      event->subscribe.cur_indicate ? "subscribed" : "unsubscribed");
+            report_link_state();
             deliver_snapshot_if_ready();
         }
         return 0;
+
+    case BLE_GAP_EVENT_ENC_CHANGE: {
+        struct ble_gap_conn_desc description;
+        const int rc = ble_gap_conn_find(event->enc_change.conn_handle, &description);
+        const bool encrypted = event->enc_change.status == 0 && rc == 0 &&
+            description.sec_state.encrypted;
+        portENTER_CRITICAL(&s_lock);
+        s_link_inputs.encrypted = encrypted;
+        portEXIT_CRITICAL(&s_lock);
+        ESP_LOGI(TAG, "Link encryption %s (status=%d conn_find=%d)",
+                 encrypted ? "ready" : "failed", event->enc_change.status, rc);
+        report_link_state();
+        return 0;
+    }
 
     case BLE_GAP_EVENT_NOTIFY_TX:
         if (event->notify_tx.attr_handle == s_command_handle &&
@@ -403,6 +469,7 @@ esp_err_t flow_ble_init(flow_ble_snapshot_handler_t snapshot_handler,
     s_snapshot_handler = snapshot_handler;
     s_connection_handler = connection_handler;
     s_handler_context = context;
+    s_has_reported_link_state = false;
     reset_connection_state();
 
     s_indication_timer = xTimerCreate("flow_indicate", pdMS_TO_TICKS(FLOW_INDICATION_TIMEOUT_MS),

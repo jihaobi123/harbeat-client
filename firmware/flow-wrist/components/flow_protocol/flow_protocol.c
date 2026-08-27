@@ -144,6 +144,25 @@ static bool decode_bool(const CborValue *map, const char *key, bool *result)
            cbor_value_get_boolean(&value, result) == CborNoError;
 }
 
+bool flow_protocol_read_version(const uint8_t *data,
+                                size_t size,
+                                uint8_t *version)
+{
+    if (data == NULL || size == 0 || version == NULL) {
+        return false;
+    }
+    CborParser parser;
+    CborValue root;
+    uint64_t decoded = 0;
+    if (cbor_parser_init(data, size, 0, &parser, &root) != CborNoError ||
+        !cbor_value_is_map(&root) ||
+        !decode_uint(&root, "v", UINT8_MAX, &decoded)) {
+        return false;
+    }
+    *version = (uint8_t)decoded;
+    return true;
+}
+
 bool flow_protocol_validate_catalog(const uint8_t *data, size_t size)
 {
     if (data == NULL || size == 0) {
