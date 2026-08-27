@@ -10,9 +10,9 @@
 
 ## 本次目标
 
-1. 找不到 Hub 时允许进入只读主页。
+1. 找不到 Hub 时允许进入主页，并浏览能量和风格轮播。
 2. 离线期间继续在后台搜索 Hub，不进入本地模拟模式。
-3. 没有可信状态时不开放能量或风格发送。
+3. 没有可信状态时不发送能量或风格命令。
 4. 二级页返回键避开圆角，扩大实机触摸范围。
 
 ## 离线导航
@@ -26,7 +26,7 @@
 - Hub 变为 READY 后，主页自动解除离线状态；
 - 不需要用户返回连接页重新触发搜索。
 
-离线主页使用现有暖纸白首页结构。页面显示小型 `HUB OFFLINE` 标记，并用透明触摸层拦截能量和风格卡片的操作，不覆盖或淡化原 UI。
+离线主页使用现有暖纸白首页结构。页面显示小型 `HUB OFFLINE` 标记，不覆盖或淡化原 UI。ENERGY 和 STYLE 卡片保持可点击。
 
 如果手环曾收到可信 Snapshot，主页显示最后一次同步的能量、风格和 BPM。如果本次启动还没有收到过 Snapshot，使用一组明确标成 `PREVIEW` 的本地展示数据：
 
@@ -36,19 +36,22 @@ STYLE   HIPHOP
 96 BPM  /  PREVIEW
 ```
 
-预览状态保留原版人物插画和卡片排版，但不能被当作现场状态，也不能生成 Command。
+预览状态保留原版人物插画和卡片排版。用户可以进入二级页并左右滑动查看五档能量和四种风格。点击预览项时只显示 `CONNECT HUB TO SEND`，不生成 Command，也不缓存选择。
 
 ## 状态规则
 
 应用状态新增一个明确的“查看主页”动作。该动作只改变屏幕，不改变 BLE 链路状态。
 
 - `CONNECTING + 非 READY`：允许进入离线主页；
-- `HOME + 非 READY`：渲染只读主页与离线遮罩；
+- `HOME + 非 READY`：渲染可浏览的离线主页；
+- `ENERGY / STYLE + 非 READY`：允许左右滑动预览和返回主页；
 - `HOME + READY`：渲染正常主页；
 - `SENDING` 或 `TRANSITION`：不允许通过返回动作离开；
 - Hub 重连并写入 Snapshot 后，以 Hub 状态为准更新页面。
 
-现有“非 READY 时忽略全部 UI action”的入口需要拆开处理：查看主页和返回主页可以执行，能量、风格和发送动作仍然被拦截。
+现有“非 READY 时忽略全部 UI action”的入口需要拆开处理：查看主页、打开能量/风格和返回主页可以执行。`SET_ENERGY`、`SET_STYLE`、手势预览和所有发送动作仍然被拦截。
+
+离线轮播不允许产生待发送命令。Hub 在浏览期间连上后，以 Hub 首次 Snapshot 的真实状态重新渲染页面，不沿用离线选择。
 
 ## 圆角安全区
 
@@ -64,7 +67,7 @@ STYLE   HIPHOP
 
 - `components/flow_core/`：离线查看主页的状态规则；
 - `components/flow_ui/flow_ui_connection.c`：`VIEW HOME` 按钮；
-- `components/flow_ui/flow_ui_home.c`：无 Snapshot 时的占位内容；
+- `components/flow_ui/flow_ui_home.c`：无 Snapshot 时的完整预览内容；
 - `components/flow_ui/flow_ui_carousel.c`：返回键安全区；
 - `components/flow_ui/flow_ui.c`：非 READY 状态下的页面选择；
 - `main/app_main.c`：允许离线导航动作通过；
@@ -76,8 +79,9 @@ STYLE   HIPHOP
 
 1. 不启动 Hub，手环停在连接页时可以点击 `VIEW HOME`。
 2. 离线主页显示 `HUB OFFLINE`，首次启动显示带人物插画的本地预览数据。
-3. 离线点击能量或风格不会打开控制页，也不会产生 Command。
-4. Hub 在后台连接完成后，主页自动显示真实 Snapshot 并恢复控制。
-5. 能量页和风格页的返回键在圆角屏上容易点击，返回主页只触发一次。
-6. Hub 正在切歌时，返回动作仍被禁止。
-7. 主机测试、模拟版构建、BLE 版构建和真机启动检查通过。
+3. 离线点击能量或风格可以打开轮播并左右浏览。
+4. 离线点击最终预览项显示 `CONNECT HUB TO SEND`，不产生 Command。
+5. Hub 在后台连接完成后，页面显示真实 Snapshot 并恢复控制。
+6. 能量页和风格页的返回键在圆角屏上容易点击，返回主页只触发一次。
+7. Hub 正在切歌时，返回动作仍被禁止。
+8. 主机测试、模拟版构建、BLE 版构建和真机启动检查通过。
