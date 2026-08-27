@@ -269,15 +269,7 @@ def run_analysis_and_separation(song_id: str) -> None:
             logger.exception("[bg-analysis] DJ fingerprint failed for %s (non-fatal)", song_id)
             db.rollback()
 
-        # --- Phase 5: Genre classification ---
-        try:
-            _apply_genre_classification(db, song)
-            logger.info("[bg-analysis] genre classification ready for %s", song_id)
-        except Exception:
-            logger.exception("[bg-analysis] genre classification failed for %s (non-fatal)", song_id)
-            db.rollback()
-
-        # --- Phase 6: External style evidence enrichment ---
+        # --- Phase 5: External metadata enrichment ---
         try:
             from app.modules.library.external_metadata import run_enrich_song_external_metadata
 
@@ -295,34 +287,6 @@ def run_analysis_and_separation(song_id: str) -> None:
         db.rollback()
     finally:
         db.close()
-
-
-def _apply_genre_classification(db, song) -> None:
-    """Classify genre from audio features + Spotify metadata."""
-    from app.modules.library.genre_classifier import classify_genre
-
-    manual_style = None
-    try:
-        from app.modules.playlists.models import SongTag
-        tag = db.query(SongTag).filter(SongTag.song_id == song.song_id).first()
-        if tag and tag.style:
-            manual_style = tag.style
-    except Exception:
-        pass
-
-    result = classify_genre(
-        bpm=song.bpm,
-        stem_activity=getattr(song, "stem_activity", None),
-        groove_profile=getattr(song, "groove_profile", None),
-        dj_features=(getattr(song, "music_features", {}) or {}).get("dj"),
-        energy=song.energy,
-        title=song.title,
-        artist=song.artist,
-        manual_style=manual_style,
-    )
-    song.genre_profile = result
-    db.add(song)
-    db.commit()
 
 
 def copy_analysis_from(source: object, target: object) -> None:

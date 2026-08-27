@@ -12,16 +12,11 @@ from app.modules.library.percussion_feature_analysis import analyze_percussion_f
 from app.modules.library.rhythm_feature_analysis import analyze_rhythm_features
 from app.modules.library.style_feature_evidence import (
     STYLE_FEATURE_EVIDENCE_VERSION,
-    to_v2_feature,
     unavailable_feature,
 )
 
 
 TARGET_SAMPLE_RATE = 22050
-
-
-def _legacy_group(group: dict[str, dict]) -> dict[str, dict]:
-    return {name: to_v2_feature(feature) for name, feature in group.items()}
 
 
 def _count(values) -> int:
@@ -50,10 +45,6 @@ def empty_high_frequency_features(reason: str = "required_audio_unavailable") ->
         "music_context": {},
         "feature_groups": groups,
         "analysis_modules": {},
-        "rhythm_grammar": _legacy_group(groups["rhythm_grammar"]),
-        "low_frequency": _legacy_group(groups["low_frequency"]),
-        "percussion_timbre": _legacy_group(groups["percussion_timbre"]),
-        "sonic_profile": {},
         "confidence": {"overall": 0.0},
         "quality_flags": [reason],
         "selected_models": [],
@@ -155,12 +146,6 @@ def analyze_high_frequency_features(
     unavailable_modules = sum(value == 0 for value in module_confidences)
     status = "ready" if overall >= 0.55 and unavailable_modules == 0 else "degraded"
 
-    # Old callers can continue reading the four legacy groups while new style
-    # analysis consumes feature_groups with explicit availability semantics.
-    legacy_sonic = {
-        **_legacy_group(groups["harmony"]),
-        **_legacy_group(groups["production"]),
-    }
     return {
         "version": STYLE_FEATURE_EVIDENCE_VERSION,
         "status": status,
@@ -181,10 +166,6 @@ def analyze_high_frequency_features(
             "percussion": percussion,
             "musical_context": context,
         },
-        "rhythm_grammar": _legacy_group(groups["rhythm_grammar"]),
-        "low_frequency": _legacy_group(groups["low_frequency"]),
-        "percussion_timbre": _legacy_group(groups["percussion_timbre"]),
-        "sonic_profile": legacy_sonic,
         "confidence": {
             "overall": round(overall, 4),
             "rhythm": round(module_confidences[0], 4),

@@ -5,9 +5,7 @@ from pathlib import Path
 
 from app.modules.library.style_feature_evidence import (
     STYLE_FEATURE_EVIDENCE_VERSION,
-    from_v2_feature,
     make_feature_evidence,
-    to_v2_feature,
     unavailable_feature,
 )
 
@@ -39,32 +37,6 @@ def test_unavailable_is_unknown_instead_of_negative() -> None:
     assert feature["detected"] is None
     assert feature["score"] is None
     assert feature["evidence_level"] == "unavailable"
-
-
-def test_v2_adapter_preserves_available_evidence_and_marks_missing_input() -> None:
-    available = from_v2_feature(
-        {
-            "detected": True,
-            "score": 0.7,
-            "decision_threshold": 0.55,
-            "confidence": 0.65,
-            "time_ranges": [{"start": 1.0, "end": 1.2}],
-            "evidence": {"candidate_count": 3},
-        },
-        sources=["drums_stem"],
-        analysis_method="legacy_proxy_v2",
-    )
-    missing = from_v2_feature(
-        {"detected": False, "score": 0.0, "confidence": 0.0, "evidence": {}},
-        sources=["bass_stem"],
-        analysis_method="legacy_proxy_v2",
-    )
-
-    assert available["detected"] is True
-    assert available["evidence"]["candidate_count"] == 3
-    assert to_v2_feature(available)["detected"] is True
-    assert missing["detected"] is None
-    assert to_v2_feature(missing)["evidence"]["availability"] == "unavailable"
 
 
 def test_v3_schema_describes_available_and_unavailable_features() -> None:

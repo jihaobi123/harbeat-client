@@ -38,7 +38,6 @@ def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -
     assert "singing" in result["feature_groups"]["vocal_delivery"]
     assert "harmonic_complexity" in result["feature_groups"]["harmony"]
     assert "lofi_texture" in result["feature_groups"]["production"]
-    assert isinstance(result["rhythm_grammar"]["four_on_floor"]["detected"], bool)
 
 
 def test_pipeline_missing_audio_is_explicitly_unavailable() -> None:

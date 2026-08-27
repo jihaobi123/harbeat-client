@@ -350,10 +350,9 @@ def analyze_library_song_endpoint(
         {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
         for i, c in enumerate(raw_cues)
     ]
-    from app.modules.library.background_tasks import _apply_genre_classification, apply_dj_fingerprint
+    from app.modules.library.background_tasks import apply_dj_fingerprint
     from app.modules.library.external_metadata import run_enrich_song_external_metadata
     apply_dj_fingerprint(db, song)
-    _apply_genre_classification(db, song)
     run_enrich_song_external_metadata(db, song, force=False)
     song.analysis_status = "completed"
     db.commit()

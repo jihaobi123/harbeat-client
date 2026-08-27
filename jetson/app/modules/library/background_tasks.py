@@ -437,19 +437,6 @@ def _do_analysis_and_separation(song_id: str) -> None:
             except Exception:
                 pass
 
-        # --- Phase 5: Genre classification ---
-        try:
-            _apply_genre_classification(db, song)
-            logger.info("[bg-analysis] Phase 5: genre classification ready for %s", song_id)
-        except Exception as _e:
-            logger.exception("[bg-analysis] Phase 5 genre classification failed for %s (non-fatal)", song_id)
-            try:
-                song.analysis_error = (song.analysis_error or "") + f" | genre: {_e}"
-                song.analysis_error = song.analysis_error[:2000]
-                db.commit()
-            except Exception:
-                pass
-
         # Mark completed regardless of stem separation outcome
         from datetime import datetime as _dt
         song.analysis_status = "completed"
@@ -459,33 +446,6 @@ def _do_analysis_and_separation(song_id: str) -> None:
         logger.exception("[bg-analysis] unexpected error for %s", song_id)
     finally:
         db.close()
-
-
-def _apply_genre_classification(db, song) -> None:
-    """Classify genre from audio features plus optional metadata."""
-    from app.modules.library.genre_classifier import classify_genre
-
-    manual_style = None
-    try:
-        from app.modules.playlists.models import SongTag
-        tag = db.query(SongTag).filter(SongTag.song_id == song.song_id).first()
-        if tag and tag.style:
-            manual_style = tag.style
-    except Exception:
-        pass
-
-    song.genre_profile = classify_genre(
-        bpm=song.bpm,
-        stem_activity=getattr(song, "stem_activity", None),
-        groove_profile=getattr(song, "groove_profile", None),
-        dj_features=(getattr(song, "music_features", {}) or {}).get("dj"),
-        energy=song.energy,
-        title=song.title,
-        artist=song.artist,
-        manual_style=manual_style,
-    )
-    db.add(song)
-    db.commit()
 
 
 def copy_analysis_from(source: object, target: object) -> None:

@@ -8,9 +8,9 @@ from app.modules.library.background_tasks import apply_stem_analysis
 
 def test_stem_analysis_persists_pre_style_features_without_overwriting_dj_features() -> None:
     feature_analysis = {
-        "version": "pre_style_evidence_v2",
+        "version": "pre_style_evidence_v3",
         "status": "ready",
-        "selected_models": ["torchcrepe"],
+        "selected_models": ["drum-model"],
     }
     result = {
         "stem_activity": {},

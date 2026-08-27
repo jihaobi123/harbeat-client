@@ -9,6 +9,7 @@ import soundfile as sf
 
 from app.modules.library.feature_review_artifacts import render_review_clips, render_review_html
 from app.modules.library.feature_validation import ReviewPolicy, minimize_review_queue, triage_track_features
+from app.modules.library.style_feature_evidence import unavailable_feature
 
 
 def _feature(
@@ -21,17 +22,20 @@ def _feature(
     evidence: dict | None = None,
 ) -> dict:
     return {
+        "availability": "available",
         "detected": detected,
         "score": score,
         "decision_threshold": 0.55,
         "confidence": confidence,
+        "analysis_method": source_type,
+        "sources": ["test"],
         "time_ranges": time_ranges or [],
         "evidence": {"source_type": source_type, **(evidence or {})},
     }
 
 
 def test_triage_only_requests_risky_or_borderline_features() -> None:
-    analysis = {
+    analysis = {"feature_groups": {
         "rhythm_grammar": {
             "four_on_floor": _feature(
                 0.92, detected=True, confidence=0.93, source_type="deterministic_grid",
@@ -46,10 +50,10 @@ def test_triage_only_requests_risky_or_borderline_features() -> None:
             ),
         },
         "percussion_timbre": {},
-        "sonic_profile": {
+        "production": {
             "brightness": _feature(0.9, detected=True, confidence=0.9, source_type="dsp_fallback"),
         },
-    }
+    }}
     result = triage_track_features(
         track_id="track-a", title="Track A", duration=120.0,
         feature_analysis=analysis, policy=ReviewPolicy(audit_percent=0.0),
@@ -61,29 +65,47 @@ def test_triage_only_requests_risky_or_borderline_features() -> None:
     assert {item["feature"] for item in result["auto_accept"]} == {"four_on_floor", "brightness"}
 
 
-def test_cross_validated_pitch_slide_still_requires_808_timbre_review() -> None:
-    analysis = {
+def test_sliding_808_candidate_remains_human_auditable() -> None:
+    analysis = {"feature_groups": {
         "rhythm_grammar": {},
         "low_frequency": {
             "sliding_808": _feature(
                 0.94,
                 detected=True,
                 confidence=0.95,
-                source_type="mature_model_consensus",
+                source_type="bass_stft_event_fusion_v1",
                 time_ranges=[{"start": 12.0, "end": 12.8}],
-                evidence={"engines": ["torchcrepe", "spotify_basic_pitch"]},
+                evidence={"sub_808_identity_score": 0.9, "bass_slide_score": 0.94},
             ),
         },
         "percussion_timbre": {},
-        "sonic_profile": {},
-    }
+        "production": {},
+    }}
     result = triage_track_features(
         track_id="track-a", title="Track A", duration=120.0,
         feature_analysis=analysis, policy=ReviewPolicy(audit_percent=0.0),
     )
 
     assert result["manual_review"][0]["feature"] == "sliding_808"
-    assert "pitch_slide_does_not_validate_808_timbre" in result["manual_review"][0]["reasons"]
+    assert "semantic_class_uses_proxy" in result["manual_review"][0]["reasons"]
+
+
+def test_unavailable_v3_feature_is_not_counted_as_negative() -> None:
+    analysis = {"feature_groups": {"low_frequency": {
+        "sub_808": unavailable_feature(
+            "bass_stem_unavailable",
+            sources=["bass_stem"],
+            analysis_method="bass_stft_event_fusion_v1",
+        ),
+    }}}
+
+    result = triage_track_features(
+        track_id="track-a", title="Track A", duration=120.0,
+        feature_analysis=analysis, policy=ReviewPolicy(audit_percent=0.0),
+    )
+
+    assert result["auto_negative"] == []
+    assert result["unavailable"][0]["feature"] == "sub_808"
 
 
 def test_queue_limits_review_per_track_and_feature() -> None:

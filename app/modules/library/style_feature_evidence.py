@@ -1,10 +1,4 @@
-"""Versioned evidence records shared by feature and style analysis.
-
-The v3 contract makes a distinction that the legacy payload could not express:
-an analyser may have run and found no feature, or it may not have had the audio
-source required to make a decision.  Style scoring must never treat the latter
-as negative evidence.
-"""
+"""Versioned evidence records shared by feature and style analysis."""
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -85,64 +79,4 @@ def unavailable_feature(
         "sources": list(dict.fromkeys(sources or [])),
         "time_ranges": [],
         "evidence": {"reason": reason},
-    }
-
-
-def from_v2_feature(
-    feature: dict[str, Any] | None,
-    *,
-    sources: list[str],
-    analysis_method: str,
-) -> dict[str, Any]:
-    """Upgrade one legacy feature while preserving its measured evidence."""
-    feature = feature or {}
-    confidence = _clamp(feature.get("confidence", 0.0) or 0.0)
-    if confidence <= 0.0 and not feature.get("evidence"):
-        return unavailable_feature(
-            "legacy_analyser_had_no_usable_input",
-            sources=sources,
-            analysis_method=analysis_method,
-        )
-    score = _clamp(feature.get("score", 0.0) or 0.0)
-    threshold = _clamp(feature.get("decision_threshold", 0.55) or 0.55)
-    upgraded = make_feature_evidence(
-        score,
-        threshold=threshold,
-        confidence=confidence,
-        evidence=feature.get("evidence") or {},
-        time_ranges=feature.get("time_ranges") or [],
-        sources=sources,
-        analysis_method=analysis_method,
-    )
-    # Preserve a legacy decision at an exact historical boundary.
-    upgraded["detected"] = bool(feature.get("detected", upgraded["detected"]))
-    upgraded["evidence_level"] = evidence_level(
-        score,
-        confidence,
-        detected=upgraded["detected"],
-    )
-    return upgraded
-
-
-def to_v2_feature(feature: dict[str, Any]) -> dict[str, Any]:
-    """Downgrade for old consumers; unavailability is retained in evidence."""
-    if feature.get("availability") != "available":
-        return {
-            "detected": False,
-            "score": 0.0,
-            "decision_threshold": 0.55,
-            "confidence": 0.0,
-            "time_ranges": [],
-            "evidence": {
-                **dict(feature.get("evidence") or {}),
-                "availability": "unavailable",
-            },
-        }
-    return {
-        "detected": bool(feature.get("detected")),
-        "score": round(_clamp(feature.get("score", 0.0)), 4),
-        "decision_threshold": round(_clamp(feature.get("decision_threshold", 0.55)), 4),
-        "confidence": round(_clamp(feature.get("confidence", 0.0)), 4),
-        "time_ranges": list(feature.get("time_ranges") or []),
-        "evidence": dict(feature.get("evidence") or {}),
     }

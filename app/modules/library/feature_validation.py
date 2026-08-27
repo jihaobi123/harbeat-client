@@ -13,23 +13,26 @@ import hashlib
 from typing import Any, Iterable
 
 
-VALIDATION_VERSION = "pre_style_validation_v1"
+VALIDATION_VERSION = "pre_style_validation_v2"
 
 HIGH_RISK_SEMANTIC = {
     "sub_808",
     "sliding_808",
     "log_drum",
-    "clap",
-    "rim_snap",
-    "open_hihat",
-    "ride_crash",
-    "shaker",
-    "tambourine",
-    "cowbell_clave",
-    "tom",
-    "conga_bongo",
+    "wide_clap",
+    "short_rim_snap",
+    "short_metallic",
+    "sustained_metallic",
+    "low_pitched_drum",
+    "mid_pitched_drum",
+    "hand_drum_family",
+    "tonal_percussion",
+    "rage_synth",
 }
-EVENT_FEATURES = HIGH_RISK_SEMANTIC | {"closed_hihat", "general_percussion", "hihat_roll", "ghost_notes"}
+EVENT_FEATURES = HIGH_RISK_SEMANTIC | {
+    "bass_slide", "full_snare", "continuous_high_percussion", "repeated_tonal_motif",
+    "jersey_club", "tamborzao", "drill_hat", "breakbeat", "afro_syncopation",
+}
 DETERMINISTIC_RHYTHM = {
     "four_on_floor",
     "backbeat_2_4",
@@ -38,9 +41,11 @@ DETERMINISTIC_RHYTHM = {
     "dembow",
     "two_step",
     "swing",
-    "shuffle",
-    "hihat_roll",
-    "ghost_notes",
+    "jersey_club",
+    "tamborzao",
+    "drill_hat",
+    "breakbeat",
+    "afro_syncopation",
 }
 
 
@@ -64,7 +69,12 @@ def _stable_fraction(value: str) -> float:
 
 def _source_type(feature: dict[str, Any]) -> str:
     evidence = feature.get("evidence") or {}
-    return str(evidence.get("source_type") or evidence.get("detector") or "dsp_fallback")
+    return str(
+        evidence.get("source_type")
+        or feature.get("analysis_method")
+        or evidence.get("detector")
+        or "unknown"
+    )
 
 
 def _is_mature_source(source: str) -> bool:
@@ -110,7 +120,7 @@ def _representative_ranges(
 
 
 def _review_options(feature_name: str) -> list[str]:
-    if feature_name in {"sub_bass", "sub_808", "sliding_808", "log_drum"}:
+    if feature_name in {"sub_bass", "sub_808", "bass_slide", "sliding_808", "log_drum"}:
         return ["sub_bass", "808", "sliding_808", "log_drum", "other_bass", "absent", "uncertain"]
     if feature_name in HIGH_RISK_SEMANTIC or feature_name in {"closed_hihat", "general_percussion"}:
         return [feature_name, "other_percussion", "absent", "uncertain"]
@@ -150,15 +160,10 @@ def _decision(
         reasons.append("detected_without_auditable_time_range")
         priority += 0.25
     if feature_name == "sliding_808" and detected:
-        engines = evidence.get("engines") or []
-        if len(engines) < 2:
-            reasons.append("bass_slide_not_cross_validated")
-            priority += 0.36
-        if not evidence.get("instrument_validated", False):
-            # CREPE/Basic Pitch can confirm a pitch glide, but neither model
-            # identifies the sound source as an 808.  Keep the semantic part
-            # human-auditable until a dedicated 808 classifier supplies it.
-            reasons.append("pitch_slide_does_not_validate_808_timbre")
+        identity = float(evidence.get("sub_808_identity_score", 0.0) or 0.0)
+        motion = float(evidence.get("bass_slide_score", 0.0) or 0.0)
+        if identity < 0.62 or motion < 0.55:
+            reasons.append("sliding_808_components_inconsistent")
             priority += 0.55
     if feature_name in DETERMINISTIC_RHYTHM and detected:
         bars = int(evidence.get("bars_analyzed", 0) or 0)
@@ -188,18 +193,28 @@ def triage_track_features(
     policy: ReviewPolicy | None = None,
 ) -> dict[str, Any]:
     policy = policy or ReviewPolicy()
-    groups = (
-        "rhythm_grammar",
-        "low_frequency",
-        "percussion_timbre",
-        "sonic_profile",
-    )
+    groups = feature_analysis.get("feature_groups") or {}
     auto_accept: list[dict[str, Any]] = []
     auto_negative: list[dict[str, Any]] = []
+    unavailable: list[dict[str, Any]] = []
     review: list[dict[str, Any]] = []
-    for group_name in groups:
-        for feature_name, feature in (feature_analysis.get(group_name) or {}).items():
+    for group_name, group_features in groups.items():
+        for feature_name, feature in (group_features or {}).items():
             if not isinstance(feature, dict):
+                continue
+            if feature.get("availability") == "unavailable":
+                unavailable.append({
+                    "track_id": track_id,
+                    "title": title,
+                    "group": group_name,
+                    "feature": feature_name,
+                    "predicted": None,
+                    "score": None,
+                    "confidence": 0.0,
+                    "source_type": _source_type(feature),
+                    "evidence": feature.get("evidence") or {},
+                    "disposition": "unavailable",
+                })
                 continue
             disposition, reasons, priority = _decision(
                 track_id, group_name, feature_name, feature, policy,
@@ -209,7 +224,7 @@ def triage_track_features(
                 "title": title,
                 "group": group_name,
                 "feature": feature_name,
-                "predicted": bool(feature.get("detected")),
+                "predicted": feature.get("detected"),
                 "score": float(feature.get("score", 0.0) or 0.0),
                 "decision_threshold": float(feature.get("decision_threshold", 0.55) or 0.55),
                 "confidence": float(feature.get("confidence", 0.0) or 0.0),
@@ -243,6 +258,7 @@ def triage_track_features(
         "duration": round(float(duration), 3),
         "auto_accept": auto_accept,
         "auto_negative": auto_negative,
+        "unavailable": unavailable,
         "manual_review": review,
     }
 
@@ -288,6 +304,7 @@ def minimize_review_queue(
             "track_count": len(tracks),
             "auto_accept_count": sum(len(track.get("auto_accept", [])) for track in tracks),
             "auto_negative_count": sum(len(track.get("auto_negative", [])) for track in tracks),
+            "unavailable_count": sum(len(track.get("unavailable", [])) for track in tracks),
             "manual_candidate_count": len(candidates),
             "manual_selected_count": len(selected),
             "manual_deferred_count": len(deferred),

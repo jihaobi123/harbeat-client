@@ -39,8 +39,9 @@ marked for review. The result reports `selected_engine`, `detector_mode`, and
 fallback. Neither route may be advertised as a real-song accuracy figure
 before annotated-set validation.
 
-The application pipeline additionally persists
-`music_features.pre_style_features`. See
+The application pipeline persists v3 facts in
+`music_features.pre_style_features` and the separate 21-style result in
+`music_features.high_frequency_styles`. See
 `docs/pre_style_feature_analysis_backend_deployment.md` for model-worker
 contracts, licensing constraints, feature semantics, and acceptance commands.
 

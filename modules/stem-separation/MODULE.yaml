@@ -1,8 +1,8 @@
 id: stem-separation
-version: 0.3.0
+version: 0.4.0
 owners:
   - jetson
-purpose: Offline Demucs separation plus mature-model-first drum and pre-style feature analysis.
+purpose: Offline Demucs separation plus drum transcription and v3 style-ready feature analysis.
 inputs:
   - original audio path
   - optional existing stem paths
@@ -14,7 +14,7 @@ outputs:
   - completeness, reconstruction, and activity metadata
   - kick, snare, hi-hat, tom, and cymbal event candidates
   - drum density, 16-step pattern, fill candidates, and confidence
-  - rhythm grammar, bass motion, percussion timbre, and sonic evidence
+  - rhythm grammar, Bass/808/Log Drum, percussion-family, vocal, harmony, and production evidence
 runtime_dependencies:
   - Python 3.10.12
   - demucs installed in the deployment virtualenv
@@ -22,16 +22,13 @@ runtime_dependencies:
   - soundfile
   - librosa
   - ffmpeg for optional preview export
-  - optional torchcrepe feature worker
-  - optional dedicated drum-transcription and audio-tagging workers
+  - optional dedicated drum-transcription worker
 data_dependencies:
   - original audio file
   - htdemucs model cache on Jetson
 models:
   - htdemucs
-  - optional torchcrepe
   - external drum transcriber selected by deployment license
-  - external YAMNet or PANNs audio tagger
 source_assets:
   - app/modules/library/drum_analysis.py
   - app/modules/library/stem_analysis.py
@@ -48,6 +45,6 @@ tests:
 contracts:
   - modules/stem-separation/contracts/stem-result.schema.json
   - modules/stem-separation/contracts/drum-analysis.schema.json
-  - modules/stem-separation/contracts/pre-style-features.schema.json
+  - modules/stem-separation/contracts/pre-style-features-v3.schema.json
 artifact_sha256: pending
 rollback_artifact: git tag module/stem-separation/v0.1.0

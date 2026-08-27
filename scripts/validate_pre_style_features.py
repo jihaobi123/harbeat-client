@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -83,18 +82,11 @@ def analyze(
     manifest_path: Path,
     output_dir: Path,
     *,
-    panns_checkpoint: Path | None,
     max_review_items: int,
 ) -> dict[str, Any]:
     tracks = json.loads(manifest_path.read_text(encoding="utf-8"))
     raw_dir = output_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    if panns_checkpoint and panns_checkpoint.is_file():
-        worker = ROOT / "scripts/panns_audio_tagger.py"
-        os.environ["FEATURE_AUDIO_TAGGER_COMMAND"] = (
-            f'{sys.executable} "{worker}" --audio "{{audio}}" --checkpoint "{panns_checkpoint}"'
-        )
-    os.environ.setdefault("FEATURE_ENABLE_BASIC_PITCH", "false")
     track_results = []
     track_assets = {}
     for index, track in enumerate(tracks, start=1):
@@ -158,7 +150,6 @@ def main() -> None:
     analyze_parser = subparsers.add_parser("analyze")
     analyze_parser.add_argument("--manifest", type=Path, required=True)
     analyze_parser.add_argument("--output-dir", type=Path, required=True)
-    analyze_parser.add_argument("--panns-checkpoint", type=Path)
     analyze_parser.add_argument("--max-review-items", type=int, default=24)
     args = parser.parse_args()
     if args.command == "separate":
@@ -169,7 +160,6 @@ def main() -> None:
         result = analyze(
             args.manifest,
             args.output_dir,
-            panns_checkpoint=args.panns_checkpoint,
             max_review_items=max(1, args.max_review_items),
         )
         print(json.dumps(result["summary"], ensure_ascii=False, indent=2))

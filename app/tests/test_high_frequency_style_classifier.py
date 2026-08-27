@@ -89,7 +89,7 @@ def test_unavailable_feature_reduces_coverage_instead_of_becoming_negative() -> 
 
 
 def test_missing_v3_features_returns_unavailable_result() -> None:
-    result = classify_high_frequency_styles({"version": "pre_style_evidence_v2"})
+    result = classify_high_frequency_styles({"version": "pre_style_evidence_v3"})
 
     assert result["status"] == "unavailable"
     assert result["top_styles"] == []

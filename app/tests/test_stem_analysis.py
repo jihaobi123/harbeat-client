@@ -37,10 +37,7 @@ class StemAnalysisTests(unittest.TestCase):
             original_path = os.path.join(td, "original.wav")
             sf.write(original_path, original, sr)
 
-            with patch.dict(os.environ, {
-                "FEATURE_ENABLE_TORCHCREPE": "false",
-                "FEATURE_ENABLE_BASIC_PITCH": "false",
-            }):
+            with patch.dict(os.environ, {"FEATURE_DRUM_TRANSCRIBER_COMMAND": ""}):
                 result = analyze_stem_files(paths, original_path=original_path, window_sec=2.0)
 
         self.assertEqual(len(result["stem_activity_windows"]), 4)
@@ -56,10 +53,10 @@ class StemAnalysisTests(unittest.TestCase):
         self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v3")
         self.assertIn("feature_groups", result["feature_analysis"])
         self.assertIn("analysis_modules", result["feature_analysis"])
-        self.assertIn("rhythm_grammar", result["feature_analysis"])
-        self.assertIn("low_frequency", result["feature_analysis"])
-        self.assertIn("percussion_timbre", result["feature_analysis"])
-        self.assertIn("sonic_profile", result["feature_analysis"])
+        self.assertIn("rhythm_grammar", result["feature_analysis"]["feature_groups"])
+        self.assertIn("low_frequency", result["feature_analysis"]["feature_groups"])
+        self.assertIn("percussion_timbre", result["feature_analysis"]["feature_groups"])
+        self.assertIn("production", result["feature_analysis"]["feature_groups"])
         self.assertIn("mature_models_unavailable_using_dsp_fallbacks", result["feature_analysis"]["quality_flags"])
         self.assertGreater(result["stem_quality_score"], 0.9)
         self.assertEqual(result["stem_quality_profile"]["completeness"], 1.0)

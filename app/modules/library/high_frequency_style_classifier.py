@@ -60,7 +60,7 @@ def _evidence_item(path: str, feature: dict, weight: float, contribution: float)
         "confidence": round(confidence, 4),
         "weight": round(float(weight), 4),
         "contribution": round(float(contribution), 4),
-        "evidence_level": feature.get("evidence_level", "legacy"),
+        "evidence_level": feature.get("evidence_level", "unavailable"),
         "time_ranges": list(feature.get("time_ranges") or [])[:12],
     }
 

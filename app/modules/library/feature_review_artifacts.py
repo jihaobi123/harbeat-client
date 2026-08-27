@@ -40,6 +40,8 @@ def _focus_path(group_name: str, assets: dict[str, str]) -> str | None:
         return assets.get("bass")
     if group_name in {"percussion_timbre", "rhythm_grammar"}:
         return assets.get("drums")
+    if group_name == "vocal_delivery":
+        return assets.get("vocals")
     return assets.get("other")
 
 
