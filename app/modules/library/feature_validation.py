@@ -32,11 +32,15 @@ HIGH_RISK_SEMANTIC = {
     "hand_drum_family",
     "tonal_percussion",
     "rage_synth",
+    "offbeat_open_hat",
+    "drum_machine_consistency",
 }
 EVENT_FEATURES = HIGH_RISK_SEMANTIC | {
     "bass_slide", "sliding_bass_candidate", "bass_reply_pattern",
     "full_snare", "continuous_high_percussion", "repeated_tonal_motif",
     "jersey_club", "tamborzao", "drill_hat", "breakbeat", "afro_syncopation",
+    "offbeat_open_hat", "four_floor_stability", "timing_quantization",
+    "drum_loop_repetition", "drum_machine_consistency",
 }
 DETERMINISTIC_RHYTHM = {
     "four_on_floor",
@@ -51,6 +55,9 @@ DETERMINISTIC_RHYTHM = {
     "drill_hat",
     "breakbeat",
     "afro_syncopation",
+    "four_floor_stability",
+    "timing_quantization",
+    "drum_loop_repetition",
 }
 
 

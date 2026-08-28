@@ -66,7 +66,8 @@ def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[s
     }
     normalized = {name: [] for name in DRUM_CLASSES}
     for raw_name, values in raw_events.items():
-        name = aliases.get(str(raw_name).strip().lower(), str(raw_name).strip().lower())
+        raw_family = str(raw_name).strip().lower()
+        name = aliases.get(raw_family, raw_family)
         if name not in normalized or not isinstance(values, list):
             continue
         for value in values:
@@ -96,6 +97,7 @@ def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[s
                 "intensity_source": "pending_waveform_measurement",
                 "velocity": velocity,
                 "velocity_source": "model" if velocity is not None else "unavailable",
+                "subtype": raw_family,
             })
     for name in DRUM_CLASSES:
         normalized[name].sort(key=lambda item: item["time"])

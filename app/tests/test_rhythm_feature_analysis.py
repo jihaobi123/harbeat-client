@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.rhythm_feature_analysis import analyze_rhythm_features
+from app.modules.library.rhythm_feature_analysis import (
+    _rhythm_boundary_descriptors,
+    analyze_rhythm_features,
+)
 
 
 def _events_for_steps(steps: list[int], bars: int = 12, bar_length: float = 2.0) -> list[dict]:
@@ -129,3 +132,66 @@ def test_dense_snare_proxy_does_not_confirm_backbeat_and_halftime_together() -> 
     assert backbeat["reliability"] <= 0.55
     assert halftime["reliability"] <= 0.55
     assert "rhythm_uses_spectral_drum_proxy" in result["quality_flags"]
+
+
+def test_dance_boundary_features_require_cross_bar_consistency() -> None:
+    beats, downbeats = _grid()
+    analysis = {
+        "detector_mode": "dedicated_model",
+        "confidence": {"overall": 0.9},
+        "events": {
+            "kick": _events_for_steps([0, 4, 8, 12]),
+            "snare": _events_for_steps([4, 12]),
+            "hihat": [
+                {**event, "subtype": "open_hihat"}
+                for event in _events_for_steps([2, 6, 10, 14])
+            ],
+        },
+    }
+
+    result = analyze_rhythm_features(
+        analysis, bpm=120, beat_points=beats, downbeats=downbeats, duration=24.0,
+    )
+
+    assert result["features"]["four_floor_stability"]["score"] > 0.9
+    assert result["features"]["offbeat_open_hat"]["score"] > 0.9
+    assert result["features"]["timing_quantization"]["score"] > 0.9
+    assert result["features"]["drum_loop_repetition"]["score"] > 0.9
+    assert result["features"]["offbeat_open_hat"]["evidence"]["explicit_open_hat_event_count"] > 0
+
+
+def test_open_hat_identity_stays_proxy_limited_without_subtype() -> None:
+    beats, downbeats = _grid()
+    result = analyze_rhythm_features(
+        {
+            "detector_mode": "fallback",
+            "confidence": {"overall": 0.58},
+            "events": {
+                "kick": _events_for_steps([0, 4, 8, 12]),
+                "snare": _events_for_steps([4, 12]),
+                "hihat": _events_for_steps([2, 6, 10, 14]),
+            },
+        },
+        bpm=120, beat_points=beats, downbeats=downbeats, duration=24.0,
+    )
+
+    feature = result["features"]["offbeat_open_hat"]
+    assert feature["score"] > 0.9
+    assert feature["reliability"] <= 0.55
+    assert feature["quality"]["calibration_status"] == "hat_family_proxy_only"
+    assert "open_hat_subtype_unavailable" in feature["quality_flags"]
+
+
+def test_boundary_descriptor_penalizes_one_bar_four_floor_fragment() -> None:
+    kick = [{0, 4, 8, 12}] + [{0, 7, 13} for _ in range(7)]
+    snare = [{4, 12} for _ in range(8)]
+    hats = [{2, 6, 10, 14} for _ in range(8)]
+    bars = np.arange(0.0, 18.0, 2.0)
+    records = [{"time": bar * 2.0 + step / 8.0} for bar in range(8) for step in range(16)]
+
+    result = _rhythm_boundary_descriptors(
+        kick=kick, snare=snare, hats=hats, bars=bars, event_records=records,
+    )
+
+    assert result["four_floor_bar_coverage"] < 0.3
+    assert result["four_floor_stability_score"] < 0.55

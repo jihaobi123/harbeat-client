@@ -8,11 +8,13 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v2"
+RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v3"
 RHYTHM_FEATURES = (
     "four_on_floor", "backbeat_2_4", "halftime_snare_3", "jersey_club",
     "tamborzao", "dembow", "tresillo", "two_step", "drill_hat",
     "breakbeat", "swing", "afro_syncopation",
+    "offbeat_open_hat", "four_floor_stability", "timing_quantization",
+    "drum_loop_repetition", "drum_machine_consistency",
 )
 
 
@@ -35,6 +37,21 @@ def _event_times(analysis: dict | None, *names: str) -> np.ndarray:
             except (AttributeError, TypeError, ValueError):
                 continue
     return _points(values)
+
+
+def _event_records(analysis: dict | None, *names: str) -> list[dict[str, Any]]:
+    result = []
+    events = ((analysis or {}).get("events") or {})
+    for name in names:
+        for value in events.get(name, []):
+            if isinstance(value, dict):
+                result.append(value)
+            else:
+                try:
+                    result.append({"time": float(value)})
+                except (TypeError, ValueError):
+                    continue
+    return result
 
 
 def _bars(downbeats, beats, bpm: float | None, duration: float) -> np.ndarray:
@@ -78,6 +95,109 @@ def _match(steps: set[int], targets: set[int]) -> float:
 
 def _combined(kick: set[int], snare: set[int], kick_target: set[int], snare_target: set[int]) -> float:
     return 0.58 * _match(kick, kick_target) + 0.42 * _match(snare, snare_target)
+
+
+def _signature_similarity(left: set[tuple[str, int]], right: set[tuple[str, int]]) -> float:
+    if not left and not right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    return 2.0 * len(left & right) / (len(left) + len(right))
+
+
+def _rhythm_boundary_descriptors(
+    *,
+    kick: list[set[int]],
+    snare: list[set[int]],
+    hats: list[set[int]],
+    bars: np.ndarray,
+    event_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    analyzed = min(len(kick), len(snare), len(hats))
+    four_scores = [_match(value, {0, 4, 8, 12}) for value in kick[:analyzed]]
+    four_matches = [value >= 0.72 for value in four_scores]
+    four_coverage = float(np.mean(four_matches)) if four_matches else 0.0
+    four_continuity = _longest_run(four_matches) / max(1, len(four_matches))
+    four_stability = _clamp(1.0 - float(np.std(four_scores)) / 0.30) if four_scores else 0.0
+    four_floor_stability = _clamp(
+        (float(np.mean(four_scores)) if four_scores else 0.0)
+        * np.sqrt(four_coverage)
+        * (0.55 + 0.45 * four_continuity)
+        * four_stability
+    )
+
+    hat_scores = [_match(value, {2, 6, 10, 14}) for value in hats[:analyzed]]
+    offbeat_hat_coverage = float(np.mean([value >= 0.70 for value in hat_scores])) if hat_scores else 0.0
+    offbeat_hat_score = _clamp(
+        (float(np.mean(hat_scores)) if hat_scores else 0.0) * np.sqrt(offbeat_hat_coverage)
+    )
+
+    signatures = [
+        ({("kick", step) for step in kick[index]}
+         | {("snare", step) for step in snare[index]}
+         | {("hat", step) for step in hats[index]})
+        for index in range(analyzed)
+    ]
+    recurrence_by_lag: dict[str, float] = {}
+    for lag in (1, 2, 4):
+        values = [
+            _signature_similarity(signatures[index], signatures[index + lag])
+            for index in range(len(signatures) - lag)
+            if signatures[index] and signatures[index + lag]
+        ]
+        if values:
+            recurrence_by_lag[str(lag)] = round(float(np.mean(values)), 4)
+    loop_repetition = max(recurrence_by_lag.values(), default=0.0)
+    loop_coverage = sum(bool(value) for value in signatures) / max(1, len(signatures))
+    loop_score = _clamp(loop_repetition * np.sqrt(loop_coverage))
+
+    timing_errors = []
+    for record in event_records:
+        try:
+            timestamp = float(record.get("time"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        index = int(np.searchsorted(bars, timestamp, side="right") - 1)
+        if index < 0 or index >= len(bars) - 1 or bars[index + 1] <= bars[index]:
+            continue
+        bar_length = float(bars[index + 1] - bars[index])
+        exact_step = (timestamp - bars[index]) / bar_length * 16.0
+        timing_errors.append(abs(exact_step - round(exact_step)) * bar_length / 16.0)
+    median_error_ms = float(np.median(timing_errors) * 1000.0) if timing_errors else None
+    p90_error_ms = float(np.percentile(timing_errors, 90) * 1000.0) if timing_errors else None
+    quantization_score = _clamp(
+        1.0 - (0.40 * median_error_ms + 0.60 * p90_error_ms) / 55.0
+    ) if median_error_ms is not None and p90_error_ms is not None else 0.0
+
+    intensities = []
+    for record in event_records:
+        try:
+            value = float(record.get("relative_intensity"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if np.isfinite(value):
+            intensities.append(value)
+    intensity_consistency = _clamp(1.0 - float(np.std(intensities)) / 0.35) if len(intensities) >= 4 else 0.5
+    drum_machine_score = _clamp(
+        0.45 * quantization_score + 0.40 * loop_score + 0.15 * intensity_consistency
+    )
+    return {
+        "four_floor_stability_score": four_floor_stability,
+        "four_floor_bar_coverage": round(four_coverage, 4),
+        "four_floor_continuity": round(four_continuity, 4),
+        "four_floor_cross_bar_stability": round(four_stability, 4),
+        "offbeat_hat_score": offbeat_hat_score,
+        "offbeat_hat_bar_coverage": round(offbeat_hat_coverage, 4),
+        "loop_score": loop_score,
+        "loop_bar_coverage": round(loop_coverage, 4),
+        "recurrence_by_lag_bars": recurrence_by_lag,
+        "timing_event_count": len(timing_errors),
+        "median_grid_error_ms": None if median_error_ms is None else round(median_error_ms, 4),
+        "p90_grid_error_ms": None if p90_error_ms is None else round(p90_error_ms, 4),
+        "quantization_score": quantization_score,
+        "intensity_consistency": round(intensity_consistency, 4),
+        "drum_machine_score": drum_machine_score,
+    }
 
 
 def _ranges(indices: list[int], bars: np.ndarray) -> list[dict[str, float]]:
@@ -206,7 +326,12 @@ def analyze_rhythm_features(
         (len(kick_times) + len(snare_times) + len(hat_times)) / max(duration * 1.2, 12.0)
     )
 
-    raw: dict[str, list[float]] = {name: [] for name in RHYTHM_FEATURES if name != "swing"}
+    template_names = (
+        "four_on_floor", "backbeat_2_4", "halftime_snare_3", "jersey_club",
+        "tamborzao", "dembow", "tresillo", "two_step", "drill_hat",
+        "breakbeat", "afro_syncopation",
+    )
+    raw: dict[str, list[float]] = {name: [] for name in template_names}
     for index in range(analyzed):
         k, s = kick[index], snare[index]
         h = hats[index] if index < len(hats) else set()
@@ -268,6 +393,17 @@ def analyze_rhythm_features(
     median_delay = float(np.median(offbeat_delays)) if offbeat_delays else 0.0
     consistency = _clamp(1.0 - float(np.std(offbeat_delays)) / 0.12) if len(offbeat_delays) >= 3 else 0.0
     swing_score = _clamp(max(0.0, median_delay - 0.025) / 0.14 * consistency)
+
+    all_drum_records = _event_records(
+        drum_analysis, "kick", "snare", "clap", "rim", "hihat", "cymbal", "tom", "percussion",
+    )
+    boundary = _rhythm_boundary_descriptors(
+        kick=kick, snare=snare, hats=hats, bars=bars, event_records=all_drum_records,
+    )
+    explicit_open_hat_count = sum(
+        str(item.get("subtype") or "").lower() in {"open_hihat", "open_hi_hat"}
+        for item in _event_records(drum_analysis, "hihat")
+    )
 
     windows, best_by_name = _adaptive_windows(raw, bars, analyzed)
     flags = []
@@ -351,6 +487,116 @@ def analyze_rhythm_features(
             "median_offbeat_delay_beats": round(median_delay, 4),
             "offbeat_event_count": len(offbeat_delays),
             "timing_consistency": round(consistency, 4),
+        },
+    )
+    boundary_common = {
+        "bars_analyzed": analyzed,
+        "grid_resolution": 16,
+        "source_detector_mode": (drum_analysis or {}).get("detector_mode", "unknown"),
+    }
+    features["four_floor_stability"] = make_feature_evidence(
+        boundary["four_floor_stability_score"],
+        threshold=0.60,
+        confidence=quality,
+        source_quality=drum_source_quality,
+        estimator_quality=0.86,
+        coverage=boundary["four_floor_bar_coverage"],
+        stability=boundary["four_floor_cross_bar_stability"],
+        reliability_cap=0.55 if fallback_source else 1.0,
+        calibration_status="proxy_limited" if fallback_source else "provisional",
+        quality_flags=flags,
+        sources=["beat_grid", "downbeat_grid", "drum_transcription"],
+        analysis_method="four_floor_cross_bar_stability_v1",
+        evidence={
+            **boundary_common,
+            "bar_coverage": boundary["four_floor_bar_coverage"],
+            "continuity": boundary["four_floor_continuity"],
+            "cross_bar_stability": boundary["four_floor_cross_bar_stability"],
+            "semantic_rule": "four kick positions must persist across bars; a short favourable window is insufficient",
+        },
+    )
+    open_hat_cap = 1.0 if explicit_open_hat_count else (0.55 if fallback_source else 0.68)
+    features["offbeat_open_hat"] = make_feature_evidence(
+        boundary["offbeat_hat_score"],
+        threshold=0.58,
+        confidence=quality,
+        source_quality=drum_source_quality,
+        estimator_quality=0.82 if explicit_open_hat_count else 0.58,
+        coverage=boundary["offbeat_hat_bar_coverage"],
+        stability=_clamp(analyzed / 8.0),
+        reliability_cap=open_hat_cap,
+        calibration_status="provisional" if explicit_open_hat_count else "hat_family_proxy_only",
+        quality_flags=flags + ([] if explicit_open_hat_count else ["open_hat_subtype_unavailable"]),
+        sources=["beat_grid", "downbeat_grid", "drum_transcription"],
+        analysis_method="offbeat_open_hat_grid_v1",
+        evidence={
+            **boundary_common,
+            "target_steps": [2, 6, 10, 14],
+            "bar_coverage": boundary["offbeat_hat_bar_coverage"],
+            "explicit_open_hat_event_count": explicit_open_hat_count,
+            "semantic_rule": "offbeat hat-family events; open-hat identity is confirmed only when a dedicated transcriber preserves the subtype",
+        },
+    )
+    features["timing_quantization"] = make_feature_evidence(
+        boundary["quantization_score"],
+        threshold=0.62,
+        confidence=_clamp(boundary["timing_event_count"] / 32.0),
+        source_quality=drum_source_quality,
+        estimator_quality=0.82,
+        coverage=_clamp(boundary["timing_event_count"] / max(32.0, analyzed * 4.0)),
+        stability=_clamp(analyzed / 8.0),
+        reliability_cap=0.55 if fallback_source else 1.0,
+        calibration_status="proxy_limited" if fallback_source else "provisional",
+        quality_flags=flags,
+        sources=["downbeat_grid", "drum_transcription"],
+        analysis_method="sixteenth_grid_timing_deviation_v1",
+        evidence={
+            **boundary_common,
+            "event_count": boundary["timing_event_count"],
+            "median_grid_error_ms": boundary["median_grid_error_ms"],
+            "p90_grid_error_ms": boundary["p90_grid_error_ms"],
+            "semantic_rule": "absolute event deviation from the nearest local sixteenth-note position",
+        },
+    )
+    features["drum_loop_repetition"] = make_feature_evidence(
+        boundary["loop_score"],
+        threshold=0.60,
+        confidence=quality,
+        source_quality=drum_source_quality,
+        estimator_quality=0.84,
+        coverage=boundary["loop_bar_coverage"],
+        stability=_clamp(analyzed / 8.0),
+        reliability_cap=0.55 if fallback_source else 1.0,
+        calibration_status="proxy_limited" if fallback_source else "provisional",
+        quality_flags=flags,
+        sources=["downbeat_grid", "drum_transcription"],
+        analysis_method="drum_pattern_recurrence_v1",
+        evidence={
+            **boundary_common,
+            "bar_coverage": boundary["loop_bar_coverage"],
+            "recurrence_by_lag_bars": boundary["recurrence_by_lag_bars"],
+            "semantic_rule": "kick, snare and hat pattern recurrence at one, two or four bars",
+        },
+    )
+    features["drum_machine_consistency"] = make_feature_evidence(
+        boundary["drum_machine_score"],
+        threshold=0.65,
+        confidence=quality,
+        source_quality=drum_source_quality,
+        estimator_quality=0.62,
+        coverage=min(boundary["loop_bar_coverage"], _clamp(boundary["timing_event_count"] / 32.0)),
+        stability=_clamp(analyzed / 8.0),
+        reliability_cap=0.68,
+        calibration_status="semantic_candidate",
+        quality_flags=flags + ["drum_machine_identity_not_directly_observed"],
+        sources=["downbeat_grid", "drum_transcription"],
+        analysis_method="drum_machine_consistency_candidate_v1",
+        evidence={
+            **boundary_common,
+            "timing_quantization_score": round(boundary["quantization_score"], 4),
+            "loop_repetition_score": round(boundary["loop_score"], 4),
+            "intensity_consistency": boundary["intensity_consistency"],
+            "semantic_rule": "candidate only: highly quantized, repeating and dynamically consistent drums; does not identify a specific machine",
         },
     )
 
