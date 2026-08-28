@@ -165,7 +165,10 @@ def _bass_groove_descriptors(
             timing_offsets.append(abs(exact_step - round(exact_step)) * local_period / 4.0)
     placement_coverage = len(placement_weights) / max(1, len(ordered))
     raw_syncopation = float(np.mean(placement_weights)) if placement_weights else 0.0
-    syncopation_score = _clamp(raw_syncopation / 0.65)
+    # Keep the measured event fraction on its natural scale.  Dividing by
+    # 0.65 made ordinary offbeat bass lines saturate and erased the difference
+    # between moderate syncopation and consistently weak-sixteenth placement.
+    syncopation_score = _clamp(raw_syncopation)
 
     staccato_limit = min(0.32, 0.62 * beat_period) if beat_period else 0.28
     staccato_values = [
