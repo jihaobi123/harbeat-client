@@ -136,6 +136,7 @@ def analyze_high_frequency_features(
         arrays.get("bass"), arrays.get("drums"), analysis_sr,
         drum_analysis=drum_analysis,
         beat_points=beat_points,
+        downbeats=downbeats,
         original_audio=mix,
     )
     percussion = analyze_percussion_features(

@@ -17,7 +17,7 @@ from app.modules.library.style_feature_evidence import (
 )
 
 
-BASS_FEATURE_VERSION = "bass_features_v2"
+BASS_FEATURE_VERSION = "bass_features_v3"
 BASS_FEATURE_NAMES = (
     "sub_bass",
     "bass_pitch_stability",
@@ -28,6 +28,11 @@ BASS_FEATURE_NAMES = (
     "low_percussive_bass_candidate",
     "low_frequency_melody",
     "bass_reply_pattern",
+    "bass_syncopation",
+    "bass_staccato_ratio",
+    "bass_riff_repetition",
+    "bass_octave_pattern",
+    "bass_kick_interlock",
     "808_timbre_candidate",
     "log_drum_candidate",
     "sub_808",
@@ -84,6 +89,141 @@ def _nearest_distance(value: float, references: np.ndarray) -> float | None:
 def _band_energy(power: np.ndarray, frequencies: np.ndarray, low: float, high: float) -> float:
     mask = (frequencies >= low) & (frequencies < high)
     return float(np.sum(power[mask]))
+
+
+def _set_similarity(left: set[tuple[int, float]], right: set[tuple[int, float]]) -> float:
+    if not left and not right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    return 2.0 * len(left & right) / (len(left) + len(right))
+
+
+def _bass_groove_descriptors(
+    events: list[dict[str, Any]],
+    beat_points: np.ndarray,
+    downbeats: np.ndarray,
+    kick_times: np.ndarray,
+) -> dict[str, Any]:
+    """Measure note placement and recurrence without assigning a style label."""
+    ordered = sorted(events, key=lambda item: float(item["time"]))
+    beat_intervals = np.diff(beat_points)
+    valid_intervals = beat_intervals[(beat_intervals >= 0.20) & (beat_intervals <= 1.50)]
+    beat_period = float(np.median(valid_intervals)) if len(valid_intervals) else 0.0
+
+    placement_weights: list[float] = []
+    quantized_steps: list[int] = []
+    timing_offsets: list[float] = []
+    if beat_period > 0 and len(beat_points) >= 2:
+        for item in ordered:
+            value = float(item["time"])
+            index = int(np.searchsorted(beat_points, value, side="right") - 1)
+            if index < 0 or index >= len(beat_points) - 1:
+                continue
+            local_period = float(beat_points[index + 1] - beat_points[index])
+            if local_period <= 0:
+                continue
+            phase = np.clip((value - beat_points[index]) / local_period, 0.0, 0.9999)
+            exact_step = float(phase * 4.0)
+            step = int(round(exact_step)) % 4
+            placement_weights.append({0: 0.0, 1: 1.0, 2: 0.75, 3: 1.0}[step])
+            quantized_steps.append(step)
+            timing_offsets.append(abs(exact_step - round(exact_step)) * local_period / 4.0)
+    placement_coverage = len(placement_weights) / max(1, len(ordered))
+    raw_syncopation = float(np.mean(placement_weights)) if placement_weights else 0.0
+    syncopation_score = _clamp(raw_syncopation / 0.65)
+
+    staccato_limit = min(0.32, 0.62 * beat_period) if beat_period else 0.28
+    staccato_values = [float(item.get("decay_sec", 0.0)) <= staccato_limit for item in ordered]
+    staccato_fraction = float(np.mean(staccato_values)) if staccato_values else 0.0
+    staccato_score = _clamp(staccato_fraction / 0.70)
+
+    pitched = [
+        item for item in ordered
+        if item.get("pitch_method") == "pyin_candidate_segment"
+        and float(item.get("voiced_strength", 0.0)) >= PYIN_MIN_VOICED_PROB
+        and float(item.get("fundamental_hz", 0.0)) > 0
+    ]
+    midi = np.asarray([
+        69.0 + 12.0 * np.log2(float(item["fundamental_hz"]) / 440.0)
+        for item in pitched
+    ])
+    pitch_intervals = np.diff(midi) if len(midi) >= 2 else np.asarray([])
+    octave_mask = (np.abs(pitch_intervals) >= 10.75) & (np.abs(pitch_intervals) <= 13.25)
+    octave_fraction = float(np.mean(octave_mask)) if len(pitch_intervals) else 0.0
+    octave_score = _clamp(octave_fraction / 0.28)
+
+    bar_patterns: list[set[tuple[int, float]]] = []
+    if len(downbeats) >= 3:
+        for start, end in zip(downbeats[:-1], downbeats[1:], strict=True):
+            if end <= start:
+                continue
+            members = [item for item in pitched if start <= float(item["time"]) < end]
+            if not members:
+                bar_patterns.append(set())
+                continue
+            root = 69.0 + 12.0 * np.log2(float(members[0]["fundamental_hz"]) / 440.0)
+            pattern = set()
+            for item in members:
+                position = (float(item["time"]) - start) / (end - start)
+                step = int(np.clip(round(position * 16.0), 0, 15))
+                note = 69.0 + 12.0 * np.log2(float(item["fundamental_hz"]) / 440.0)
+                pattern.add((step, round((note - root) * 2.0) / 2.0))
+            bar_patterns.append(pattern)
+    recurrence_by_lag: dict[str, float] = {}
+    for lag in (1, 2, 4):
+        similarities = [
+            _set_similarity(bar_patterns[index], bar_patterns[index + lag])
+            for index in range(len(bar_patterns) - lag)
+            if bar_patterns[index] and bar_patterns[index + lag]
+        ]
+        if similarities:
+            recurrence_by_lag[str(lag)] = round(float(np.mean(similarities)), 4)
+    recurrence = max(recurrence_by_lag.values(), default=0.0)
+    bar_coverage = _divide_count(sum(bool(value) for value in bar_patterns), len(bar_patterns))
+    riff_score = _clamp(recurrence * np.sqrt(bar_coverage))
+
+    aligned = complementary = 0
+    relation_limit = min(0.28, 0.55 * beat_period) if beat_period else 0.24
+    if len(kick_times):
+        for item in ordered:
+            distance = _nearest_distance(float(item["time"]), kick_times)
+            if distance is None:
+                continue
+            if distance <= 0.085:
+                aligned += 1
+            elif distance <= relation_limit:
+                complementary += 1
+    relation_coverage = (aligned + complementary) / max(1, len(ordered))
+    complementary_share = complementary / max(1, aligned + complementary)
+    interlock_score = _clamp(relation_coverage * (0.35 + 0.65 * complementary_share))
+    return {
+        "beat_period_sec": round(beat_period, 4),
+        "placement_coverage": round(placement_coverage, 4),
+        "sixteenth_steps_within_beat": quantized_steps,
+        "mean_grid_offset_sec": round(float(np.mean(timing_offsets)), 4) if timing_offsets else None,
+        "raw_syncopated_event_fraction": round(raw_syncopation, 4),
+        "syncopation_score": syncopation_score,
+        "staccato_limit_sec": round(staccato_limit, 4),
+        "staccato_fraction": round(staccato_fraction, 4),
+        "staccato_score": staccato_score,
+        "octave_interval_fraction": round(octave_fraction, 4),
+        "octave_interval_count": int(np.sum(octave_mask)),
+        "pitched_interval_count": len(pitch_intervals),
+        "octave_score": octave_score,
+        "bar_count": len(bar_patterns),
+        "bar_coverage": round(bar_coverage, 4),
+        "recurrence_by_lag_bars": recurrence_by_lag,
+        "riff_score": riff_score,
+        "kick_aligned_count": aligned,
+        "kick_complementary_count": complementary,
+        "kick_relation_coverage": round(relation_coverage, 4),
+        "interlock_score": interlock_score,
+    }
+
+
+def _divide_count(numerator: int, denominator: int) -> float:
+    return float(numerator / denominator) if denominator else 0.0
 
 
 def _spectral_peak_pitch_track(clip: np.ndarray, sr: int) -> dict[str, Any]:
@@ -256,11 +396,12 @@ def analyze_bass_features(
     *,
     drum_analysis: dict | None = None,
     beat_points: list[float] | np.ndarray | None = None,
+    downbeats: list[float] | np.ndarray | None = None,
     original_audio: np.ndarray | None = None,
     source_quality: float = 0.75,
 ) -> dict[str, Any]:
     """Analyse Bass-stem events and return style-independent evidence."""
-    method = "bass_candidate_segment_pyin_v2"
+    method = "bass_candidate_segment_pyin_v3"
     required_sources = ["bass_stem", "drums_stem", "full_mix"]
     if bass is None or sr <= 0 or len(bass) < sr:
         return {
@@ -388,12 +529,14 @@ def analyze_bass_features(
     percussive = _clamp((average("attack_body_ratio") - 0.8) / 2.2)
     short_decay = _clamp((0.48 - average("decay_sec")) / 0.38)
     beat_array = np.asarray([] if beat_points is None else beat_points, dtype=float)
+    downbeat_array = np.asarray([] if downbeats is None else downbeats, dtype=float)
+    groove = _bass_groove_descriptors(events, beat_array, downbeat_array, kick_times)
     beat_alignment = 0.0
     if len(onsets) and len(beat_array):
         beat_alignment = float(np.mean([
             (_nearest_distance(float(value), beat_array) or 9.0) <= 0.075 for value in onsets
         ]))
-    syncopation = 1.0 - beat_alignment if len(beat_array) else 0.5
+    syncopation = float(groove["syncopation_score"]) if len(beat_array) else 0.5
     reply_score = _clamp(syncopation * (1.0 - aligned_fraction) * _clamp(len(events) / 6.0))
     log_drum_score = _clamp(
         0.25 * percussive
@@ -581,6 +724,85 @@ def analyze_bass_features(
             estimator_quality=0.70,
             sources=["bass_stem", "drums_stem", "beat_grid"],
             evidence={**common, "syncopation_score": round(syncopation, 4), "kick_separation_score": round(1.0 - aligned_fraction, 4)},
+        ),
+        "bass_syncopation": feature(
+            float(groove["syncopation_score"]),
+            estimator_quality=0.78,
+            coverage=float(groove["placement_coverage"]),
+            stability=_clamp(len(events) / 12.0),
+            sources=["bass_stem", "beat_grid"],
+            evidence={
+                **common,
+                "raw_syncopated_event_fraction": groove["raw_syncopated_event_fraction"],
+                "sixteenth_steps_within_beat": groove["sixteenth_steps_within_beat"][:64],
+                "mean_grid_offset_sec": groove["mean_grid_offset_sec"],
+                "semantic_rule": "bass onset placement on the local sixteenth-note grid; weak sixteenths count more than eighth offbeats",
+            },
+        ) if len(beat_array) >= 2 else unavailable_feature(
+            "beat_grid_unavailable", sources=["bass_stem", "beat_grid"], analysis_method=method,
+        ),
+        "bass_staccato_ratio": feature(
+            float(groove["staccato_score"]),
+            estimator_quality=0.70,
+            coverage=_clamp(len(events) / 8.0),
+            sources=["bass_stem"],
+            time_ranges=_ranges(events, lambda item: item["decay_sec"] <= groove["staccato_limit_sec"]),
+            evidence={
+                **common,
+                "staccato_fraction": groove["staccato_fraction"],
+                "maximum_staccato_decay_sec": groove["staccato_limit_sec"],
+                "semantic_rule": "short active bass envelopes relative to the measured beat period",
+            },
+        ),
+        "bass_octave_pattern": feature(
+            float(groove["octave_score"]),
+            estimator_quality=pitch_estimator_quality,
+            coverage=pitch_evidence_coverage,
+            stability=_clamp(float(groove["pitched_interval_count"]) / 10.0),
+            reliability_cap=pitch_reliability_cap,
+            sources=["bass_stem"],
+            evidence={
+                **common,
+                "octave_interval_fraction": groove["octave_interval_fraction"],
+                "octave_interval_count": groove["octave_interval_count"],
+                "pitched_interval_count": groove["pitched_interval_count"],
+                "accepted_interval_semitones": [10.75, 13.25],
+                "semantic_rule": "consecutive voiced bass notes separated by approximately one octave",
+            },
+        ),
+        "bass_riff_repetition": feature(
+            float(groove["riff_score"]),
+            estimator_quality=pitch_estimator_quality,
+            coverage=float(groove["bar_coverage"]),
+            stability=_clamp(float(groove["bar_count"]) / 8.0),
+            reliability_cap=pitch_reliability_cap,
+            sources=["bass_stem", "downbeat_grid"],
+            evidence={
+                **common,
+                "bar_count": groove["bar_count"],
+                "bar_coverage": groove["bar_coverage"],
+                "recurrence_by_lag_bars": groove["recurrence_by_lag_bars"],
+                "semantic_rule": "beat-quantized relative-pitch pattern recurrence at one, two or four bars",
+            },
+        ) if len(downbeat_array) >= 3 else unavailable_feature(
+            "downbeat_grid_unavailable", sources=["bass_stem", "downbeat_grid"], analysis_method=method,
+        ),
+        "bass_kick_interlock": feature(
+            float(groove["interlock_score"]),
+            estimator_quality=0.76,
+            coverage=float(groove["kick_relation_coverage"]),
+            stability=_clamp(len(events) / 12.0),
+            sources=["bass_stem", "drums_stem", "beat_grid"],
+            evidence={
+                **common,
+                "kick_event_count": len(kick_times),
+                "kick_aligned_count": groove["kick_aligned_count"],
+                "kick_complementary_count": groove["kick_complementary_count"],
+                "kick_relation_coverage": groove["kick_relation_coverage"],
+                "semantic_rule": "bass notes consistently alternate with nearby kicks; simple coincidence is retained by kick_bass_alignment",
+            },
+        ) if len(kick_times) and len(beat_array) >= 2 else unavailable_feature(
+            "kick_or_beat_grid_unavailable", sources=["bass_stem", "drums_stem", "beat_grid"], analysis_method=method,
         ),
     }
     # Compatibility aliases remain readable for persisted v3 rules.  The v2

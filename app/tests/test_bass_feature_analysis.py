@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.bass_feature_analysis import _pitch_track, analyze_bass_features
+from app.modules.library.bass_feature_analysis import (
+    _bass_groove_descriptors,
+    _pitch_track,
+    analyze_bass_features,
+)
 
 
 def _tone_events(
@@ -147,3 +151,43 @@ def test_missing_bass_stem_is_unavailable_not_negative() -> None:
     assert result["status"] == "unavailable"
     assert result["features"]["sub_808"]["availability"] == "unavailable"
     assert result["features"]["sub_808"]["detected"] is None
+
+
+def test_groove_descriptors_measure_syncopation_octaves_and_riff_recurrence() -> None:
+    beats = np.arange(0.0, 8.0, 0.5)
+    downbeats = np.arange(0.0, 10.0, 2.0)
+    kicks = np.arange(0.0, 8.0, 0.5)
+    events = []
+    for bar in range(4):
+        for offset, frequency in ((0.125, 55.0), (0.625, 110.0), (1.125, 55.0), (1.625, 110.0)):
+            events.append({
+                "time": bar * 2.0 + offset,
+                "decay_sec": 0.16,
+                "fundamental_hz": frequency,
+                "pitch_method": "pyin_candidate_segment",
+                "voiced_strength": 0.9,
+            })
+
+    result = _bass_groove_descriptors(events, beats, downbeats, kicks)
+
+    assert result["syncopation_score"] > 0.9
+    assert result["staccato_score"] > 0.9
+    assert result["octave_score"] > 0.9
+    assert result["riff_score"] > 0.9
+    assert result["interlock_score"] > 0.7
+
+
+def test_new_bass_features_are_unknown_without_required_grids() -> None:
+    bass, _ = _tone_events()
+    result = analyze_bass_features(
+        bass, np.zeros_like(bass), 8000,
+        drum_analysis={"events": {"kick": []}},
+        beat_points=[],
+        downbeats=[],
+        original_audio=bass,
+    )
+
+    assert result["features"]["bass_syncopation"]["detected"] is None
+    assert result["features"]["bass_riff_repetition"]["detected"] is None
+    assert result["features"]["bass_kick_interlock"]["detected"] is None
+    assert result["features"]["bass_staccato_ratio"]["availability"] == "available"
