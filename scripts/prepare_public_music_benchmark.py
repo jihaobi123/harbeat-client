@@ -134,12 +134,53 @@ def download_candidates(rows: list[dict], output_dir: Path) -> dict:
     return {"ready": ready, "failed": failed, "total": len(rows)}
 
 
+def render_clips(
+    rows: list[dict], output_dir: Path, *, start_seconds: float, duration_seconds: float,
+) -> dict:
+    import soundfile as sf
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ready = failed = 0
+    for row in rows:
+        source_value = row.get("local_audio")
+        target = output_dir / f"{row['clip_id']}.wav"
+        row["local_clip"] = str(target)
+        try:
+            if not source_value:
+                raise ValueError("local_audio is required before rendering clips")
+            with sf.SoundFile(str(source_value)) as source:
+                requested_frames = int(round(duration_seconds * source.samplerate))
+                requested_start = max(0, int(round(start_seconds * source.samplerate)))
+                # Short tracks use the latest possible full window instead of
+                # failing because the default 30-second anchor falls near EOF.
+                start_frame = min(requested_start, max(0, len(source) - requested_frames))
+                frames = min(requested_frames, len(source) - start_frame)
+                row["start_seconds"] = round(start_frame / source.samplerate, 4)
+                row["end_seconds"] = round((start_frame + frames) / source.samplerate, 4)
+                if target.is_file() and target.stat().st_size > 4096:
+                    ready += 1
+                    continue
+                source.seek(start_frame)
+                audio = source.read(frames, dtype="float32", always_2d=True)
+                if len(audio) < source.samplerate * min(duration_seconds, 5.0):
+                    raise ValueError("source is too short for the requested benchmark clip")
+                sf.write(target, audio, source.samplerate, subtype="PCM_16")
+            ready += 1
+        except (OSError, RuntimeError, ValueError) as exc:
+            row["clip_error"] = f"{type(exc).__name__}: {exc}"
+            failed += 1
+    return {"ready": ready, "failed": failed, "total": len(rows)}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--per-style", type=int, default=10)
     parser.add_argument("--download-dir", type=Path)
+    parser.add_argument("--clip-dir", type=Path)
+    parser.add_argument("--clip-start", type=float, default=30.0)
+    parser.add_argument("--clip-duration", type=float, default=30.0)
     args = parser.parse_args()
     rows = select_candidates(
         args.dataset_root / "data" / "autotagging_genre.tsv",
@@ -150,9 +191,21 @@ def main() -> None:
     summary = None
     if args.download_dir:
         summary = download_candidates(rows, args.download_dir)
+    clip_summary = None
+    if args.clip_dir:
+        clip_summary = render_clips(
+            rows,
+            args.clip_dir,
+            start_seconds=max(0.0, args.clip_start),
+            duration_seconds=max(5.0, args.clip_duration),
+        )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"items": len(rows), "download": summary}, ensure_ascii=False, indent=2))
+    print(json.dumps(
+        {"items": len(rows), "download": summary, "clips": clip_summary},
+        ensure_ascii=False,
+        indent=2,
+    ))
 
 
 if __name__ == "__main__":

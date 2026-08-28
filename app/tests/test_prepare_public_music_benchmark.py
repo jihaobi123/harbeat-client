@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from scripts.prepare_public_music_benchmark import select_candidates
+import numpy as np
+import soundfile as sf
+
+from scripts.prepare_public_music_benchmark import render_clips, select_candidates
 
 
 def test_selector_preserves_multilabels_and_diversifies_artists(tmp_path: Path) -> None:
@@ -32,3 +35,19 @@ def test_selector_preserves_multilabels_and_diversifies_artists(tmp_path: Path) 
     funk_artists = {item["artist_group"] for item in result if "funk" in item["expected_styles"]}
     assert len(funk_artists) >= 2
     assert any("house" in item["expected_styles"] for item in result)
+
+
+def test_clip_renderer_reads_only_requested_window(tmp_path: Path) -> None:
+    sr = 8000
+    source = tmp_path / "source.wav"
+    sf.write(source, np.arange(sr * 10, dtype=np.float32) / (sr * 10), sr)
+    rows = [{"clip_id": "clip-1", "local_audio": str(source)}]
+
+    result = render_clips(rows, tmp_path / "clips", start_seconds=2.0, duration_seconds=3.0)
+    clip, clip_sr = sf.read(rows[0]["local_clip"])
+
+    assert result == {"ready": 1, "failed": 0, "total": 1}
+    assert clip_sr == sr
+    assert len(clip) == sr * 3
+    assert rows[0]["start_seconds"] == 2.0
+    assert rows[0]["end_seconds"] == 5.0
