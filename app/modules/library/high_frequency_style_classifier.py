@@ -12,9 +12,54 @@ from app.modules.library.high_frequency_style_taxonomy import (
 )
 
 
-STYLE_ANALYSIS_VERSION = "high_frequency_style_analysis_v3"
+STYLE_ANALYSIS_VERSION = "high_frequency_style_analysis_v4"
 MODEL_ROUTE_SUPPORT_FLOOR = 0.10
 MODEL_LABEL_COMPONENT_FLOOR = 0.02
+BOUNDARY_PAIR_MAX_GAP = 0.10
+BOUNDARY_TOTAL_ADJUSTMENT_CAP = 0.08
+
+
+BOUNDARY_PROFILES = {
+    ("funk", "disco"): (
+        {
+            "low_frequency.bass_syncopation": 1.2,
+            "low_frequency.bass_staccato_ratio": 0.9,
+            "low_frequency.bass_kick_interlock": 0.8,
+            "rhythm_grammar.backbeat_2_4": 0.5,
+        },
+        {
+            "low_frequency.bass_octave_pattern": 1.2,
+            "rhythm_grammar.four_floor_stability": 1.0,
+            "rhythm_grammar.offbeat_open_hat": 0.9,
+        },
+    ),
+    ("funk", "house"): (
+        {
+            "low_frequency.bass_syncopation": 1.2,
+            "low_frequency.bass_staccato_ratio": 0.9,
+            "low_frequency.bass_kick_interlock": 0.8,
+            "production.acoustic_production": 0.4,
+        },
+        {
+            "rhythm_grammar.timing_quantization": 1.0,
+            "rhythm_grammar.drum_loop_repetition": 0.9,
+            "rhythm_grammar.drum_machine_consistency": 0.8,
+            "production.electronic_production": 0.7,
+        },
+    ),
+    ("disco", "house"): (
+        {
+            "low_frequency.bass_octave_pattern": 1.2,
+            "production.acoustic_production": 0.5,
+            "harmony.chord_change_activity": 0.4,
+        },
+        {
+            "rhythm_grammar.timing_quantization": 1.0,
+            "rhythm_grammar.drum_machine_consistency": 0.9,
+            "production.electronic_production": 0.8,
+        },
+    ),
+}
 
 # Explicit label bridges for the optional Discogs/open-label route.  Exact or
 # close musical synonyms are direct; broader neighbouring subgenres are marked
@@ -362,6 +407,102 @@ def _fuse_model_support(styles: list[dict[str, Any]], mapping: dict[str, Any]) -
         style["model_adjustment"] = round(adjustment, 4)
 
 
+def _instrument_label_evidence(features: dict[str, Any]) -> dict[str, Any]:
+    route = (((features.get("model_evidence") or {}).get("routes") or {}).get("instrument_tags") or {})
+    if route.get("status") != "ready":
+        return {"status": "unavailable", "engine": route.get("engine"), "raw_labels": []}
+    labels = []
+    for item in ((route.get("result") or {}).get("labels") or [])[:20]:
+        if not isinstance(item, dict) or not item.get("label"):
+            continue
+        labels.append({
+            "label": str(item["label"]),
+            "score": round(_clamp(item.get("score", 0.0) or 0.0), 4),
+        })
+    return {
+        "status": "ready",
+        "engine": route.get("engine"),
+        "license": route.get("license"),
+        "raw_labels": labels,
+        "use": "auxiliary_observation_only",
+    }
+
+
+def _boundary_profile(groups: dict, weights: dict[str, float]) -> tuple[float, float, list[dict[str, Any]]]:
+    available = total = weighted = 0.0
+    evidence = []
+    for path, weight in weights.items():
+        total += weight
+        feature = _feature(groups, path)
+        if not _available(feature):
+            continue
+        score, reliability, effective = _effective(feature)
+        available += weight
+        weighted += weight * effective
+        evidence.append({
+            "feature": path,
+            "score": round(score, 4),
+            "reliability": round(reliability, 4),
+            "effective_score": round(effective, 4),
+        })
+    return weighted / max(available, 1e-8), available / max(total, 1e-8), evidence
+
+
+def _resolve_dance_boundaries(styles: list[dict[str, Any]], groups: dict) -> dict[str, Any]:
+    by_id = {item["style_id"]: item for item in styles}
+    adjustments = {style_id: 0.0 for style_id in {value for pair in BOUNDARY_PROFILES for value in pair}}
+    comparisons = []
+    for (left_id, right_id), (left_profile, right_profile) in BOUNDARY_PROFILES.items():
+        left = by_id[left_id]
+        right = by_id[right_id]
+        score_gap = abs(float(left["score"]) - float(right["score"]))
+        left_score, left_coverage, left_evidence = _boundary_profile(groups, left_profile)
+        right_score, right_coverage, right_evidence = _boundary_profile(groups, right_profile)
+        applied = score_gap <= BOUNDARY_PAIR_MAX_GAP and min(left_coverage, right_coverage) >= 0.50
+        signed_adjustment = _clamp(abs(left_score - right_score)) * 0.05
+        if left_score < right_score:
+            signed_adjustment *= -1.0
+        if applied:
+            adjustments[left_id] += signed_adjustment
+            adjustments[right_id] -= signed_adjustment
+        comparisons.append({
+            "pair": [left_id, right_id],
+            "pre_boundary_gap": round(score_gap, 4),
+            "applied": applied,
+            "left_profile_score": round(left_score, 4),
+            "right_profile_score": round(right_score, 4),
+            "left_coverage": round(left_coverage, 4),
+            "right_coverage": round(right_coverage, 4),
+            "signed_adjustment_to_left": round(signed_adjustment if applied else 0.0, 4),
+            "left_evidence": left_evidence,
+            "right_evidence": right_evidence,
+        })
+    applied_by_style = {}
+    for style_id, raw_adjustment in adjustments.items():
+        style = by_id[style_id]
+        adjustment = float(np.clip(
+            raw_adjustment, -BOUNDARY_TOTAL_ADJUSTMENT_CAP, BOUNDARY_TOTAL_ADJUSTMENT_CAP,
+        ))
+        style["pre_boundary_score"] = style["score"]
+        style["boundary_adjustment"] = round(adjustment, 4)
+        style["score"] = round(_clamp(float(style["score"]) + adjustment), 4)
+        style["confidence"] = round(min(style["score"], style["reliability"]), 4)
+        style["detected"] = bool(
+            style["score"] >= 0.55 and style["reliability"] >= 0.45
+            and style["required_evidence_ratio"] >= 1.0
+            and style["evidence_count"] >= style["minimum_evidence"]
+        )
+        applied_by_style[style_id] = round(adjustment, 4)
+    return {
+        "version": "funk_disco_house_pairwise_v1",
+        "maximum_pair_gap": BOUNDARY_PAIR_MAX_GAP,
+        "maximum_total_adjustment": BOUNDARY_TOTAL_ADJUSTMENT_CAP,
+        "comparisons": comparisons,
+        "adjustments": applied_by_style,
+        "rule": "close candidates only; native required evidence remains mandatory",
+    }
+
+
 def empty_style_analysis(reason: str = "pre_style_features_unavailable") -> dict[str, Any]:
     return {
         "version": STYLE_ANALYSIS_VERSION,
@@ -371,7 +512,9 @@ def empty_style_analysis(reason: str = "pre_style_features_unavailable") -> dict
         "review_reasons": [reason],
         "top_styles": [],
         "primary_style": None,
+        "primary_style_candidate": None,
         "detected_styles": [],
+        "style_influences": [],
         "styles": [],
         "group_scores": {},
         "model_label_evidence": {
@@ -379,6 +522,9 @@ def empty_style_analysis(reason: str = "pre_style_features_unavailable") -> dict
             "unmapped_labels": [], "ignored_low_score_labels": [],
             "out_of_taxonomy": False,
         },
+        "instrument_label_evidence": {"status": "unavailable", "raw_labels": []},
+        "external_tags": {"styles": [], "instruments": []},
+        "boundary_resolution": {"version": "funk_disco_house_pairwise_v1", "comparisons": []},
         "out_of_taxonomy": False,
         "confidence": 0.0,
         "reliability": 0.0,
@@ -398,11 +544,23 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
     ]
     model_mapping = _model_label_mapping(features)
     _fuse_model_support(styles, model_mapping)
+    boundary_resolution = _resolve_dance_boundaries(styles, groups)
     styles.sort(key=lambda item: item["score"], reverse=True)
     for rank, item in enumerate(styles, 1):
         item["rank"] = rank
     top = styles[:3]
-    detected_styles = [item for item in styles if item["detected"]]
+    all_detected_styles = [item for item in styles if item["detected"]]
+    detected_styles = all_detected_styles[:3]
+    primary_style = detected_styles[0] if detected_styles else None
+    style_influences = [
+        item for item in styles
+        if not item["detected"]
+        and item["score"] >= 0.48
+        and item["reliability"] >= 0.40
+        and item["required_evidence_ratio"] >= 0.50
+        and item["evidence_count"] >= max(1, item["minimum_evidence"] - 1)
+    ][:3]
+    instrument_mapping = _instrument_label_evidence(features)
     top_score = top[0]["score"] if top else 0.0
     margin = top_score - top[1]["score"] if len(top) >= 2 else top_score
     review_reasons = []
@@ -410,6 +568,10 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
         review_reasons.append("feature_analysis_degraded")
     if top_score < 0.55:
         review_reasons.append("no_style_above_detection_threshold")
+    if primary_style is None:
+        review_reasons.append("no_style_met_complete_detection_conditions")
+    elif top and top[0]["style_id"] != primary_style["style_id"]:
+        review_reasons.append("highest_candidate_not_fully_detected")
     if margin < 0.07:
         review_reasons.append("top_styles_too_close")
     if top and top[0]["feature_coverage"] < 0.60:
@@ -432,8 +594,10 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
             "best_style": best["style_id"] if best else None,
             "detected_style_count": sum(item["detected"] for item in candidates),
         }
+    decision_style = primary_style or (top[0] if top else None)
     confidence = _clamp(
-        (top[0]["confidence"] if top else 0.0) * (0.62 + 0.38 * _clamp(margin / 0.18))
+        (decision_style["confidence"] if decision_style else 0.0)
+        * (0.62 + 0.38 * _clamp(margin / 0.18))
     )
     return {
         "version": STYLE_ANALYSIS_VERSION,
@@ -442,14 +606,23 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
         "needs_review": bool(review_reasons),
         "review_reasons": review_reasons,
         "top_styles": top,
-        "primary_style": top[0] if top else None,
+        "primary_style": primary_style,
+        "primary_style_candidate": top[0] if top else None,
         "detected_styles": detected_styles,
+        "detected_style_count": len(all_detected_styles),
+        "style_influences": style_influences,
         "styles": styles,
         "group_scores": group_scores,
         "model_label_evidence": model_mapping,
+        "instrument_label_evidence": instrument_mapping,
+        "external_tags": {
+            "styles": model_mapping.get("raw_labels", []),
+            "instruments": instrument_mapping.get("raw_labels", []),
+        },
+        "boundary_resolution": boundary_resolution,
         "out_of_taxonomy": model_mapping["out_of_taxonomy"],
         "confidence": round(confidence, 4),
-        "reliability": top[0]["reliability"] if top else 0.0,
+        "reliability": decision_style["reliability"] if decision_style else 0.0,
         "decision": {
             "detection_threshold": 0.55,
             "review_margin_threshold": 0.07,
@@ -457,5 +630,8 @@ def classify_high_frequency_styles(features: dict[str, Any] | None) -> dict[str,
             "top_two_margin": round(margin, 4),
             "normalization": "absolute_scores_not_forced_to_sum_to_one",
             "model_fusion": "optional_positive_support_capped_at_0.18; native requirements remain mandatory",
+            "primary_style_semantics": "highest-scoring fully detected style; null when no style satisfies all gates",
+            "multi_label_semantics": "up to three independently detected styles; not a forced top-k",
+            "influence_semantics": "near-threshold partial evidence, separate from detected styles",
         },
     }

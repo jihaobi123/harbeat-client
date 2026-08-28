@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.modules.library.high_frequency_style_classifier import classify_high_frequency_styles
+from app.modules.library.high_frequency_style_classifier import (
+    _resolve_dance_boundaries,
+    classify_high_frequency_styles,
+)
 from app.modules.library.high_frequency_style_taxonomy import STYLE_DEFINITIONS
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
@@ -300,3 +303,83 @@ def test_weak_model_label_is_retained_but_does_not_reorder_native_scores() -> No
     assert house["model_adjustment"] == 0.0
     assert result["model_label_evidence"]["raw_labels"][0]["score"] == 0.06
     assert result["model_label_evidence"]["ignored_low_score_labels"][0]["subtype"] == "house"
+
+
+def test_pairwise_resolver_only_adjusts_close_styles_with_complete_profiles() -> None:
+    styles = [
+        {
+            "style_id": style_id,
+            "score": score,
+            "reliability": 0.9,
+            "required_evidence_ratio": 1.0,
+            "evidence_count": 6,
+            "minimum_evidence": 3,
+        }
+        for style_id, score in (("funk", 0.60), ("disco", 0.61), ("house", 0.30))
+    ]
+    groups = _payload(116, {
+        "low_frequency.bass_syncopation": 0.95,
+        "low_frequency.bass_staccato_ratio": 0.92,
+        "low_frequency.bass_kick_interlock": 0.90,
+        "rhythm_grammar.backbeat_2_4": 0.82,
+        "low_frequency.bass_octave_pattern": 0.18,
+        "rhythm_grammar.four_floor_stability": 0.35,
+        "rhythm_grammar.offbeat_open_hat": 0.28,
+        "production.acoustic_production": 0.75,
+        "harmony.chord_change_activity": 0.55,
+        "rhythm_grammar.timing_quantization": 0.30,
+        "rhythm_grammar.drum_loop_repetition": 0.40,
+        "rhythm_grammar.drum_machine_consistency": 0.22,
+        "production.electronic_production": 0.32,
+    })["feature_groups"]
+
+    result = _resolve_dance_boundaries(styles, groups)
+    by_id = {item["style_id"]: item for item in styles}
+
+    comparison = next(item for item in result["comparisons"] if item["pair"] == ["funk", "disco"])
+    assert comparison["applied"] is True
+    assert by_id["funk"]["boundary_adjustment"] > 0
+    assert by_id["disco"]["boundary_adjustment"] < 0
+    assert abs(by_id["house"]["boundary_adjustment"]) <= 0.08
+
+
+def test_primary_style_is_not_forced_when_required_evidence_is_missing() -> None:
+    result = classify_high_frequency_styles(_payload(124, {
+        "rhythm_grammar.four_on_floor": 0.96,
+        "rhythm_grammar.four_floor_stability": 0.92,
+        "production.electronic_production": 0.90,
+        "rhythm_grammar.timing_quantization": 0.10,
+        "rhythm_grammar.drum_loop_repetition": 0.12,
+    }))
+
+    assert result["primary_style_candidate"] is not None
+    assert result["primary_style"] is None
+    assert result["detected_styles"] == []
+    assert "no_style_met_complete_detection_conditions" in result["review_reasons"]
+
+
+def test_external_instrument_tags_are_preserved_without_becoming_style_votes() -> None:
+    payload = _payload(110, {
+        "rhythm_grammar.backbeat_2_4": 0.8,
+        "low_frequency.bass_syncopation": 0.8,
+    })
+    payload["model_evidence"] = {
+        "status": "ready",
+        "routes": {
+            "instrument_tags": {
+                "status": "ready",
+                "engine": "mtg-jamendo-instrument-test",
+                "license": "test-only",
+                "result": {"labels": [
+                    {"label": "drummachine", "score": 0.82},
+                    {"label": "brass", "score": 0.55},
+                ]},
+            },
+        },
+    }
+
+    result = classify_high_frequency_styles(payload)
+
+    assert result["external_tags"]["instruments"][0]["label"] == "drummachine"
+    assert result["instrument_label_evidence"]["use"] == "auxiliary_observation_only"
+    assert all(item.get("model_adjustment", 0.0) == 0.0 for item in result["styles"])

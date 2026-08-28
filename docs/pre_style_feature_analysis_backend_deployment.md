@@ -66,6 +66,17 @@ Bass 和乐器 worker 都是可选路线。`basic-pitch` 不加入基础 API 依
 隔离的模型环境中；其音符起止、音高只增强 Bass Stem 的事件测量。乐器标签只作为
 辅助观察，不能直接确认 808、Talkbox、Clavinet 等窄语义身份。
 
+## 风格输出语义
+
+- `primary_style_candidate`：21 类中的最高候选，即使证据门槛未完整通过也保留，供诊断使用。
+- `primary_style`：完整通过分数、可靠度、必需证据和最小证据数的最高风格；否则为 `null`。
+- `detected_styles`：独立通过完整条件的最多三个标签，不是强制 Top-3。
+- `style_influences`：接近门槛但证据不完整的影响标签，不能当作已检测风格。
+- `external_tags`：原始开源风格和乐器标签；21 类未覆盖时配合 `out_of_taxonomy` 使用。
+
+Funk、Disco、House 只有在原始得分相差不超过 0.10 且双方边界特征覆盖率至少为
+0.50 时才运行两两比较。总调整量不超过 0.08，而且不能绕过任一风格的必需证据。
+
 鼓转录示例：
 
 ```json
