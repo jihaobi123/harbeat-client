@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 
-STYLE_TAXONOMY_VERSION = "high_frequency_styles_v3"
+STYLE_TAXONOMY_VERSION = "high_frequency_styles_v4"
 FREESTYLE_CYPHER = "freestyle_cypher"
 PARTY_BAR = "party_bar"
 
@@ -58,18 +58,22 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         required_any=[["rhythm_grammar.halftime_snare_3"], ["low_frequency.sustained_harmonic_bass_candidate", "low_frequency.sub_bass"]]),
     "funk": _style("Funk", FREESTYLE_CYPHER, [(90, 122)], {
         "rhythm_grammar.backbeat_2_4": 1.0,
-        "rhythm_grammar.breakbeat": 0.8,
-        "rhythm_grammar.swing": 0.6,
-        "percussion_timbre.hand_drum_family": 0.5,
-        "low_frequency.kick_bass_alignment": 0.9,
-        "low_frequency.low_frequency_melody": 1.0,
-        "low_frequency.bass_reply_pattern": 0.7,
-        "production.acoustic_production": 0.8,
-        "harmony.chord_change_activity": 0.5,
+        "rhythm_grammar.breakbeat": 0.5,
+        "rhythm_grammar.swing": 0.35,
+        "low_frequency.bass_syncopation": 1.4,
+        "low_frequency.bass_staccato_ratio": 1.0,
+        "low_frequency.bass_riff_repetition": 0.9,
+        "low_frequency.bass_kick_interlock": 0.8,
+        "low_frequency.low_frequency_melody": 0.3,
+        "production.acoustic_production": 0.5,
+        "harmony.chord_change_activity": 0.3,
+    }, negative={
+        "rhythm_grammar.drum_machine_consistency": 0.25,
     }, required_any=[
-        ["rhythm_grammar.backbeat_2_4", "rhythm_grammar.breakbeat", "rhythm_grammar.four_on_floor"],
-        ["low_frequency.low_frequency_melody", "low_frequency.bass_reply_pattern", "low_frequency.kick_bass_alignment"],
-    ]),
+        ["rhythm_grammar.backbeat_2_4", "rhythm_grammar.breakbeat"],
+        ["low_frequency.bass_syncopation", "low_frequency.bass_kick_interlock"],
+        ["low_frequency.bass_staccato_ratio", "low_frequency.bass_riff_repetition"],
+    ], requirement_threshold=0.42),
     "breakbeat": _style("Breakbeat", FREESTYLE_CYPHER, [(90, 145)], {
         "rhythm_grammar.breakbeat": 1.7,
         "rhythm_grammar.backbeat_2_4": 0.7,
@@ -105,13 +109,20 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
     }, negative={"rhythm_grammar.four_on_floor": 0.5, "rhythm_grammar.dembow": 0.4},
         required_any=[["rhythm_grammar.afro_syncopation"], ["percussion_timbre.hand_drum_family", "percussion_timbre.continuous_high_percussion"]]),
     "house": _style("House", FREESTYLE_CYPHER, [(115, 133)], {
-        "rhythm_grammar.four_on_floor": 1.8,
-        "rhythm_grammar.backbeat_2_4": 0.6,
-        "percussion_timbre.sustained_metallic": 0.8,
+        "rhythm_grammar.four_on_floor": 0.6,
+        "rhythm_grammar.four_floor_stability": 1.5,
+        "rhythm_grammar.offbeat_open_hat": 0.9,
+        "rhythm_grammar.timing_quantization": 0.8,
+        "rhythm_grammar.drum_loop_repetition": 0.8,
+        "rhythm_grammar.drum_machine_consistency": 0.7,
         "production.electronic_production": 1.1,
-        "production.brightness": 0.5,
+        "production.brightness": 0.35,
     }, negative={"rhythm_grammar.halftime_snare_3": 0.3},
-        required_any=[["rhythm_grammar.four_on_floor"], ["production.electronic_production"]]),
+        required_any=[
+            ["rhythm_grammar.four_floor_stability", "rhythm_grammar.four_on_floor"],
+            ["production.electronic_production", "rhythm_grammar.drum_machine_consistency"],
+            ["rhythm_grammar.timing_quantization", "rhythm_grammar.drum_loop_repetition"],
+        ], requirement_threshold=0.42),
     "grime_uk_hiphop": _style("Grime/UK Hip-Hop", FREESTYLE_CYPHER, [(65, 75), (130, 145)], {
         "vocal_delivery.rap_delivery": 1.0,
         "rhythm_grammar.backbeat_2_4": 0.7,
@@ -130,19 +141,23 @@ STYLE_DEFINITIONS: dict[str, dict[str, Any]] = {
         "production.acoustic_production": 0.4,
     }, negative={"production.rage_synth_candidate": 0.7}, required_any=[["vocal_delivery.singing"]]),
     "disco": _style("Disco", PARTY_BAR, [(105, 132)], {
-        "rhythm_grammar.four_on_floor": 1.4,
-        "rhythm_grammar.backbeat_2_4": 0.4,
-        "percussion_timbre.sustained_metallic": 1.2,
-        "production.acoustic_production": 0.25,
-        "production.brightness": 0.45,
-        "low_frequency.kick_bass_alignment": 0.4,
-        "low_frequency.low_frequency_melody": 0.35,
-        "harmony.chord_change_activity": 0.45,
+        "rhythm_grammar.four_on_floor": 0.5,
+        "rhythm_grammar.four_floor_stability": 1.5,
+        "rhythm_grammar.offbeat_open_hat": 1.25,
+        "percussion_timbre.sustained_metallic": 0.6,
+        "low_frequency.bass_octave_pattern": 1.3,
+        "low_frequency.bass_riff_repetition": 0.45,
+        "low_frequency.kick_bass_alignment": 0.5,
+        "low_frequency.low_frequency_melody": 0.25,
+        "production.acoustic_production": 0.3,
+        "production.brightness": 0.4,
+        "harmony.chord_change_activity": 0.35,
     }, negative={"production.dark_timbre": 0.5},
         required_any=[
-            ["rhythm_grammar.four_on_floor"],
-            ["percussion_timbre.sustained_metallic"],
-        ], requirement_threshold=0.42),
+            ["rhythm_grammar.four_floor_stability", "rhythm_grammar.four_on_floor"],
+            ["rhythm_grammar.offbeat_open_hat", "percussion_timbre.sustained_metallic"],
+            ["low_frequency.bass_octave_pattern", "low_frequency.bass_riff_repetition", "low_frequency.low_frequency_melody"],
+        ], requirement_threshold=0.40),
     "jersey_club": _style("Jersey Club", PARTY_BAR, [(130, 152)], {
         "rhythm_grammar.jersey_club": 1.9,
         "vocal_delivery.vocal_chop_repetition": 1.0,

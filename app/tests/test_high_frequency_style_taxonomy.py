@@ -13,12 +13,16 @@ VALID_GROUP_FEATURES = {
         "four_on_floor", "backbeat_2_4", "halftime_snare_3", "jersey_club",
         "tamborzao", "dembow", "tresillo", "two_step", "drill_hat",
         "breakbeat", "swing", "afro_syncopation",
+        "offbeat_open_hat", "four_floor_stability", "timing_quantization",
+        "drum_loop_repetition", "drum_machine_consistency",
     },
     "low_frequency": {
         "sub_bass", "bass_pitch_stability", "bass_slide", "kick_bass_alignment",
         "sustained_harmonic_bass_candidate", "sliding_bass_candidate",
         "low_percussive_bass_candidate", "low_frequency_melody",
         "bass_reply_pattern", "808_timbre_candidate", "log_drum_candidate",
+        "bass_syncopation", "bass_staccato_ratio", "bass_riff_repetition",
+        "bass_octave_pattern", "bass_kick_interlock",
         "sub_808", "sliding_808", "log_drum",
     },
     "percussion_timbre": {
