@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from app.modules.library.high_frequency_style_classifier import classify_high_frequency_styles  # noqa: E402
 from app.modules.library.stem_analysis import analyze_stem_files  # noqa: E402
+from scripts.run_style_test_library import _render_report  # noqa: E402
 
 
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")
@@ -59,6 +60,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source_results", type=Path)
     parser.add_argument("output_results", type=Path)
+    parser.add_argument("--output-md", type=Path)
     parser.add_argument("--limit", type=int, default=0)
     args = parser.parse_args()
 
@@ -87,6 +89,8 @@ def main() -> int:
             print(f"[{index}/{len(selected)}] failed: {replacement['error']}", flush=True)
         tracks[index - 1] = replacement
         _write_checkpoint(args.output_results, payload)
+        if args.output_md:
+            args.output_md.write_text(_render_report(payload), encoding="utf-8")
     return 1 if failures else 0
 
 
