@@ -1,0 +1,2372 @@
+openapi: 3.0.3
+info:
+  title: HarBeat Mobile and Central API
+  version: 1.0.0-draft
+  description: |
+    手机通过阿里云 HTTPS Gateway 访问的目标 P0 合同。
+    现场局域网控制接口不在本文件，见 08_RK设备能力与控制协议.md。
+    所有时间为 RFC 3339 UTC；所有新 ID 为 UUID 字符串。
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production via Aliyun Gateway
+  - url: http://127.0.0.1:8000/api/v1
+    description: Local development only
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Catalog
+  - name: Upload
+  - name: Analysis
+  - name: Library
+  - name: Playlists
+  - name: Devices
+  - name: Presets
+  - name: Prepare
+  - name: Manifest
+  - name: Sync
+  - name: Live
+  - name: Recommendations
+  - name: Admin
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshTokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  minLength: 32
+      responses:
+        '200':
+          description: Rotated token pair; the submitted refresh token is revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me:
+    get:
+      tags: [Profile]
+      operationId: getMe
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Profile]
+      operationId: updateMe
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                avatar_asset_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+  /catalog/tracks:
+    get:
+      tags: [Catalog]
+      operationId: listCatalogTracks
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, title, recommended]
+            default: newest
+      responses:
+        '200':
+          description: Published public tracks only
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackSummary'
+                  page:
+                    $ref: '#/components/schemas/CursorPage'
+
+  /catalog/tracks/{track_id}:
+    get:
+      tags: [Catalog]
+      operationId: getCatalogTrack
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Track detail; unpublished tracks require submitter or reviewer permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /catalog/tracks/{track_id}/preview:
+    post:
+      tags: [Catalog]
+      operationId: createPreviewGrant
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Short-lived preview only; never returns original/full-song URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadGrant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /uploads:
+    post:
+      tags: [Upload]
+      operationId: createUploadSubmission
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadRequest'
+      responses:
+        '201':
+          description: Upload session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSubmission'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /uploads/{submission_id}:
+    get:
+      tags: [Upload]
+      operationId: getUploadSubmission
+      parameters:
+        - $ref: '#/components/parameters/SubmissionId'
+      responses:
+        '200':
+          description: Upload status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSubmission'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Upload]
+      operationId: cancelUploadSubmission
+      parameters:
+        - $ref: '#/components/parameters/SubmissionId'
+      responses:
+        '204':
+          description: Uncommitted upload canceled
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /uploads/{submission_id}/content:
+    put:
+      tags: [Upload]
+      operationId: uploadContent
+      parameters:
+        - $ref: '#/components/parameters/SubmissionId'
+        - name: Content-SHA256
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{64}$'
+      requestBody:
+        required: true
+        content:
+          audio/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Content received; call complete next
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /uploads/{submission_id}/complete:
+    post:
+      tags: [Upload]
+      operationId: completeUploadSubmission
+      parameters:
+        - $ref: '#/components/parameters/SubmissionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sha256]
+              properties:
+                sha256:
+                  type: string
+                  pattern: '^[0-9a-f]{64}$'
+                metadata:
+                  $ref: '#/components/schemas/TrackMetadataInput'
+      responses:
+        '202':
+          description: Validation/analysis accepted; duplicate content may return existing track
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [submission, track, analysis_run]
+                properties:
+                  submission:
+                    $ref: '#/components/schemas/UploadSubmission'
+                  track:
+                    $ref: '#/components/schemas/TrackDetail'
+                  analysis_run:
+                    $ref: '#/components/schemas/AnalysisRun'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tracks/{track_id}/analysis-runs:
+    post:
+      tags: [Analysis]
+      operationId: createAnalysisRun
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force_new_pipeline_run:
+                  type: boolean
+                  default: false
+      responses:
+        '202':
+          description: New or existing active run
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRun'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /analysis-runs/{analysis_run_id}:
+    get:
+      tags: [Analysis]
+      operationId: getAnalysisRun
+      parameters:
+        - $ref: '#/components/parameters/AnalysisRunId'
+      responses:
+        '200':
+          description: Analysis state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /analysis-runs/{analysis_run_id}/cancel:
+    post:
+      tags: [Analysis]
+      operationId: cancelAnalysisRun
+      parameters:
+        - $ref: '#/components/parameters/AnalysisRunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Cancellation requested or run already terminal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRun'
+
+  /me/library:
+    get:
+      tags: [Library]
+      operationId: listMyLibrary
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        '200':
+          description: User library, including own submissions pending review
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LibraryItem'
+                  page:
+                    $ref: '#/components/schemas/CursorPage'
+
+  /me/library/{track_id}:
+    put:
+      tags: [Library]
+      operationId: addTrackToMyLibrary
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Existing or newly created association
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LibraryItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Library]
+      operationId: removeTrackFromMyLibrary
+      description: Removes only the user association. It never deletes the global track or assets.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Association removed or already absent
+
+  /playlists:
+    get:
+      tags: [Playlists]
+      operationId: listPlaylists
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Current user's playlists
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Playlist'
+                  page:
+                    $ref: '#/components/schemas/CursorPage'
+    post:
+      tags: [Playlists]
+      operationId: createPlaylist
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                description:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+
+  /playlists/{playlist_id}:
+    get:
+      tags: [Playlists]
+      operationId: getPlaylist
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: Playlist and ordered items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Playlists]
+      operationId: updatePlaylist
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                description:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+    delete:
+      tags: [Playlists]
+      operationId: deletePlaylist
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Playlist removed; tracks and library associations remain
+
+  /playlists/{playlist_id}/items:
+    post:
+      tags: [Playlists]
+      operationId: addPlaylistItem
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [track_id]
+              properties:
+                track_id:
+                  type: string
+                  format: uuid
+                after_item_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: Updated playlist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+  /playlists/{playlist_id}/items/{item_id}:
+    delete:
+      tags: [Playlists]
+      operationId: removePlaylistItem
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Item removed; track/library remain
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+  /devices:
+    get:
+      tags: [Devices]
+      operationId: listDevices
+      responses:
+        '200':
+          description: Owned and temporarily authorized devices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+
+  /devices/{device_id}:
+    get:
+      tags: [Devices]
+      operationId: getDevice
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Device and latest central status mirror
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Devices]
+      operationId: updateDevice
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /device-pairings/claim:
+    post:
+      tags: [Devices]
+      operationId: claimPairingCode
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pairing_code, device_hardware_id, device_nonce]
+              properties:
+                pairing_code:
+                  type: string
+                  pattern: '^[0-9]{6,8}$'
+                device_hardware_id:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                device_nonce:
+                  type: string
+                  minLength: 16
+                  maxLength: 256
+      responses:
+        '202':
+          description: Claim created; local RK confirmation is still required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingClaim'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /device-pairings/{claim_id}/finalize:
+    post:
+      tags: [Devices]
+      operationId: finalizePairing
+      parameters:
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_proof]
+              properties:
+                device_proof:
+                  type: string
+                  description: Proof returned by the locally connected RK; never log it
+      responses:
+        '201':
+          description: Device bound to current user as owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDetail'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /devices/{device_id}/bindings:
+    post:
+      tags: [Devices]
+      operationId: createTemporaryDeviceBinding
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role, expires_at]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum: [controller, viewer]
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [view_state, control_live, sync_resources, edit_presets]
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Temporary authorization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceBinding'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /devices/{device_id}/bindings/{binding_id}:
+    delete:
+      tags: [Devices]
+      operationId: revokeDeviceBinding
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - name: binding_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Binding revoked
+
+  /pad-presets:
+    get:
+      tags: [Presets]
+      operationId: listPadPresets
+      responses:
+        '200':
+          description: Current user's presets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PadPreset'
+    post:
+      tags: [Presets]
+      operationId: createPadPreset
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePadPresetRequest'
+      responses:
+        '201':
+          description: Preset and first draft version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PadPresetDetail'
+
+  /pad-presets/{preset_id}:
+    get:
+      tags: [Presets]
+      operationId: getPadPreset
+      parameters:
+        - $ref: '#/components/parameters/PresetId'
+      responses:
+        '200':
+          description: Preset and current immutable version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PadPresetDetail'
+    patch:
+      tags: [Presets]
+      operationId: updatePadPresetDraft
+      parameters:
+        - $ref: '#/components/parameters/PresetId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePadPresetRequest'
+      responses:
+        '200':
+          description: New draft version created; published versions stay immutable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PadPresetDetail'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /prepare-drafts:
+    get:
+      tags: [Prepare]
+      operationId: listPrepareDrafts
+      responses:
+        '200':
+          description: Preparation drafts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrepareDraft'
+    post:
+      tags: [Prepare]
+      operationId: createPrepareDraft
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePrepareDraftRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareDraft'
+
+  /prepare-drafts/{draft_id}:
+    get:
+      tags: [Prepare]
+      operationId: getPrepareDraft
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      responses:
+        '200':
+          description: Draft detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareDraftDetail'
+    put:
+      tags: [Prepare]
+      operationId: replacePrepareDraft
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplacePrepareDraftRequest'
+      responses:
+        '200':
+          description: Updated draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareDraftDetail'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+  /prepare-drafts/{draft_id}/freeze:
+    post:
+      tags: [Prepare, Manifest]
+      operationId: freezePrepareDraft
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Immutable snapshot and device-specific manifest created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestSummary'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manifests/{manifest_id}:
+    get:
+      tags: [Manifest]
+      operationId: getManifest
+      parameters:
+        - $ref: '#/components/parameters/ManifestId'
+      responses:
+        '200':
+          description: Versioned bounded resource manifest; download grants are short lived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceManifest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /devices/{device_id}/sync-jobs:
+    post:
+      tags: [Sync]
+      operationId: createSyncJob
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [manifest_id]
+              properties:
+                manifest_id:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Central job mirror created; App still dispatches to locally connected RK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /sync-jobs/{sync_job_id}:
+    get:
+      tags: [Sync]
+      operationId: getSyncJob
+      parameters:
+        - $ref: '#/components/parameters/SyncJobId'
+      responses:
+        '200':
+          description: Central mirror of the latest RK-reported sync status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncJob'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /devices/{device_id}/live-sessions:
+    post:
+      tags: [Live]
+      operationId: createLiveSession
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [manifest_id]
+              properties:
+                manifest_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Central session record; RK remains live-state authority
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveSession'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /device/events:batch:
+    post:
+      tags: [Live]
+      operationId: ingestDeviceEventBatch
+      security:
+        - DeviceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceEventBatch'
+      responses:
+        '200':
+          description: Duplicate events are acknowledged without duplicate persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceEventBatchAck'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /recommendations:
+    get:
+      tags: [Recommendations]
+      operationId: listRecommendations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - name: context
+          in: query
+          schema:
+            type: string
+            enum: [home, prepare, similar]
+            default: home
+        - name: track_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Recommendation cards with impression IDs and explainable reason codes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, algorithm_version]
+                properties:
+                  algorithm_version:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+
+  /recommendation-feedback:
+    post:
+      tags: [Recommendations]
+      operationId: createRecommendationFeedback
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [impression_id, action]
+              properties:
+                impression_id:
+                  type: string
+                  format: uuid
+                action:
+                  type: string
+                  enum: [preview, add_to_library, skip, hide]
+      responses:
+        '204':
+          description: Feedback recorded
+
+  /admin/catalog/tracks/{track_id}/review:
+    post:
+      tags: [Admin]
+      operationId: reviewCatalogTrack
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason_code]
+              properties:
+                decision:
+                  type: string
+                  enum: [publish, reject, block]
+                reason_code:
+                  type: string
+                  maxLength: 64
+                note:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Reviewed track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackDetail'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    DeviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque device token
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 500
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted entity version, for example "3"
+      schema:
+        type: string
+        pattern: '^"[1-9][0-9]*"$'
+    TrackId:
+      name: track_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SubmissionId:
+      name: submission_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AnalysisRunId:
+      name: analysis_run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PlaylistId:
+      name: playlist_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceId:
+      name: device_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PresetId:
+      name: preset_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DraftId:
+      name: draft_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ManifestId:
+      name: manifest_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SyncJobId:
+      name: sync_job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Missing, expired or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not allowed for this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found or intentionally hidden by object-level authorization
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: State or idempotency conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    VersionConflict:
+      description: If-Match version conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Request validation or domain validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, display_name, client_id]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        password:
+          type: string
+          minLength: 10
+          maxLength: 128
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        client_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, client_id]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        client_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    AuthTokens:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      required: [id, email, display_name, status, role, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum: [active, disabled]
+        role:
+          type: string
+          enum: [user, reviewer, admin]
+        version:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TrackMetadataInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        artist_name:
+          type: string
+          maxLength: 300
+        album_name:
+          type: string
+          maxLength: 300
+
+    AnalysisSummary:
+      type: object
+      required: [status, quality, duration_ms]
+      properties:
+        status:
+          type: string
+          enum: [pending, running, completed, partial, failed]
+        quality:
+          type: string
+          enum: [pending, ready, degraded, unavailable]
+        duration_ms:
+          type: integer
+        bpm:
+          type: number
+          format: float
+          nullable: true
+        bpm_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        key:
+          type: string
+          nullable: true
+        camelot_key:
+          type: string
+          nullable: true
+        energy:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        style_labels:
+          type: array
+          items:
+            type: object
+            required: [id, label, confidence, certainty]
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              confidence:
+                type: number
+              certainty:
+                type: string
+                enum: [confirmed, possible]
+
+    TrackSummary:
+      type: object
+      required: [id, title, artist_name, publication_status, analysis, in_my_library, version, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        artist_name:
+          type: string
+          nullable: true
+        album_name:
+          type: string
+          nullable: true
+        cover_url:
+          type: string
+          format: uri
+          nullable: true
+        publication_status:
+          type: string
+          enum: [processing, pending_review, published, rejected, blocked, archived]
+        analysis:
+          $ref: '#/components/schemas/AnalysisSummary'
+        in_my_library:
+          type: boolean
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    TrackDetail:
+      allOf:
+        - $ref: '#/components/schemas/TrackSummary'
+        - type: object
+          required: [preview_available, submitted_by_me]
+          properties:
+            preview_available:
+              type: boolean
+            submitted_by_me:
+              type: boolean
+            rejection:
+              type: object
+              nullable: true
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+
+    CreateUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [filename, size_bytes, content_type]
+      properties:
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 500
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+        content_type:
+          type: string
+          maxLength: 100
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          nullable: true
+
+    UploadSubmission:
+      type: object
+      required: [id, status, filename, declared_size_bytes, expires_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, uploading, uploaded, validating, accepted, duplicate, rejected, expired]
+        filename:
+          type: string
+        declared_size_bytes:
+          type: integer
+          format: int64
+        received_size_bytes:
+          type: integer
+          format: int64
+        track_id:
+          type: string
+          format: uuid
+          nullable: true
+        upload_method:
+          type: string
+          enum: [api_put]
+        upload_url:
+          type: string
+          format: uri
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        created_at:
+          type: string
+          format: date-time
+
+    AnalysisStage:
+      type: object
+      required: [key, status, progress_percent, attempt_count]
+      properties:
+        key:
+          type: string
+          enum: [core, stem_separation, feature_analysis, style_analysis, media_derivatives]
+        status:
+          type: string
+          enum: [pending, queued, running, retry_wait, succeeded, failed, canceled, blocked]
+        progress_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        attempt_count:
+          type: integer
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+
+    AnalysisRun:
+      type: object
+      required: [id, track_id, status, progress_percent, stages, contract_version, pipeline_version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        track_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, queued, running, retry_wait, succeeded, partial, failed, canceled]
+        progress_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        current_stage:
+          type: string
+          nullable: true
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisStage'
+        contract_version:
+          type: string
+        pipeline_version:
+          type: string
+        quality:
+          type: string
+          enum: [ready, degraded, unavailable]
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LibraryItem:
+      type: object
+      required: [id, track, favorite, source, added_at, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        track:
+          $ref: '#/components/schemas/TrackSummary'
+        favorite:
+          type: boolean
+        source:
+          type: string
+          enum: [upload, catalog, playlist, admin]
+        user_note:
+          type: string
+          nullable: true
+        added_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+
+    Playlist:
+      type: object
+      required: [id, name, visibility, item_count, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        visibility:
+          type: string
+          enum: [private, unlisted]
+        item_count:
+          type: integer
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PlaylistItem:
+      type: object
+      required: [id, position, track, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: string
+          description: Opaque sortable decimal; clients must not calculate it
+        track:
+          $ref: '#/components/schemas/TrackSummary'
+        created_at:
+          type: string
+          format: date-time
+
+    PlaylistDetail:
+      allOf:
+        - $ref: '#/components/schemas/Playlist'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlaylistItem'
+
+    Device:
+      type: object
+      required: [id, display_name, role, status, online, last_seen_at, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        role:
+          type: string
+          enum: [owner, controller, viewer]
+        status:
+          type: string
+          enum: [active, suspended, retired]
+        online:
+          type: boolean
+          description: Central heartbeat estimate; local discovery is authoritative for current phone connectivity
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+
+    DeviceCapabilitySummary:
+      type: object
+      required: [report_version, pad_slot_count, fixed_controls, supported_live_intents, supported_manifest_versions]
+      properties:
+        report_version:
+          type: string
+        pad_slot_count:
+          type: integer
+          minimum: 0
+        fixed_controls:
+          type: array
+          items:
+            type: string
+        supported_live_intents:
+          type: array
+          items:
+            type: string
+        supported_manifest_versions:
+          type: array
+          items:
+            type: string
+
+    DeviceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Device'
+        - type: object
+          properties:
+            firmware_version:
+              type: string
+            edge_version:
+              type: string
+            capability:
+              $ref: '#/components/schemas/DeviceCapabilitySummary'
+            latest_sync:
+              $ref: '#/components/schemas/SyncJob'
+
+    PairingClaim:
+      type: object
+      required: [id, status, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [claimed, confirmed, expired, locked]
+        expires_at:
+          type: string
+          format: date-time
+
+    DeviceBinding:
+      type: object
+      required: [id, device_id, user_id, role, permissions, status, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [controller, viewer]
+        permissions:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        expires_at:
+          type: string
+          format: date-time
+
+    PadSlot:
+      type: object
+      additionalProperties: false
+      required: [slot_id, label, mode, gain_db, position]
+      properties:
+        slot_id:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9_-]{0,63}$'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        sound_asset_id:
+          type: string
+          format: uuid
+          nullable: true
+        mode:
+          type: string
+          enum: [one_shot, toggle, hold, loop]
+        gain_db:
+          type: number
+          minimum: -60
+          maximum: 12
+        quantize_mode:
+          type: string
+          enum: [off, beat, bar]
+        choke_group:
+          type: string
+          nullable: true
+        position:
+          type: integer
+          minimum: 0
+
+    CreatePadPresetRequest:
+      type: object
+      required: [name, slots]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        target_device_id:
+          type: string
+          format: uuid
+          nullable: true
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/PadSlot'
+
+    UpdatePadPresetRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePadPresetRequest'
+
+    PadPreset:
+      type: object
+      required: [id, name, current_version_number, version, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        current_version_number:
+          type: integer
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+
+    PadPresetDetail:
+      allOf:
+        - $ref: '#/components/schemas/PadPreset'
+        - type: object
+          required: [preset_version_id, schema_version, status, slots]
+          properties:
+            preset_version_id:
+              type: string
+              format: uuid
+            schema_version:
+              type: string
+              enum: [pad-preset-v1]
+            status:
+              type: string
+              enum: [draft, published, archived]
+            slots:
+              type: array
+              items:
+                $ref: '#/components/schemas/PadSlot'
+            validation_warnings:
+              type: array
+              items:
+                type: string
+
+    PrepareItemInput:
+      type: object
+      required: [track_id]
+      properties:
+        track_id:
+          type: string
+          format: uuid
+        transition_preferences:
+          type: object
+          additionalProperties: true
+
+    CreatePrepareDraftRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        target_device_id:
+          type: string
+          format: uuid
+          nullable: true
+        pad_preset_version_id:
+          type: string
+          format: uuid
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrepareItemInput'
+
+    ReplacePrepareDraftRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePrepareDraftRequest'
+
+    PrepareDraft:
+      type: object
+      required: [id, name, status, item_count, version, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, frozen, archived]
+        target_device_id:
+          type: string
+          format: uuid
+          nullable: true
+        item_count:
+          type: integer
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+
+    PrepareDraftDetail:
+      allOf:
+        - $ref: '#/components/schemas/PrepareDraft'
+        - type: object
+          required: [items]
+          properties:
+            pad_preset_version_id:
+              type: string
+              format: uuid
+              nullable: true
+            items:
+              type: array
+              items:
+                type: object
+                required: [id, track, position]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  track:
+                    $ref: '#/components/schemas/TrackSummary'
+                  position:
+                    type: integer
+                  transition_preferences:
+                    type: object
+
+    ManifestSummary:
+      type: object
+      required: [id, schema_version, manifest_version, device_id, content_hash, asset_count, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        schema_version:
+          type: string
+          enum: [resource-manifest-v1]
+        manifest_version:
+          type: integer
+        device_id:
+          type: string
+          format: uuid
+        content_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        asset_count:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+
+    ManifestAsset:
+      type: object
+      additionalProperties: false
+      required: [asset_id, kind, required, content_type, size_bytes, sha256, download, cache]
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        track_id:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          type: string
+          enum: [original, preview, waveform, stem, transition_render, transition_metadata, pad_sound]
+        variant:
+          type: string
+          nullable: true
+        required:
+          type: boolean
+        content_type:
+          type: string
+        codec:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        download:
+          $ref: '#/components/schemas/DownloadGrant'
+        cache:
+          type: object
+          required: [policy, priority]
+          properties:
+            policy:
+              type: string
+              enum: [session, pinned, reusable]
+            priority:
+              type: integer
+              minimum: 0
+              maximum: 100
+
+    ResourceManifest:
+      allOf:
+        - $ref: '#/components/schemas/ManifestSummary'
+        - type: object
+          required: [protocol, capability_requirements, assets, tracks, pad_preset]
+          properties:
+            protocol:
+              type: object
+              required: [rk_control, event_schema]
+              properties:
+                rk_control:
+                  type: string
+                event_schema:
+                  type: string
+            capability_requirements:
+              type: object
+              additionalProperties: true
+            assets:
+              type: array
+              items:
+                $ref: '#/components/schemas/ManifestAsset'
+            tracks:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            pad_preset:
+              type: object
+              nullable: true
+              additionalProperties: true
+
+    SyncJob:
+      type: object
+      nullable: true
+      required: [id, device_id, manifest_id, status, progress, rk_sequence, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        manifest_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, dispatched, accepted, syncing, cache_ready, partial, failed, canceled, expired]
+        progress:
+          type: object
+          required: [ready_assets, total_assets, downloaded_bytes, total_bytes]
+          properties:
+            ready_assets:
+              type: integer
+            total_assets:
+              type: integer
+            downloaded_bytes:
+              type: integer
+              format: int64
+            total_bytes:
+              type: integer
+              format: int64
+        rk_sequence:
+          type: integer
+          format: int64
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LiveSession:
+      type: object
+      required: [id, device_id, status, manifest_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, ready, live, ended, aborted]
+        manifest_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DeviceEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, device_sequence, event_type, schema_version, occurred_at, device_boot_id, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        device_sequence:
+          type: integer
+          format: int64
+          minimum: 1
+        event_type:
+          type: string
+          enum: [session.started, session.ended, operation.accepted, operation.scheduled, operation.executed, operation.rejected, operation.failed, playback.snapshot, sync.updated, device.health]
+        schema_version:
+          type: string
+          enum: [rk-event-v1]
+        occurred_at:
+          type: string
+          format: date-time
+        device_boot_id:
+          type: string
+          format: uuid
+        operation_id:
+          type: string
+          format: uuid
+          nullable: true
+        payload:
+          type: object
+          additionalProperties: true
+
+    DeviceEventBatch:
+      type: object
+      additionalProperties: false
+      required: [device_id, live_session_id, first_sequence, last_sequence, events]
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        live_session_id:
+          type: string
+          format: uuid
+        first_sequence:
+          type: integer
+          format: int64
+        last_sequence:
+          type: integer
+          format: int64
+        events:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/DeviceEvent'
+
+    DeviceEventBatchAck:
+      type: object
+      required: [accepted_event_ids, duplicate_event_ids, highest_contiguous_sequence, missing_ranges]
+      properties:
+        accepted_event_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        duplicate_event_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        highest_contiguous_sequence:
+          type: integer
+          format: int64
+        missing_ranges:
+          type: array
+          items:
+            type: object
+            required: [from, to]
+            properties:
+              from:
+                type: integer
+                format: int64
+              to:
+                type: integer
+                format: int64
+
+    Recommendation:
+      type: object
+      required: [impression_id, track, reason_codes]
+      properties:
+        impression_id:
+          type: string
+          format: uuid
+        track:
+          $ref: '#/components/schemas/TrackSummary'
+        reason_codes:
+          type: array
+          items:
+            type: string
+            enum: [tempo_match, key_compatible, energy_fit, library_affinity, recent_publication, possible_style_match]
+
+    DownloadGrant:
+      type: object
+      required: [url, method, expires_at]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: HTTPS public Gateway URL; never a Tailscale or NAS local path
+        method:
+          type: string
+          enum: [GET]
+        expires_at:
+          type: string
+          format: date-time
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+
+    CursorPage:
+      type: object
+      required: [has_more]
+      properties:
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+
+    ErrorDetail:
+      type: object
+      nullable: true
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        retry_after_seconds:
+          type: integer
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          allOf:
+            - $ref: '#/components/schemas/ErrorDetail'
+            - type: object
+              properties:
+                details:
+                  type: object
+                  additionalProperties: true
+        request_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+security:
+  - BearerAuth: []
