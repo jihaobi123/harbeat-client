@@ -15,13 +15,15 @@ import time
 from typing import Any
 
 
-MODEL_ADAPTER_VERSION = "feature_model_adapters_v3"
+MODEL_ADAPTER_VERSION = "feature_model_adapters_v4"
 
 
 @dataclass(frozen=True)
 class FeatureModelConfig:
     drum_command: str | None = None
+    bass_command: str | None = None
     style_command: str | None = None
+    instrument_command: str | None = None
     style_model_path: str | None = None
     style_metadata_path: str | None = None
     timeout_seconds: float = 300.0
@@ -30,7 +32,9 @@ class FeatureModelConfig:
     def from_env(cls) -> "FeatureModelConfig":
         return cls(
             drum_command=os.getenv("FEATURE_DRUM_TRANSCRIBER_COMMAND") or None,
+            bass_command=os.getenv("FEATURE_BASS_TRANSCRIBER_COMMAND") or None,
             style_command=os.getenv("FEATURE_STYLE_TAGGER_COMMAND") or None,
+            instrument_command=os.getenv("FEATURE_INSTRUMENT_TAGGER_COMMAND") or None,
             style_model_path=os.getenv("ESSENTIA_DISCOGS_MODEL_PATH") or None,
             style_metadata_path=os.getenv("ESSENTIA_DISCOGS_METADATA_PATH") or None,
             timeout_seconds=max(5.0, float(os.getenv("FEATURE_MODEL_TIMEOUT_SECONDS", "300"))),
@@ -192,6 +196,12 @@ def collect_mature_model_evidence(
         engine="external_drum_transcriber",
         timeout_seconds=config.timeout_seconds,
     )
+    bass_route = _run_json_command(
+        config.bass_command,
+        (stem_paths or {}).get("bass"),
+        engine="external_bass_transcriber",
+        timeout_seconds=config.timeout_seconds,
+    )
     if config.style_command:
         style_route = _run_json_command(
             config.style_command,
@@ -205,9 +215,17 @@ def collect_mature_model_evidence(
             model_path=config.style_model_path,
             metadata_path=config.style_metadata_path,
         )
+    instrument_route = _run_json_command(
+        config.instrument_command,
+        original_path,
+        engine="external_instrument_tagger",
+        timeout_seconds=config.timeout_seconds,
+    )
     routes = {
         "drum_transcription": drum_route,
+        "bass_transcription": bass_route,
         "style_tags": style_route,
+        "instrument_tags": instrument_route,
     }
     ready = [name for name, value in routes.items() if value["status"] == "ready"]
     failed = [name for name, value in routes.items() if value["status"] == "error"]

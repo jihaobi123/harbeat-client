@@ -138,6 +138,7 @@ def analyze_high_frequency_features(
         beat_points=beat_points,
         downbeats=downbeats,
         original_audio=mix,
+        model_route=((model_evidence or {}).get("routes") or {}).get("bass_transcription"),
     )
     percussion = analyze_percussion_features(
         native_arrays.get("drums"), sr, drum_analysis=drum_analysis,

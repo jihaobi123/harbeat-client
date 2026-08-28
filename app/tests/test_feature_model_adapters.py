@@ -17,11 +17,15 @@ from app.modules.library.feature_model_adapters import (
 def _disabled_config(
     *,
     drum_command: str | None = None,
+    bass_command: str | None = None,
     style_command: str | None = None,
+    instrument_command: str | None = None,
 ) -> FeatureModelConfig:
     return FeatureModelConfig(
         drum_command=drum_command,
+        bass_command=bass_command,
         style_command=style_command,
+        instrument_command=instrument_command,
         timeout_seconds=10.0,
     )
 
@@ -74,6 +78,39 @@ def test_style_worker_labels_remain_a_separate_auxiliary_route() -> None:
     assert route["result"]["labels"][0]["label"] == "Electronic---House"
     assert result["ready_routes"] == ["style_tags"]
     assert result["routes"]["drum_transcription"]["status"] == "disabled"
+
+
+def test_bass_and_instrument_workers_remain_separate_optional_routes() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        audio_path = os.path.join(directory, "bass.wav")
+        sf.write(audio_path, np.zeros(8000, dtype=np.float32), 8000)
+        bass_worker = os.path.join(directory, "bass_worker.py")
+        instrument_worker = os.path.join(directory, "instrument_worker.py")
+        with open(bass_worker, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import json\n"
+                "print(json.dumps({'engine':'basic-pitch-test','note_events':["
+                "{'start':0.5,'end':0.7,'midi':36,'confidence':0.9}]}))\n"
+            )
+        with open(instrument_worker, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import json\n"
+                "print(json.dumps({'engine':'instrument-test','labels':["
+                "{'label':'drummachine','score':0.8}]}))\n"
+            )
+        result = collect_mature_model_evidence(
+            {"bass": audio_path},
+            original_path=audio_path,
+            config=_disabled_config(
+                bass_command=f'{sys.executable} "{bass_worker}" "{{audio}}"',
+                instrument_command=f'{sys.executable} "{instrument_worker}" "{{audio}}"',
+            ),
+        )
+
+    assert result["routes"]["bass_transcription"]["status"] == "ready"
+    assert result["routes"]["instrument_tags"]["status"] == "ready"
+    assert result["routes"]["bass_transcription"]["result"]["note_events"][0]["midi"] == 36
+    assert set(result["ready_routes"]) == {"bass_transcription", "instrument_tags"}
 
 
 def test_dedicated_drum_model_replaces_spectral_fallback() -> None:

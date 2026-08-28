@@ -45,7 +45,9 @@ Demucs stems
 
 ```bash
 FEATURE_DRUM_TRANSCRIBER_COMMAND="python /opt/harbeat-models/drum_worker.py --audio {audio}"
+FEATURE_BASS_TRANSCRIBER_COMMAND="python /opt/harbeat/scripts/basic_pitch_bass_worker.py --audio {audio}"
 FEATURE_STYLE_TAGGER_COMMAND="python /opt/harbeat-models/style_worker.py --audio {audio}"
+FEATURE_INSTRUMENT_TAGGER_COMMAND="python /opt/harbeat-models/instrument_worker.py --audio {audio}"
 # 或使用本地 Essentia Discogs EffNet（不要与 worker 同时配置）
 ESSENTIA_DISCOGS_MODEL_PATH="/opt/harbeat-models/discogs-effnet-bs64-1.pb"
 ESSENTIA_DISCOGS_METADATA_PATH="/opt/harbeat-models/discogs-effnet-bs64-1.json"
@@ -59,6 +61,10 @@ FEATURE_MODEL_TIMEOUT_SECONDS=300
 "score": 0.81}]` 结构。本地 Essentia 路由会保存模型名、版本、帧数、聚合方法和
 前 25 个原始标签。分类器最多增加 0.18 辅助分，且不会绕过 21 类规则的必需证据；
 邻近或无法映射的顶部标签会设置 `out_of_taxonomy=true` 并要求复核。
+
+Bass 和乐器 worker 都是可选路线。`basic-pitch` 不加入基础 API 依赖，应安装在
+隔离的模型环境中；其音符起止、音高只增强 Bass Stem 的事件测量。乐器标签只作为
+辅助观察，不能直接确认 808、Talkbox、Clavinet 等窄语义身份。
 
 鼓转录示例：
 

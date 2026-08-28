@@ -191,3 +191,36 @@ def test_new_bass_features_are_unknown_without_required_grids() -> None:
     assert result["features"]["bass_riff_repetition"]["detected"] is None
     assert result["features"]["bass_kick_interlock"]["detected"] is None
     assert result["features"]["bass_staccato_ratio"]["availability"] == "available"
+
+
+def test_optional_note_model_supplies_pitch_duration_and_event_timing() -> None:
+    bass, _ = _tone_events()
+    route = {
+        "status": "ready",
+        "engine": "basic-pitch-test",
+        "result": {
+            "note_events": [
+                {
+                    "start": 0.5 + index,
+                    "end": 0.68 + index,
+                    "midi": 36 if index % 2 == 0 else 48,
+                    "confidence": 0.9,
+                }
+                for index in range(7)
+            ],
+        },
+    }
+
+    result = analyze_bass_features(
+        bass, np.zeros_like(bass), 8000,
+        drum_analysis={"events": {"kick": []}},
+        beat_points=np.arange(0, 8, 0.5),
+        downbeats=np.arange(0, 10, 2.0),
+        original_audio=bass,
+        model_route=route,
+    )
+
+    assert result["selected_note_engine"] == "basic-pitch-test"
+    assert result["features"]["bass_octave_pattern"]["score"] > 0.9
+    assert result["features"]["bass_staccato_ratio"]["score"] > 0.9
+    assert all(event["note_event_method"] == "basic_pitch_note_event" for event in result["events"])

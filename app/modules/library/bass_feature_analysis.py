@@ -80,6 +80,40 @@ def _bass_onsets(audio: np.ndarray, sr: int) -> np.ndarray:
     return np.asarray(retained, dtype=float)
 
 
+def _normalized_bass_note_events(model_route: dict[str, Any] | None) -> list[dict[str, float]]:
+    if not model_route or model_route.get("status") != "ready":
+        return []
+    raw = (model_route.get("result") or {}).get("note_events")
+    if not isinstance(raw, list):
+        return []
+    result = []
+    for value in raw:
+        if not isinstance(value, dict):
+            continue
+        try:
+            start = float(value["start"])
+            end = float(value["end"])
+            midi = float(value["midi"])
+            confidence = float(value.get("confidence", 0.75))
+            frequency = 440.0 * 2.0 ** ((midi - 69.0) / 12.0)
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+        if (
+            not all(np.isfinite(item) for item in (start, end, midi, confidence, frequency))
+            or start < 0 or end <= start or confidence < 0.20
+            or not BASS_F0_MIN_HZ <= frequency <= BASS_F0_MAX_HZ
+        ):
+            continue
+        result.append({
+            "start": start,
+            "end": end,
+            "midi": midi,
+            "frequency": frequency,
+            "confidence": _clamp(confidence),
+        })
+    return sorted(result, key=lambda item: item["start"])
+
+
 def _nearest_distance(value: float, references: np.ndarray) -> float | None:
     if not len(references):
         return None
@@ -134,13 +168,19 @@ def _bass_groove_descriptors(
     syncopation_score = _clamp(raw_syncopation / 0.65)
 
     staccato_limit = min(0.32, 0.62 * beat_period) if beat_period else 0.28
-    staccato_values = [float(item.get("decay_sec", 0.0)) <= staccato_limit for item in ordered]
+    staccato_values = [
+        float(item.get("note_duration_sec", item.get("decay_sec", 0.0))) <= staccato_limit
+        for item in ordered
+    ]
     staccato_fraction = float(np.mean(staccato_values)) if staccato_values else 0.0
     staccato_score = _clamp(staccato_fraction / 0.70)
 
     pitched = [
         item for item in ordered
-        if item.get("pitch_method") == "pyin_candidate_segment"
+        if (
+            item.get("pitch_method") == "pyin_candidate_segment"
+            or item.get("note_event_method") == "basic_pitch_note_event"
+        )
         and float(item.get("voiced_strength", 0.0)) >= PYIN_MIN_VOICED_PROB
         and float(item.get("fundamental_hz", 0.0)) > 0
     ]
@@ -398,6 +438,7 @@ def analyze_bass_features(
     beat_points: list[float] | np.ndarray | None = None,
     downbeats: list[float] | np.ndarray | None = None,
     original_audio: np.ndarray | None = None,
+    model_route: dict[str, Any] | None = None,
     source_quality: float = 0.75,
 ) -> dict[str, Any]:
     """Analyse Bass-stem events and return style-independent evidence."""
@@ -425,7 +466,11 @@ def analyze_bass_features(
     original_audio = np.asarray(original_audio, dtype=float) if original_audio is not None else None
     duration = len(bass) / sr
     kick_times = _event_times(drum_analysis, "kick")
-    onsets = _bass_onsets(bass, sr)
+    model_notes = _normalized_bass_note_events(model_route)
+    onsets = (
+        np.asarray([item["start"] for item in model_notes], dtype=float)
+        if len(model_notes) >= 3 else _bass_onsets(bass, sr)
+    )
     events = [
         descriptor
         for timestamp in onsets[:256]
@@ -433,6 +478,18 @@ def analyze_bass_features(
             bass, drums, original_audio, sr, float(timestamp), kick_times,
         )) is not None
     ]
+    if model_notes:
+        for event in events:
+            closest = min(model_notes, key=lambda item: abs(item["start"] - float(event["time"])))
+            if abs(closest["start"] - float(event["time"])) > 0.085:
+                continue
+            event["fundamental_hz"] = round(closest["frequency"], 3)
+            event["note_duration_sec"] = round(closest["end"] - closest["start"], 4)
+            event["note_event_method"] = "basic_pitch_note_event"
+            event["note_event_confidence"] = round(closest["confidence"], 4)
+            event["voiced_strength"] = round(
+                max(float(event.get("voiced_strength", 0.0)), closest["confidence"]), 4,
+            )
     quality = _clamp(len(events) / max(6.0, duration / 5.0))
     flags: list[str] = []
     if not events:
@@ -446,6 +503,8 @@ def analyze_bass_features(
     pitch_methods = sorted({str(item.get("pitch_method")) for item in events})
     if "spectral_peak_fallback" in pitch_methods:
         flags.append("bass_pitch_spectral_fallback_used")
+    if model_notes:
+        flags.append("bass_note_transcriber_used")
 
     def average(key: str) -> float:
         values = [float(item[key]) for item in events if item.get(key) is not None]
@@ -464,10 +523,19 @@ def analyze_bass_features(
         and float(item.get("voiced_strength", 0.0)) >= PYIN_MIN_VOICED_PROB
         and float(item.get("fundamental_hz", 0.0)) > 0
     ]
-    pitch_evidence_coverage = len(pyin_events) / max(1, len(events))
+    pitched_events = [
+        item for item in events
+        if (
+            item.get("pitch_method") == "pyin_candidate_segment"
+            or item.get("note_event_method") == "basic_pitch_note_event"
+        )
+        and float(item.get("voiced_strength", 0.0)) >= PYIN_MIN_VOICED_PROB
+        and float(item.get("fundamental_hz", 0.0)) > 0
+    ]
+    pitch_evidence_coverage = len(pitched_events) / max(1, len(events))
     pitch_track_quality = (
-        float(np.mean([float(item["voiced_strength"]) for item in pyin_events]))
-        if pyin_events else 0.0
+        float(np.mean([float(item["voiced_strength"]) for item in pitched_events]))
+        if pitched_events else 0.0
     )
     slide_events = [
         item for item in pyin_events
@@ -481,7 +549,7 @@ def analyze_bass_features(
     ) * _clamp(pitch_evidence_coverage / 0.45)
     pitched_sequence = [
         (float(item["time"]), float(item["fundamental_hz"]))
-        for item in pyin_events
+        for item in pitched_events
     ]
     if len(pitched_sequence) >= 3:
         midi_events = 69.0 + 12.0 * np.log2(
@@ -551,10 +619,16 @@ def analyze_bass_features(
         "frequency_scope_hz": [25, 1000],
         "pitch_methods": pitch_methods,
         "minimum_voiced_probability": PYIN_MIN_VOICED_PROB,
+        "note_event_method": "basic_pitch_note_event" if model_notes else None,
+        "model_note_event_count": len(model_notes),
     }
     source_quality = _clamp(source_quality)
-    pitch_estimator_quality = 0.82 if pitch_methods == ["pyin_candidate_segment"] else 0.55
-    pitch_reliability_cap = 1.0 if pitch_methods == ["pyin_candidate_segment"] else 0.62
+    model_note_coverage = sum(
+        item.get("note_event_method") == "basic_pitch_note_event" for item in events
+    ) / max(1, len(events))
+    mature_pitch_source = model_note_coverage >= 0.50 or pitch_methods == ["pyin_candidate_segment"]
+    pitch_estimator_quality = 0.86 if model_note_coverage >= 0.50 else (0.82 if mature_pitch_source else 0.55)
+    pitch_reliability_cap = 1.0 if mature_pitch_source else 0.62
 
     def feature(
         score: float,
@@ -746,7 +820,10 @@ def analyze_bass_features(
             estimator_quality=0.70,
             coverage=_clamp(len(events) / 8.0),
             sources=["bass_stem"],
-            time_ranges=_ranges(events, lambda item: item["decay_sec"] <= groove["staccato_limit_sec"]),
+            time_ranges=_ranges(
+                events,
+                lambda item: item.get("note_duration_sec", item["decay_sec"]) <= groove["staccato_limit_sec"],
+            ),
             evidence={
                 **common,
                 "staccato_fraction": groove["staccato_fraction"],
@@ -824,4 +901,7 @@ def analyze_bass_features(
         "events": events,
         "confidence": round(quality, 4),
         "quality_flags": flags,
+        "selected_note_engine": (
+            str((model_route or {}).get("engine")) if model_notes else "native_pyin_or_spectral"
+        ),
     }
