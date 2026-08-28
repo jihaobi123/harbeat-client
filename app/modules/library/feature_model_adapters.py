@@ -26,6 +26,7 @@ class FeatureModelConfig:
     instrument_command: str | None = None
     style_model_path: str | None = None
     style_metadata_path: str | None = None
+    style_max_duration_seconds: float = 90.0
     timeout_seconds: float = 300.0
 
     @classmethod
@@ -37,6 +38,9 @@ class FeatureModelConfig:
             instrument_command=os.getenv("FEATURE_INSTRUMENT_TAGGER_COMMAND") or None,
             style_model_path=os.getenv("ESSENTIA_DISCOGS_MODEL_PATH") or None,
             style_metadata_path=os.getenv("ESSENTIA_DISCOGS_METADATA_PATH") or None,
+            style_max_duration_seconds=max(
+                30.0, float(os.getenv("ESSENTIA_STYLE_MAX_DURATION_SECONDS", "90")),
+            ),
             timeout_seconds=max(5.0, float(os.getenv("FEATURE_MODEL_TIMEOUT_SECONDS", "300"))),
         )
 
@@ -115,6 +119,7 @@ def _run_essentia_discogs(
     *,
     model_path: str | None,
     metadata_path: str | None,
+    max_duration_seconds: float,
 ) -> dict[str, Any]:
     engine = "essentia_discogs_effnet"
     if not model_path and not metadata_path:
@@ -135,9 +140,24 @@ def _run_essentia_discogs(
         labels = metadata.get("classes") or []
         if not isinstance(labels, list) or not labels:
             raise ValueError("model metadata must contain non-empty classes")
-        audio = essentia_standard.MonoLoader(
-            filename=audio_path, sampleRate=16000, resampleQuality=4,
+        start_time = 0.0
+        source_duration = None
+        try:
+            import soundfile as sf
+
+            source_duration = float(sf.info(audio_path).duration)
+            start_time = max(0.0, (source_duration - max_duration_seconds) / 2.0)
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+        end_time = start_time + max_duration_seconds
+        full_audio = essentia_standard.MonoLoader(
+            filename=audio_path,
+            sampleRate=16000,
+            resampleQuality=4,
         )()
+        start_sample = int(round(start_time * 16000))
+        maximum_samples = int(round(max_duration_seconds * 16000))
+        audio = full_audio[start_sample : start_sample + maximum_samples]
         predictor = essentia_standard.TensorflowPredictEffnetDiscogs(
             graphFilename=model_path, output="PartitionedCall:0",
         )
@@ -157,6 +177,15 @@ def _run_essentia_discogs(
             "model_file": os.path.basename(model_path),
             "metadata_file": os.path.basename(metadata_path),
             "aggregation": "0.70*mean+0.30*p75",
+            "audio_window": {
+                "start_seconds": round(start_time, 3),
+                "end_seconds": round(
+                    min(end_time, source_duration) if source_duration is not None else end_time,
+                    3,
+                ),
+                "maximum_duration_seconds": round(max_duration_seconds, 3),
+                "selection": "center_window_when_duration_is_available",
+            },
             "frame_count": int(predictions.shape[0]),
             "labels": [
                 {
@@ -214,6 +243,7 @@ def collect_mature_model_evidence(
             original_path,
             model_path=config.style_model_path,
             metadata_path=config.style_metadata_path,
+            max_duration_seconds=config.style_max_duration_seconds,
         )
     instrument_route = _run_json_command(
         config.instrument_command,

@@ -147,3 +147,8 @@ def test_dedicated_drum_model_replaces_spectral_fallback() -> None:
     assert result["counts"]["tom"] == 1
     assert result["counts"]["cymbal"] == 1
     assert "spectral_proxy_fallback" not in result["quality_flags"]
+
+
+def test_style_model_window_has_bounded_default() -> None:
+    config = FeatureModelConfig.from_env()
+    assert config.style_max_duration_seconds == 90.0
