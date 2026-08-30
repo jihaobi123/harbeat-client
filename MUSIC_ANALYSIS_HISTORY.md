@@ -1,5 +1,7 @@
 # HarBeat 音乐分析历史工作入口
 
+算法同事第一次进入仓库，请直接阅读 [ALGORITHM_COLLABORATOR_START_HERE.md](ALGORITHM_COLLABORATOR_START_HERE.md)，无需浏览整个仓库。
+
 本文件是 2026-08-30 冻结的团队协作入口，覆盖三条已经开展的工作：
 
 1. 传统/显式 69 项音乐特征的定义、实现、验证和失败记录；
