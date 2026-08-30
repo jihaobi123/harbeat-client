@@ -74,6 +74,7 @@
 | 13 类实验快照 | `experiments/style_reference_v0/` |
 | 69 规则 vs ML 对比 | `experiments/traditional_vs_ml_20260829/` |
 | 段落基线 | `app/modules/library/analysis.py` |
+| 后续完整实施路线 | `docs/roadmap/` |
 
 ## 5. 不应被重新解释的历史事实
 

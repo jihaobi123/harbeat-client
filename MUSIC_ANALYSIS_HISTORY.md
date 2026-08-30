@@ -13,6 +13,12 @@
 - [段落识别与神经网络架构](docs/history/music-analysis-20260830/03_段落识别与神经网络架构.md)
 - [数据集与产物边界](docs/history/music-analysis-20260830/04_数据集登记.md)
 - [复现、协作和下一步](docs/history/music-analysis-20260830/05_复现与协作.md)
+- [后续音乐分析与神经网络完整路线](docs/roadmap/README.md)
+
+后续构想的两份完整原始方案也已纳入版本控制：
+
+- [完整实施方案、Pipeline、数据集与工程路线](docs/roadmap/01_HarBeat_音乐分析系统_完整实施方案与工程路线.md)
+- [MERT、音乐表征与专项模型技术背景](docs/roadmap/02_HarBeat_相关技术原理与成熟状态_背景资料.md)
 
 必须先知道的结论：
 
