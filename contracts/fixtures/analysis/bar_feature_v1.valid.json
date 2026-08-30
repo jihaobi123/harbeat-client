@@ -1,0 +1,315 @@
+{
+  "schema_name": "harbeat.bar_feature",
+  "schema_version": "1.0.0",
+  "analysis_id": "analysis_demo_1",
+  "track_id": "track_demo_1",
+  "bar_index": 0,
+  "start_sec": 0.0,
+  "end_sec": 2.0,
+  "beat_start_index": 0,
+  "beat_count": 4,
+  "is_partial": false,
+  "timing": {
+    "beat_times_sec": [0.0, 0.5, 1.0, 1.5],
+    "bpm": {
+      "value": 120.0,
+      "availability": "available",
+      "confidence": 0.95,
+      "provenance_ref": "prov_explicit_v1",
+      "validation_status": "provisional"
+    },
+    "meter": {
+      "value": {"numerator": 4, "denominator": 4},
+      "availability": "available",
+      "confidence": 0.9,
+      "provenance_ref": "prov_explicit_v1",
+      "validation_status": "provisional"
+    },
+    "downbeat_confidence": {
+      "value": 0.92,
+      "availability": "available",
+      "confidence": null,
+      "provenance_ref": "prov_explicit_v1",
+      "validation_status": "provisional"
+    }
+  },
+  "structure": {
+    "phrase_start_probability": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "phrase_end_probability": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "section_start_probability": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "section_end_probability": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "section_label": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    }
+  },
+  "elements": {
+    "drums": {
+      "state": {
+        "value": "foreground",
+        "availability": "available",
+        "confidence": 0.83,
+        "provenance_ref": "prov_explicit_v1",
+        "validation_status": "provisional"
+      },
+      "activity": {
+        "value": 0.84,
+        "availability": "available",
+        "confidence": 0.83,
+        "provenance_ref": "prov_explicit_v1",
+        "validation_status": "provisional"
+      },
+      "entry_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "exit_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      }
+    },
+    "vocal": {
+      "state": {
+        "value": "absent",
+        "availability": "available",
+        "confidence": 0.8,
+        "provenance_ref": "prov_explicit_v1",
+        "validation_status": "provisional"
+      },
+      "activity": {
+        "value": 0.0,
+        "availability": "available",
+        "confidence": 0.8,
+        "provenance_ref": "prov_explicit_v1",
+        "validation_status": "provisional"
+      },
+      "entry_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "exit_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      }
+    },
+    "bass": {
+      "state": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "activity": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "entry_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "exit_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      }
+    },
+    "melody": {
+      "state": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "activity": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "entry_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      },
+      "exit_probability": {
+        "value": null,
+        "availability": "not_computed",
+        "confidence": null,
+        "provenance_ref": null,
+        "validation_status": "unvalidated"
+      }
+    }
+  },
+  "acoustic": {
+    "energy_normalized": {
+      "value": 0.6,
+      "availability": "available",
+      "confidence": null,
+      "provenance_ref": "prov_explicit_v1",
+      "validation_status": "provisional"
+    },
+    "lufs_short_term": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "rms_dbfs": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "sub_energy_ratio": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "bass_energy_ratio": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "mid_energy_ratio": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "high_energy_ratio": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    }
+  },
+  "harmony": {
+    "local_key": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "chroma": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    }
+  },
+  "rhythm": {
+    "drum_density": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    },
+    "groove_strength": {
+      "value": null,
+      "availability": "not_computed",
+      "confidence": null,
+      "provenance_ref": null,
+      "validation_status": "unvalidated"
+    }
+  },
+  "quality": {
+    "timeline_confidence": 0.92,
+    "overall_confidence": null,
+    "validation_status": "provisional",
+    "needs_review": false,
+    "ood_probability": null,
+    "missing_fields": [
+      "acoustic.bass_energy_ratio",
+      "acoustic.high_energy_ratio",
+      "acoustic.lufs_short_term",
+      "acoustic.mid_energy_ratio",
+      "acoustic.rms_dbfs",
+      "acoustic.sub_energy_ratio",
+      "elements.bass.activity",
+      "elements.bass.entry_probability",
+      "elements.bass.exit_probability",
+      "elements.bass.state",
+      "elements.drums.entry_probability",
+      "elements.drums.exit_probability",
+      "elements.melody.activity",
+      "elements.melody.entry_probability",
+      "elements.melody.exit_probability",
+      "elements.melody.state",
+      "elements.vocal.entry_probability",
+      "elements.vocal.exit_probability",
+      "harmony.chroma",
+      "harmony.local_key",
+      "rhythm.drum_density",
+      "rhythm.groove_strength",
+      "structure.phrase_end_probability",
+      "structure.phrase_start_probability",
+      "structure.section_end_probability",
+      "structure.section_label",
+      "structure.section_start_probability"
+    ],
+    "warnings": []
+  }
+}

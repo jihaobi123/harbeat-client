@@ -9,6 +9,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.modules.library.track_analysis_v1_adapter import (
+    TrackAnalysisBuildContext,
+    build_track_analysis_v1,
+)
+
+
+__all__ = [
+    "TrackAnalysisBuildContext",
+    "build_track_analysis_v1",
+    "build_track_analysis_v2",
+]
+
 
 def _list(value: Any) -> list:
     return list(value) if isinstance(value, list) else []

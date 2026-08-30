@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "annotation_record_v1.schema.json",
+  "title": "HarBeat Annotation Record 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "annotation_id",
+    "dataset_version",
+    "track_id",
+    "task_id",
+    "granularity",
+    "start_sec",
+    "end_sec",
+    "start_bar_index",
+    "end_bar_index",
+    "value",
+    "annotator_id",
+    "annotation_status",
+    "annotator_confidence",
+    "candidate_source",
+    "created_at"
+  ],
+  "properties": {
+    "schema_name": {
+      "const": "harbeat.annotation_record"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "annotation_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "dataset_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "track_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "task_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "granularity": {
+      "type": "string",
+      "enum": [
+        "track",
+        "section",
+        "bar",
+        "beat",
+        "event"
+      ]
+    },
+    "start_sec": {
+      "anyOf": [
+        {
+          "$ref": "bar_feature_v1.schema.json#/$defs/seconds"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "end_sec": {
+      "anyOf": [
+        {
+          "$ref": "bar_feature_v1.schema.json#/$defs/positive_seconds"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "start_bar_index": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "end_bar_index": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "value": {},
+    "annotator_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "annotation_status": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "annotated",
+        "reviewed",
+        "adjudicated",
+        "rejected"
+      ]
+    },
+    "annotator_confidence": {
+      "anyOf": [
+        {
+          "$ref": "bar_feature_v1.schema.json#/$defs/probability"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidate_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dataset_track_v1.schema.json",
+  "title": "HarBeat Dataset Track 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "track_id",
+    "audio_uri",
+    "audio_sha256",
+    "duration_sec",
+    "artist_group_id",
+    "leakage_group_id",
+    "rights",
+    "annotation_sets",
+    "created_at"
+  ],
+  "properties": {
+    "schema_name": {
+      "const": "harbeat.dataset_track"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "track_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "audio_uri": {
+      "type": "string",
+      "pattern": "^(dataset|s3|gs|https)://.+$"
+    },
+    "audio_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "duration_sec": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/positive_seconds"
+    },
+    "artist_group_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "leakage_group_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "rights": {
+      "$ref": "#/$defs/rights"
+    },
+    "annotation_sets": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  },
+  "$defs": {
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "research",
+        "training",
+        "commercial",
+        "stems_allowed",
+        "expires_at"
+      ],
+      "properties": {
+        "research": {
+          "type": "boolean"
+        },
+        "training": {
+          "type": "boolean"
+        },
+        "commercial": {
+          "type": "boolean"
+        },
+        "stems_allowed": {
+          "type": "boolean"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

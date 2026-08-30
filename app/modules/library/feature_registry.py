@@ -48,6 +48,7 @@ DERIVED = {
     "bass_syncopation", "bass_staccato_ratio", "bass_riff_repetition",
     "bass_octave_pattern", "bass_kick_interlock", "continuous_high_percussion",
     "repeated_tonal_motif", "sample_texture", "brightness", "dark_timbre",
+    "sampled_loop_tendency",
 }
 
 SEMANTIC = {

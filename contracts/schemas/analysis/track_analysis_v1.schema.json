@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "track_analysis_v1.schema.json",
+  "title": "HarBeat TrackAnalysis 1.0.0",
+  "description": "Versioned track-level envelope containing canonical timeline, BarFeature records and provenance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "analysis_id",
+    "track_id",
+    "revision",
+    "status",
+    "created_at",
+    "audio",
+    "pipeline",
+    "timeline",
+    "track_summary",
+    "bars",
+    "sections",
+    "provenance",
+    "quality"
+  ],
+  "properties": {
+    "schema_name": {
+      "const": "harbeat.track_analysis"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "analysis_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "track_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "partial"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "audio": {
+      "$ref": "#/$defs/audio"
+    },
+    "pipeline": {
+      "$ref": "#/$defs/pipeline"
+    },
+    "timeline": {
+      "$ref": "#/$defs/timeline"
+    },
+    "track_summary": {
+      "$ref": "#/$defs/track_summary"
+    },
+    "bars": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "bar_feature_v1.schema.json"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/section_segment"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "bar_feature_v1.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/provenance"
+      }
+    },
+    "quality": {
+      "$ref": "#/$defs/analysis_quality"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "nullable_sha256": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audio_sha256",
+        "decoded_pcm_sha256",
+        "duration_sec",
+        "canonical_sample_rate_hz",
+        "canonical_channels"
+      ],
+      "properties": {
+        "audio_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "decoded_pcm_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "duration_sec": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/positive_seconds"
+        },
+        "canonical_sample_rate_hz": {
+          "const": 44100
+        },
+        "canonical_channels": {
+          "const": 2
+        }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipeline_version",
+        "preprocessing_version",
+        "feature_definition_version",
+        "config_sha256",
+        "code_commit"
+      ],
+      "properties": {
+        "pipeline_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preprocessing_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "feature_definition_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "code_commit": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 64,
+          "pattern": "^[a-fA-F0-9]+$"
+        }
+      }
+    },
+    "meter_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_bar_index",
+        "end_bar_index",
+        "numerator",
+        "denominator",
+        "confidence",
+        "provenance_ref"
+      ],
+      "properties": {
+        "start_bar_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_bar_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "numerator": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "denominator": {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            4,
+            8,
+            16,
+            32
+          ]
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "bar_feature_v1.schema.json#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/id"
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "beat_times_sec",
+        "downbeat_times_sec",
+        "meter_segments",
+        "bar_count"
+      ],
+      "properties": {
+        "beat_times_sec": {
+          "type": "array",
+          "items": {
+            "$ref": "bar_feature_v1.schema.json#/$defs/seconds"
+          }
+        },
+        "downbeat_times_sec": {
+          "type": "array",
+          "items": {
+            "$ref": "bar_feature_v1.schema.json#/$defs/seconds"
+          }
+        },
+        "meter_segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/meter_segment"
+          }
+        },
+        "bar_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "track_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bpm",
+        "meter",
+        "key",
+        "energy_normalized",
+        "tempo_stability"
+      ],
+      "properties": {
+        "bpm": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/scalar_feature"
+        },
+        "meter": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/meter_feature"
+        },
+        "key": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/key_feature"
+        },
+        "energy_normalized": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/probability_feature"
+        },
+        "tempo_stability": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/probability_feature"
+        }
+      }
+    },
+    "section_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_id",
+        "start_bar_index",
+        "end_bar_index",
+        "start_sec",
+        "end_sec",
+        "label",
+        "confidence",
+        "provenance_ref"
+      ],
+      "properties": {
+        "section_id": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/id"
+        },
+        "start_bar_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_bar_index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_sec": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/seconds"
+        },
+        "end_sec": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/positive_seconds"
+        },
+        "label": {
+          "type": "string",
+          "enum": [
+            "intro",
+            "main",
+            "build",
+            "breakdown",
+            "outro",
+            "unknown"
+          ]
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "bar_feature_v1.schema.json#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "$ref": "bar_feature_v1.schema.json#/$defs/id"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "method_id",
+        "method_version",
+        "model_id",
+        "model_sha256",
+        "dataset_version",
+        "calibration_version",
+        "preprocessing_version",
+        "config_sha256",
+        "code_commit",
+        "computed_at",
+        "license_id"
+      ],
+      "properties": {
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "explicit",
+            "rule",
+            "pretrained_model",
+            "trained_head",
+            "manual",
+            "derived"
+          ]
+        },
+        "method_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "model_sha256": {
+          "$ref": "#/$defs/nullable_sha256"
+        },
+        "dataset_version": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "calibration_version": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "preprocessing_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "code_commit": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 64,
+          "pattern": "^[a-fA-F0-9]+$"
+        },
+        "computed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "license_id": {
+          "$ref": "#/$defs/nullable_string"
+        }
+      }
+    },
+    "analysis_quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_confidence",
+        "needs_review",
+        "missing_feature_sets",
+        "warnings"
+      ],
+      "properties": {
+        "overall_confidence": {
+          "anyOf": [
+            {
+              "$ref": "bar_feature_v1.schema.json#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "needs_review": {
+          "type": "boolean"
+        },
+        "missing_feature_sets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        }
+      }
+    }
+  }
+}

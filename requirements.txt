@@ -8,6 +8,7 @@ pydantic-settings==2.10.1
 PyJWT==2.9.0
 python-multipart==0.0.20
 httpx==0.28.1
+jsonschema==4.26.0
 
 # === Audio Analysis ===
 librosa==0.10.2.post1

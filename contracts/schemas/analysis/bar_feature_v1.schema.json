@@ -1,0 +1,836 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bar_feature_v1.schema.json",
+  "title": "HarBeat BarFeature 1.0.0",
+  "description": "Canonical per-bar analysis contract exchanged between analysis, model, storage and Planner components.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "analysis_id",
+    "track_id",
+    "bar_index",
+    "start_sec",
+    "end_sec",
+    "beat_start_index",
+    "beat_count",
+    "is_partial",
+    "timing",
+    "structure",
+    "elements",
+    "acoustic",
+    "harmony",
+    "rhythm",
+    "quality"
+  ],
+  "properties": {
+    "schema_name": {
+      "const": "harbeat.bar_feature"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "analysis_id": {
+      "$ref": "#/$defs/id"
+    },
+    "track_id": {
+      "$ref": "#/$defs/id"
+    },
+    "bar_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "start_sec": {
+      "$ref": "#/$defs/seconds"
+    },
+    "end_sec": {
+      "$ref": "#/$defs/positive_seconds"
+    },
+    "beat_start_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "beat_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "is_partial": {
+      "type": "boolean"
+    },
+    "timing": {
+      "$ref": "#/$defs/timing"
+    },
+    "structure": {
+      "$ref": "#/$defs/structure"
+    },
+    "elements": {
+      "$ref": "#/$defs/elements"
+    },
+    "acoustic": {
+      "$ref": "#/$defs/acoustic"
+    },
+    "harmony": {
+      "$ref": "#/$defs/harmony"
+    },
+    "rhythm": {
+      "$ref": "#/$defs/rhythm"
+    },
+    "quality": {
+      "$ref": "#/$defs/quality"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positive_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "not_computed",
+        "unavailable",
+        "invalid"
+      ]
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": [
+        "unvalidated",
+        "provisional",
+        "validated",
+        "rejected"
+      ]
+    },
+    "availability_contract": {
+      "if": {
+        "required": [
+          "availability"
+        ],
+        "properties": {
+          "availability": {
+            "const": "available"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "not": {
+              "type": "null"
+            }
+          },
+          "provenance_ref": {
+            "type": "string"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "value": {
+            "type": "null"
+          },
+          "confidence": {
+            "type": "null"
+          },
+          "provenance_ref": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "probability_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "scalar_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "element_state_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "absent",
+            "background",
+            "foreground",
+            "entering",
+            "ending",
+            "unknown",
+            null
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "section_label_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "intro",
+            "main",
+            "build",
+            "breakdown",
+            "outro",
+            "unknown",
+            null
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "key_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "C:maj",
+            "C#:maj",
+            "D:maj",
+            "D#:maj",
+            "E:maj",
+            "F:maj",
+            "F#:maj",
+            "G:maj",
+            "G#:maj",
+            "A:maj",
+            "A#:maj",
+            "B:maj",
+            "C:min",
+            "C#:min",
+            "D:min",
+            "D#:min",
+            "E:min",
+            "F:min",
+            "F#:min",
+            "G:min",
+            "G#:min",
+            "A:min",
+            "A#:min",
+            "B:min",
+            "unknown",
+            null
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "meter_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "numerator",
+                "denominator"
+              ],
+              "properties": {
+                "numerator": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 32
+                },
+                "denominator": {
+                  "type": "integer",
+                  "enum": [
+                    1,
+                    2,
+                    4,
+                    8,
+                    16,
+                    32
+                  ]
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "chroma_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/availability_contract"
+        }
+      ],
+      "required": [
+        "value",
+        "availability",
+        "confidence",
+        "provenance_ref",
+        "validation_status"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "array",
+              "minItems": 12,
+              "maxItems": 12,
+              "items": {
+                "$ref": "#/$defs/probability"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "beat_times_sec",
+        "bpm",
+        "meter",
+        "downbeat_confidence"
+      ],
+      "properties": {
+        "beat_times_sec": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/seconds"
+          }
+        },
+        "bpm": {
+          "$ref": "#/$defs/scalar_feature"
+        },
+        "meter": {
+          "$ref": "#/$defs/meter_feature"
+        },
+        "downbeat_confidence": {
+          "$ref": "#/$defs/probability_feature"
+        }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phrase_start_probability",
+        "phrase_end_probability",
+        "section_start_probability",
+        "section_end_probability",
+        "section_label"
+      ],
+      "properties": {
+        "phrase_start_probability": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "phrase_end_probability": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "section_start_probability": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "section_end_probability": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "section_label": {
+          "$ref": "#/$defs/section_label_feature"
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "activity",
+        "entry_probability",
+        "exit_probability"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/element_state_feature"
+        },
+        "activity": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "entry_probability": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "exit_probability": {
+          "$ref": "#/$defs/probability_feature"
+        }
+      }
+    },
+    "elements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drums",
+        "vocal",
+        "bass",
+        "melody"
+      ],
+      "properties": {
+        "drums": {
+          "$ref": "#/$defs/element"
+        },
+        "vocal": {
+          "$ref": "#/$defs/element"
+        },
+        "bass": {
+          "$ref": "#/$defs/element"
+        },
+        "melody": {
+          "$ref": "#/$defs/element"
+        }
+      }
+    },
+    "acoustic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "energy_normalized",
+        "lufs_short_term",
+        "rms_dbfs",
+        "sub_energy_ratio",
+        "bass_energy_ratio",
+        "mid_energy_ratio",
+        "high_energy_ratio"
+      ],
+      "properties": {
+        "energy_normalized": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "lufs_short_term": {
+          "$ref": "#/$defs/scalar_feature"
+        },
+        "rms_dbfs": {
+          "$ref": "#/$defs/scalar_feature"
+        },
+        "sub_energy_ratio": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "bass_energy_ratio": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "mid_energy_ratio": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "high_energy_ratio": {
+          "$ref": "#/$defs/probability_feature"
+        }
+      }
+    },
+    "harmony": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_key",
+        "chroma"
+      ],
+      "properties": {
+        "local_key": {
+          "$ref": "#/$defs/key_feature"
+        },
+        "chroma": {
+          "$ref": "#/$defs/chroma_feature"
+        }
+      }
+    },
+    "rhythm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drum_density",
+        "groove_strength"
+      ],
+      "properties": {
+        "drum_density": {
+          "$ref": "#/$defs/probability_feature"
+        },
+        "groove_strength": {
+          "$ref": "#/$defs/probability_feature"
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeline_confidence",
+        "overall_confidence",
+        "validation_status",
+        "needs_review",
+        "ood_probability",
+        "missing_fields",
+        "warnings"
+      ],
+      "properties": {
+        "timeline_confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "overall_confidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_status": {
+          "$ref": "#/$defs/validation_status"
+        },
+        "needs_review": {
+          "type": "boolean"
+        },
+        "ood_probability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/probability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "missing_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        }
+      }
+    }
+  }
+}

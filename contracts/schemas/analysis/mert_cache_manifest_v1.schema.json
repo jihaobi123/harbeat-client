@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mert_cache_manifest_v1.schema.json",
+  "title": "HarBeat MERT Cache Manifest 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "cache_id",
+    "track_id",
+    "decoded_pcm_sha256",
+    "model_id",
+    "model_sha256",
+    "preprocessing_version",
+    "input_sample_rate_hz",
+    "input_channels",
+    "window_sec",
+    "hop_sec",
+    "padding_policy",
+    "alignment_policy",
+    "selected_layers",
+    "includes_embedding_state",
+    "hidden_size",
+    "tensor_dtype",
+    "tensor_format",
+    "tensor_shape",
+    "window_start_sec",
+    "valid_duration_sec",
+    "attention_mask_present",
+    "artifact_uri",
+    "artifact_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema_name": {
+      "const": "harbeat.mert_cache_manifest"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "cache_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "track_id": {
+      "$ref": "bar_feature_v1.schema.json#/$defs/id"
+    },
+    "decoded_pcm_sha256": {
+      "$ref": "track_analysis_v1.schema.json#/$defs/sha256"
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_sha256": {
+      "$ref": "track_analysis_v1.schema.json#/$defs/sha256"
+    },
+    "preprocessing_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_sample_rate_hz": {
+      "type": "integer",
+      "minimum": 8000,
+      "maximum": 192000
+    },
+    "input_channels": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "window_sec": {
+      "const": 5.0
+    },
+    "hop_sec": {
+      "const": 2.5
+    },
+    "padding_policy": {
+      "const": "right_zero_with_mask"
+    },
+    "alignment_policy": {
+      "const": "time_overlap_weighted"
+    },
+    "selected_layers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "includes_embedding_state": {
+      "type": "boolean"
+    },
+    "hidden_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tensor_dtype": {
+      "const": "float16"
+    },
+    "tensor_format": {
+      "const": "safetensors"
+    },
+    "tensor_shape": {
+      "description": "[window_count, selected_layer_count, frame_count, hidden_size]",
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "window_start_sec": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "bar_feature_v1.schema.json#/$defs/seconds"
+      }
+    },
+    "valid_duration_sec": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 5.0
+      }
+    },
+    "attention_mask_present": {
+      "const": true
+    },
+    "artifact_uri": {
+      "type": "string",
+      "pattern": "^(cache|s3|gs|https)://.+$"
+    },
+    "artifact_sha256": {
+      "$ref": "track_analysis_v1.schema.json#/$defs/sha256"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "includes_embedding_state": {
+            "const": false
+          }
+        },
+        "required": [
+          "includes_embedding_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_layers": {
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # HarBeat 共享合同目录
 
-状态：`SCaffold / 尚未冻结`
+状态：`Analysis V1 active / 其余域仍为 scaffold`
 目标：成为后端、算法、手机和 RK 之间机器可读合同的唯一来源。
 
 ## 目录责任
@@ -15,6 +15,7 @@ contracts/
 │   ├── analysis/   # Worker与算法合同场景
 │   ├── mobile-api/ # 中央 OpenAPI Mock 场景
 │   └── rk/         # Capability/State/Operation/Event/Sync 场景
+├── registries/     # 版本化特征注册表和验证证据
 └── decisions/      # 影响机器合同的 ADR 和变更索引
 ```
 
@@ -27,6 +28,17 @@ contracts/
 | RK | `docs/backend-handoff-v1/08_RK设备能力与控制协议.md` | 设计草案，需形成 Schema |
 | Manifest | `docs/backend-handoff-v1/09_资源Manifest与同步协议.md` | 设计草案，需形成 Schema |
 | 错误/幂等 | `docs/backend-handoff-v1/10_错误码幂等与离线恢复.md` | 设计草案，需进入消费者测试 |
+
+## 已纳管版本
+
+| 合同域 | 版本 | Owner | Reviewer | 状态 |
+|---|---|---|---|---|
+| Music Analysis Core（Bar/Track/Registry） | `1.0.0` | 服务端音乐算法负责人 | 后端负责人、音乐制作人 | active，模型效果门槛尚未签字 |
+| Analysis Job / Annotation / Dataset / MERT / Model Manifest | `1.0.0-draft` | 工作流 B | 后端负责人、音乐制作人 | draft，尚缺各自 Fixture 与生产者测试 |
+
+Analysis V1 的结构合同已经进入 `contracts/schemas/analysis/`。这里的
+`active` 只适用于已具备 Fixture、生产者和语义不变量测试的 Core；其余 Schema
+仍用于协作实现，不得宣称已冻结。任何状态都不表示候选模型已经达到 production 指标。
 
 ## 合同文件进入本目录的门槛
 
