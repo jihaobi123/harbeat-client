@@ -93,6 +93,7 @@ git switch -c feature/algorithm-followup
 12. [数据集审计](experiments/style_reference_v0/reports/dataset_audit.md)
 13. [实验模型卡](experiments/style_reference_v0/model_card.json)
 14. [数据集和 Git 边界](docs/history/music-analysis-20260830/04_数据集登记.md)
+15. [Embedding、权重和 Joblib 产物说明](experiments/style_reference_v0/ARTIFACTS.md)
 
 ## 3. 69 项传统特征已经完成了什么
 
@@ -228,6 +229,16 @@ Logistic Regression / SVM / Nearest Neighbor
 experiments/style_reference_v0/
 experiments/traditional_vs_ml_20260829/
 ```
+
+本次历史分支也冻结保存了二进制实验产物：
+
+```text
+experiments/style_reference_v0/embeddings/
+experiments/style_reference_v0/models/
+experiments/style_reference_v0/SHA256SUMS
+```
+
+其中包括 65 首匿名歌曲对应的 1280 维 embedding 缓存、Discogs-EffNet `.pb` 权重、三个 Joblib 实验分类器和折外预测。具体文件、校验和、加载安全说明及第三方许可见 `experiments/style_reference_v0/ARTIFACTS.md`。这些文件仍是实验快照，不代表生产批准。
 
 ## 7. 数据集
 
