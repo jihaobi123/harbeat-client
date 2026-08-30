@@ -11,6 +11,7 @@
       - redis
     volumes:
       - music_data:/app/data/music-files
+      - annotation_data:/app/data/annotations
       - model_cache:/root/.cache
     deploy:
       resources:
@@ -49,5 +50,6 @@
 
 volumes:
   music_data:
+  annotation_data:
   redis_data:
   model_cache:

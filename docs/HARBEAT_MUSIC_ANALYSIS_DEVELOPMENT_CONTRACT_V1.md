@@ -11,6 +11,7 @@
 - [`TrackAnalysis` JSON Schema](../contracts/schemas/analysis/track_analysis_v1.schema.json)
 - [Feature Registry Entry JSON Schema](../contracts/schemas/analysis/feature_registry_entry_v1.schema.json)
 - [Annotation Record JSON Schema](../contracts/schemas/analysis/annotation_record_v1.schema.json)
+- [Annotation Label Registry](../contracts/registries/annotation_labels_v1.json)
 - [Dataset Track JSON Schema](../contracts/schemas/analysis/dataset_track_v1.schema.json)
 - [Analysis Job JSON Schema](../contracts/schemas/analysis/analysis_job_v1.schema.json)
 - [MERT Cache Manifest JSON Schema](../contracts/schemas/analysis/mert_cache_manifest_v1.schema.json)
@@ -910,6 +911,15 @@ Reader 遇到未知 major 版本必须拒绝并返回 `SCHEMA_VERSION_UNSUPPORTE
 - 导出模型可以由生产推理接口加载；
 - Model Registry 能追溯到数据、代码、配置和许可证。
 
+### 21.5 标注工作台
+
+- 页面只能按统一 Bar 时间轴选择范围，不能手填秒数；
+- 保存前重新校验 Track、Dataset Version、Task、标签值和 Bar 边界；
+- 两个页面基于同一 Revision 修改时，后保存的一方收到 409，不能静默覆盖；
+- Timeline 指纹变化后，旧标注不能继续写回原 Dataset Version；
+- 外部数据和自动分析只生成 `candidate`，制作人确认后才是 `annotated`；
+- 监督训练默认只读取 `reviewed` 或 `adjudicated`，不能直接使用 `candidate`。
+
 ## 22. 开发开始时的默认任务
 
 按以下顺序落地合同：
@@ -923,6 +933,8 @@ Reader 遇到未知 major 版本必须拒绝并返回 `SCHEMA_VERSION_UNSUPPORTE
 7. 双方用 10 首 Fixture 做第一次合同验收。
 
 完成第 1、2 和 7 项后，原先文档里的 JSON 才从“设计方向”变成项目中实际可依赖的接口。
+
+当前仓库已经完成 `BarFeature` Adapter、标注标签 Registry、候选生成、Raveform 转换、Revision 保存、工作区 API 和制作人页面。接下来的人工主线是完成 20–30 首 Pilot 标注；模型主线在 Pilot 形成稳定标签后再建立 MERT 缓存和 Linear Probe。
 
 ## 23. 签署与生效
 
