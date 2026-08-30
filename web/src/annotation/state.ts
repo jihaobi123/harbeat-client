@@ -4,6 +4,7 @@ import type {
   AnnotationTaskId,
   AnnotationValue,
   BarRange,
+  CandidateBar,
   ElementState,
   SectionLabel,
 } from '../types/annotation'
@@ -76,6 +77,39 @@ export function recordsFor(
   return draft.annotations
     .filter(record => record.task_id === taskId)
     .sort((left, right) => left.start_bar_index - right.start_bar_index)
+}
+
+
+function evidenceValue(value: number | null): string {
+  return value === null ? 'unknown' : String(value)
+}
+
+
+export function candidateSourceForBar(
+  bar: CandidateBar,
+  taskId: AnnotationTaskId,
+): { value: AnnotationValue; source: string | null } {
+  if (taskId === 'structure.section_label') {
+    const candidate = bar.section
+    if (!candidate.source) return { value: candidate.value, source: null }
+    const label = encodeURIComponent(candidate.source_label ?? '<unknown>')
+    return {
+      value: candidate.value,
+      source: `${candidate.source}|label=${label}|confidence=${evidenceValue(candidate.confidence)}`,
+    }
+  }
+
+  const element = taskId.split('.')[1] as keyof CandidateBar['elements']
+  const candidate = bar.elements[element]
+  if (!candidate.source) return { value: candidate.value, source: null }
+  return {
+    value: candidate.value,
+    source: [
+      candidate.source,
+      `activity=${evidenceValue(candidate.activity)}`,
+      `confidence=${evidenceValue(candidate.confidence)}`,
+    ].join('|'),
+  }
 }
 
 

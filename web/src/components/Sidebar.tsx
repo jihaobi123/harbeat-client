@@ -7,8 +7,9 @@ export type NavView = 'library' | 'annotation' | 'platform' | 'recommend' | 'ses
 
 interface Props {
   currentView: NavView
-  onViewChange: (view: NavView) => void
+  onViewChange: (view: NavView) => boolean | void
   onMobileAction?: () => void
+  onBeforeLogout?: () => boolean
 }
 
 const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
@@ -21,7 +22,7 @@ const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
   { id: 'profile', icon: '👤', label: 'Profile' },
 ]
 
-export default function Sidebar({ currentView, onViewChange, onMobileAction }: Props) {
+export default function Sidebar({ currentView, onViewChange, onMobileAction, onBeforeLogout }: Props) {
   const { user, doLogout } = useAuthStore()
   const { playlists, playlistsLoading, selectPlaylist, selectedPlaylist, clearSelectedPlaylist, deletePlaylist, loadSongs, loadPlaylists } = useMusicStore()
   const [creatingPlaylist, setCreatingPlaylist] = useState(false)
@@ -46,7 +47,7 @@ export default function Sidebar({ currentView, onViewChange, onMobileAction }: P
           <button
             key={item.id}
             onClick={() => {
-              onViewChange(item.id)
+              if (onViewChange(item.id) === false) return
               if (item.id === 'library') { clearSelectedPlaylist(); loadSongs() }
             }}
             className={`w-full text-left px-3 py-2 text-sm font-semibold rounded-md ${
@@ -125,7 +126,10 @@ export default function Sidebar({ currentView, onViewChange, onMobileAction }: P
             <div className="text-xs truncate">{user?.dance_style}</div>
           </div>
           <button
-            onClick={doLogout}
+            onClick={() => {
+              if (onBeforeLogout?.() === false) return
+              doLogout()
+            }}
             className="text-xs px-2 py-1 bg-surface-lighter"
             title="Logout"
           >

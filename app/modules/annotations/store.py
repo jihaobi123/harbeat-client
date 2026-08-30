@@ -8,6 +8,8 @@ from pathlib import Path
 import re
 import tempfile
 
+from filelock import FileLock, Timeout
+
 from app.modules.annotations.schemas import AnnotationRecord, StoredAnnotationSet
 
 
@@ -55,40 +57,55 @@ class AnnotationStore:
         timeline_fingerprint: str,
         annotations: list[AnnotationRecord],
     ) -> StoredAnnotationSet:
-        current = self.load(dataset_version, track_id)
-        if current.revision != expected_revision:
-            raise RevisionConflict(
-                f"expected revision {expected_revision}, current revision is {current.revision}"
-            )
-        if current.timeline_fingerprint and current.timeline_fingerprint != timeline_fingerprint:
-            raise TimelineConflict("timeline changed; create a new Dataset Version before saving")
-
-        saved = StoredAnnotationSet(
-            dataset_version=dataset_version,
-            track_id=track_id,
-            timeline_fingerprint=timeline_fingerprint,
-            revision=current.revision + 1,
-            annotations=annotations,
-            updated_at=_utc_now(),
-        )
         target = self.path_for(dataset_version, track_id)
         target.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(saved.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n"
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=target.parent,
-            prefix=f".{target.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
+        lock = FileLock(str(target.with_suffix(f"{target.suffix}.lock")), timeout=0)
         try:
-            os.replace(temporary, target)
-        finally:
-            if temporary.exists():
-                temporary.unlink()
+            with lock:
+                current = self.load(dataset_version, track_id)
+                if current.revision != expected_revision:
+                    raise RevisionConflict(
+                        f"expected revision {expected_revision}, current revision is {current.revision}"
+                    )
+                if (
+                    current.timeline_fingerprint
+                    and current.timeline_fingerprint != timeline_fingerprint
+                ):
+                    raise TimelineConflict(
+                        "timeline changed; create a new Dataset Version before saving"
+                    )
+
+                saved = StoredAnnotationSet(
+                    dataset_version=dataset_version,
+                    track_id=track_id,
+                    timeline_fingerprint=timeline_fingerprint,
+                    revision=current.revision + 1,
+                    annotations=annotations,
+                    updated_at=_utc_now(),
+                )
+                payload = (
+                    json.dumps(saved.model_dump(mode="json"), ensure_ascii=False, indent=2)
+                    + "\n"
+                )
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    dir=target.parent,
+                    prefix=f".{target.name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as handle:
+                    temporary = Path(handle.name)
+                    handle.write(payload)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                try:
+                    os.replace(temporary, target)
+                finally:
+                    if temporary.exists():
+                        temporary.unlink()
+        except Timeout as exc:
+            raise RevisionConflict(
+                "another annotation save is in progress; reload before saving"
+            ) from exc
         return saved

@@ -75,7 +75,12 @@ def save_annotation_workspace_endpoint(
 ):
     song = _get_owned_song(db, track_id, current_user.id)
     try:
-        workspace = save_annotation_workspace(song, request, store)
+        workspace = save_annotation_workspace(
+            song,
+            request,
+            store,
+            annotator_id=f"user:{current_user.id}",
+        )
     except (RevisionConflict, TimelineConflict) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AnnotationValidationError as exc:

@@ -20,8 +20,8 @@ def _song(**overrides):
         ],
         "energy_curve": [],
         "phrase_map": [
-            {"start": 0.0, "end": 2.0, "label": "intro"},
-            {"start": 2.0, "end": 4.0, "label": "drop"},
+            {"start": 0.0, "end": 2.0, "label": "intro", "confidence": 0.82},
+            {"start": 2.0, "end": 4.0, "label": "drop", "confidence": 0.76},
         ],
     }
     values.update(overrides)
@@ -45,6 +45,7 @@ def test_candidates_use_phrase_overlap_and_stem_activity() -> None:
     assert bars[0]["end_sec"] == 2.0
     assert bars[0]["section"]["value"] == "intro"
     assert bars[0]["section"]["source_label"] == "intro"
+    assert bars[0]["section"]["confidence"] == 0.82
     assert bars[0]["elements"]["drums"]["value"] == "foreground"
     assert bars[0]["elements"]["vocal"]["value"] == "absent"
     assert bars[0]["elements"]["bass"]["value"] == "background"

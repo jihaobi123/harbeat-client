@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, BrokenBarrierError
 
 import pytest
 from pydantic import ValidationError
@@ -83,3 +85,47 @@ def test_annotation_record_rejects_non_half_open_range() -> None:
         _record().model_copy(update={"end_bar_index": 0}, deep=True).__class__.model_validate(
             {**_record().model_dump(), "end_bar_index": 0}
         )
+
+
+def test_store_allows_only_one_of_two_concurrent_saves(tmp_path) -> None:
+    barrier = Barrier(2)
+
+    class RacingStore(AnnotationStore):
+        def load(self, dataset_version: str, track_id: str):
+            loaded = super().load(dataset_version, track_id)
+            if loaded.revision == 0:
+                try:
+                    barrier.wait(timeout=0.2)
+                except BrokenBarrierError:
+                    pass
+            return loaded
+
+    stores = [RacingStore(tmp_path), RacingStore(tmp_path)]
+
+    def save(store: AnnotationStore):
+        try:
+            return store.save("bar-understanding-1.0.0", "track-1", 0, "timeline-a", [])
+        except RevisionConflict as exc:
+            return exc
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(save, stores))
+
+    assert sum(not isinstance(outcome, Exception) for outcome in outcomes) == 1
+    assert sum(isinstance(outcome, RevisionConflict) for outcome in outcomes) == 1
+    assert AnnotationStore(tmp_path).load("bar-understanding-1.0.0", "track-1").revision == 1
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("annotation_id", "bad id"),
+        ("annotator_id", "producer 1"),
+        ("created_at", "2026-08-30Z"),
+    ],
+)
+def test_annotation_record_mirrors_json_schema_identity_and_timestamp_rules(
+    field: str, value: str
+) -> None:
+    with pytest.raises(ValidationError):
+        AnnotationRecord.model_validate({**_record().model_dump(), field: value})

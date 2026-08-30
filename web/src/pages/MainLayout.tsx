@@ -24,6 +24,7 @@ export default function MainLayout() {
   const [currentView, setCurrentView] = useState<NavView>('library')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [annotationDirty, setAnnotationDirty] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
@@ -43,10 +44,18 @@ export default function MainLayout() {
     }, 400)
   }, [searchSongs, loadSongs, setSearchQuery])
 
+  const confirmLeaveAnnotation = useCallback(() => {
+    if (currentView !== 'annotation' || !annotationDirty) return true
+    return window.confirm('这首歌还有未保存的标注。确定放弃修改并离开吗？')
+  }, [annotationDirty, currentView])
+
   const handleViewChange = useCallback((view: NavView) => {
+    if (view !== currentView && !confirmLeaveAnnotation()) return false
+    if (view !== 'annotation') setAnnotationDirty(false)
     setCurrentView(view)
     setSidebarOpen(false)
-  }, [])
+    return true
+  }, [confirmLeaveAnnotation, currentView])
 
   const renderMainContent = () => {
     switch (currentView) {
@@ -59,7 +68,7 @@ export default function MainLayout() {
       case 'dj':
         return <DjControlPanel />
       case 'annotation':
-        return <AnnotationWorkbench />
+        return <AnnotationWorkbench onDirtyChange={setAnnotationDirty} />
       case 'profile':
         return <ProfilePanel />
       case 'library':
@@ -163,7 +172,12 @@ export default function MainLayout() {
           md:relative md:inset-auto md:z-auto md:w-60 md:transform-none md:transition-none
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}>
-          <Sidebar currentView={currentView} onViewChange={handleViewChange} onMobileAction={() => setSidebarOpen(false)} />
+          <Sidebar
+            currentView={currentView}
+            onViewChange={handleViewChange}
+            onMobileAction={() => setSidebarOpen(false)}
+            onBeforeLogout={confirmLeaveAnnotation}
+          />
         </div>
 
         <ErrorBoundary>

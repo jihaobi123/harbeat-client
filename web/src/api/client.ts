@@ -6,6 +6,18 @@ interface ApiResponse<T> {
   data: T
 }
 
+export class ApiError extends Error {
+  status: number
+  code: number
+
+  constructor(message: string, status: number, code: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+}
+
 function getToken(): string | null {
   return localStorage.getItem('harbeat_token')
 }
@@ -46,7 +58,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok || json.code !== 0) {
-    throw new Error(json.message || `HTTP ${res.status}`)
+    throw new ApiError(json.message || `HTTP ${res.status}`, res.status, json.code)
   }
 
   return json.data

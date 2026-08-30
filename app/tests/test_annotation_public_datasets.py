@@ -69,3 +69,34 @@ def test_raveform_track_conversion_emits_candidate_records() -> None:
 def test_raveform_conversion_rejects_missing_track_or_section_boundaries() -> None:
     with pytest.raises(ValueError):
         convert_raveform_track({"sections": [{"label": "Intro"}]}, "dataset-1")
+
+
+def test_runtime_raveform_mapping_matches_the_frozen_registry() -> None:
+    registry_path = (
+        Path(__file__).resolve().parents[2]
+        / "contracts"
+        / "registries"
+        / "annotation_labels_v1.json"
+    )
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    mapping = registry["public_dataset_mappings"]["raveform"]
+
+    assert {label: map_raveform_section_label(label) for label in mapping} == mapping
+    assert set(mapping) == {
+        "intro",
+        "ambient-intro",
+        "buildup",
+        "build-up",
+        "build",
+        "drop",
+        "cooldown",
+        "bridge",
+        "verse",
+        "chorus",
+        "instrumental",
+        "main",
+        "breakdown",
+        "ambient-breakdown",
+        "outro",
+        "ambient-outro",
+    }

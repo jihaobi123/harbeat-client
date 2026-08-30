@@ -5,7 +5,7 @@ import type {
   AnnotationTaskId,
   CandidateBar,
 } from '../types/annotation'
-import { applyRangeLabel, normalizeRange, recordsFor } from './state'
+import { applyRangeLabel, candidateSourceForBar, normalizeRange, recordsFor } from './state'
 
 
 function bars(count = 8): CandidateBar[] {
@@ -109,5 +109,21 @@ describe('annotation editor state', () => {
       [2, 5, 'foreground'],
       [5, 8, 'background'],
     ])
+  })
+
+  it('preserves original fine labels and confidence in candidate provenance', () => {
+    const bar = bars(1)[0]
+    bar.section = {
+      value: 'main',
+      confidence: 0.78,
+      source: 'analysis:phrase_map:v1',
+      source_label: 'Drop 2',
+    }
+
+    const candidate = candidateSourceForBar(bar, 'structure.section_label')
+
+    expect(candidate.value).toBe('main')
+    expect(candidate.source).toContain('label=Drop%202')
+    expect(candidate.source).toContain('confidence=0.78')
   })
 })

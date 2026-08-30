@@ -100,6 +100,7 @@ def test_router_maps_stale_revision_to_conflict(tmp_path) -> None:
     first = save_annotation_workspace_endpoint("track-router-1", _request(), db, user, store)
 
     assert first.data.revision == 1
+    assert first.data.annotations[0].annotator_id == "user:7"
     with pytest.raises(HTTPException) as error:
         save_annotation_workspace_endpoint("track-router-1", _request(), db, user, store)
 

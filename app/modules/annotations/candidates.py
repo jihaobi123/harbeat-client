@@ -37,6 +37,7 @@ def _number(value: Any) -> float | None:
 def _section_candidate(song: Any, start_sec: float, end_sec: float) -> dict[str, Any]:
     best_overlap = 0.0
     best_label: str | None = None
+    best_confidence: float | None = None
     for phrase in getattr(song, "phrase_map", None) or []:
         if not isinstance(phrase, dict):
             continue
@@ -48,6 +49,10 @@ def _section_candidate(song: Any, start_sec: float, end_sec: float) -> dict[str,
         if overlap > best_overlap:
             best_overlap = overlap
             best_label = str(phrase.get("label", ""))
+            confidence = _number(phrase.get("confidence"))
+            best_confidence = (
+                confidence if confidence is not None and 0.0 <= confidence <= 1.0 else None
+            )
     if best_label is None:
         return {
             "value": "unknown",
@@ -57,7 +62,7 @@ def _section_candidate(song: Any, start_sec: float, end_sec: float) -> dict[str,
         }
     return {
         "value": map_raveform_section_label(best_label),
-        "confidence": None,
+        "confidence": best_confidence,
         "source": SECTION_SOURCE,
         "source_label": best_label,
     }

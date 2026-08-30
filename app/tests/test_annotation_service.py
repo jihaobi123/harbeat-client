@@ -90,10 +90,11 @@ def test_save_validates_and_increments_workspace_revision(tmp_path) -> None:
         annotations=[_annotation()],
     )
 
-    workspace = save_annotation_workspace(song, request, store)
+    workspace = save_annotation_workspace(song, request, store, annotator_id="user:7")
 
     assert workspace.revision == 1
     assert workspace.annotations[0].value == "intro"
+    assert workspace.annotations[0].annotator_id == "user:7"
 
 
 @pytest.mark.parametrize(
@@ -116,7 +117,12 @@ def test_save_rejects_records_that_do_not_match_the_contract_or_timeline(
     )
 
     with pytest.raises(AnnotationValidationError):
-        save_annotation_workspace(song, request, AnnotationStore(tmp_path))
+        save_annotation_workspace(
+            song,
+            request,
+            AnnotationStore(tmp_path),
+            annotator_id="user:7",
+        )
 
 
 def test_timeline_fingerprint_changes_when_bar_grid_changes() -> None:
@@ -127,3 +133,58 @@ def test_timeline_fingerprint_changes_when_bar_grid_changes() -> None:
 
     assert first != second
 
+
+def test_save_rejects_client_attempt_to_create_reviewed_truth(tmp_path) -> None:
+    request = SaveAnnotationWorkspaceRequest(
+        dataset_version=DATASET_VERSION,
+        revision=0,
+        annotations=[_annotation(annotation_status="reviewed", annotator_id="forged-reviewer")],
+    )
+
+    with pytest.raises(AnnotationValidationError):
+        save_annotation_workspace(
+            _song(), request, AnnotationStore(tmp_path), annotator_id="user:7"
+        )
+
+
+def test_save_rejects_overlapping_truth_for_the_same_task(tmp_path) -> None:
+    request = SaveAnnotationWorkspaceRequest(
+        dataset_version=DATASET_VERSION,
+        revision=0,
+        annotations=[
+            _annotation(end_sec=4.0, end_bar_index=2, value="intro"),
+            _annotation(
+                annotation_id="ann-track-service-1-section-1-2",
+                start_sec=2.0,
+                end_sec=4.0,
+                start_bar_index=1,
+                end_bar_index=2,
+                value="main",
+            ),
+        ],
+    )
+
+    with pytest.raises(AnnotationValidationError, match="overlap"):
+        save_annotation_workspace(
+            _song(), request, AnnotationStore(tmp_path), annotator_id="user:7"
+        )
+
+
+def test_saved_workspace_reloads_the_same_revision_and_records(tmp_path) -> None:
+    song = _song()
+    store = AnnotationStore(tmp_path)
+    saved = save_annotation_workspace(
+        song,
+        SaveAnnotationWorkspaceRequest(
+            dataset_version=DATASET_VERSION,
+            revision=0,
+            annotations=[_annotation()],
+        ),
+        store,
+        annotator_id="user:7",
+    )
+
+    reloaded = build_annotation_workspace(song, DATASET_VERSION, store)
+
+    assert reloaded.revision == saved.revision == 1
+    assert reloaded.annotations == saved.annotations

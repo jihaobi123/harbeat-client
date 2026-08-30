@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -13,22 +14,26 @@ SectionLabel = Literal["intro", "main", "build", "breakdown", "outro", "unknown"
 ElementState = Literal[
     "absent", "background", "foreground", "entering", "ending", "unknown"
 ]
+ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+UTC_TIMESTAMP_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
+)
 
 
 class AnnotationRecord(BaseModel):
     schema_name: Literal["harbeat.annotation_record"] = "harbeat.annotation_record"
     schema_version: Literal["1.0.0"] = "1.0.0"
-    annotation_id: str = Field(min_length=1, max_length=128)
+    annotation_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
     dataset_version: str = Field(min_length=1)
-    track_id: str = Field(min_length=1, max_length=128)
-    task_id: str = Field(min_length=1, max_length=128)
+    track_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
+    task_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
     granularity: Granularity
     start_sec: float | None = Field(default=None, ge=0)
     end_sec: float | None = Field(default=None, gt=0)
     start_bar_index: int | None = Field(default=None, ge=0)
     end_bar_index: int | None = Field(default=None, ge=1)
     value: Any
-    annotator_id: str = Field(min_length=1, max_length=128)
+    annotator_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
     annotation_status: AnnotationStatus
     annotator_confidence: float | None = Field(default=None, ge=0, le=1)
     candidate_source: str | None = None
@@ -39,12 +44,14 @@ class AnnotationRecord(BaseModel):
     @field_validator("created_at")
     @classmethod
     def validate_utc_timestamp(cls, value: str) -> str:
-        if not value.endswith("Z"):
-            raise ValueError("created_at must be a UTC timestamp ending in Z")
+        if not UTC_TIMESTAMP_PATTERN.fullmatch(value):
+            raise ValueError("created_at must be a complete UTC date-time ending in Z")
         try:
-            datetime.fromisoformat(value[:-1] + "+00:00")
+            parsed = datetime.fromisoformat(value[:-1] + "+00:00")
         except ValueError as exc:
             raise ValueError("created_at must be an ISO-8601 timestamp") from exc
+        if parsed.utcoffset() is None or parsed.utcoffset().total_seconds() != 0:
+            raise ValueError("created_at must use UTC")
         return value
 
     @model_validator(mode="after")

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as api from '../api/client'
-import { applyRangeLabel, normalizeRange } from '../annotation/state'
+import { applyRangeLabel, candidateSourceForBar, normalizeRange } from '../annotation/state'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import type {
@@ -42,6 +42,10 @@ const STATE_OPTIONS: Array<{ value: ElementState; label: string }> = [
 const SECTION_LABELS = Object.fromEntries(SECTION_OPTIONS.map(item => [item.value, item.label]))
 const STATE_LABELS = Object.fromEntries(STATE_OPTIONS.map(item => [item.value, item.label]))
 
+interface Props {
+  onDirtyChange: (dirty: boolean) => void
+}
+
 
 function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -62,21 +66,7 @@ function annotationAt(
 }
 
 
-function candidateFor(
-  workspace: AnnotationWorkspace,
-  taskId: AnnotationTaskId,
-  barIndex: number,
-): { value: AnnotationValue; source: string | null } {
-  const bar = workspace.bars[barIndex]
-  if (taskId === 'structure.section_label') {
-    return { value: bar.section.value, source: bar.section.source }
-  }
-  const element = taskId.split('.')[1] as ElementName
-  return { value: bar.elements[element].value, source: bar.elements[element].source }
-}
-
-
-export default function AnnotationWorkbench() {
+export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const { user } = useAuthStore()
   const { songs, songsLoading, loadSongs } = useMusicStore()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -88,6 +78,7 @@ export default function AnnotationWorkbench() {
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [conflict, setConflict] = useState(false)
   const [selectionStart, setSelectionStart] = useState(0)
   const [selectionEnd, setSelectionEnd] = useState(0)
   const [waitingForEnd, setWaitingForEnd] = useState(false)
@@ -97,6 +88,20 @@ export default function AnnotationWorkbench() {
   useEffect(() => {
     if (songs.length === 0) loadSongs()
   }, [loadSongs, songs.length])
+
+  useEffect(() => {
+    onDirtyChange(dirty)
+  }, [dirty, onDirtyChange])
+
+  useEffect(() => {
+    if (!dirty) return
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [dirty])
 
   const selectedRange = useMemo<BarRange>(() => {
     const count = workspace?.bars.length ?? 0
@@ -110,6 +115,7 @@ export default function AnnotationWorkbench() {
     setDirty(false)
     setMessage('')
     setError('')
+    setConflict(false)
     setWaitingForEnd(false)
     setSelectionStart(0)
     setSelectionEnd(0)
@@ -171,11 +177,11 @@ export default function AnnotationWorkbench() {
     if (!workspace || !draft || selectedRange.start >= selectedRange.end) return
     let nextDraft = draft
     let runStart = selectedRange.start
-    let current = candidateFor(workspace, taskId, runStart)
+    let current = candidateSourceForBar(workspace.bars[runStart], taskId)
     const timestamp = new Date().toISOString()
     for (let index = runStart + 1; index <= selectedRange.end; index += 1) {
       const next = index < selectedRange.end
-        ? candidateFor(workspace, taskId, index)
+        ? candidateSourceForBar(workspace.bars[index], taskId)
         : null
       if (next && next.value === current.value && next.source === current.source) continue
       nextDraft = applyRangeLabel(
@@ -211,8 +217,12 @@ export default function AnnotationWorkbench() {
       setWorkspace(next)
       setDraft(previous => previous ? { ...previous, annotations: next.annotations } : previous)
       setDirty(false)
+      setConflict(false)
       setMessage(`已保存 · 修订 ${next.revision}`)
     } catch (caught) {
+      if (caught instanceof api.ApiError && caught.status === 409) {
+        setConflict(true)
+      }
       setError(caught instanceof Error ? caught.message : '保存失败')
     } finally {
       setSaving(false)
@@ -282,6 +292,14 @@ export default function AnnotationWorkbench() {
         {error && (
           <div className="street-sticker bg-red-500/20 p-3 text-sm" role="alert">
             <strong>没有完成：</strong> {error}
+            {conflict && trackId && (
+              <button
+                className="ml-3 px-3 py-1 bg-white"
+                onClick={() => void loadWorkspace(trackId)}
+              >
+                放弃本地草稿并重新加载
+              </button>
+            )}
           </div>
         )}
         {message && !error && (
