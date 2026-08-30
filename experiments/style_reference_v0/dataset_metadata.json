@@ -1,0 +1,23 @@
+{
+  "version": "style_reference_dataset_v0",
+  "created_at": "2026-08-28T17:39:31.064670+00:00",
+  "source_zip": "external:音乐风格参考曲库.zip",
+  "source_zip_sha256": "1ef55ef33439fecef1db939f0e64015d06ec24b2f575f2d0db58432d746584c5",
+  "track_count": 65,
+  "class_count": 13,
+  "target_class_count": 21,
+  "missing_target_styles": [
+    "drill",
+    "memphis_trap",
+    "moombahton",
+    "rage",
+    "rnb",
+    "soul_neo_soul",
+    "trap_soul",
+    "uk_garage"
+  ],
+  "fold_count": 4,
+  "seed": 20260829,
+  "audio_is_git_artifact": false,
+  "labels_are_reviewed": false
+}

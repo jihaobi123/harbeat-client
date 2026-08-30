@@ -1,0 +1,35 @@
+{
+  "version": "key_model_validation_v1",
+  "models": [
+    {
+      "engine": "madmom_cnn",
+      "model_version": "0.16.1",
+      "worker_engine": "madmom_cnn_key_recognition",
+      "benchmark": "GiantSteps Key official two-minute Beatport previews",
+      "blind_test_track_count": 100,
+      "blind_test_protocol": "confidence threshold locked before downloading the blind set",
+      "confidence_gate": {
+        "metric": "madmom_24_class_softmax_max_probability",
+        "threshold": 0.8
+      },
+      "accepted_track_count": 49,
+      "coverage": 0.49,
+      "heldout_exact_accuracy": 0.8367,
+      "heldout_mirex_weighted_score": 0.8531,
+      "relations": {
+        "exact": 41,
+        "fifth": 1,
+        "relative": 1,
+        "parallel": 0,
+        "other": 6
+      },
+      "validated": true,
+      "evaluated_at": "2026-08-28",
+      "restrictions": [
+        "the blind set is electronic dance music, so transfer to unrelated genres remains a risk",
+        "estimates below 0.80 stay candidates and require review",
+        "a single global key cannot represent songs with modulation"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-PERCUSSION_FEATURE_VERSION = "percussion_timbre_features_v2"
+PERCUSSION_FEATURE_VERSION = "percussion_timbre_features_v3"
 PERCUSSION_FAMILIES = (
     "full_snare",
     "wide_clap",
@@ -49,6 +49,7 @@ def _events(drum_analysis: dict | None) -> list[dict[str, Any]]:
             normalized.append({
                 "time": timestamp,
                 "input_class": str(event_class).lower(),
+                "input_subtype": str(item.get("subtype") or event_class).lower(),
                 "input_confidence": _clamp(item.get("confidence", 0.75)),
             })
     return sorted(normalized, key=lambda item: item["time"])
@@ -116,11 +117,30 @@ def _range(item: dict[str, Any]) -> dict[str, float]:
     return {"start": round(item["time"], 4), "end": round(item["time"] + min(0.5, item["decay_sec"]), 4)}
 
 
+def matches_percussion_family(name: str, item: dict[str, Any]) -> bool:
+    """Apply one fixed acoustic-family rule for evaluation and inference."""
+    rules = {
+        "full_snare": lambda x: 700 <= x["spectral_centroid_hz"] <= 4200 and x["decay_sec"] >= 0.075 and x["mid_ratio_250_4000_hz"] >= 0.35,
+        "wide_clap": lambda x: x["spectral_spread_hz"] >= 1500 and x["spectral_flatness"] >= 0.11 and x["high_ratio_4000_hz_plus"] >= 0.08 and x["decay_sec"] <= 0.30,
+        "short_rim_snap": lambda x: x["decay_sec"] <= 0.095 and x["spectral_prominence"] >= 7.0 and 900 <= x["dominant_frequency_hz"] <= 5000,
+        "short_metallic": lambda x: x["spectral_centroid_hz"] >= 2500 and x["high_ratio_4000_hz_plus"] >= 0.12 and x["decay_sec"] < 0.16,
+        "sustained_metallic": lambda x: x["spectral_centroid_hz"] >= 2500 and (x["decay_sec"] >= 0.16 or x["late_early_ratio"] >= 0.18),
+        "low_pitched_drum": lambda x: 55 <= x["dominant_frequency_hz"] < 220 and x["spectral_prominence"] >= 5.0 and x["decay_sec"] >= 0.06,
+        "mid_pitched_drum": lambda x: 220 <= x["dominant_frequency_hz"] < 900 and x["spectral_prominence"] >= 6.0 and x["decay_sec"] >= 0.055,
+        "hand_drum_family": lambda x: 140 <= x["dominant_frequency_hz"] < 1200 and x["spectral_prominence"] >= 5.0 and 0.06 <= x["decay_sec"] <= 0.34 and x["mid_ratio_250_4000_hz"] >= 0.22,
+        "tonal_percussion": lambda x: 180 <= x["dominant_frequency_hz"] <= 3200 and x["spectral_prominence"] >= 9.0 and x["spectral_flatness"] <= 0.18,
+    }
+    if name not in rules:
+        raise KeyError(f"unknown percussion family: {name}")
+    return bool(rules[name](item))
+
+
 def analyze_percussion_features(
     drums: np.ndarray | None,
     sr: int,
     *,
     drum_analysis: dict | None = None,
+    bpm: float | None = None,
     source_quality: float = 0.75,
 ) -> dict[str, Any]:
     method = "native_rate_percussion_event_families_v2"
@@ -146,7 +166,12 @@ def analyze_percussion_features(
     spectral_proxy = detector_mode == "fallback" or (
         (drum_analysis or {}).get("selected_engine") == "spectral_flux_fallback"
     )
-    reliability_cap = 0.55 if spectral_proxy else 1.0
+    base_reliability_cap = 0.55 if spectral_proxy else 0.68
+    model_validation = (drum_analysis or {}).get("model_validation") or {}
+    validated_classes = {
+        name for name, value in (model_validation.get("classes") or {}).items()
+        if value.get("validated")
+    }
     if spectral_proxy:
         flags.append("percussion_uses_spectral_drum_proxy")
     if sr <= 22050:
@@ -173,17 +198,11 @@ def analyze_percussion_features(
         }
     ]
 
-    predicates = {
-        "full_snare": lambda x: 700 <= x["spectral_centroid_hz"] <= 4200 and x["decay_sec"] >= 0.075 and x["mid_ratio_250_4000_hz"] >= 0.35,
-        "wide_clap": lambda x: x["spectral_spread_hz"] >= 1500 and x["spectral_flatness"] >= 0.11 and x["high_ratio_4000_hz_plus"] >= 0.08 and x["decay_sec"] <= 0.30,
-        "short_rim_snap": lambda x: x["decay_sec"] <= 0.095 and x["spectral_prominence"] >= 7.0 and 900 <= x["dominant_frequency_hz"] <= 5000,
-        "short_metallic": lambda x: x["spectral_centroid_hz"] >= 2500 and x["high_ratio_4000_hz_plus"] >= 0.12 and x["decay_sec"] < 0.16,
-        "sustained_metallic": lambda x: x["spectral_centroid_hz"] >= 2500 and (x["decay_sec"] >= 0.16 or x["late_early_ratio"] >= 0.18),
-        "low_pitched_drum": lambda x: 55 <= x["dominant_frequency_hz"] < 220 and x["spectral_prominence"] >= 5.0 and x["decay_sec"] >= 0.06,
-        "mid_pitched_drum": lambda x: 220 <= x["dominant_frequency_hz"] < 900 and x["spectral_prominence"] >= 6.0 and x["decay_sec"] >= 0.055,
-        "hand_drum_family": lambda x: 140 <= x["dominant_frequency_hz"] < 1200 and x["spectral_prominence"] >= 5.0 and 0.06 <= x["decay_sec"] <= 0.34 and x["mid_ratio_250_4000_hz"] >= 0.22,
-        "tonal_percussion": lambda x: 180 <= x["dominant_frequency_hz"] <= 3200 and x["spectral_prominence"] >= 9.0 and x["spectral_flatness"] <= 0.18,
-    }
+    predicate_names = (
+        "full_snare", "wide_clap", "short_rim_snap", "short_metallic",
+        "sustained_metallic", "low_pitched_drum", "mid_pitched_drum",
+        "hand_drum_family", "tonal_percussion",
+    )
     comparison = {
         "full_snare": snare,
         "wide_clap": snare,
@@ -196,14 +215,22 @@ def analyze_percussion_features(
         "tonal_percussion": descriptors,
     }
     matches = {
-        name: [item for item in comparison[name] if predicate(item)]
-        for name, predicate in predicates.items()
+        name: [item for item in comparison[name] if matches_percussion_family(name, item)]
+        for name in predicate_names
     }
 
     high_times = np.asarray([item["time"] for item in high], dtype=float)
     high_rate = len(high_times) / max(duration, 1.0)
     intervals = np.diff(high_times)
-    event_rate_score = _clamp(high_rate / 5.5)
+    if bpm is not None and np.isfinite(bpm) and bpm > 0:
+        high_events_per_beat = 60.0 * high_rate / float(bpm)
+        # Eighth-note activity is 2 events/beat; continuous sixteenths are 4.
+        event_rate_score = _clamp((high_events_per_beat - 0.75) / 3.25)
+        event_rate_method = "events_per_beat"
+    else:
+        high_events_per_beat = None
+        event_rate_score = _clamp(high_rate / 5.5)
+        event_rate_method = "events_per_second_fallback"
     interval_consistency = 0.0
     if len(intervals) >= 4:
         interval_consistency = _clamp(
@@ -223,9 +250,10 @@ def analyze_percussion_features(
     total_energy = np.sum(np.square(spectrum), axis=0) + 1e-12
     high_ratio_frames = high_energy / total_energy
     high_band_ratio = float(np.mean(high_ratio_frames)) if len(high_ratio_frames) else 0.0
-    activity_threshold = float(np.percentile(high_energy, 55)) if len(high_energy) else 0.0
+    audible_frames = total_energy > max(float(np.percentile(total_energy, 20)), 1e-12)
+    high_activity = audible_frames & (high_ratio_frames >= 0.04)
     high_activity_coverage = (
-        float(np.mean(high_energy > max(activity_threshold, 1e-12))) if len(high_energy) else 0.0
+        float(np.sum(high_activity) / max(1, np.sum(audible_frames))) if len(high_energy) else 0.0
     )
     high_magnitude = spectrum[high_mask] if np.any(high_mask) else np.empty((0, spectrum.shape[1]))
     high_flatness = (
@@ -258,7 +286,7 @@ def analyze_percussion_features(
         "tonal_percussion": ["cowbell", "clave", "woodblock", "tonal_drum"],
     }
     features = {}
-    for name in predicates:
+    for name in predicate_names:
         items = comparison[name]
         matched = matches[name]
         matched_fraction = len(matched) / max(1, len(items))
@@ -280,7 +308,7 @@ def analyze_percussion_features(
             estimator_quality=0.68 if name in {"tonal_percussion", "hand_drum_family"} else 0.74,
             coverage=max(family_coverage, quality * 0.5),
             stability=family_stability,
-            reliability_cap=reliability_cap,
+            reliability_cap=base_reliability_cap,
             quality_flags=flags,
             sources=["drums_stem", "drum_transcription"],
             analysis_method=method,
@@ -291,6 +319,7 @@ def analyze_percussion_features(
                 "matched_event_fraction": round(matched_fraction, 4),
                 "matched_event_support": round(matched_support, 4),
                 "drum_detector_mode": detector_mode,
+                "validated_drum_classes": sorted(validated_classes),
                 "candidate_labels": candidate_names.get(name, []),
                 "frequency_rule_hz": {
                     "short_metallic_min_centroid": 2500,
@@ -309,7 +338,11 @@ def analyze_percussion_features(
         estimator_quality=0.74,
         coverage=max(high_activity_coverage, _clamp(len(high) / max(4.0, duration * 0.5))),
         stability=max(interval_consistency, quality * 0.5),
-        reliability_cap=reliability_cap,
+        reliability_cap=(
+            0.55 if spectral_proxy else (
+                0.82 if "high_percussion" in validated_classes else 0.68
+            )
+        ),
         quality_flags=flags,
         sources=["drums_stem", "drum_transcription"],
         analysis_method=method,
@@ -318,6 +351,10 @@ def analyze_percussion_features(
             "high_event_rate_hz": round(high_rate, 4),
             "inter_event_count": len(intervals),
             "event_rate_score": round(event_rate_score, 4),
+            "event_rate_method": event_rate_method,
+            "high_events_per_beat": (
+                None if high_events_per_beat is None else round(high_events_per_beat, 4)
+            ),
             "interval_consistency": round(interval_consistency, 4),
             "high_band_floor_hz": round(high_floor, 1),
             "high_band_energy_ratio": round(high_band_ratio, 4),
@@ -326,6 +363,7 @@ def analyze_percussion_features(
             "analysis_sample_rate": sr,
             "drum_detector_mode": detector_mode,
             "candidate_labels": candidate_names["continuous_high_percussion"],
+            "high_percussion_event_validation_passed": "high_percussion" in validated_classes,
         },
     )
     features["repeated_tonal_motif"] = make_feature_evidence(
@@ -337,7 +375,7 @@ def analyze_percussion_features(
         estimator_quality=0.66,
         coverage=_clamp(len(tonal) / max(4.0, duration * 0.25)),
         stability=_clamp(repeated / max(1, len(tonal))) if tonal else quality * 0.5,
-        reliability_cap=reliability_cap,
+        reliability_cap=base_reliability_cap,
         quality_flags=flags,
         sources=["drums_stem"],
         analysis_method=method,

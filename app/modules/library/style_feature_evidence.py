@@ -6,7 +6,7 @@ from typing import Any, Literal
 import numpy as np
 
 
-STYLE_FEATURE_EVIDENCE_VERSION = "pre_style_evidence_v4"
+STYLE_FEATURE_EVIDENCE_VERSION = "pre_style_evidence_v5"
 Availability = Literal["available", "unavailable"]
 EvidenceLevel = Literal["confirmed", "probable", "candidate", "unavailable"]
 

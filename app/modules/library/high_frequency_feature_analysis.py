@@ -7,6 +7,7 @@ import librosa
 import numpy as np
 
 from app.modules.library.bass_feature_analysis import analyze_bass_features
+from app.modules.library.feature_calibration import calibrate_feature_groups
 from app.modules.library.musical_context_feature_analysis import analyze_musical_context_features
 from app.modules.library.percussion_feature_analysis import analyze_percussion_features
 from app.modules.library.rhythm_feature_analysis import analyze_rhythm_features
@@ -21,6 +22,27 @@ TARGET_SAMPLE_RATE = 22050
 
 def _count(values) -> int:
     return 0 if values is None else len(values)
+
+
+def summarize_feature_validation(groups: dict[str, Any]) -> dict[str, Any]:
+    by_status: dict[str, list[str]] = {}
+    style_ready = []
+    for group_name, features in groups.items():
+        for feature_name, feature in (features or {}).items():
+            if not isinstance(feature, dict):
+                continue
+            path = f"{group_name}.{feature_name}"
+            status = str(feature.get("validation_status") or "unavailable")
+            by_status.setdefault(status, []).append(path)
+            if feature.get("style_required_allowed") is True:
+                style_ready.append(path)
+    by_status = {key: sorted(values) for key, values in sorted(by_status.items())}
+    return {
+        "counts": {key: len(values) for key, values in by_status.items()},
+        "features_by_status": by_status,
+        "style_ready_features": sorted(style_ready),
+        "policy": "only heldout-validated features may be required by style analysis",
+    }
 
 
 def _tempo_family(bpm: float | None) -> dict[str, Any]:
@@ -47,14 +69,14 @@ def empty_high_frequency_features(reason: str = "required_audio_unavailable") ->
         sources=["demucs_stems"],
         analysis_method="high_frequency_feature_pipeline_v1",
     )
-    groups = {
+    groups = calibrate_feature_groups({
         "rhythm_grammar": {"analysis": feature},
         "low_frequency": {"analysis": feature},
         "percussion_timbre": {"analysis": feature},
         "vocal_delivery": {"analysis": feature},
         "harmony": {"analysis": feature},
         "production": {"analysis": feature},
-    }
+    })
     return {
         "version": STYLE_FEATURE_EVIDENCE_VERSION,
         "status": "unavailable",
@@ -62,6 +84,7 @@ def empty_high_frequency_features(reason: str = "required_audio_unavailable") ->
         "reason": reason,
         "music_context": {},
         "feature_groups": groups,
+        "validation_summary": summarize_feature_validation(groups),
         "analysis_modules": {},
         "confidence": {"overall": 0.0},
         "quality_flags": [reason],
@@ -141,7 +164,7 @@ def analyze_high_frequency_features(
         model_route=((model_evidence or {}).get("routes") or {}).get("bass_transcription"),
     )
     percussion = analyze_percussion_features(
-        native_arrays.get("drums"), sr, drum_analysis=drum_analysis,
+        native_arrays.get("drums"), sr, drum_analysis=drum_analysis, bpm=bpm,
     )
     context = analyze_musical_context_features(
         vocals=arrays.get("vocals"),
@@ -153,15 +176,17 @@ def analyze_high_frequency_features(
         native_original_audio=native_mix,
         native_sr=sr,
         beat_points=beat_points,
+        chord_route=((model_evidence or {}).get("routes") or {}).get("chord_transcription"),
+        vocal_activity_route=((model_evidence or {}).get("routes") or {}).get("vocal_activity"),
     )
-    groups = {
+    groups = calibrate_feature_groups({
         "rhythm_grammar": rhythm["features"],
         "low_frequency": bass["features"],
         "percussion_timbre": percussion["features"],
         "vocal_delivery": context["vocal_delivery"],
         "harmony": context["harmony"],
         "production": context["production"],
-    }
+    })
     module_confidences = [
         float(rhythm.get("confidence", 0.0) or 0.0),
         float(bass.get("confidence", 0.0) or 0.0),
@@ -203,6 +228,7 @@ def analyze_high_frequency_features(
             "duration": round(duration, 4),
         },
         "feature_groups": groups,
+        "validation_summary": summarize_feature_validation(groups),
         "analysis_modules": {
             "rhythm": rhythm,
             "bass": bass,

@@ -30,7 +30,9 @@ def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -
         drum_analysis=analysis, key_profile={"tonal_clarity": 0.8},
     )
 
-    assert result["version"] == "pre_style_evidence_v4"
+    assert result["version"] == "pre_style_evidence_v5"
+    assert result["feature_groups"]["low_frequency"]["sub_bass"]["probability"] is None
+    assert result["feature_groups"]["low_frequency"]["sub_bass"]["validation_status"] == "provisional"
     assert result["music_context"]["bpm"] == 120.0
     assert result["music_context"]["tempo_family"] == {
         "status": "candidate_levels_only",
@@ -43,6 +45,14 @@ def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -
     assert result["music_context"]["high_frequency_sample_rate"] == sr
     assert result["analysis_modules"]["percussion"]["analysis_sample_rate"] == sr
     assert result["feature_groups"]["rhythm_grammar"]["four_on_floor"]["availability"] == "available"
+    assert result["feature_groups"]["rhythm_grammar"]["four_on_floor"]["validation_status"] == "failed_validation"
+    assert result["feature_groups"]["rhythm_grammar"]["four_on_floor"]["decision"] == "rejected"
+    assert result["feature_groups"]["rhythm_grammar"]["backbeat_2_4"]["validation_status"] == "validated"
+    assert result["feature_groups"]["rhythm_grammar"]["backbeat_2_4"]["style_required_allowed"] is True
+    assert result["feature_groups"]["low_frequency"]["808_timbre_candidate"]["validation_status"] == "failed_validation"
+    assert result["feature_groups"]["low_frequency"]["808_timbre_candidate"]["decision"] == "rejected"
+    assert "rhythm_grammar.backbeat_2_4" in result["validation_summary"]["style_ready_features"]
+    assert "low_frequency.808_timbre_candidate" in result["validation_summary"]["features_by_status"]["failed_validation"]
     assert "sub_808" in result["feature_groups"]["low_frequency"]
     assert "wide_clap" in result["feature_groups"]["percussion_timbre"]
     assert "singing" in result["feature_groups"]["vocal_delivery"]
@@ -55,3 +65,4 @@ def test_pipeline_missing_audio_is_explicitly_unavailable() -> None:
 
     assert result["status"] == "unavailable"
     assert result["feature_groups"]["low_frequency"]["analysis"]["detected"] is None
+    assert result["feature_groups"]["low_frequency"]["analysis"]["validation_status"] == "unavailable"

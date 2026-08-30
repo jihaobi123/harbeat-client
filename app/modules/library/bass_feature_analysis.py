@@ -11,13 +11,17 @@ from typing import Any
 import librosa
 import numpy as np
 
+from app.modules.library.bass_model_validation import (
+    capability_is_validated,
+    resolve_bass_model_validation,
+)
 from app.modules.library.style_feature_evidence import (
     make_feature_evidence,
     unavailable_feature,
 )
 
 
-BASS_FEATURE_VERSION = "bass_features_v3"
+BASS_FEATURE_VERSION = "bass_features_v5"
 BASS_FEATURE_NAMES = (
     "sub_bass",
     "bass_pitch_stability",
@@ -71,16 +75,20 @@ def _bass_onsets(audio: np.ndarray, sr: int) -> np.ndarray:
         units="frames",
     )
     times = np.unique(librosa.frames_to_time(frames, sr=sr, hop_length=256))
-    # Bass envelopes often create a second onset at the note tail. Keep one
-    # analysis anchor per perceptual event instead of counting detector echoes.
+    # Collapse only near-identical detector echoes.  The previous 400 ms gap
+    # erased valid eighth/sixteenth bass notes above roughly 75 BPM.
     retained = []
     for value in times:
-        if not retained or float(value) - retained[-1] >= 0.40:
+        if not retained or float(value) - retained[-1] >= 0.055:
             retained.append(float(value))
     return np.asarray(retained, dtype=float)
 
 
-def _normalized_bass_note_events(model_route: dict[str, Any] | None) -> list[dict[str, float]]:
+def _normalized_bass_note_events(
+    model_route: dict[str, Any] | None,
+    *,
+    minimum_confidence: float = 0.20,
+) -> list[dict[str, Any]]:
     if not model_route or model_route.get("status") != "ready":
         return []
     raw = (model_route.get("result") or {}).get("note_events")
@@ -110,8 +118,44 @@ def _normalized_bass_note_events(model_route: dict[str, Any] | None) -> list[dic
             "midi": midi,
             "frequency": frequency,
             "confidence": _clamp(confidence),
+            # Basic Pitch documents these contour offsets in one-third of a
+            # semitone per frame.
+            "pitch_bends": [
+                float(item) for item in (value.get("pitch_bends") or [])
+                if isinstance(item, (int, float)) and np.isfinite(item)
+            ],
         })
-    return sorted(result, key=lambda item: item["start"])
+    collapsed = _collapse_simultaneous_bass_notes(result)
+    return [
+        item for item in collapsed
+        if float(item["confidence"]) >= minimum_confidence
+    ]
+
+
+def _collapse_simultaneous_bass_notes(
+    events: list[dict[str, Any]],
+    *,
+    onset_window_seconds: float = 0.05,
+) -> list[dict[str, Any]]:
+    """Constrain an isolated bass stem to one note per near-simultaneous onset.
+
+    Basic Pitch can report both a bass fundamental and its octave harmonic.
+    Funk/disco octave patterns are sequential and remain untouched; only notes
+    whose starts fall inside the 50 ms onset matching window compete, with the
+    highest-confidence event retained.
+    """
+    ordered = sorted(events, key=lambda item: (float(item["start"]), -float(item["confidence"])))
+    clusters: list[list[dict[str, Any]]] = []
+    for item in ordered:
+        if not clusters or float(item["start"]) - float(clusters[-1][0]["start"]) > onset_window_seconds:
+            clusters.append([item])
+        else:
+            clusters[-1].append(item)
+    retained = [
+        max(cluster, key=lambda item: (float(item["confidence"]), -float(item["midi"])))
+        for cluster in clusters
+    ]
+    return sorted(retained, key=lambda item: (float(item["start"]), float(item["midi"])))
 
 
 def _nearest_distance(value: float, references: np.ndarray) -> float | None:
@@ -125,12 +169,29 @@ def _band_energy(power: np.ndarray, frequencies: np.ndarray, low: float, high: f
     return float(np.sum(power[mask]))
 
 
-def _set_similarity(left: set[tuple[int, float]], right: set[tuple[int, float]]) -> float:
+def _ordered_pattern_similarity(
+    left: list[tuple[int, float]], right: list[tuple[int, float]],
+) -> float:
+    """Order-preserving edit similarity for quantized bass riffs."""
     if not left and not right:
         return 1.0
     if not left or not right:
         return 0.0
-    return 2.0 * len(left & right) / (len(left) + len(right))
+    rows, columns = len(left) + 1, len(right) + 1
+    distance = np.zeros((rows, columns), dtype=float)
+    distance[:, 0] = np.arange(rows)
+    distance[0, :] = np.arange(columns)
+    for i, (left_step, left_pitch) in enumerate(left, start=1):
+        for j, (right_step, right_pitch) in enumerate(right, start=1):
+            timing_cost = min(1.0, abs(left_step - right_step) / 2.0)
+            pitch_cost = min(1.0, abs(left_pitch - right_pitch) / 2.0)
+            substitution = 0.55 * timing_cost + 0.45 * pitch_cost
+            distance[i, j] = min(
+                distance[i - 1, j] + 1.0,
+                distance[i, j - 1] + 1.0,
+                distance[i - 1, j - 1] + substitution,
+            )
+    return _clamp(1.0 - float(distance[-1, -1]) / max(len(left), len(right)))
 
 
 def _bass_groove_descriptors(
@@ -146,6 +207,7 @@ def _bass_groove_descriptors(
     beat_period = float(np.median(valid_intervals)) if len(valid_intervals) else 0.0
 
     placement_weights: list[float] = []
+    tied_syncopations: list[bool] = []
     quantized_steps: list[int] = []
     timing_offsets: list[float] = []
     if beat_period > 0 and len(beat_points) >= 2:
@@ -160,23 +222,40 @@ def _bass_groove_descriptors(
             phase = np.clip((value - beat_points[index]) / local_period, 0.0, 0.9999)
             exact_step = float(phase * 4.0)
             step = int(round(exact_step)) % 4
-            placement_weights.append({0: 0.0, 1: 1.0, 2: 0.75, 3: 1.0}[step])
+            placement_weights.append({0: 0.0, 1: 1.0, 2: 0.65, 3: 1.0}[step])
             quantized_steps.append(step)
             timing_offsets.append(abs(exact_step - round(exact_step)) * local_period / 4.0)
+            duration = float(item.get("note_duration_sec", item.get("decay_sec", 0.0)))
+            # Standard metrical syncopation evidence: a note starts at a weak
+            # sixteenth and sounds across the next stronger grid position.
+            metrical_weights = (4, 0, 1, 0)
+            next_step = (step + 1) % 4
+            crosses_next_step = duration >= ((next_step - exact_step) % 4) * local_period / 4.0
+            tied_syncopations.append(
+                step != 0
+                and metrical_weights[next_step] > metrical_weights[step]
+                and crosses_next_step
+            )
     placement_coverage = len(placement_weights) / max(1, len(ordered))
-    raw_syncopation = float(np.mean(placement_weights)) if placement_weights else 0.0
-    # Keep the measured event fraction on its natural scale.  Dividing by
-    # 0.65 made ordinary offbeat bass lines saturate and erased the difference
-    # between moderate syncopation and consistently weak-sixteenth placement.
-    syncopation_score = _clamp(raw_syncopation)
+    weak_position_fraction = float(np.mean(placement_weights)) if placement_weights else 0.0
+    tied_syncopation_fraction = float(np.mean(tied_syncopations)) if tied_syncopations else 0.0
+    syncopation_score = _clamp(
+        0.55 * weak_position_fraction + 0.45 * tied_syncopation_fraction
+    )
 
-    staccato_limit = min(0.32, 0.62 * beat_period) if beat_period else 0.28
-    staccato_values = [
-        float(item.get("note_duration_sec", item.get("decay_sec", 0.0))) <= staccato_limit
-        for item in ordered
-    ]
+    articulation_ratios: list[float] = []
+    staccato_values: list[bool] = []
+    for index, item in enumerate(ordered):
+        duration = float(item.get("note_duration_sec", item.get("decay_sec", 0.0)))
+        if index + 1 < len(ordered):
+            inter_onset = max(1e-6, float(ordered[index + 1]["time"]) - float(item["time"]))
+        else:
+            inter_onset = beat_period if beat_period > 0 else max(duration, 0.28)
+        articulation = duration / inter_onset
+        articulation_ratios.append(articulation)
+        staccato_values.append(articulation <= 0.50)
     staccato_fraction = float(np.mean(staccato_values)) if staccato_values else 0.0
-    staccato_score = _clamp(staccato_fraction / 0.70)
+    staccato_score = _clamp(staccato_fraction)
 
     pitched = [
         item for item in ordered
@@ -192,31 +271,34 @@ def _bass_groove_descriptors(
         for item in pitched
     ])
     pitch_intervals = np.diff(midi) if len(midi) >= 2 else np.asarray([])
-    octave_mask = (np.abs(pitch_intervals) >= 10.75) & (np.abs(pitch_intervals) <= 13.25)
+    # One octave within +/- 50 cents.  The former +/- 125 cent tolerance also
+    # admitted major sevenths and minor ninths.
+    octave_mask = (np.abs(pitch_intervals) >= 11.5) & (np.abs(pitch_intervals) <= 12.5)
     octave_fraction = float(np.mean(octave_mask)) if len(pitch_intervals) else 0.0
-    octave_score = _clamp(octave_fraction / 0.28)
+    octave_evidence = _clamp(float(np.sum(octave_mask)) / 2.0)
+    octave_score = _clamp(octave_fraction * octave_evidence)
 
-    bar_patterns: list[set[tuple[int, float]]] = []
+    bar_patterns: list[list[tuple[int, float]]] = []
     if len(downbeats) >= 3:
         for start, end in zip(downbeats[:-1], downbeats[1:], strict=True):
             if end <= start:
                 continue
             members = [item for item in pitched if start <= float(item["time"]) < end]
             if not members:
-                bar_patterns.append(set())
+                bar_patterns.append([])
                 continue
             root = 69.0 + 12.0 * np.log2(float(members[0]["fundamental_hz"]) / 440.0)
-            pattern = set()
+            pattern: list[tuple[int, float]] = []
             for item in members:
                 position = (float(item["time"]) - start) / (end - start)
                 step = int(np.clip(round(position * 16.0), 0, 15))
                 note = 69.0 + 12.0 * np.log2(float(item["fundamental_hz"]) / 440.0)
-                pattern.add((step, round((note - root) * 2.0) / 2.0))
+                pattern.append((step, round((note - root) * 2.0) / 2.0))
             bar_patterns.append(pattern)
     recurrence_by_lag: dict[str, float] = {}
     for lag in (1, 2, 4):
         similarities = [
-            _set_similarity(bar_patterns[index], bar_patterns[index + lag])
+            _ordered_pattern_similarity(bar_patterns[index], bar_patterns[index + lag])
             for index in range(len(bar_patterns) - lag)
             if bar_patterns[index] and bar_patterns[index + lag]
         ]
@@ -226,18 +308,21 @@ def _bass_groove_descriptors(
     bar_coverage = _divide_count(sum(bool(value) for value in bar_patterns), len(bar_patterns))
     riff_score = _clamp(recurrence * np.sqrt(bar_coverage))
 
-    aligned = complementary = 0
+    aligned = anticipated = answered = 0
     relation_limit = min(0.28, 0.55 * beat_period) if beat_period else 0.24
     if len(kick_times):
         for item in ordered:
-            distance = _nearest_distance(float(item["time"]), kick_times)
-            if distance is None:
-                continue
-            if distance <= 0.085:
+            bass_time = float(item["time"])
+            nearest_index = int(np.argmin(np.abs(kick_times - bass_time)))
+            signed_distance = bass_time - float(kick_times[nearest_index])
+            if abs(signed_distance) <= 0.05:
                 aligned += 1
-            elif distance <= relation_limit:
-                complementary += 1
-    relation_coverage = (aligned + complementary) / max(1, len(ordered))
+            elif -relation_limit <= signed_distance < -0.05:
+                anticipated += 1
+            elif 0.05 < signed_distance <= relation_limit:
+                answered += 1
+    complementary = anticipated + answered
+    relation_coverage = (aligned + anticipated + answered) / max(1, len(ordered))
     complementary_share = complementary / max(1, aligned + complementary)
     interlock_score = _clamp(relation_coverage * (0.35 + 0.65 * complementary_share))
     return {
@@ -245,9 +330,14 @@ def _bass_groove_descriptors(
         "placement_coverage": round(placement_coverage, 4),
         "sixteenth_steps_within_beat": quantized_steps,
         "mean_grid_offset_sec": round(float(np.mean(timing_offsets)), 4) if timing_offsets else None,
-        "raw_syncopated_event_fraction": round(raw_syncopation, 4),
+        "raw_syncopated_event_fraction": round(weak_position_fraction, 4),
+        "weak_position_fraction": round(weak_position_fraction, 4),
+        "tied_syncopation_fraction": round(tied_syncopation_fraction, 4),
         "syncopation_score": syncopation_score,
-        "staccato_limit_sec": round(staccato_limit, 4),
+        "staccato_articulation_ratio_threshold": 0.50,
+        "median_articulation_ratio": (
+            round(float(np.median(articulation_ratios)), 4) if articulation_ratios else None
+        ),
         "staccato_fraction": round(staccato_fraction, 4),
         "staccato_score": staccato_score,
         "octave_interval_fraction": round(octave_fraction, 4),
@@ -259,6 +349,8 @@ def _bass_groove_descriptors(
         "recurrence_by_lag_bars": recurrence_by_lag,
         "riff_score": riff_score,
         "kick_aligned_count": aligned,
+        "kick_anticipated_count": anticipated,
+        "kick_answered_count": answered,
         "kick_complementary_count": complementary,
         "kick_relation_coverage": round(relation_coverage, 4),
         "interlock_score": interlock_score,
@@ -353,11 +445,13 @@ def _event_descriptor(
         pitch_stability = _clamp(1.0 - pitch_spread / 1.6)
         edge = max(1, len(midi) // 4)
         pitch_motion = float(np.median(midi[-edge:]) - np.median(midi[:edge]))
+        early_pitch_drop = max(0.0, -pitch_motion)
         voiced_strength = _clamp(float(np.mean(voiced_prob)))
     else:
         fundamental = 0.0
         pitch_stability = 0.0
         pitch_motion = 0.0
+        early_pitch_drop = 0.0
         voiced_strength = 0.0
 
     fundamental_energy = 0.0
@@ -375,12 +469,42 @@ def _event_descriptor(
     harmonic_ratio = _clamp(harmonic_energy / reference_energy)
     fundamental_purity = _clamp(fundamental_energy / (harmonic_energy + 1e-12))
 
+    low_timbre_mask = (frequencies >= 25.0) & (frequencies <= 500.0)
+    low_timbre_power = power[low_timbre_mask] + 1e-16
+    spectral_flatness = (
+        float(np.exp(np.mean(np.log(low_timbre_power))) / np.mean(low_timbre_power))
+        if len(low_timbre_power) else 1.0
+    )
+    scoped_mask = (frequencies >= 20.0) & (frequencies <= 1000.0)
+    scoped_power = power[scoped_mask]
+    scoped_frequencies = frequencies[scoped_mask]
+    if len(scoped_power) and float(np.sum(scoped_power)) > 0:
+        rolloff_index = int(np.searchsorted(
+            np.cumsum(scoped_power), 0.85 * float(np.sum(scoped_power)),
+        ))
+        rolloff_85_hz = float(scoped_frequencies[min(rolloff_index, len(scoped_frequencies) - 1)])
+    else:
+        rolloff_85_hz = 0.0
+
     frame_length = min(1024, len(clip))
     rms = librosa.feature.rms(y=clip, frame_length=frame_length, hop_length=128, center=False)[0]
     peak = float(np.max(rms)) if len(rms) else 0.0
     peak_index = int(np.argmax(rms)) if len(rms) else 0
     active = np.where(rms >= peak * 0.22)[0] if peak > 0 else np.asarray([])
     decay_sec = float((active[-1] - peak_index + 1) * 128 / sr) if len(active) else 0.0
+    decay_curve = np.asarray(rms[peak_index:], dtype=float)
+    decay_smoothness = 0.0
+    decay_linearity = 0.0
+    if len(decay_curve) >= 5 and peak > 0:
+        decay_smoothness = float(np.mean(np.diff(decay_curve) <= 0.03 * peak))
+        x = np.arange(len(decay_curve), dtype=float)
+        log_curve = np.log(np.maximum(decay_curve, peak * 1e-4))
+        slope, intercept = np.polyfit(x, log_curve, 1)
+        fitted = slope * x + intercept
+        denominator = float(np.sum((log_curve - np.mean(log_curve)) ** 2))
+        decay_linearity = _clamp(
+            1.0 - float(np.sum((log_curve - fitted) ** 2)) / denominator
+        ) if denominator > 1e-12 and slope < 0 else 0.0
     early_end = min(len(clip), int(0.075 * sr))
     body_end = min(len(clip), int(0.32 * sr))
     early_rms = float(np.sqrt(np.mean(np.square(clip[:early_end])))) + 1e-10
@@ -388,7 +512,7 @@ def _event_descriptor(
     attack_body_ratio = early_rms / (body_rms + 1e-10)
 
     kick_distance = _nearest_distance(time_sec, kick_times)
-    kick_aligned = kick_distance is not None and kick_distance <= 0.085
+    kick_aligned = kick_distance is not None and kick_distance <= 0.05
     drum_transient_ratio = 0.0
     if drums is not None and len(drums) >= end:
         drum_clip = np.asarray(drums[start:min(end, start + int(0.16 * sr))], dtype=float)
@@ -412,11 +536,16 @@ def _event_descriptor(
         "sub_ratio_25_95_hz": round(float(sub_ratio), 4),
         "pitch_stability": round(pitch_stability, 4),
         "pitch_motion_semitones": round(pitch_motion, 4),
+        "early_pitch_drop_semitones": round(early_pitch_drop, 4),
         "harmonic_ratio_f0_to_5f0": round(harmonic_ratio, 4),
         "fundamental_purity": round(fundamental_purity, 4),
+        "spectral_flatness_25_500_hz": round(spectral_flatness, 6),
+        "spectral_rolloff_85_hz": round(rolloff_85_hz, 3),
         "voiced_strength": round(voiced_strength, 4),
         "pitch_method": pitch_track["method"],
         "decay_sec": round(max(0.0, decay_sec), 4),
+        "decay_smoothness": round(decay_smoothness, 4),
+        "log_decay_linearity": round(decay_linearity, 4),
         "attack_body_ratio": round(float(attack_body_ratio), 4),
         "kick_distance_sec": None if kick_distance is None else round(kick_distance, 4),
         "kick_aligned": bool(kick_aligned),
@@ -445,7 +574,7 @@ def analyze_bass_features(
     source_quality: float = 0.75,
 ) -> dict[str, Any]:
     """Analyse Bass-stem events and return style-independent evidence."""
-    method = "bass_candidate_segment_pyin_v3"
+    method = "bass_candidate_segment_pyin_v4"
     required_sources = ["bass_stem", "drums_stem", "full_mix"]
     if bass is None or sr <= 0 or len(bass) < sr:
         return {
@@ -469,7 +598,18 @@ def analyze_bass_features(
     original_audio = np.asarray(original_audio, dtype=float) if original_audio is not None else None
     duration = len(bass) / sr
     kick_times = _event_times(drum_analysis, "kick")
-    model_notes = _normalized_bass_note_events(model_route)
+    model_validation = resolve_bass_model_validation(model_route)
+    note_model_validated = capability_is_validated(
+        model_validation, "bass_note_onset_and_pitch",
+    )
+    note_confidence_threshold = (
+        float(model_validation["output_confidence_threshold"])
+        if note_model_validated else 0.20
+    )
+    model_notes = _normalized_bass_note_events(
+        model_route,
+        minimum_confidence=note_confidence_threshold,
+    )
     onsets = (
         np.asarray([item["start"] for item in model_notes], dtype=float)
         if len(model_notes) >= 3 else _bass_onsets(bass, sr)
@@ -490,6 +630,13 @@ def analyze_bass_features(
             event["note_duration_sec"] = round(closest["end"] - closest["start"], 4)
             event["note_event_method"] = "basic_pitch_note_event"
             event["note_event_confidence"] = round(closest["confidence"], 4)
+            bends = closest.get("pitch_bends") or []
+            if len(bends) >= 3:
+                edge = max(1, len(bends) // 4)
+                event["basic_pitch_bend_motion_semitones"] = round(
+                    (float(np.median(bends[-edge:])) - float(np.median(bends[:edge]))) / 3.0,
+                    4,
+                )
             event["voiced_strength"] = round(
                 max(float(event.get("voiced_strength", 0.0)), closest["confidence"]), 4,
             )
@@ -508,6 +655,8 @@ def analyze_bass_features(
         flags.append("bass_pitch_spectral_fallback_used")
     if model_notes:
         flags.append("bass_note_transcriber_used")
+        if not note_model_validated:
+            flags.append("bass_note_transcriber_unvalidated")
 
     def average(key: str) -> float:
         values = [float(item[key]) for item in events if item.get(key) is not None]
@@ -517,7 +666,15 @@ def analyze_bass_features(
     stability_score = average("pitch_stability")
     harmonic_score = _clamp(average("harmonic_ratio_f0_to_5f0") / 0.72)
     sine_dominance_score = _clamp((average("fundamental_purity") - 0.58) / 0.32)
+    low_flatness_score = _clamp(1.0 - average("spectral_flatness_25_500_hz") / 0.15)
     sustain_score = _clamp((average("decay_sec") - 0.16) / 0.48)
+    smooth_decay_score = _clamp(
+        0.50 * average("decay_smoothness") + 0.50 * average("log_decay_linearity")
+    )
+    fundamental_range_score = _divide_count(sum(
+        35.0 <= float(item.get("fundamental_hz", 0.0)) <= 95.0 for item in events
+    ), len(events))
+    downward_pitch_envelope_score = _clamp(average("early_pitch_drop_semitones") / 5.0)
     aligned_fraction = average("kick_aligned")
     transient_score = _clamp(average("drum_transient_ratio") / 0.8)
     pyin_events = [
@@ -540,15 +697,23 @@ def analyze_bass_features(
         float(np.mean([float(item["voiced_strength"]) for item in pitched_events]))
         if pitched_events else 0.0
     )
-    slide_events = [
-        item for item in pyin_events
-        if 2.5 <= abs(float(item["pitch_motion_semitones"])) <= 12.0
-        and float(item["decay_sec"]) >= 0.12
-    ]
+    slide_events = []
+    for item in pitched_events:
+        motion = item.get("basic_pitch_bend_motion_semitones")
+        method_name = "basic_pitch_pitch_bend"
+        if motion is None and item.get("pitch_method") == "pyin_candidate_segment":
+            motion = item.get("pitch_motion_semitones")
+            method_name = "pyin_event_f0_motion"
+        if motion is None:
+            continue
+        if 2.5 <= abs(float(motion)) <= 12.0 and float(item["decay_sec"]) >= 0.12:
+            item["slide_measurement_method"] = method_name
+            item["slide_motion_semitones"] = round(float(motion), 4)
+            slide_events.append(item)
     # A slide must be visible inside voiced event-local F0 tracks.  Spectral
     # peak jumps and a large range across separate notes are not slide proof.
     slide_score = _clamp(
-        len(slide_events) / max(2.0, len(pyin_events) * 0.28)
+        len(slide_events) / max(2.0, len(pitched_events) * 0.28)
     ) * _clamp(pitch_evidence_coverage / 0.45)
     pitched_sequence = [
         (float(item["time"]), float(item["fundamental_hz"]))
@@ -588,12 +753,15 @@ def analyze_bass_features(
         + 0.20 * sub_score
     )
     identity_808 = _clamp(
-        0.30 * sub_score
-        + 0.25 * sine_dominance_score
-        + 0.18 * sustain_score
-        + 0.12 * stability_score
-        + 0.10 * max(aligned_fraction, transient_score)
-        + 0.05 * mix_consistency
+        0.22 * sub_score
+        + 0.16 * sine_dominance_score
+        + 0.10 * low_flatness_score
+        + 0.15 * sustain_score
+        + 0.14 * smooth_decay_score
+        + 0.10 * fundamental_range_score
+        + 0.06 * downward_pitch_envelope_score
+        + 0.05 * max(aligned_fraction, transient_score)
+        + 0.02 * mix_consistency
     )
     sliding_808 = _clamp(identity_808 * (0.55 + 0.45 * slide_score)) if slide_events else 0.0
 
@@ -624,14 +792,30 @@ def analyze_bass_features(
         "minimum_voiced_probability": PYIN_MIN_VOICED_PROB,
         "note_event_method": "basic_pitch_note_event" if model_notes else None,
         "model_note_event_count": len(model_notes),
+        "model_note_confidence_threshold": note_confidence_threshold if model_notes else None,
+        "model_note_validation_status": model_validation.get("status"),
     }
     source_quality = _clamp(source_quality)
     model_note_coverage = sum(
         item.get("note_event_method") == "basic_pitch_note_event" for item in events
     ) / max(1, len(events))
-    mature_pitch_source = model_note_coverage >= 0.50 or pitch_methods == ["pyin_candidate_segment"]
-    pitch_estimator_quality = 0.86 if model_note_coverage >= 0.50 else (0.82 if mature_pitch_source else 0.55)
+    mature_pitch_source = (
+        model_note_coverage >= 0.50 and note_model_validated
+    ) or pitch_methods == ["pyin_candidate_segment"]
+    pitch_estimator_quality = (
+        float(model_validation["capabilities"]["bass_note_onset_and_pitch"]["f1"])
+        if model_note_coverage >= 0.50 and note_model_validated
+        else (0.82 if mature_pitch_source else 0.55)
+    )
     pitch_reliability_cap = 1.0 if mature_pitch_source else 0.62
+    slide_reliability_cap = (
+        min(pitch_reliability_cap, 0.68)
+        if any(
+            item.get("slide_measurement_method") == "basic_pitch_pitch_bend"
+            for item in slide_events
+        )
+        else pitch_reliability_cap
+    )
 
     def feature(
         score: float,
@@ -689,14 +873,17 @@ def analyze_bass_features(
             estimator_quality=pitch_estimator_quality,
             coverage=pitch_evidence_coverage,
             stability=pitch_track_quality,
-            reliability_cap=pitch_reliability_cap,
+            reliability_cap=min(pitch_reliability_cap, slide_reliability_cap),
             sources=["bass_stem"],
             time_ranges=_ranges(slide_events, lambda item: True),
             evidence={
                 **common,
                 "motion_range_semitones": [2.5, 12.0],
                 "slide_event_count": len(slide_events),
-                "voiced_event_count": len(pyin_events),
+                "voiced_event_count": len(pitched_events),
+                "slide_measurement_methods": sorted({
+                    str(item["slide_measurement_method"]) for item in slide_events
+                }),
                 "voiced_event_coverage": round(pitch_evidence_coverage, 4),
                 "semantic_rule": "voiced event-local F0 motion; pitch differences between separate notes do not count as slides",
             },
@@ -705,8 +892,9 @@ def analyze_bass_features(
             aligned_fraction,
             confidence=quality if len(kick_times) else 0.0,
             estimator_quality=0.80,
+            reliability_cap=0.72,
             sources=["bass_stem", "drums_stem"],
-            evidence={**common, "kick_event_count": len(kick_times), "tolerance_sec": 0.085},
+            evidence={**common, "kick_event_count": len(kick_times), "tolerance_sec": 0.05},
         ) if len(kick_times) else unavailable_feature(
             "kick_events_unavailable",
             sources=["bass_stem", "drums_stem"],
@@ -718,19 +906,30 @@ def analyze_bass_features(
             confidence=quality * (0.85 if drums is None else 1.0),
             estimator_quality=0.58,
             coverage=max(pitch_evidence_coverage, _clamp(len(events) / 6.0)),
-            reliability_cap=0.68 if "spectral_peak_fallback" in pitch_methods else 1.0,
+            reliability_cap=0.68,
             sources=required_sources,
-            time_ranges=_ranges(events, lambda item: item["sub_ratio_25_95_hz"] >= 0.42 and item["pitch_stability"] >= 0.55),
+            time_ranges=_ranges(
+                events,
+                lambda item: (
+                    item["sub_ratio_25_95_hz"] >= 0.42
+                    and 35.0 <= item["fundamental_hz"] <= 95.0
+                    and item["decay_sec"] >= 0.16
+                ),
+            ),
             evidence={
                 **common,
                 "sub_score": round(sub_score, 4),
                 "pitch_stability_score": round(stability_score, 4),
                 "harmonic_score": round(harmonic_score, 4),
                 "sine_dominance_score": round(sine_dominance_score, 4),
+                "low_spectral_flatness_score": round(low_flatness_score, 4),
                 "sustain_score": round(sustain_score, 4),
+                "smooth_decay_score": round(smooth_decay_score, 4),
+                "fundamental_35_95_hz_fraction": round(fundamental_range_score, 4),
+                "downward_pitch_envelope_score": round(downward_pitch_envelope_score, 4),
                 "kick_or_drum_transient_score": round(max(aligned_fraction, transient_score), 4),
                 "mix_consistency_score": round(mix_consistency, 4),
-                "semantic_rule": "candidate only: sub-dominant sustained body with fundamental-dominant timbre and compatible transient evidence",
+                "semantic_rule": "candidate only: 35-95 Hz tonal body, sub dominance, low spectral flatness, smooth sustained decay, optional downward pitch envelope, and compatible attack evidence; no single fixed frequency identifies an 808",
             },
         ),
         "sliding_bass_candidate": feature(
@@ -739,7 +938,7 @@ def analyze_bass_features(
             estimator_quality=min(0.65, pitch_estimator_quality),
             coverage=pitch_evidence_coverage,
             stability=pitch_track_quality,
-            reliability_cap=pitch_reliability_cap,
+            reliability_cap=min(pitch_reliability_cap, slide_reliability_cap),
             sources=required_sources,
             time_ranges=_ranges(slide_events, lambda item: True),
             evidence={
@@ -784,7 +983,7 @@ def analyze_bass_features(
             estimator_quality=pitch_estimator_quality,
             coverage=pitch_evidence_coverage,
             stability=sequence_quality,
-            reliability_cap=pitch_reliability_cap,
+            reliability_cap=min(pitch_reliability_cap, 0.68),
             sources=["bass_stem"],
             evidence={
                 **common,
@@ -799,6 +998,7 @@ def analyze_bass_features(
         "bass_reply_pattern": feature(
             reply_score,
             estimator_quality=0.70,
+            reliability_cap=0.68,
             sources=["bass_stem", "drums_stem", "beat_grid"],
             evidence={**common, "syncopation_score": round(syncopation, 4), "kick_separation_score": round(1.0 - aligned_fraction, 4)},
         ),
@@ -807,10 +1007,13 @@ def analyze_bass_features(
             estimator_quality=0.78,
             coverage=float(groove["placement_coverage"]),
             stability=_clamp(len(events) / 12.0),
+            reliability_cap=0.68,
             sources=["bass_stem", "beat_grid"],
             evidence={
                 **common,
                 "raw_syncopated_event_fraction": groove["raw_syncopated_event_fraction"],
+                "weak_position_fraction": groove["weak_position_fraction"],
+                "tied_syncopation_fraction": groove["tied_syncopation_fraction"],
                 "sixteenth_steps_within_beat": groove["sixteenth_steps_within_beat"][:64],
                 "mean_grid_offset_sec": groove["mean_grid_offset_sec"],
                 "semantic_rule": "bass onset placement on the local sixteenth-note grid; weak sixteenths count more than eighth offbeats",
@@ -822,16 +1025,20 @@ def analyze_bass_features(
             float(groove["staccato_score"]),
             estimator_quality=0.70,
             coverage=_clamp(len(events) / 8.0),
+            reliability_cap=0.68,
             sources=["bass_stem"],
             time_ranges=_ranges(
                 events,
-                lambda item: item.get("note_duration_sec", item["decay_sec"]) <= groove["staccato_limit_sec"],
+                lambda item: item.get("note_duration_sec", item["decay_sec"]) <= 0.50 * max(
+                    float(groove["beat_period_sec"]), 0.28,
+                ),
             ),
             evidence={
                 **common,
                 "staccato_fraction": groove["staccato_fraction"],
-                "maximum_staccato_decay_sec": groove["staccato_limit_sec"],
-                "semantic_rule": "short active bass envelopes relative to the measured beat period",
+                "articulation_ratio_threshold": groove["staccato_articulation_ratio_threshold"],
+                "median_articulation_ratio": groove["median_articulation_ratio"],
+                "semantic_rule": "note duration divided by the following inter-onset interval; ratios at or below 0.50 count as staccato evidence",
             },
         ),
         "bass_octave_pattern": feature(
@@ -839,14 +1046,14 @@ def analyze_bass_features(
             estimator_quality=pitch_estimator_quality,
             coverage=pitch_evidence_coverage,
             stability=_clamp(float(groove["pitched_interval_count"]) / 10.0),
-            reliability_cap=pitch_reliability_cap,
+            reliability_cap=min(pitch_reliability_cap, 0.68),
             sources=["bass_stem"],
             evidence={
                 **common,
                 "octave_interval_fraction": groove["octave_interval_fraction"],
                 "octave_interval_count": groove["octave_interval_count"],
                 "pitched_interval_count": groove["pitched_interval_count"],
-                "accepted_interval_semitones": [10.75, 13.25],
+                "accepted_interval_semitones": [11.5, 12.5],
                 "semantic_rule": "consecutive voiced bass notes separated by approximately one octave",
             },
         ),
@@ -855,7 +1062,7 @@ def analyze_bass_features(
             estimator_quality=pitch_estimator_quality,
             coverage=float(groove["bar_coverage"]),
             stability=_clamp(float(groove["bar_count"]) / 8.0),
-            reliability_cap=pitch_reliability_cap,
+            reliability_cap=min(pitch_reliability_cap, 0.68),
             sources=["bass_stem", "downbeat_grid"],
             evidence={
                 **common,
@@ -872,11 +1079,14 @@ def analyze_bass_features(
             estimator_quality=0.76,
             coverage=float(groove["kick_relation_coverage"]),
             stability=_clamp(len(events) / 12.0),
+            reliability_cap=0.68,
             sources=["bass_stem", "drums_stem", "beat_grid"],
             evidence={
                 **common,
                 "kick_event_count": len(kick_times),
                 "kick_aligned_count": groove["kick_aligned_count"],
+                "kick_anticipated_count": groove["kick_anticipated_count"],
+                "kick_answered_count": groove["kick_answered_count"],
                 "kick_complementary_count": groove["kick_complementary_count"],
                 "kick_relation_coverage": groove["kick_relation_coverage"],
                 "semantic_rule": "bass notes consistently alternate with nearby kicks; simple coincidence is retained by kick_bass_alignment",
@@ -907,4 +1117,5 @@ def analyze_bass_features(
         "selected_note_engine": (
             str((model_route or {}).get("engine")) if model_notes else "native_pyin_or_spectral"
         ),
+        "model_validation": model_validation,
     }

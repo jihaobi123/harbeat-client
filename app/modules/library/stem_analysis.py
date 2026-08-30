@@ -13,7 +13,9 @@ from app.modules.library.feature_model_adapters import collect_mature_model_evid
 from app.modules.library.high_frequency_feature_analysis import (
     analyze_high_frequency_features,
     empty_high_frequency_features,
+    summarize_feature_validation,
 )
+from app.modules.library.feature_calibration import apply_feature_calibration
 from app.modules.library.style_feature_evidence import make_feature_evidence
 
 STEM_NAMES = ("vocals", "drums", "bass", "other")
@@ -263,17 +265,27 @@ def analyze_stem_files(
     )
     production = (feature_analysis.get("feature_groups") or {}).get("production")
     if isinstance(production, dict):
-        production["sampled_loop_tendency"] = make_feature_evidence(
-            float(loop_analysis.get("score", 0.0)),
-            threshold=0.62,
-            confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
-            measurement_confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
-            source_quality=float(np.clip(source_quality_proxy, 0.0, 1.0)),
-            estimator_quality=0.72,
-            sources=["drums_stem", "bar_grid"],
-            analysis_method="bar_aligned_log_mel_self_similarity_v1",
-            time_ranges=list(loop_analysis.get("time_ranges") or []),
-            evidence=loop_analysis,
+        production["sampled_loop_tendency"] = apply_feature_calibration(
+            make_feature_evidence(
+                float(loop_analysis.get("score", 0.0)),
+                threshold=0.62,
+                confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+                measurement_confidence=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+                source_quality=float(np.clip(source_quality_proxy, 0.0, 1.0)),
+                estimator_quality=0.72,
+                sources=["drums_stem", "bar_grid"],
+                analysis_method="bar_aligned_log_mel_self_similarity_v1",
+                time_ranges=list(loop_analysis.get("time_ranges") or []),
+                evidence={
+                    **loop_analysis,
+                    "semantic_limitation": "bar repetition is not proof that a copyrighted sample was used",
+                },
+            ),
+            group="production",
+            name="sampled_loop_tendency",
+        )
+        feature_analysis["validation_summary"] = summarize_feature_validation(
+            feature_analysis.get("feature_groups") or {},
         )
     feature_analysis.setdefault("music_context", {})["drum_loop_analysis"] = loop_analysis
 

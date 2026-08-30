@@ -9,21 +9,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import os
-import shlex
 import subprocess
 import time
 from typing import Any
 
+from app.shared.command_line import split_command_line
 
-MODEL_ADAPTER_VERSION = "feature_model_adapters_v4"
+
+MODEL_ADAPTER_VERSION = "feature_model_adapters_v5"
 
 
 @dataclass(frozen=True)
 class FeatureModelConfig:
     drum_command: str | None = None
     bass_command: str | None = None
+    vocal_activity_command: str | None = None
     style_command: str | None = None
     instrument_command: str | None = None
+    chord_command: str | None = None
     style_model_path: str | None = None
     style_metadata_path: str | None = None
     style_max_duration_seconds: float = 90.0
@@ -34,8 +37,10 @@ class FeatureModelConfig:
         return cls(
             drum_command=os.getenv("FEATURE_DRUM_TRANSCRIBER_COMMAND") or None,
             bass_command=os.getenv("FEATURE_BASS_TRANSCRIBER_COMMAND") or None,
+            vocal_activity_command=os.getenv("FEATURE_VOCAL_ACTIVITY_COMMAND") or None,
             style_command=os.getenv("FEATURE_STYLE_TAGGER_COMMAND") or None,
             instrument_command=os.getenv("FEATURE_INSTRUMENT_TAGGER_COMMAND") or None,
+            chord_command=os.getenv("FEATURE_CHORD_TRANSCRIBER_COMMAND") or None,
             style_model_path=os.getenv("ESSENTIA_DISCOGS_MODEL_PATH") or None,
             style_metadata_path=os.getenv("ESSENTIA_DISCOGS_METADATA_PATH") or None,
             style_max_duration_seconds=max(
@@ -76,7 +81,7 @@ def _run_json_command(
     if not audio_path or not os.path.isfile(audio_path):
         return _route(engine, "unavailable", error="audio_file_unavailable")
     try:
-        template_parts = shlex.split(command_template)
+        template_parts = split_command_line(command_template)
         if not template_parts or all("{audio}" not in part for part in template_parts):
             return _route(engine, "error", error="command_must_contain_{audio}_placeholder")
         argv = [part.replace("{audio}", audio_path) for part in template_parts]
@@ -231,6 +236,12 @@ def collect_mature_model_evidence(
         engine="external_bass_transcriber",
         timeout_seconds=config.timeout_seconds,
     )
+    vocal_activity_route = _run_json_command(
+        config.vocal_activity_command,
+        original_path,
+        engine="external_vocal_activity_detector",
+        timeout_seconds=config.timeout_seconds,
+    )
     if config.style_command:
         style_route = _run_json_command(
             config.style_command,
@@ -251,11 +262,19 @@ def collect_mature_model_evidence(
         engine="external_instrument_tagger",
         timeout_seconds=config.timeout_seconds,
     )
+    chord_route = _run_json_command(
+        config.chord_command,
+        original_path,
+        engine="external_chord_transcriber",
+        timeout_seconds=config.timeout_seconds,
+    )
     routes = {
         "drum_transcription": drum_route,
         "bass_transcription": bass_route,
+        "vocal_activity": vocal_activity_route,
         "style_tags": style_route,
         "instrument_tags": instrument_route,
+        "chord_transcription": chord_route,
     }
     ready = [name for name, value in routes.items() if value["status"] == "ready"]
     failed = [name for name, value in routes.items() if value["status"] == "error"]

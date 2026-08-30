@@ -12,8 +12,13 @@ from typing import Any
 import librosa
 import numpy as np
 
+from app.modules.library.drum_model_validation import (
+    class_is_validated,
+    resolve_drum_model_validation,
+)
 
-DRUM_ANALYSIS_VERSION = "drum_transcription_consensus_v3"
+
+DRUM_ANALYSIS_VERSION = "drum_transcription_consensus_v4"
 DRUM_CLASSES = ("kick", "snare", "hihat", "tom", "cymbal")
 CORE_DRUM_CLASSES = ("kick", "snare", "hihat")
 
@@ -89,6 +94,8 @@ def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[s
                 velocity = int(np.clip(round(float(raw_velocity)), 1, 127)) if raw_velocity is not None else None
             except (TypeError, ValueError):
                 velocity = None
+            supplied_subtype = event.get("subtype")
+            subtype = str(supplied_subtype).strip().lower() if supplied_subtype else raw_family
             normalized[name].append({
                 "time": round(timestamp, 4),
                 "confidence": round(float(np.clip(confidence, 0.0, 1.0)), 4),
@@ -97,7 +104,7 @@ def _normalized_model_events(model_route: dict[str, Any] | None) -> tuple[dict[s
                 "intensity_source": "pending_waveform_measurement",
                 "velocity": velocity,
                 "velocity_source": "model" if velocity is not None else "unavailable",
-                "subtype": raw_family,
+                "subtype": subtype,
             })
     for name in DRUM_CLASSES:
         normalized[name].sort(key=lambda item: item["time"])
@@ -592,6 +599,9 @@ def analyze_drum_stem(
         sr = target_sr
 
     model_events = _normalized_model_events(model_route)
+    model_validation = resolve_drum_model_validation(model_route) if model_events is not None else {
+        "status": "unvalidated", "classes": {},
+    }
     if model_events is not None:
         events, selected_engine = model_events
         detector_mode = "dedicated_model"
@@ -652,6 +662,12 @@ def analyze_drum_stem(
         name: round(float(np.mean([event["confidence"] for event in values])), 4) if values else 0.0
         for name, values in events.items()
     }
+    event_views = {
+        "high_percussion": sorted(
+            [*events.get("hihat", []), *events.get("cymbal", [])],
+            key=lambda item: float(item["time"]),
+        ),
+    }
     flags = []
     if not len(beat_grid):
         flags.append("beat_grid_unavailable")
@@ -666,6 +682,14 @@ def analyze_drum_stem(
     if detector_mode == "fallback":
         flags.append("dedicated_drum_model_unavailable")
         flags.append("spectral_proxy_fallback")
+    elif model_validation.get("status") != "matched":
+        flags.append("drum_model_has_no_matching_heldout_validation")
+    else:
+        unvalidated = [
+            name for name in DRUM_CLASSES
+            if not class_is_validated(model_validation, name)
+        ]
+        flags.extend(f"drum_class_not_validated:{name}" for name in unvalidated)
     if overall < 0.58:
         flags.append("low_confidence")
     return {
@@ -677,6 +701,7 @@ def analyze_drum_stem(
         "needs_review": bool(flags),
         "reason": None,
         "events": events,
+        "event_views": event_views,
         "counts": {name: len(values) for name, values in events.items()},
         "density_curve": density,
         "pattern": pattern,
@@ -691,6 +716,7 @@ def analyze_drum_stem(
             "stem_quality": round(float(np.clip(separation_quality, 0.0, 1.0)), 4),
         },
         "quality_flags": flags,
+        "model_validation": model_validation,
         "engine_routes": {
             "dedicated_model": model_route or {
                 "status": "unavailable",

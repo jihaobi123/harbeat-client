@@ -8,7 +8,7 @@ import numpy as np
 from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
-RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v3"
+RHYTHM_FEATURE_VERSION = "rhythm_grammar_features_v5"
 RHYTHM_FEATURES = (
     "four_on_floor", "backbeat_2_4", "halftime_snare_3", "jersey_club",
     "tamborzao", "dembow", "tresillo", "two_step", "drill_hat",
@@ -51,6 +51,29 @@ def _event_records(analysis: dict | None, *names: str) -> list[dict[str, Any]]:
                     result.append({"time": float(value)})
                 except (TypeError, ValueError):
                     continue
+    return result
+
+
+def _explicit_open_hat_records(analysis: dict | None) -> list[dict[str, Any]]:
+    """Return only events whose source preserves open-hi-hat identity.
+
+    A broad hi-hat channel (for example ADTOF's GM 42 output) is useful for
+    density and timing, but cannot answer whether the cymbal was open. GM 46
+    and 26 are explicit open-hi-hat articulations; named subtypes are accepted
+    for dedicated transcribers using the shared event contract.
+    """
+    result = []
+    open_subtypes = {
+        "open_hihat", "open_hi_hat", "open_hat", "open hi-hat", "open hi hat",
+    }
+    for item in _event_records(analysis, "hihat"):
+        subtype = str(item.get("subtype") or "").strip().lower()
+        try:
+            midi_pitch = int(item.get("midi_pitch"))
+        except (TypeError, ValueError):
+            midi_pitch = None
+        if subtype in open_subtypes or midi_pitch in {26, 46}:
+            result.append(item)
     return result
 
 
@@ -110,23 +133,36 @@ def _rhythm_boundary_descriptors(
     kick: list[set[int]],
     snare: list[set[int]],
     hats: list[set[int]],
+    open_hats: list[set[int]],
     bars: np.ndarray,
     event_records: list[dict[str, Any]],
 ) -> dict[str, Any]:
     analyzed = min(len(kick), len(snare), len(hats))
-    four_scores = [_match(value, {0, 4, 8, 12}) for value in kick[:analyzed]]
-    four_matches = [value >= 0.72 for value in four_scores]
+    four_target = {0, 4, 8, 12}
+    four_hits = [len(value & four_target) for value in kick[:analyzed]]
+    four_extras = [len(value - four_target) for value in kick[:analyzed]]
+    expected_count = 4 * analyzed
+    matched_count = sum(four_hits)
+    extra_count = sum(four_extras)
+    four_recall = matched_count / max(expected_count, 1)
+    four_precision = matched_count / max(matched_count + extra_count, 1)
+    four_f1 = (
+        2.0 * four_precision * four_recall / (four_precision + four_recall)
+        if four_precision + four_recall else 0.0
+    )
+    four_scores = [hits / 4.0 for hits in four_hits]
+    four_matches = [hits >= 3 for hits in four_hits]
     four_coverage = float(np.mean(four_matches)) if four_matches else 0.0
     four_continuity = _longest_run(four_matches) / max(1, len(four_matches))
     four_stability = _clamp(1.0 - float(np.std(four_scores)) / 0.30) if four_scores else 0.0
     four_floor_stability = _clamp(
-        (float(np.mean(four_scores)) if four_scores else 0.0)
+        four_f1
         * np.sqrt(four_coverage)
         * (0.55 + 0.45 * four_continuity)
         * four_stability
     )
 
-    hat_scores = [_match(value, {2, 6, 10, 14}) for value in hats[:analyzed]]
+    hat_scores = [_match(value, {2, 6, 10, 14}) for value in open_hats[:analyzed]]
     offbeat_hat_coverage = float(np.mean([value >= 0.70 for value in hat_scores])) if hat_scores else 0.0
     offbeat_hat_score = _clamp(
         (float(np.mean(hat_scores)) if hat_scores else 0.0) * np.sqrt(offbeat_hat_coverage)
@@ -183,6 +219,12 @@ def _rhythm_boundary_descriptors(
     )
     return {
         "four_floor_stability_score": four_floor_stability,
+        "four_floor_expected_kick_count": expected_count,
+        "four_floor_matched_kick_count": matched_count,
+        "four_floor_extra_kick_count": extra_count,
+        "four_floor_recall": round(four_recall, 4),
+        "four_floor_precision": round(four_precision, 4),
+        "four_floor_f1": round(four_f1, 4),
         "four_floor_bar_coverage": round(four_coverage, 4),
         "four_floor_continuity": round(four_continuity, 4),
         "four_floor_cross_bar_stability": round(four_stability, 4),
@@ -313,11 +355,18 @@ def analyze_rhythm_features(
 
     kick_times = _event_times(drum_analysis, "kick")
     snare_times = _event_times(drum_analysis, "snare", "clap", "rim")
-    hat_times = _event_times(drum_analysis, "hihat", "cymbal")
+    # Cymbal events cannot be treated as hi-hats.  Dedicated workers preserve
+    # open/closed identity in subtype; broad models remain hat-family evidence.
+    hat_times = _event_times(drum_analysis, "hihat")
+    explicit_open_hat_records = _explicit_open_hat_records(drum_analysis)
+    explicit_open_hat_times = _points([
+        item.get("time") for item in explicit_open_hat_records if item.get("time") is not None
+    ])
     percussion_times = _event_times(drum_analysis, "tom", "percussion", "conga", "bongo")
     kick = _quantize(kick_times, bars, bpm)
     snare = _quantize(snare_times, bars, bpm)
     hats = _quantize(hat_times, bars, bpm)
+    open_hats = _quantize(explicit_open_hat_times, bars, bpm)
     percussion = _quantize(percussion_times, bars, bpm)
     analyzed = min(len(kick), len(snare), len(hats))
     if analyzed == 0:
@@ -382,6 +431,7 @@ def analyze_rhythm_features(
 
     beats = _points(beat_points)
     offbeat_delays = []
+    swing_ratios = []
     if len(beats) >= 2:
         for value in hat_times:
             previous = int(np.searchsorted(beats, value, side="right") - 1)
@@ -390,7 +440,10 @@ def analyze_rhythm_features(
                 phase = (value - beats[previous]) / interval if interval > 0 else 0.0
                 if 0.38 <= phase <= 0.78:
                     offbeat_delays.append(float(phase - 0.5))
+                    if phase < 0.999:
+                        swing_ratios.append(float(phase / max(1.0 - phase, 1e-6)))
     median_delay = float(np.median(offbeat_delays)) if offbeat_delays else 0.0
+    median_swing_ratio = float(np.median(swing_ratios)) if swing_ratios else 1.0
     consistency = _clamp(1.0 - float(np.std(offbeat_delays)) / 0.12) if len(offbeat_delays) >= 3 else 0.0
     swing_score = _clamp(max(0.0, median_delay - 0.025) / 0.14 * consistency)
 
@@ -398,12 +451,10 @@ def analyze_rhythm_features(
         drum_analysis, "kick", "snare", "clap", "rim", "hihat", "cymbal", "tom", "percussion",
     )
     boundary = _rhythm_boundary_descriptors(
-        kick=kick, snare=snare, hats=hats, bars=bars, event_records=all_drum_records,
+        kick=kick, snare=snare, hats=hats, open_hats=open_hats,
+        bars=bars, event_records=all_drum_records,
     )
-    explicit_open_hat_count = sum(
-        str(item.get("subtype") or "").lower() in {"open_hihat", "open_hi_hat"}
-        for item in _event_records(drum_analysis, "hihat")
-    )
+    explicit_open_hat_count = len(explicit_open_hat_records)
 
     windows, best_by_name = _adaptive_windows(raw, bars, analyzed)
     flags = []
@@ -415,6 +466,18 @@ def analyze_rhythm_features(
         float(((drum_analysis or {}).get("confidence") or {}).get("overall", 0.75) or 0.0)
     )
     fallback_source = (drum_analysis or {}).get("detector_mode") == "fallback"
+    # Held-out calibration covers the ADTOF event-to-template chain.  A
+    # spectral fallback can expose candidates, but cannot inherit that method
+    # identity or its validation status.
+    template_analysis_method = (
+        "spectral_proxy_bar_aligned_16_step_templates_v2"
+        if fallback_source else method
+    )
+    model_validation = (drum_analysis or {}).get("model_validation") or {}
+    validated_classes = {
+        name for name, value in (model_validation.get("classes") or {}).items()
+        if value.get("validated")
+    }
     if fallback_source:
         flags.append("rhythm_uses_spectral_drum_proxy")
 
@@ -431,6 +494,19 @@ def analyze_rhythm_features(
         "breakbeat": {"requires": ["backbeat_skeleton", "kick_snare_variation"], "negative_evidence": "stable_four_on_floor"},
         "afro_syncopation": {"requires": ["sparse_syncopated_kick", "layered_percussion", "continuous_high_layer"]},
     }
+    required_drum_classes = {
+        "four_on_floor": {"kick"},
+        "backbeat_2_4": {"snare"},
+        "halftime_snare_3": {"snare"},
+        "jersey_club": {"kick", "snare"},
+        "tamborzao": {"kick", "snare"},
+        "dembow": {"kick", "snare"},
+        "tresillo": {"kick", "snare"},
+        "two_step": {"kick", "snare"},
+        "drill_hat": {"hihat"},
+        "breakbeat": {"kick", "snare"},
+        "afro_syncopation": {"kick", "hihat", "tom"},
+    }
     features = {}
     matched_by_name = {}
     for name, scores in raw.items():
@@ -440,6 +516,14 @@ def analyze_rhythm_features(
         stable_score = float((best_window or {}).get("stable_score", global_score))
         score = _clamp(0.55 * global_score + 0.30 * stable_score + 0.15 * song_coverage)
         matched_by_name[name] = matched
+        requirements = required_drum_classes[name]
+        class_validation_passed = bool(requirements) and requirements <= validated_classes
+        if fallback_source:
+            reliability_cap = 0.55
+        elif class_validation_passed:
+            reliability_cap = 1.0
+        else:
+            reliability_cap = 0.68
         features[name] = make_feature_evidence(
             score,
             threshold=0.58,
@@ -447,13 +531,13 @@ def analyze_rhythm_features(
             measurement_confidence=quality,
             source_quality=drum_source_quality,
             estimator_quality=0.84,
-            reliability_cap=0.55 if fallback_source else 1.0,
+            reliability_cap=reliability_cap,
             coverage=max(song_coverage, 1.0 / max(analyzed, 1)),
             stability=float((best_window or {}).get("stability", 0.5)),
             calibration_status="proxy_limited" if fallback_source else "provisional",
             quality_flags=flags,
             sources=["bpm", "beat_grid", "downbeat_grid", "drum_transcription"],
-            analysis_method=method,
+            analysis_method=template_analysis_method,
             time_ranges=_ranges(matched, bars),
             evidence={
                 "bars_analyzed": analyzed,
@@ -466,6 +550,9 @@ def analyze_rhythm_features(
                 "best_stable_window": best_window,
                 "window_sizes_bars": [4, 8, 16],
                 "source_detector_mode": (drum_analysis or {}).get("detector_mode", "unknown"),
+                "required_drum_classes": sorted(requirements),
+                "validated_drum_classes": sorted(validated_classes),
+                "drum_class_validation_passed": class_validation_passed,
             },
             raw_measurements={
                 "mean_template_score": round(global_score, 4),
@@ -480,11 +567,17 @@ def analyze_rhythm_features(
         measurement_confidence=_clamp(len(offbeat_delays) / 16.0),
         source_quality=drum_source_quality,
         estimator_quality=0.75,
+        reliability_cap=(
+            0.55 if fallback_source else (1.0 if "high_percussion" in validated_classes else 0.68)
+        ),
         quality_flags=flags,
         sources=["beat_grid", "drum_transcription"],
         analysis_method="microtiming_offbeat_delay_v1",
         evidence={
             "median_offbeat_delay_beats": round(median_delay, 4),
+            "median_swing_ratio": round(median_swing_ratio, 4),
+            "swing_ratio_p25": round(float(np.percentile(swing_ratios, 25)), 4) if swing_ratios else None,
+            "swing_ratio_p75": round(float(np.percentile(swing_ratios, 75)), 4) if swing_ratios else None,
             "offbeat_event_count": len(offbeat_delays),
             "timing_consistency": round(consistency, 4),
         },
@@ -502,7 +595,9 @@ def analyze_rhythm_features(
         estimator_quality=0.86,
         coverage=boundary["four_floor_bar_coverage"],
         stability=boundary["four_floor_cross_bar_stability"],
-        reliability_cap=0.55 if fallback_source else 1.0,
+        reliability_cap=(
+            0.55 if fallback_source else (1.0 if "kick" in validated_classes else 0.68)
+        ),
         calibration_status="proxy_limited" if fallback_source else "provisional",
         quality_flags=flags,
         sources=["beat_grid", "downbeat_grid", "drum_transcription"],
@@ -512,31 +607,45 @@ def analyze_rhythm_features(
             "bar_coverage": boundary["four_floor_bar_coverage"],
             "continuity": boundary["four_floor_continuity"],
             "cross_bar_stability": boundary["four_floor_cross_bar_stability"],
+            "expected_kick_count": boundary["four_floor_expected_kick_count"],
+            "matched_kick_count": boundary["four_floor_matched_kick_count"],
+            "extra_kick_count": boundary["four_floor_extra_kick_count"],
+            "event_precision": boundary["four_floor_precision"],
+            "event_recall": boundary["four_floor_recall"],
+            "event_f1": boundary["four_floor_f1"],
             "semantic_rule": "four kick positions must persist across bars; a short favourable window is insufficient",
+            "kick_event_validation_passed": "kick" in validated_classes,
         },
     )
-    open_hat_cap = 1.0 if explicit_open_hat_count else (0.55 if fallback_source else 0.68)
-    features["offbeat_open_hat"] = make_feature_evidence(
-        boundary["offbeat_hat_score"],
-        threshold=0.58,
-        confidence=quality,
-        source_quality=drum_source_quality,
-        estimator_quality=0.82 if explicit_open_hat_count else 0.58,
-        coverage=boundary["offbeat_hat_bar_coverage"],
-        stability=_clamp(analyzed / 8.0),
-        reliability_cap=open_hat_cap,
-        calibration_status="provisional" if explicit_open_hat_count else "hat_family_proxy_only",
-        quality_flags=flags + ([] if explicit_open_hat_count else ["open_hat_subtype_unavailable"]),
-        sources=["beat_grid", "downbeat_grid", "drum_transcription"],
-        analysis_method="offbeat_open_hat_grid_v1",
-        evidence={
-            **boundary_common,
-            "target_steps": [2, 6, 10, 14],
-            "bar_coverage": boundary["offbeat_hat_bar_coverage"],
-            "explicit_open_hat_event_count": explicit_open_hat_count,
-            "semantic_rule": "offbeat hat-family events; open-hat identity is confirmed only when a dedicated transcriber preserves the subtype",
-        },
-    )
+    if explicit_open_hat_count:
+        features["offbeat_open_hat"] = make_feature_evidence(
+            boundary["offbeat_hat_score"],
+            threshold=0.58,
+            confidence=quality,
+            source_quality=drum_source_quality,
+            estimator_quality=0.82,
+            coverage=boundary["offbeat_hat_bar_coverage"],
+            stability=_clamp(analyzed / 8.0),
+            reliability_cap=0.68,
+            calibration_status="provisional",
+            quality_flags=flags,
+            sources=["beat_grid", "downbeat_grid", "drum_transcription"],
+            analysis_method="explicit_open_hat_offbeat_grid_v2",
+            evidence={
+                **boundary_common,
+                "target_steps": [2, 6, 10, 14],
+                "bar_coverage": boundary["offbeat_hat_bar_coverage"],
+                "explicit_open_hat_event_count": explicit_open_hat_count,
+                "accepted_identities": ["explicit_subtype", "gm_midi_pitch_26_or_46"],
+                "semantic_rule": "only explicitly identified open-hi-hat events are matched to the eighth-note offbeats",
+            },
+        )
+    else:
+        features["offbeat_open_hat"] = unavailable_feature(
+            "open_hat_identity_unavailable",
+            sources=["beat_grid", "downbeat_grid", "drum_transcription"],
+            analysis_method="explicit_open_hat_offbeat_grid_v2",
+        )
     features["timing_quantization"] = make_feature_evidence(
         boundary["quantization_score"],
         threshold=0.62,
@@ -545,7 +654,11 @@ def analyze_rhythm_features(
         estimator_quality=0.82,
         coverage=_clamp(boundary["timing_event_count"] / max(32.0, analyzed * 4.0)),
         stability=_clamp(analyzed / 8.0),
-        reliability_cap=0.55 if fallback_source else 1.0,
+        reliability_cap=(
+            0.55 if fallback_source else (
+                0.82 if {"kick", "high_percussion"} <= validated_classes else 0.68
+            )
+        ),
         calibration_status="proxy_limited" if fallback_source else "provisional",
         quality_flags=flags,
         sources=["downbeat_grid", "drum_transcription"],
@@ -566,7 +679,11 @@ def analyze_rhythm_features(
         estimator_quality=0.84,
         coverage=boundary["loop_bar_coverage"],
         stability=_clamp(analyzed / 8.0),
-        reliability_cap=0.55 if fallback_source else 1.0,
+        reliability_cap=(
+            0.55 if fallback_source else (
+                1.0 if {"kick", "snare", "hihat"} <= validated_classes else 0.68
+            )
+        ),
         calibration_status="proxy_limited" if fallback_source else "provisional",
         quality_flags=flags,
         sources=["downbeat_grid", "drum_transcription"],

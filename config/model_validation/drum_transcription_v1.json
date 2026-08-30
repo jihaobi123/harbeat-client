@@ -1,0 +1,30 @@
+{
+  "version": "drum_model_validation_v1",
+  "models": [
+    {
+      "engine": "adtof_pytorch_frame_rnn",
+      "model_version": "0.1.0",
+      "thresholds": {"35": 0.22, "38": 0.24, "47": 0.32, "42": 0.22, "49": 0.30},
+      "benchmark": "MDB Drums++",
+      "dataset_license": "CC BY-NC-SA 4.0",
+      "tolerance_seconds": 0.05,
+      "partition": "heldout",
+      "partition_rule": "sha256(track_id).first_byte_mod_2 == 1",
+      "track_count": 10,
+      "evaluated_at": "2026-08-28",
+      "overall": {"reference_count": 3606, "precision": 0.8093, "recall": 0.7815, "f1": 0.7951},
+      "classes": {
+        "kick": {"reference_count": 822, "precision": 0.8476, "recall": 0.8321, "f1": 0.8398, "validated": true},
+        "snare": {"reference_count": 978, "precision": 0.7776, "recall": 0.6329, "f1": 0.6979, "validated": false},
+        "hihat": {"reference_count": 1611, "precision": 0.8159, "recall": 0.8361, "f1": 0.8259, "validated": false},
+        "tom": {"reference_count": 24, "precision": 0.4884, "recall": 0.8750, "f1": 0.6269, "validated": false},
+        "cymbal": {"reference_count": 171, "precision": 0.7946, "recall": 0.8596, "f1": 0.8258, "validated": false},
+        "high_percussion": {"reference_count": 1782, "precision": 0.8241, "recall": 0.8490, "f1": 0.8364, "validated": true}
+      },
+      "restrictions": [
+        "high_percussion merges hihat and cymbal and cannot establish open-hat identity",
+        "snare, tom, individual hihat and individual cymbal remain provisional"
+      ]
+    }
+  ]
+}

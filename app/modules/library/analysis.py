@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 import json
 import re
-import shlex
 import subprocess
+import sys
 import threading
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,6 +14,8 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import numpy as np
+
+from app.shared.command_line import split_command_line
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 ESSENTIA_ANALYSIS_SAMPLE_RATE = 44100
@@ -301,7 +303,7 @@ def _parse_keyfinder_camelot(output: str) -> str:
 
 
 def _run_keyfinder_cli(file_path: str) -> str:
-    command = shlex.split(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))
+    command = split_command_line(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))
     if not command:
         raise RuntimeError("KEYFINDER_CLI is empty")
     try:
@@ -367,13 +369,17 @@ def _analyze_key_libkeyfinder(file_path: str, y: np.ndarray, sr: int) -> dict:
         confidence=stability,
         route_stability=round(stability, 4),
         segment_results=route_results,
-        command=command[0] if (command := shlex.split(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))) else "keyfinder-cli",
+        command=command[0] if (command := split_command_line(os.getenv("KEYFINDER_CLI", "keyfinder-cli"))) else "keyfinder-cli",
     )
 
 
 def _analyze_key_madmom(file_path: str) -> dict:
     """Independent 24-class CNN verification route from madmom."""
-    external_command = shlex.split(os.getenv("KEY_MADMOM_COMMAND", ""))
+    external_command = split_command_line(os.getenv("KEY_MADMOM_COMMAND", ""))
+    if not external_command:
+        adapter = Path(__file__).parents[3] / "scripts" / "madmom_key_cli.py"
+        if adapter.is_file():
+            external_command = [sys.executable, str(adapter)]
     if external_command:
         completed = subprocess.run(
             [*external_command, str(file_path)],
@@ -397,6 +403,8 @@ def _analyze_key_madmom(file_path: str) -> dict:
             confidence=_clamp01(payload.get("confidence")),
             raw_label=label,
             candidates=payload.get("candidates", []),
+            model_version=payload.get("model_version"),
+            worker_engine=payload.get("engine"),
         )
 
     with _MADMOM_KEY_INFERENCE_LOCK:
@@ -446,7 +454,7 @@ def _choose_key_consensus(
     errors: dict[str, str] | None = None,
     local_fallback: dict | None = None,
 ) -> dict:
-    """Select the public key while preserving libKeyFinder as primary."""
+    """Confirm a held-out-validated key route or return a reviewable candidate."""
     errors = dict(errors or {})
     primary = route_results.get("libkeyfinder")
     validators = [
@@ -454,13 +462,24 @@ def _choose_key_consensus(
         for name in ("essentia", "madmom")
         if name in route_results
     ]
+    from app.modules.library.key_model_validation import resolve_key_model_validation
+
+    key_model_validation = resolve_key_model_validation(route_results.get("madmom"))
+    validated_route = (
+        route_results.get("madmom") if key_model_validation.get("validated") else None
+    )
 
     selected: dict
     decision: str
     confidence_level: str
     decision_confidence: float
 
-    if primary is not None:
+    if validated_route is not None:
+        selected = validated_route
+        decision = "heldout_validated_madmom"
+        confidence_level = "validated"
+        decision_confidence = float(key_model_validation["heldout_exact_accuracy"])
+    elif primary is not None:
         primary_key = primary["camelot_key"]
         agreeing = [item for item in validators if item["camelot_key"] == primary_key]
         if agreeing:
@@ -493,13 +512,25 @@ def _choose_key_consensus(
     else:
         raise RuntimeError("all key detection routes failed")
 
+    if validated_route is None:
+        # Route agreement is useful diagnostic evidence, but GiantSteps shows
+        # it is not a calibrated probability. Never emit the old fabricated
+        # 0.90/0.95 confidence for an unvalidated candidate.
+        decision_confidence = min(
+            float(selected.get("key_confidence") or decision_confidence or 0.0), 0.79,
+        )
+        confidence_level = "provisional"
+
     public = dict(selected)
+    public["model_confidence"] = round(float(selected.get("key_confidence") or 0.0), 4)
     public["key_confidence"] = round(decision_confidence, 4)
     public["decision"] = decision
     public["confidence_level"] = confidence_level
     public["primary_engine"] = "libkeyfinder"
     public["selected_engine"] = selected.get("engine")
-    public["needs_review"] = confidence_level == "low"
+    public["needs_review"] = validated_route is None
+    public["validation_status"] = "validated" if validated_route is not None else "provisional"
+    public["model_validation"] = key_model_validation
     public["route_results"] = {
         name: {
             "key": result.get("key"),
@@ -508,6 +539,8 @@ def _choose_key_consensus(
             "engine": result.get("engine"),
             "route_stability": result.get("route_stability"),
             "segment_results": result.get("segment_results"),
+            "model_version": result.get("model_version"),
+            "worker_engine": result.get("worker_engine"),
         }
         for name, result in route_results.items()
     }
@@ -647,18 +680,23 @@ def _resolve_torch_device(env_name: str, *, prefer_accelerator: bool) -> str:
 
 @lru_cache(maxsize=4)
 def _load_beat_this_analyzer(model_name: str, device: str):
-    from beat_this.inference import Audio2Beats
+    from beat_this.inference import Audio2Frames
+    from beat_this.model.postprocessor import Postprocessor
 
-    return Audio2Beats(checkpoint_path=model_name, device=device, float16=False, dbn=False)
+    return (
+        Audio2Frames(checkpoint_path=model_name, device=device, float16=False),
+        Postprocessor(type="minimal", fps=50),
+    )
 
 
 def _analyze_rhythm_beat_this(y: np.ndarray, sr: int) -> dict:
     """Run the Beat This model and derive BPM from its predicted beat grid."""
     model_name = os.getenv("BPM_BEAT_THIS_MODEL", "final0").strip() or "final0"
     device = _resolve_torch_device("BPM_BEAT_THIS_DEVICE", prefer_accelerator=False)
-    analyzer = _load_beat_this_analyzer(model_name, device)
+    analyzer, postprocessor = _load_beat_this_analyzer(model_name, device)
     with _BEAT_THIS_INFERENCE_LOCK:
-        beats, downbeats = analyzer(np.asarray(y, dtype=np.float32), int(sr))
+        beat_logits, downbeat_logits = analyzer(np.asarray(y, dtype=np.float32), int(sr))
+        beats, downbeats = postprocessor(beat_logits, downbeat_logits)
     beat_times = np.asarray(beats, dtype=float)
     if len(beat_times) == 0:
         raise ValueError("Beat This returned no beat ticks")
@@ -669,17 +707,33 @@ def _analyze_rhythm_beat_this(y: np.ndarray, sr: int) -> dict:
         float(np.clip(1.0 - np.std(intervals) / interval_mean, 0.0, 1.0))
         if interval_mean > 0 else 0.0
     )
-    return {
+    import torch
+
+    downbeat_array = np.asarray(downbeats, dtype=float)
+    downbeat_frames = np.clip(
+        np.rint(downbeat_array * 50.0).astype(int), 0, max(0, len(downbeat_logits) - 1),
+    )
+    downbeat_peak_probability = (
+        float(torch.sigmoid(downbeat_logits[downbeat_frames]).mean().item())
+        if len(downbeat_frames) and len(downbeat_logits) else 0.0
+    )
+    route = {
         "bpm": bpm,
         "beat_times": beat_times,
-        "downbeats": [round(float(x), 3) for x in np.asarray(downbeats, dtype=float)],
+        "downbeats": [round(float(x), 3) for x in downbeat_array],
         "confidence": confidence,
+        "downbeat_peak_probability_mean": round(downbeat_peak_probability, 4),
         "bpm_candidates": [{"bpm": round(bpm, 3), "source": "beat_this_grid"}],
         "bpm_intervals": [round(float(x), 6) for x in list(intervals)[:16]],
         "engine": f"beat_this:{model_name}",
         "sample_rate": int(sr),
         "method": "median_detected_beat_interval",
+        "postprocessor": "minimal_50fps_probability_gt_0.5_peak_nms_70ms",
     }
+    from app.modules.library.beat_model_validation import resolve_beat_model_validation
+
+    route["model_validation"] = resolve_beat_model_validation(route)
+    return route
 
 
 def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
@@ -714,10 +768,32 @@ def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
         float(np.clip(1.0 - np.std(intervals) / interval_mean, 0.0, 1.0))
         if interval_mean > 0 else 0.0
     )
+    segments = []
+    raw_segments = getattr(result, "segments", None)
+    for segment in list(raw_segments) if raw_segments is not None else []:
+        try:
+            if isinstance(segment, dict):
+                start, end, label = segment["start"], segment["end"], segment["label"]
+            else:
+                start, end, label = segment.start, segment.end, segment.label
+            segments.append({
+                "start": round(float(start), 4),
+                "end": round(float(end), 4),
+                "label": str(label).lower(),
+            })
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue
     return {
         "bpm": bpm,
         "beat_times": beat_times,
         "downbeats": [round(float(x), 3) for x in np.asarray(result.downbeats, dtype=float)],
+        "beat_positions": [
+            int(value) for value in (
+                list(getattr(result, "beat_positions"))
+                if getattr(result, "beat_positions", None) is not None else []
+            )
+        ],
+        "segments": segments,
         "confidence": confidence,
         "bpm_candidates": [{"bpm": round(bpm, 3), "source": "all_in_one"}],
         "bpm_intervals": [round(float(x), 6) for x in list(intervals)[:16]],
@@ -794,13 +870,16 @@ def _choose_bpm_consensus(
     results: dict[str, dict],
     *,
     tolerance: float = BPM_CONSENSUS_TOLERANCE,
-    preferred_engine: str = "essentia",
+    preferred_engine: str = "beat_this",
 ) -> dict:
-    """Choose the largest pairwise-agreeing BPM group, then its median.
+    """Resolve BPM value and metrical level as two different decisions.
 
-    Engine values within ``tolerance`` BPM of each other are one vote group.
-    If every available engine disagrees, the current Essentia route is retained
-    as a deterministic fallback and the result is marked for review.
+    Values within ``tolerance`` of the calibrated metrical-reference engine are
+    averaged robustly.  Half/double-tempo aliases are *not* ordinary majority
+    votes: two engines can agree with each other at the wrong metrical level.
+    GiantSteps calibration/heldout evaluation selects Beat This as the level
+    reference.  If it is unavailable, the largest exact-value group remains the
+    deterministic degraded fallback.
     """
     valid = {
         name: value for name, value in results.items()
@@ -819,22 +898,29 @@ def _choose_bpm_consensus(
         if max(bpms) - min(bpms) <= tolerance:
             groups.append(group)
 
-    largest = max(len(group) for group in groups)
-    candidates = [group for group in groups if len(group) == largest]
-    candidates.sort(key=lambda group: (
-        preferred_engine not in group,
-        -sum(name in group for name in ("beat_this", "all_in_one")),
-        [names.index(name) for name in group],
-    ))
-    winning_group = candidates[0]
-    has_majority = len(winning_group) >= 2
-
-    if has_majority:
-        consensus_bpm = float(np.median([float(valid[name]["bpm"]) for name in winning_group]))
+    if preferred_engine in valid:
+        reference_bpm = float(valid[preferred_engine]["bpm"])
+        winning_group = [
+            name for name in names
+            if abs(float(valid[name]["bpm"]) - reference_bpm) <= tolerance
+        ]
+        consensus_bpm = float(np.median([
+            float(valid[name]["bpm"]) for name in winning_group
+        ]))
+        selection_strategy = "validated_metrical_reference_v1"
     else:
-        fallback_name = preferred_engine if preferred_engine in valid else names[0]
-        winning_group = [fallback_name]
-        consensus_bpm = float(valid[fallback_name]["bpm"])
+        largest = max(len(group) for group in groups)
+        candidates = [group for group in groups if len(group) == largest]
+        candidates.sort(key=lambda group: (
+            -sum(name in group for name in ("all_in_one", "essentia")),
+            [names.index(name) for name in group],
+        ))
+        winning_group = candidates[0]
+        consensus_bpm = float(np.median([
+            float(valid[name]["bpm"]) for name in winning_group
+        ]))
+        selection_strategy = "degraded_exact_value_group"
+    has_majority = len(winning_group) >= 2
 
     engine_priority = {"beat_this": 0, "all_in_one": 1, "essentia": 2}
     selected_engine = min(
@@ -851,6 +937,32 @@ def _choose_bpm_consensus(
         else "degraded_agreement" if has_majority
         else "no_majority"
     )
+    tempo_hypotheses = sorted({
+        round(float(value["bpm"]) * ratio, 3)
+        for value in valid.values()
+        for ratio in (0.5, 2.0 / 3.0, 1.0, 1.5, 2.0)
+        if 30.0 <= float(value["bpm"]) * ratio <= 300.0
+    })
+    alias_relations = []
+    alias_ratios = {
+        "half": 0.5, "two_thirds": 2.0 / 3.0, "same": 1.0,
+        "three_halves": 1.5, "double": 2.0,
+    }
+    for index, left_name in enumerate(names):
+        for right_name in names[index + 1:]:
+            left = float(valid[left_name]["bpm"])
+            right = float(valid[right_name]["bpm"])
+            relation, ratio = min(
+                alias_ratios.items(), key=lambda item: abs(left * item[1] - right)
+            )
+            error = abs(left * ratio - right)
+            if error <= tolerance:
+                alias_relations.append({
+                    "engines": [left_name, right_name],
+                    "relation": relation,
+                    "ratio": round(ratio, 6),
+                    "error_bpm": round(error, 4),
+                })
     return {
         "bpm": consensus_bpm,
         "selected_engine": selected_engine,
@@ -859,8 +971,15 @@ def _choose_bpm_consensus(
         "available_count": available_count,
         "status": status,
         "needs_review": not has_majority or available_count < 3,
+        "selection_strategy": selection_strategy,
+        "metrical_reference_engine": preferred_engine if preferred_engine in valid else None,
         "tolerance": float(tolerance),
         "votes": {name: round(float(value["bpm"]), 3) for name, value in valid.items()},
+        "tempo_hypotheses": tempo_hypotheses,
+        "alias_relations": alias_relations,
+        "metrical_level_conflict": any(
+            item["relation"] != "same" for item in alias_relations
+        ),
     }
 
 
@@ -888,6 +1007,8 @@ def _analyze_rhythm_parallel(y: np.ndarray, sr: int, *, max_duration: float | No
 
     consensus = _choose_bpm_consensus(results, tolerance=_bpm_consensus_tolerance())
     consensus["errors"] = errors
+    from app.modules.library.tempo_model_validation import resolve_tempo_model_validation
+    consensus["model_validation"] = resolve_tempo_model_validation(consensus, results)
     selected = results[consensus["selected_engine"]]
     return selected, consensus, results
 
@@ -1396,6 +1517,34 @@ def _detect_sections(y: np.ndarray, sr: int, duration: float) -> list[dict]:
     return cue_points
 
 
+def _functional_segments_to_cues(segments: list[dict] | None) -> list[dict]:
+    """Convert model segments without relabelling them from energy or position."""
+    colors = {
+        "start": "#22c55e", "intro": "#22c55e", "verse": "#3b82f6",
+        "chorus": "#ef4444", "bridge": "#f59e0b", "break": "#a855f7",
+        "inst": "#06b6d4", "solo": "#14b8a6", "outro": "#64748b",
+        "end": "#64748b",
+    }
+    cues = []
+    for segment in segments or []:
+        try:
+            start = max(0.0, float(segment["start"]))
+            end = max(start, float(segment["end"]))
+            label = str(segment["label"]).strip().lower()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if label:
+            cues.append({
+                "time": round(start, 3),
+                "end": round(end, 3),
+                "label": label.title(),
+                "raw_label": label,
+                "color": colors.get(label, "#64748b"),
+                "source": "all_in_one_functional_segment",
+            })
+    return cues
+
+
 def _infer_downbeats_and_time_signature(
     beat_times: list[float] | np.ndarray,
     beat_strengths: list[float] | np.ndarray,
@@ -1667,7 +1816,7 @@ def _choose_downbeat_consensus(
     period_tolerance: float = DOWNBEAT_PERIOD_TOLERANCE,
     max_intro_bars: float = DOWNBEAT_MAX_INTRO_BARS,
 ) -> tuple[list[float], dict]:
-    """Choose a BPM-compatible downbeat sequence and expose period/phase conflicts."""
+    """Choose a validated downbeat route, or a reviewable multi-route fallback."""
     native_valid = {
         name: value for name, value in results.items()
         if len(value.get("downbeats") or []) >= 2
@@ -1741,6 +1890,16 @@ def _choose_downbeat_consensus(
         for name, value in native_valid.items()
     }
 
+    # A route may bypass heuristic voting only when its exact model,
+    # postprocessor and per-track confidence gate match held-out validation.
+    # Low-confidence output still participates as a provisional route.
+    validated_reference = next((
+        name
+        for name in ([preferred_engine] + [item for item in all_names if item != preferred_engine])
+        if name in native_valid
+        and bool((native_valid[name].get("model_validation") or {}).get("downbeat_validated"))
+    ), None)
+
     def selection_rank(name: str) -> tuple:
         profile = period_validation[name]
         return (
@@ -1760,7 +1919,14 @@ def _choose_downbeat_consensus(
             -priority.get(name, 99),
         )
 
-    if has_model_agreement:
+    if validated_reference is not None:
+        selected_engine = validated_reference
+        status = "validated_reference"
+        needs_review = False
+        if not winning_group or selected_engine not in winning_group:
+            winning_group = [selected_engine]
+        coverage_override = False
+    elif has_model_agreement:
         selected_engine = max(winning_group, key=agreement_rank)
         coverage_override = selected_engine != min(
             winning_group, key=lambda name: priority.get(name, 99)
@@ -1839,6 +2005,10 @@ def _choose_downbeat_consensus(
         "model_confidences": {
             name: round(float(value.get("confidence", 0.0)), 4)
             for name, value in native_valid.items()
+        },
+        "model_validations": {
+            name: value.get("model_validation")
+            for name, value in native_valid.items() if value.get("model_validation")
         },
     }
 
@@ -2675,9 +2845,9 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     duration = real_duration if real_duration is not None else analysis_duration
 
     # BPM + beat points. Beat This, All-In-One, and the existing Essentia route
-    # run concurrently. Values within ±2 BPM form one vote group; the largest
-    # group wins and its median is the public BPM. Librosa remains the final
-    # fallback when all three optional engines fail.
+    # Run independent rhythm routes concurrently. The held-out-validated Beat
+    # This route fixes the BPM metrical level; same-level routes only smooth
+    # its measurement. Librosa remains the final degraded fallback.
     rhythm_result: dict[str, Any] | None = None
     rhythm_results: dict[str, dict] = {}
     bpm_consensus: dict[str, Any] | None = None
@@ -2748,7 +2918,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
 
     # Native downbeats are voted independently from BPM. The local beat-accent
     # route is intentionally only a tie-break/fallback.
-    accent_downbeats, _accent_time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
+    accent_downbeats, accent_time_signature = _detect_downbeats_with_meter(y, sr, beat_times)
     downbeat_results = {
         name: rhythm_results[name]
         for name in ("beat_this", "all_in_one")
@@ -2762,14 +2932,25 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         tolerance=_downbeat_match_tolerance(),
         agreement_f1=_downbeat_agreement_f1(),
         bpm=bpm,
-        beats_per_bar=4,
+        beats_per_bar=int(accent_time_signature.get("numerator", 4) or 4),
         period_tolerance=_downbeat_period_tolerance(),
         max_intro_bars=_downbeat_max_intro_bars(),
     )
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
     time_signature = _detect_time_signature(beat_times, downbeats, bpm=bpm)
+    time_signature["pre_consensus_meter"] = accent_time_signature
     time_signature["needs_review"] = bool(downbeat_consensus["needs_review"])
     time_signature["downbeat_consensus"] = downbeat_consensus
+    selected_downbeat_validation = (
+        (downbeat_results.get(str(downbeat_consensus.get("selected_engine"))) or {})
+        .get("model_validation")
+    )
+    time_signature["model_validation"] = selected_downbeat_validation
+    time_signature["validation_status"] = (
+        "validated"
+        if bool((selected_downbeat_validation or {}).get("meter_validated"))
+        else "provisional"
+    )
     beatgrid_summary["beat_needs_review"] = bool(
         beatgrid_summary.get("beat_needs_review") or downbeat_consensus["needs_review"]
     )
@@ -2824,8 +3005,18 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         local_fallback=local_key_result,
     )
 
-    # Section detection → cue points (use analysis_duration for relative-position labels)
-    cue_points = _detect_sections(y, sr, analysis_duration)
+    # Prefer model functional structure; retain energy transitions as a
+    # separately named fallback rather than treating position as semantics.
+    functional_segments = list((rhythm_results.get("all_in_one") or {}).get("segments") or [])
+    cue_points = _functional_segments_to_cues(functional_segments)
+    energy_transition_candidates = _detect_sections(y, sr, analysis_duration)
+    section_source = "all_in_one_functional_segments"
+    if not cue_points:
+        cue_points = [
+            {**item, "source": "energy_transition_candidate"}
+            for item in energy_transition_candidates
+        ]
+        section_source = "energy_transition_fallback"
 
     # Phrase structure (8-bar segments with labels)
     phrase_map = _detect_phrase_structure(y, sr, analysis_duration, downbeats)
@@ -2872,6 +3063,9 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
             "decision": key_result.get("decision"),
             "confidence_level": key_result.get("confidence_level"),
             "needs_review": key_result.get("needs_review"),
+            "validation_status": key_result.get("validation_status"),
+            "model_validation": key_result.get("model_validation"),
+            "model_confidence": key_result.get("model_confidence"),
             "route_results": key_result.get("route_results", {}),
             "local_fallback": key_result.get("local_fallback"),
             "errors": key_result.get("errors", {}),
@@ -2882,6 +3076,12 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         **beatgrid_summary,
         "downbeats": downbeats,
         "cue_points": cue_points,
+        "section_analysis": {
+            "source": section_source,
+            "functional_segments": functional_segments,
+            "energy_transition_candidates": energy_transition_candidates,
+            "semantic_labels_from_energy": False,
+        },
         "phrase_map": phrase_map,
         "energy_curve": energy_curve,
         "loudness_profile": loudness_profile,

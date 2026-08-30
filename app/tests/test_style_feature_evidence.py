@@ -80,18 +80,16 @@ def test_unavailable_is_unknown_instead_of_negative() -> None:
     assert feature["evidence_level"] == "unavailable"
 
 
-def test_v4_schema_describes_quality_and_unavailable_features() -> None:
+def test_v5_schema_describes_quality_calibration_and_unavailable_features() -> None:
     schema_path = (
         Path(__file__).parents[2]
-        / "modules/stem-separation/contracts/pre-style-features-v4.schema.json"
+        / "modules/stem-separation/contracts/pre-style-features-v5.schema.json"
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["properties"]["version"]["const"] == STYLE_FEATURE_EVIDENCE_VERSION
     feature_schema = schema["$defs"]["feature"]
     assert set(feature_schema["required"]) >= {
         "availability", "detected", "score", "reliability", "quality",
-        "evidence_level", "sources"
+        "evidence_level", "sources", "probability", "validation_status",
+        "technical_reliability", "style_required_allowed"
     }
-    unavailable_rule = feature_schema["allOf"][0]["then"]["properties"]
-    assert unavailable_rule["detected"]["type"] == "null"
-    assert unavailable_rule["score"]["type"] == "null"

@@ -64,9 +64,12 @@ class StemAnalysisTests(unittest.TestCase):
             "sampled_loop_tendency",
             result["feature_analysis"]["feature_groups"]["production"],
         )
+        sampled = result["feature_analysis"]["feature_groups"]["production"]["sampled_loop_tendency"]
+        self.assertEqual(sampled["validation_status"], "candidate_only")
+        self.assertFalse(sampled["style_required_allowed"])
         self.assertIn("drum_analysis", result)
         self.assertIn("feature_analysis", result)
-        self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v4")
+        self.assertEqual(result["feature_analysis"]["version"], "pre_style_evidence_v5")
         self.assertIn("feature_groups", result["feature_analysis"])
         self.assertIn("analysis_modules", result["feature_analysis"])
         self.assertIn("rhythm_grammar", result["feature_analysis"]["feature_groups"])

@@ -1,0 +1,2655 @@
+{
+  "version": "style_reference_robustness_v1",
+  "created_at": "2026-08-28T19:24:59.356141+00:00",
+  "leakage": {
+    "segment_fold_mismatch_count": 0,
+    "artist_groups_crossing_folds": {},
+    "forbidden_model_features": [],
+    "passed": true
+  },
+  "label_shuffle": {
+    "repetitions": 10,
+    "completed": 10,
+    "macro_f1_values": [
+      0.02564102564102564,
+      0.03108003108003108,
+      0.04603729603729604,
+      0.10275835275835275,
+      0.04335664335664336,
+      0.027972027972027972,
+      0.035897435897435895,
+      0.06714567483798253,
+      0.08643920182381722,
+      0.017094017094017092
+    ],
+    "macro_f1_mean": 0.04834217064986296,
+    "macro_f1_std": 0.02675038138479758,
+    "chance_top1": 0.07692307692307693,
+    "errors": []
+  },
+  "audio_robustness": {
+    "scope": "one deterministic first segment per class",
+    "model": "external:style_reference_v0/models/embedding_classifier/model.joblib",
+    "ffmpeg_available": false,
+    "summary": {
+      "crop_offset_plus_2s": {
+        "tracks": 13,
+        "top1_agreement": 1.0,
+        "embedding_cosine_mean": 0.9960350702554361,
+        "probability_l1_mean": 0.008680138160871969
+      },
+      "loudness_minus_6db": {
+        "tracks": 13,
+        "top1_agreement": 1.0,
+        "embedding_cosine_mean": 0.9441274368940883,
+        "probability_l1_mean": 0.09397939580037885
+      },
+      "mp3_roundtrip": {
+        "tracks": 13,
+        "top1_agreement": 1.0,
+        "embedding_cosine_mean": 0.9395311003462226,
+        "probability_l1_mean": 0.05617779809304886
+      },
+      "wav_pcm16_roundtrip": {
+        "tracks": 13,
+        "top1_agreement": 1.0,
+        "embedding_cosine_mean": 0.9999996698768527,
+        "probability_l1_mean": 3.659790592102342e-05
+      }
+    },
+    "details": [
+      {
+        "track_id": "64f489707fddc310",
+        "reference_style": "afro_afrobeats",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "afro_afrobeats",
+        "variant_prediction": "afro_afrobeats",
+        "top1_agreement": true,
+        "embedding_cosine": 0.7913762823319791,
+        "probability_l1": 0.7216655063758282
+      },
+      {
+        "track_id": "64f489707fddc310",
+        "reference_style": "afro_afrobeats",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "afro_afrobeats",
+        "variant_prediction": "afro_afrobeats",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9980379037827256,
+        "probability_l1": 0.0002785763283270626
+      },
+      {
+        "track_id": "64f489707fddc310",
+        "reference_style": "afro_afrobeats",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "afro_afrobeats",
+        "variant_prediction": "afro_afrobeats",
+        "top1_agreement": true,
+        "embedding_cosine": 1.000000129709139,
+        "probability_l1": 3.221187867552544e-07
+      },
+      {
+        "track_id": "64f489707fddc310",
+        "reference_style": "afro_afrobeats",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "afro_afrobeats",
+        "variant_prediction": "afro_afrobeats",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9228481765104106,
+        "probability_l1": 0.01099772265136778
+      },
+      {
+        "track_id": "19dd6399e3f1caa0",
+        "reference_style": "amapiano",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "amapiano",
+        "variant_prediction": "amapiano",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9702323330828234,
+        "probability_l1": 2.630745796095013e-06
+      },
+      {
+        "track_id": "19dd6399e3f1caa0",
+        "reference_style": "amapiano",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "amapiano",
+        "variant_prediction": "amapiano",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9989716945953722,
+        "probability_l1": 2.667775339526557e-07
+      },
+      {
+        "track_id": "19dd6399e3f1caa0",
+        "reference_style": "amapiano",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "amapiano",
+        "variant_prediction": "amapiano",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999983938181272,
+        "probability_l1": 6.774395266972988e-09
+      },
+      {
+        "track_id": "19dd6399e3f1caa0",
+        "reference_style": "amapiano",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "amapiano",
+        "variant_prediction": "amapiano",
+        "top1_agreement": true,
+        "embedding_cosine": 0.8636627265614197,
+        "probability_l1": 0.0001249144640305122
+      },
+      {
+        "track_id": "bd261eec5af100ee",
+        "reference_style": "baile_funk",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "baile_funk",
+        "variant_prediction": "baile_funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9462168132597883,
+        "probability_l1": 0.003834612050013675
+      },
+      {
+        "track_id": "bd261eec5af100ee",
+        "reference_style": "baile_funk",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "baile_funk",
+        "variant_prediction": "baile_funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9977659745327587,
+        "probability_l1": 0.0008704487727300148
+      },
+      {
+        "track_id": "bd261eec5af100ee",
+        "reference_style": "baile_funk",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "baile_funk",
+        "variant_prediction": "baile_funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999999199730405,
+        "probability_l1": 6.326311449811328e-06
+      },
+      {
+        "track_id": "bd261eec5af100ee",
+        "reference_style": "baile_funk",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "baile_funk",
+        "variant_prediction": "baile_funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9370362334415298,
+        "probability_l1": 0.013562028133492277
+      },
+      {
+        "track_id": "8978aa380e85155e",
+        "reference_style": "boombap",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "boombap",
+        "variant_prediction": "boombap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9779662865589729,
+        "probability_l1": 0.0028333734374257347
+      },
+      {
+        "track_id": "8978aa380e85155e",
+        "reference_style": "boombap",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "boombap",
+        "variant_prediction": "boombap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9946070028789994,
+        "probability_l1": 0.006680878302773863
+      },
+      {
+        "track_id": "8978aa380e85155e",
+        "reference_style": "boombap",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "boombap",
+        "variant_prediction": "boombap",
+        "top1_agreement": true,
+        "embedding_cosine": 1.0,
+        "probability_l1": 7.921579481262597e-06
+      },
+      {
+        "track_id": "8978aa380e85155e",
+        "reference_style": "boombap",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "boombap",
+        "variant_prediction": "boombap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.927394652628294,
+        "probability_l1": 0.002445413980979083
+      },
+      {
+        "track_id": "0d8966dace278086",
+        "reference_style": "breakbeat",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "breakbeat",
+        "variant_prediction": "breakbeat",
+        "top1_agreement": true,
+        "embedding_cosine": 0.966503034174956,
+        "probability_l1": 0.0005136726791761248
+      },
+      {
+        "track_id": "0d8966dace278086",
+        "reference_style": "breakbeat",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "breakbeat",
+        "variant_prediction": "breakbeat",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9984388827551421,
+        "probability_l1": 0.00048535609403188573
+      },
+      {
+        "track_id": "0d8966dace278086",
+        "reference_style": "breakbeat",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "breakbeat",
+        "variant_prediction": "breakbeat",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999998995314447,
+        "probability_l1": 2.0363268049550243e-07
+      },
+      {
+        "track_id": "0d8966dace278086",
+        "reference_style": "breakbeat",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "breakbeat",
+        "variant_prediction": "breakbeat",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9643147289540808,
+        "probability_l1": 0.0005164986487216083
+      },
+      {
+        "track_id": "01717e42ff56d162",
+        "reference_style": "dancehall",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "dancehall",
+        "variant_prediction": "dancehall",
+        "top1_agreement": true,
+        "embedding_cosine": 0.8978746642752446,
+        "probability_l1": 0.00024088459762827696
+      },
+      {
+        "track_id": "01717e42ff56d162",
+        "reference_style": "dancehall",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "dancehall",
+        "variant_prediction": "dancehall",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9993440956815599,
+        "probability_l1": 2.6661017540341447e-06
+      },
+      {
+        "track_id": "01717e42ff56d162",
+        "reference_style": "dancehall",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "dancehall",
+        "variant_prediction": "dancehall",
+        "top1_agreement": true,
+        "embedding_cosine": 1.0,
+        "probability_l1": 7.286948822127215e-10
+      },
+      {
+        "track_id": "01717e42ff56d162",
+        "reference_style": "dancehall",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "dancehall",
+        "variant_prediction": "dancehall",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9495507573962191,
+        "probability_l1": 5.078283469850398e-06
+      },
+      {
+        "track_id": "441fc43b35110f9b",
+        "reference_style": "disco",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "disco",
+        "variant_prediction": "disco",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9886337112177441,
+        "probability_l1": 0.0034015049172921863
+      },
+      {
+        "track_id": "441fc43b35110f9b",
+        "reference_style": "disco",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "disco",
+        "variant_prediction": "disco",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9921424109956951,
+        "probability_l1": 0.026982338540847195
+      },
+      {
+        "track_id": "441fc43b35110f9b",
+        "reference_style": "disco",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "disco",
+        "variant_prediction": "disco",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999985756941328,
+        "probability_l1": 0.00019822805188596249
+      },
+      {
+        "track_id": "441fc43b35110f9b",
+        "reference_style": "disco",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "disco",
+        "variant_prediction": "disco",
+        "top1_agreement": true,
+        "embedding_cosine": 0.97535564697714,
+        "probability_l1": 0.02563983534446379
+      },
+      {
+        "track_id": "49d4ac83da372eab",
+        "reference_style": "funk",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "funk",
+        "variant_prediction": "funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9708180149622031,
+        "probability_l1": 0.03613797320940648
+      },
+      {
+        "track_id": "49d4ac83da372eab",
+        "reference_style": "funk",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "funk",
+        "variant_prediction": "funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9899621711007698,
+        "probability_l1": 0.021352169588681136
+      },
+      {
+        "track_id": "49d4ac83da372eab",
+        "reference_style": "funk",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "funk",
+        "variant_prediction": "funk",
+        "top1_agreement": true,
+        "embedding_cosine": 1.0,
+        "probability_l1": 4.955007170792669e-06
+      },
+      {
+        "track_id": "49d4ac83da372eab",
+        "reference_style": "funk",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "funk",
+        "variant_prediction": "funk",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9487477159920404,
+        "probability_l1": 0.12095992298782221
+      },
+      {
+        "track_id": "b6591545584d43e0",
+        "reference_style": "grime_uk_hiphop",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "grime_uk_hiphop",
+        "variant_prediction": "grime_uk_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9859021012241364,
+        "probability_l1": 0.06305627665278735
+      },
+      {
+        "track_id": "b6591545584d43e0",
+        "reference_style": "grime_uk_hiphop",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "grime_uk_hiphop",
+        "variant_prediction": "grime_uk_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9983795142190364,
+        "probability_l1": 0.006230295195564395
+      },
+      {
+        "track_id": "b6591545584d43e0",
+        "reference_style": "grime_uk_hiphop",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "grime_uk_hiphop",
+        "variant_prediction": "grime_uk_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999999179374666,
+        "probability_l1": 6.0530248447321355e-05
+      },
+      {
+        "track_id": "b6591545584d43e0",
+        "reference_style": "grime_uk_hiphop",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "grime_uk_hiphop",
+        "variant_prediction": "grime_uk_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.980948434294192,
+        "probability_l1": 0.017490754016762367
+      },
+      {
+        "track_id": "68e1b6036f7f3d0d",
+        "reference_style": "house",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "house",
+        "variant_prediction": "house",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9861457230857194,
+        "probability_l1": 0.03960267700676923
+      },
+      {
+        "track_id": "68e1b6036f7f3d0d",
+        "reference_style": "house",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "house",
+        "variant_prediction": "house",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9984531780255572,
+        "probability_l1": 0.0019204935033485526
+      },
+      {
+        "track_id": "68e1b6036f7f3d0d",
+        "reference_style": "house",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "house",
+        "variant_prediction": "house",
+        "top1_agreement": true,
+        "embedding_cosine": 1.0,
+        "probability_l1": 2.7139176381751895e-06
+      },
+      {
+        "track_id": "68e1b6036f7f3d0d",
+        "reference_style": "house",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "house",
+        "variant_prediction": "house",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9572081884204907,
+        "probability_l1": 0.11677268298444687
+      },
+      {
+        "track_id": "1f5e732a369cc1be",
+        "reference_style": "jazz_hiphop",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "jazz_hiphop",
+        "variant_prediction": "jazz_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.8785930224408728,
+        "probability_l1": 0.33792606789052115
+      },
+      {
+        "track_id": "1f5e732a369cc1be",
+        "reference_style": "jazz_hiphop",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "jazz_hiphop",
+        "variant_prediction": "jazz_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9994963011560452,
+        "probability_l1": 0.0004109601696882237
+      },
+      {
+        "track_id": "1f5e732a369cc1be",
+        "reference_style": "jazz_hiphop",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "jazz_hiphop",
+        "variant_prediction": "jazz_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999995402877077,
+        "probability_l1": 3.5260507047496503e-06
+      },
+      {
+        "track_id": "1f5e732a369cc1be",
+        "reference_style": "jazz_hiphop",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "jazz_hiphop",
+        "variant_prediction": "jazz_hiphop",
+        "top1_agreement": true,
+        "embedding_cosine": 0.8625778367999876,
+        "probability_l1": 0.08800209294190608
+      },
+      {
+        "track_id": "09371f0f29e2c6a4",
+        "reference_style": "jersey_club",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "jersey_club",
+        "variant_prediction": "jersey_club",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9341259869045575,
+        "probability_l1": 0.002237027133276115
+      },
+      {
+        "track_id": "09371f0f29e2c6a4",
+        "reference_style": "jersey_club",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "jersey_club",
+        "variant_prediction": "jersey_club",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9962858942555599,
+        "probability_l1": 0.004518196506580807
+      },
+      {
+        "track_id": "09371f0f29e2c6a4",
+        "reference_style": "jersey_club",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "jersey_club",
+        "variant_prediction": "jersey_club",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999996127571728,
+        "probability_l1": 1.2142069863330107e-05
+      },
+      {
+        "track_id": "09371f0f29e2c6a4",
+        "reference_style": "jersey_club",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "jersey_club",
+        "variant_prediction": "jersey_club",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9574097263709902,
+        "probability_l1": 0.022296397564332437
+      },
+      {
+        "track_id": "eeab700d2f17b14f",
+        "reference_style": "trap",
+        "variant": "loudness_minus_6db",
+        "baseline_prediction": "trap",
+        "variant_prediction": "trap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9792687061041496,
+        "probability_l1": 0.010279938709004455
+      },
+      {
+        "track_id": "eeab700d2f17b14f",
+        "reference_style": "trap",
+        "variant": "crop_offset_plus_2s",
+        "baseline_prediction": "trap",
+        "variant_prediction": "trap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9865708893414489,
+        "probability_l1": 0.04310915020947448
+      },
+      {
+        "track_id": "eeab700d2f17b14f",
+        "reference_style": "trap",
+        "variant": "wav_pcm16_roundtrip",
+        "baseline_prediction": "trap",
+        "variant_prediction": "trap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9999997186908548,
+        "probability_l1": 0.00017889628577449912
+      },
+      {
+        "track_id": "eeab700d2f17b14f",
+        "reference_style": "trap",
+        "variant": "mp3_roundtrip",
+        "baseline_prediction": "trap",
+        "variant_prediction": "trap",
+        "top1_agreement": true,
+        "embedding_cosine": 0.9668494801540976,
+        "probability_l1": 0.3114980332078403
+      }
+    ]
+  },
+  "subgroups": {
+    "model": "fusion_svm",
+    "groups": {
+      "window_method": {
+        "beat_aligned_16_bars_hop_8": {
+          "tracks": 50,
+          "top1_accuracy": 0.84
+        },
+        "fixed_30s_hop_15s": {
+          "tracks": 15,
+          "top1_accuracy": 0.6666666666666666
+        }
+      },
+      "purity_grade": {
+        "A": {
+          "tracks": 49,
+          "top1_accuracy": 0.9795918367346939
+        },
+        "C": {
+          "tracks": 14,
+          "top1_accuracy": 0.21428571428571427
+        },
+        "B": {
+          "tracks": 2,
+          "top1_accuracy": 0.5
+        }
+      },
+      "fold": {
+        "fold_0": {
+          "tracks": 17,
+          "top1_accuracy": 0.7058823529411765
+        },
+        "fold_1": {
+          "tracks": 16,
+          "top1_accuracy": 0.8125
+        },
+        "fold_2": {
+          "tracks": 16,
+          "top1_accuracy": 0.9375
+        },
+        "fold_3": {
+          "tracks": 16,
+          "top1_accuracy": 0.75
+        }
+      }
+    },
+    "confusion_pairs": {
+      "boombap -> jazz_hiphop": 2,
+      "baile_funk -> grime_uk_hiphop": 2,
+      "funk -> boombap": 1,
+      "trap -> grime_uk_hiphop": 1,
+      "house -> breakbeat": 1,
+      "jazz_hiphop -> boombap": 1,
+      "funk -> house": 1,
+      "jersey_club -> grime_uk_hiphop": 1,
+      "trap -> jersey_club": 1,
+      "baile_funk -> house": 1,
+      "afro_afrobeats -> amapiano": 1
+    }
+  },
+  "ablation": {
+    "embedding_nearest": {
+      "top1_accuracy": 0.7384615384615385,
+      "balanced_accuracy": 0.7384615384615384,
+      "macro_precision": 0.7293040293040293,
+      "macro_recall": 0.7384615384615384,
+      "macro_f1": 0.7270007770007769,
+      "top3_recall": 0.8923076923076924,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8888888888888888,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.2,
+          "recall": 0.2,
+          "f1": 0.2,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "disco": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "funk": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.7142857142857143,
+          "recall": 1.0,
+          "f1": 0.8333333333333334,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.3333333333333333,
+          "recall": 0.2,
+          "f1": 0.25,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "support": 5
+        },
+        "trap": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          4,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          2,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          3
+        ]
+      ]
+    },
+    "embedding_logreg": {
+      "top1_accuracy": 0.7846153846153846,
+      "balanced_accuracy": 0.7846153846153846,
+      "macro_precision": 0.7991452991452992,
+      "macro_recall": 0.7846153846153846,
+      "macro_f1": 0.780858030858031,
+      "top3_recall": 0.9538461538461539,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.5,
+          "recall": 0.4,
+          "f1": 0.4444444444444444,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "disco": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "funk": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.5555555555555556,
+          "recall": 1.0,
+          "f1": 0.7142857142857143,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "support": 5
+        },
+        "trap": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          3
+        ]
+      ]
+    },
+    "embedding_svm": {
+      "top1_accuracy": 0.7692307692307693,
+      "balanced_accuracy": 0.7692307692307693,
+      "macro_precision": 0.8094017094017094,
+      "macro_recall": 0.7692307692307693,
+      "macro_f1": 0.7553724053724052,
+      "top3_recall": 0.9538461538461539,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8888888888888888,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 1.0,
+          "recall": 0.2,
+          "f1": 0.3333333333333333,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.5,
+          "recall": 0.6,
+          "f1": 0.5454545454545454,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "disco": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "funk": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.5555555555555556,
+          "recall": 1.0,
+          "f1": 0.7142857142857143,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "trap": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          4,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          3
+        ]
+      ]
+    },
+    "technical_logreg": {
+      "top1_accuracy": 0.4461538461538462,
+      "balanced_accuracy": 0.4461538461538461,
+      "macro_precision": 0.44609279609279606,
+      "macro_recall": 0.4461538461538461,
+      "macro_f1": 0.43232878232878236,
+      "top3_recall": 0.7846153846153846,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 0.3333333333333333,
+          "recall": 0.4,
+          "f1": 0.36363636363636365,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.25,
+          "recall": 0.2,
+          "f1": 0.2222222222222222,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 0.4444444444444444,
+          "recall": 0.8,
+          "f1": 0.5714285714285714,
+          "support": 5
+        },
+        "disco": {
+          "precision": 0.5714285714285714,
+          "recall": 0.8,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "funk": {
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.3333333333333333,
+          "recall": 0.2,
+          "f1": 0.25,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.5,
+          "recall": 0.2,
+          "f1": 0.2857142857142857,
+          "support": 5
+        },
+        "trap": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          2,
+          0,
+          0,
+          1,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          2,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3
+        ]
+      ]
+    },
+    "technical_svm": {
+      "top1_accuracy": 0.38461538461538464,
+      "balanced_accuracy": 0.38461538461538464,
+      "macro_precision": 0.4203296703296703,
+      "macro_recall": 0.38461538461538464,
+      "macro_f1": 0.38411588411588404,
+      "top3_recall": 0.7076923076923077,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 0.4,
+          "recall": 0.4,
+          "f1": 0.4,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 0.16666666666666666,
+          "recall": 0.2,
+          "f1": 0.18181818181818182,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 0.16666666666666666,
+          "recall": 0.2,
+          "f1": 0.18181818181818182,
+          "support": 5
+        },
+        "disco": {
+          "precision": 0.42857142857142855,
+          "recall": 0.6,
+          "f1": 0.5,
+          "support": 5
+        },
+        "funk": {
+          "precision": 0.2857142857142857,
+          "recall": 0.4,
+          "f1": 0.3333333333333333,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "house": {
+          "precision": 1.0,
+          "recall": 0.4,
+          "f1": 0.5714285714285714,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.5,
+          "recall": 0.6,
+          "f1": 0.5454545454545454,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.5,
+          "recall": 0.2,
+          "f1": 0.2857142857142857,
+          "support": 5
+        },
+        "trap": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          2,
+          0,
+          0,
+          0,
+          0,
+          2,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          3,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3
+        ]
+      ]
+    },
+    "fusion_logreg": {
+      "top1_accuracy": 0.7846153846153846,
+      "balanced_accuracy": 0.7846153846153846,
+      "macro_precision": 0.7991452991452992,
+      "macro_recall": 0.7846153846153846,
+      "macro_f1": 0.780858030858031,
+      "top3_recall": 0.9538461538461539,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.5,
+          "recall": 0.4,
+          "f1": 0.4444444444444444,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "disco": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "funk": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.5555555555555556,
+          "recall": 1.0,
+          "f1": 0.7142857142857143,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.75,
+          "recall": 0.6,
+          "f1": 0.6666666666666666,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "support": 5
+        },
+        "trap": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          3
+        ]
+      ]
+    },
+    "fusion_svm": {
+      "top1_accuracy": 0.8,
+      "balanced_accuracy": 0.8000000000000002,
+      "macro_precision": 0.8427350427350427,
+      "macro_recall": 0.8000000000000002,
+      "macro_f1": 0.7959484959484959,
+      "top3_recall": 0.9538461538461539,
+      "per_class": {
+        "afro_afrobeats": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8888888888888888,
+          "support": 5
+        },
+        "amapiano": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "baile_funk": {
+          "precision": 1.0,
+          "recall": 0.4,
+          "f1": 0.5714285714285714,
+          "support": 5
+        },
+        "boombap": {
+          "precision": 0.6,
+          "recall": 0.6,
+          "f1": 0.6,
+          "support": 5
+        },
+        "breakbeat": {
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091,
+          "support": 5
+        },
+        "dancehall": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "disco": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 5
+        },
+        "funk": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75,
+          "support": 5
+        },
+        "grime_uk_hiphop": {
+          "precision": 0.5555555555555556,
+          "recall": 1.0,
+          "f1": 0.7142857142857143,
+          "support": 5
+        },
+        "house": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "jazz_hiphop": {
+          "precision": 0.6666666666666666,
+          "recall": 0.8,
+          "f1": 0.7272727272727273,
+          "support": 5
+        },
+        "jersey_club": {
+          "precision": 0.8,
+          "recall": 0.8,
+          "f1": 0.8,
+          "support": 5
+        },
+        "trap": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75,
+          "support": 5
+        }
+      },
+      "confusion_matrix": [
+        [
+          4,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          3,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          3
+        ]
+      ]
+    }
+  },
+  "metadata_removal": {
+    "passed": true,
+    "reason": "model matrices are assembled only from segment_features.npz; manifest metadata is never concatenated"
+  },
+  "external_label_audit": {
+    "tracks": 65,
+    "statuses": {
+      "miss": 20,
+      "identity_confirmed": 35,
+      "identity_and_tags": 8,
+      "error": 2
+    },
+    "tagged_tracks": 8,
+    "interpretation": "Identity/tag triage only; miss or absent tags are not treated as label conflicts."
+  }
+}

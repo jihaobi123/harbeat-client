@@ -85,6 +85,25 @@ def test_local_accent_is_last_fallback_not_a_model_vote() -> None:
     assert consensus["needs_review"] is True
 
 
+def test_heldout_validated_reference_is_not_overruled_by_heuristic_meter() -> None:
+    beat_this = _result([0.2, 2.2, 4.2, 6.2], "beat_this:final0")
+    beat_this["model_validation"] = {"downbeat_validated": True}
+    selected, consensus = _choose_downbeat_consensus(
+        {
+            "beat_this": beat_this,
+            "all_in_one": _result([0.7, 2.7, 4.7, 6.7], "all_in_one:harmonix-all"),
+        },
+        accent_fallback=[0.7, 2.7, 4.7, 6.7],
+        bpm=120.0,
+        beats_per_bar=3,
+    )
+
+    assert selected == [0.2, 2.2, 4.2, 6.2]
+    assert consensus["selected_engine"] == "beat_this"
+    assert consensus["status"] == "validated_reference"
+    assert consensus["needs_review"] is False
+
+
 def test_bpm_period_filter_rejects_incompatible_bar_grid() -> None:
     expected = [round(value, 3) for value in np.arange(1.1, 40.0, 4 * 60 / 110)]
     wrong_73_bpm_grid = [round(value, 3) for value in np.arange(2.4, 40.0, 4 * 60 / 73)]

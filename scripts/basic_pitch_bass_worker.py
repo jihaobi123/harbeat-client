@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
+from importlib import metadata
+import io
 import json
 from pathlib import Path
 
@@ -29,7 +32,11 @@ def transcribe(audio_path: Path) -> dict:
             "basic-pitch is not installed; install it only in the optional model environment"
         ) from exc
 
-    _, _, note_events = predict(str(audio_path))
+    # Basic Pitch prints progress and backend tensor diagnostics to stdout.
+    # The model-adapter contract requires stdout to contain exactly one JSON
+    # document, so keep all upstream chatter out of the transport channel.
+    with redirect_stdout(io.StringIO()):
+        _, _, note_events = predict(str(audio_path))
     events = []
     for value in note_events:
         if len(value) < 4:
@@ -42,10 +49,11 @@ def transcribe(audio_path: Path) -> dict:
             "confidence": round(float(amplitude), 4),
             "pitch_bends": _bend_values(value[4] if len(value) >= 5 else None),
         })
+    events.sort(key=lambda item: (item["start"], item["midi"], item["end"]))
     return {
         "engine": "spotify_basic_pitch",
         "model_name": Path(str(ICASSP_2022_MODEL_PATH)).name,
-        "model_version": "runtime_package_version",
+        "model_version": metadata.version("basic-pitch"),
         "license": "Apache-2.0",
         "event_count": len(events),
         "note_events": events,

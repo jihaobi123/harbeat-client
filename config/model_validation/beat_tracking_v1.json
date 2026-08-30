@@ -1,0 +1,64 @@
+{
+  "version": "beat_model_validation_v1",
+  "models": [
+    {
+      "engine": "beat_this:final0",
+      "postprocessor": "minimal_50fps_probability_gt_0.5_peak_nms_70ms",
+      "benchmark": "Beat This official GTZAN unseen test set",
+      "dataset_size_evaluated": 128,
+      "partition": "heldout",
+      "partition_rule": "sha256(track_id).first_byte_mod_2 == 1",
+      "heldout_track_count": 58,
+      "matching_tolerance_ms": 70,
+      "evaluation_trim_seconds": 5.0,
+      "beats": {
+        "precision": 0.8713,
+        "recall": 0.9001,
+        "f1": 0.8855,
+        "macro_precision": 0.9065,
+        "macro_recall": 0.9014,
+        "macro_f1": 0.8901,
+        "validated": true
+      },
+      "downbeats": {
+        "raw_all_tracks": {
+          "precision": 0.6922,
+          "recall": 0.8445,
+          "f1": 0.7608,
+          "validated": false
+        },
+        "confidence_gate": {
+          "metric": "mean_sigmoid_probability_at_emitted_downbeat_peaks",
+          "threshold": 0.925,
+          "selected_using": "calibration partition only"
+        },
+        "heldout_accepted_track_count": 42,
+        "heldout_coverage": 0.7241,
+        "precision": 0.8889,
+        "recall": 0.9151,
+        "f1": 0.9018,
+        "macro_precision": 0.9306,
+        "macro_recall": 0.9272,
+        "macro_f1": 0.9238,
+        "validated": true
+      },
+      "meter": {
+        "benchmark_subset": "GTZAN meter-balanced subset: 45 tracks in 3/4 and 45 tracks in 4/4",
+        "heldout_accepted_track_count": 26,
+        "accuracy": 0.9231,
+        "balanced_accuracy": 0.9285,
+        "per_class": {
+          "3": {"sample_count": 14, "recall": 0.8571},
+          "4": {"sample_count": 12, "recall": 1.0}
+        },
+        "validated": true
+      },
+      "evaluated_at": "2026-08-28",
+      "restrictions": [
+        "final0 was trained on the other Beat This datasets but not GTZAN",
+        "downbeats below the confidence gate are retained only as provisional candidates and must not drive style rules",
+        "the validation covers fixed global meter annotations, not arbitrary mixed-meter music"
+      ]
+    }
+  ]
+}

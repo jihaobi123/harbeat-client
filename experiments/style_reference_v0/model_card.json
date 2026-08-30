@@ -1,0 +1,91 @@
+{
+  "version": "style_reference_model_card_v1",
+  "status": "experimental_not_approved",
+  "runtime_integration_allowed": false,
+  "tracks": 65,
+  "segments": 872,
+  "classes": [
+    "afro_afrobeats",
+    "amapiano",
+    "baile_funk",
+    "boombap",
+    "breakbeat",
+    "dancehall",
+    "disco",
+    "funk",
+    "grime_uk_hiphop",
+    "house",
+    "jazz_hiphop",
+    "jersey_club",
+    "trap"
+  ],
+  "missing_target_styles": [
+    "drill",
+    "memphis_trap",
+    "moombahton",
+    "rage",
+    "rnb",
+    "soul_neo_soul",
+    "trap_soul",
+    "uk_garage"
+  ],
+  "best_embedding_model": "embedding_logreg",
+  "best_fusion_model": "fusion_svm",
+  "gates": {
+    "thresholds": {
+      "macro_f1": 0.45,
+      "balanced_accuracy": 0.5,
+      "top3_recall": 0.75,
+      "fold_macro_f1_std_max": 0.12,
+      "class_recall_floor": 0.3,
+      "fusion_gain_macro_f1": 0.03
+    },
+    "best_embedding_model": "embedding_logreg",
+    "best_fusion_model": "fusion_svm",
+    "best_overall_model": "fusion_svm",
+    "fusion_gain_macro_f1": 0.015090465090464966,
+    "checks": [
+      {
+        "name": "macro_f1",
+        "actual": 0.7959484959484959,
+        "passed": true
+      },
+      {
+        "name": "balanced_accuracy",
+        "actual": 0.8000000000000002,
+        "passed": true
+      },
+      {
+        "name": "top3_recall",
+        "actual": 0.9538461538461539,
+        "passed": true
+      },
+      {
+        "name": "fold_macro_f1_std_max",
+        "actual": 0.10269920948172673,
+        "passed": true
+      },
+      {
+        "name": "fraction_classes_recall_ge_0.30",
+        "actual": 1.0,
+        "passed": true
+      },
+      {
+        "name": "fusion_gain_macro_f1",
+        "actual": 0.015090465090464966,
+        "passed": false
+      }
+    ],
+    "model_gates_passed": false,
+    "dataset_screen_passed": false,
+    "human_label_review_complete": false,
+    "prototype_passed": false,
+    "runtime_integration_allowed": false
+  },
+  "known_limitations": [
+    "Only five reference tracks per present class.",
+    "Eight of the 21 target styles are absent.",
+    "Purity grades are model-assisted OOF triage, not human ground truth.",
+    "Best route is selected on the same four folds used for reporting; an independent holdout is still required."
+  ]
+}

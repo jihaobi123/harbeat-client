@@ -117,7 +117,8 @@ class KeyConsensusTests(unittest.TestCase):
         self.assertEqual(result["camelot_key"], "2A")
         self.assertEqual(result["selected_engine"], "libkeyfinder")
         self.assertEqual(result["decision"], "primary_confirmed")
-        self.assertFalse(result["needs_review"])
+        self.assertTrue(result["needs_review"])
+        self.assertEqual(result["validation_status"], "provisional")
 
     def test_two_validators_can_override_primary(self):
         result = _choose_key_consensus({
@@ -127,7 +128,25 @@ class KeyConsensusTests(unittest.TestCase):
         })
         self.assertEqual(result["camelot_key"], "8A")
         self.assertEqual(result["decision"], "validators_override_primary")
-        self.assertEqual(result["confidence_level"], "high")
+        self.assertEqual(result["confidence_level"], "provisional")
+
+    def test_high_confidence_exact_madmom_worker_overrides_unvalidated_votes(self):
+        madmom = self._route("8A", "madmom_cnn")
+        madmom.update({
+            "key_confidence": 0.82,
+            "model_version": "0.16.1",
+            "worker_engine": "madmom_cnn_key_recognition",
+        })
+        result = _choose_key_consensus({
+            "libkeyfinder": self._route("2A", "libkeyfinder"),
+            "essentia": self._route("2A", "essentia"),
+            "madmom": madmom,
+        })
+        self.assertEqual(result["camelot_key"], "8A")
+        self.assertEqual(result["decision"], "heldout_validated_madmom")
+        self.assertEqual(result["validation_status"], "validated")
+        self.assertFalse(result["needs_review"])
+        self.assertAlmostEqual(result["key_confidence"], 0.8367)
 
     def test_local_route_breaks_three_way_conflict(self):
         local = self._route("4A", "librosa_chroma_fallback")

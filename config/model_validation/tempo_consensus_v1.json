@@ -1,0 +1,23 @@
+{
+  "version": "tempo_model_validation_v1",
+  "strategies": [
+    {
+      "selection_strategy": "validated_metrical_reference_v1",
+      "reference_route_engine": "beat_this:final0",
+      "benchmark": "GiantSteps Tempo annotations_v2",
+      "dataset_size_evaluated": 61,
+      "partition": "heldout",
+      "partition_rule": "sha256(track_id).first_byte_mod_2 == 1",
+      "heldout_sample_count": 31,
+      "tolerance_fraction": 0.04,
+      "accuracy_1": 0.8387,
+      "accuracy_2": 1.0,
+      "validated": true,
+      "evaluated_at": "2026-08-28",
+      "restrictions": [
+        "GiantSteps consists of electronic dance music previews; accuracy on unrelated genres remains a domain-transfer risk",
+        "Accuracy1 validates the selected metrical BPM, while local beat and downbeat timing require separate validation"
+      ]
+    }
+  ]
+}

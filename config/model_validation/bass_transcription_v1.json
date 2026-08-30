@@ -1,0 +1,44 @@
+{
+  "version": "bass_model_validation_v1",
+  "models": [
+    {
+      "engine": "spotify_basic_pitch",
+      "model_name": "nmp.mlpackage",
+      "model_version": "0.4.0",
+      "output_confidence_threshold": 0.35,
+      "postprocessing": "monophonic_50ms_highest_confidence_v1",
+      "benchmark": "BabySlakh 16k isolated Bass stems and source MIDI",
+      "dataset_license": "CC BY 4.0",
+      "matching": {"onset_tolerance_ms": 50, "pitch_tolerance_cents": 50},
+      "partition": "heldout",
+      "partition_rule": "sha256(track_id/stem_id).first_byte_mod_2 == 1",
+      "stem_count": 8,
+      "evaluated_at": "2026-08-28",
+      "capabilities": {
+        "bass_note_onset_and_pitch": {
+          "reference_count": 3432,
+          "precision": 0.8659,
+          "recall": 0.8957,
+          "f1": 0.8805,
+          "macro_precision": 0.8188,
+          "macro_recall": 0.8682,
+          "macro_f1": 0.8397,
+          "validated": true
+        },
+        "bass_syncopation": {"sample_count": 8, "mean_absolute_error": 0.0800, "binary_accuracy": 1.0, "positive_count": 1, "validated": false},
+        "bass_staccato_ratio": {"sample_count": 8, "mean_absolute_error": 0.2090, "binary_accuracy": 0.8750, "validated": false},
+        "bass_octave_pattern": {"sample_count": 8, "mean_absolute_error": 0.0052, "positive_count": 0, "validated": false},
+        "bass_riff_repetition": {"sample_count": 8, "mean_absolute_error": 0.1186, "binary_accuracy": 0.5000, "validated": false},
+        "pitch_bend_or_slide": {"validated": false},
+        "instrument_identity_808": {"validated": false}
+      },
+      "restrictions": [
+        "Slakh GM bass reference notes are shifted -12 semitones to sounding pitch, matching established Slakh AMT preprocessing",
+        "validation covers isolated bass stems; Demucs separation quality is a separate source-quality factor",
+        "note validation does not validate Basic Pitch bend contours, bass slides, or 808 identity",
+        "syncopation, staccato, octave-pattern and riff descriptors remain provisional because the heldout descriptor set is small or fails its descriptor gate",
+        "the monophonic postprocessor retains one highest-confidence note inside each 50 ms onset cluster"
+      ]
+    }
+  ]
+}

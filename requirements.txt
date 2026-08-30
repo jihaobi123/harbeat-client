@@ -12,9 +12,12 @@ httpx==0.28.1
 # === Audio Analysis ===
 librosa==0.10.2.post1
 numpy<2
+mido==1.3.3
 pyloudnorm
 pedalboard
-essentia==2.1b6.dev1177
+# Essentia does not publish supported native-Windows Python bindings.
+# Windows development uses the other analysis routes or an external Linux worker.
+essentia==2.1b6.dev1177; platform_system != "Windows"
 beat-this==1.1.0
 all-in-one-infer==3.1.0
 madmom-infer==0.2.0

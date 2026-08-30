@@ -1,0 +1,501 @@
+{
+  "version": "feature_calibration_v1",
+  "description": "Only features whose calibrated decisions pass the held-out release gate may be required by style analysis.",
+  "features": {
+    "rhythm_grammar.four_on_floor": {
+      "status": "failed_validation",
+      "analysis_methods": ["adaptive_bar_aligned_16_step_templates_v2"],
+      "benchmark": "Groove MIDI Dataset v1.0.0 audio-to-ADTOF events with annotated beat/downbeat grid",
+      "held_out_metrics": {
+        "sample_count": 70,
+        "positive_count": 10,
+        "negative_count": 60,
+        "accuracy": 0.9286,
+        "precision": 0.7778,
+        "recall": 0.7,
+        "f1": 0.7368
+      },
+      "failure_reason": "kick transcription errors leave precision and F1 below the 0.80 release gate",
+      "restrictions": [
+        "reference is an explicit four-kick metrical rule, not a genre label",
+        "annotated beat/downbeat grid isolates the drum-event-to-rule chain",
+        "reproducible evaluator: scripts/evaluate_groove_rhythm_features.py"
+      ]
+    },
+    "rhythm_grammar.four_floor_stability": {
+      "status": "failed_validation",
+      "analysis_methods": ["four_floor_cross_bar_stability_v1"],
+      "benchmark": "Groove MIDI Dataset v1.0.0 audio-to-ADTOF events with annotated beat/downbeat grid",
+      "held_out_metrics": {
+        "sample_count": 70,
+        "positive_count": 2,
+        "negative_count": 68,
+        "accuracy": 0.9714,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "failure_reason": "only two positive held-out examples and neither survives the full audio chain",
+      "restrictions": [
+        "insufficient positive support for release",
+        "reproducible evaluator: scripts/evaluate_groove_rhythm_features.py"
+      ]
+    },
+    "rhythm_grammar.timing_quantization": {
+      "status": "failed_validation",
+      "analysis_methods": ["sixteenth_grid_timing_deviation_v1"],
+      "benchmark": "Groove MIDI Dataset v1.0.0 audio-to-ADTOF events with annotated beat/downbeat grid",
+      "held_out_metrics": {
+        "sample_count": 70,
+        "positive_count": 11,
+        "negative_count": 59,
+        "accuracy": 0.7857,
+        "precision": 0.3,
+        "recall": 0.2727,
+        "f1": 0.2857
+      },
+      "failure_reason": "transcription timing error is too large to preserve the annotated sixteenth-grid decision",
+      "restrictions": [
+        "not released as drum-machine evidence",
+        "reproducible evaluator: scripts/evaluate_groove_rhythm_features.py"
+      ]
+    },
+    "rhythm_grammar.backbeat_2_4": {
+      "status": "validated",
+      "validation_scope": "transcription_to_explicit_metrical_definition",
+      "style_required_allowed": true,
+      "minimum_samples": 50,
+      "candidate_threshold": 0.5,
+      "confirmed_threshold": 0.8,
+      "probability_curve": [[0.0, 0.0], [0.5669, 0.0], [0.5755, 0.8333], [0.721, 0.8333], [0.7831, 1.0], [0.9817, 1.0]],
+      "calibration": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_validation",
+        "track_count": 40,
+        "method": "isotonic_regression_on_prediction_score"
+      },
+      "held_out_metrics": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_test",
+        "sample_count": 70,
+        "positive_count": 43,
+        "negative_count": 27,
+        "accuracy": 0.9571,
+        "precision": 0.9348,
+        "recall": 1.0,
+        "f1": 0.9663
+      }
+    },
+    "rhythm_grammar.breakbeat": {
+      "status": "validated",
+      "validation_scope": "transcription_to_rule_only",
+      "style_required_allowed": false,
+      "style_release_reason": "requires independent human annotation of breakbeat semantics",
+      "minimum_samples": 50,
+      "candidate_threshold": 0.5,
+      "confirmed_threshold": 0.8,
+      "probability_curve": [[0.0177, 0.0], [0.4592, 0.0], [0.4619, 0.2], [0.5145, 0.2], [0.5284, 0.5], [0.5373, 0.5], [0.5793, 0.6667], [0.6378, 0.6667], [0.688, 1.0], [0.7556, 1.0]],
+      "calibration": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_validation",
+        "track_count": 40,
+        "method": "isotonic_regression_on_prediction_score"
+      },
+      "held_out_metrics": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_test",
+        "sample_count": 70,
+        "positive_count": 28,
+        "negative_count": 42,
+        "accuracy": 0.9143,
+        "precision": 0.9583,
+        "recall": 0.8214,
+        "f1": 0.8846
+      }
+    },
+    "rhythm_grammar.tamborzao": {
+      "status": "validated",
+      "validation_scope": "transcription_to_rule_only",
+      "style_required_allowed": false,
+      "style_release_reason": "exact-MIDI rule agreement does not validate named Tamborzao semantics",
+      "minimum_samples": 50,
+      "candidate_threshold": 0.5,
+      "confirmed_threshold": 0.8,
+      "probability_curve": [[0.0117, 0.0], [0.5489, 0.0], [0.6582, 1.0], [0.7907, 1.0]],
+      "calibration": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_validation",
+        "track_count": 40,
+        "method": "isotonic_regression_on_prediction_score"
+      },
+      "held_out_metrics": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_test",
+        "sample_count": 70,
+        "positive_count": 28,
+        "negative_count": 42,
+        "accuracy": 0.8714,
+        "precision": 0.8065,
+        "recall": 0.8929,
+        "f1": 0.8475
+      }
+    },
+    "rhythm_grammar.tresillo": {
+      "status": "validated",
+      "validation_scope": "transcription_to_rule_only",
+      "style_required_allowed": false,
+      "style_release_reason": "reference rule is positive on 58/70 GMD test tracks and is not style-selective",
+      "minimum_samples": 50,
+      "candidate_threshold": 0.5,
+      "confirmed_threshold": 0.8,
+      "probability_curve": [[0.0481, 0.0], [0.5063, 0.0], [0.5445, 0.6667], [0.5573, 0.6667], [0.5777, 1.0], [0.7713, 1.0]],
+      "calibration": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_validation",
+        "track_count": 40,
+        "method": "isotonic_regression_on_prediction_score"
+      },
+      "held_out_metrics": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_test",
+        "sample_count": 70,
+        "positive_count": 58,
+        "negative_count": 12,
+        "accuracy": 0.9286,
+        "precision": 0.9818,
+        "recall": 0.931,
+        "f1": 0.9558
+      }
+    },
+    "rhythm_grammar.two_step": {
+      "status": "validated",
+      "validation_scope": "transcription_to_rule_only",
+      "style_required_allowed": false,
+      "style_release_reason": "requires independent human annotation of two-step groove semantics",
+      "minimum_samples": 50,
+      "candidate_threshold": 0.5,
+      "confirmed_threshold": 0.8,
+      "probability_curve": [[0.0, 0.0], [0.3645, 0.0], [0.3882, 0.1429], [0.5284, 0.1429], [0.579, 0.8333], [0.6261, 0.8333], [0.6376, 1.0], [0.8138, 1.0]],
+      "calibration": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_validation",
+        "track_count": 40,
+        "method": "isotonic_regression_on_prediction_score"
+      },
+      "held_out_metrics": {
+        "dataset": "Groove MIDI Dataset v1.0.0",
+        "split": "official_test",
+        "sample_count": 70,
+        "positive_count": 22,
+        "negative_count": 48,
+        "accuracy": 0.9571,
+        "precision": 0.913,
+        "recall": 0.9545,
+        "f1": 0.9333
+      }
+    },
+    "vocal_delivery.vocal_density": {
+      "status": "validated",
+      "validation_scope": "demucs_vocal_stem_to_frame_voice_activity_and_song_density",
+      "style_required_allowed": false,
+      "style_release_reason": "validated continuous evidence may contribute to scoring but is not a mandatory genre identity condition",
+      "analysis_methods": ["vocal_activity_pitch_rhythm_v5"],
+      "minimum_samples": 50,
+      "candidate_threshold": 0.4,
+      "confirmed_threshold": 0.55,
+      "probability_curve": [[0.0, 0.0], [1.0, 1.0]],
+      "calibration": {
+        "dataset": "Jamendo Corpus for Singing Voice Detection",
+        "split": "none; the per-track RMS gate is deterministic and was not tuned on Jamendo",
+        "method": "Demucs htdemucs vocal stem plus production v5 adaptive RMS gate",
+        "density_definition": "active RMS frames divided by all RMS frames"
+      },
+      "held_out_metrics": {
+        "dataset": "Jamendo Corpus for Singing Voice Detection",
+        "split": "official_test",
+        "sample_count": 365448,
+        "track_count": 16,
+        "accuracy": 0.9465,
+        "precision": 0.9338,
+        "recall": 0.9519,
+        "f1": 0.9428,
+        "density_mean_absolute_error": 0.0623,
+        "density_within_0_15_fraction": 0.8125
+      },
+      "secondary_held_out_metrics": {
+        "split": "official_valid",
+        "sample_count": 314089,
+        "track_count": 16,
+        "accuracy": 0.9199,
+        "precision": 0.9198,
+        "recall": 0.9247,
+        "f1": 0.9222,
+        "density_mean_absolute_error": 0.0307,
+        "density_within_0_15_fraction": 1.0
+      },
+      "restrictions": [
+        "sing and spoken voice share one positive class",
+        "vocal density does not distinguish singing, rap delivery, or vocal chops",
+        "requires an htdemucs vocal stem",
+        "reproducible evaluator: scripts/evaluate_jamendo_demucs_vocal_activity.py"
+      ]
+    },
+    "vocal_delivery.vocal_pitch_range": {
+      "status": "validated",
+      "validation_scope": "full_mix_to_demucs_vocal_stem_to_p90_minus_p10_pitch_range",
+      "style_required_allowed": false,
+      "style_release_reason": "validated as an independently measured vocal descriptor, not as a mandatory genre identity condition",
+      "analysis_methods": ["vocal_activity_pitch_rhythm_v5"],
+      "minimum_samples": 50,
+      "candidate_threshold": 0.4,
+      "confirmed_threshold": 0.5,
+      "probability_curve": [[0.0, 0.0], [1.0, 1.0]],
+      "calibration": {
+        "dataset": "MIR-1K",
+        "split": "SHA256 song-group-disjoint calibration split, 570 clips from 61 songs",
+        "method": "MIR-1K vocal/accompaniment channels mixed to full audio, Demucs htdemucs vocal separation, pYIN with a calibration-selected 0.10 voiced-probability floor",
+        "definition": "90th minus 10th percentile of reliable voiced MIDI pitches; a broad range is at least 6 semitones"
+      },
+      "held_out_metrics": {
+        "dataset": "MIR-1K",
+        "split": "untuned SHA256 song-group-disjoint heldout subset passed through the full mixture-to-Demucs chain",
+        "sample_count": 100,
+        "song_group_count": 41,
+        "positive_count": 70,
+        "negative_count": 30,
+        "accuracy": 0.92,
+        "precision": 0.9697,
+        "recall": 0.9143,
+        "f1": 0.9412,
+        "mean_absolute_error_semitones": 0.6203,
+        "within_2_semitones_fraction": 0.91,
+        "frame_raw_pitch_accuracy_50_cent": 0.8137
+      },
+      "secondary_held_out_metrics": {
+        "split": "all remaining untuned isolated-vocal heldout clips",
+        "sample_count": 430,
+        "song_group_count": 49,
+        "accuracy": 0.9349,
+        "precision": 0.9541,
+        "recall": 0.9474,
+        "f1": 0.9507,
+        "within_2_semitones_fraction": 0.9605,
+        "frame_raw_pitch_accuracy_50_cent": 0.8282
+      },
+      "restrictions": [
+        "MIR-1K contains amateur Chinese pop performances and does not establish equal accuracy for rap or speech",
+        "the range is robust percentile span rather than a singer's physiological ambitus",
+        "requires an htdemucs vocal stem",
+        "reproducible evaluator: scripts/evaluate_mir1k_vocal_pitch.py"
+      ]
+    },
+    "vocal_delivery.pitch_sustain_ratio": {
+      "status": "validated",
+      "validation_mode": "continuous",
+      "validation_scope": "full_mix_to_demucs_vocal_stem_to_continuous_voiced_run_ratio",
+      "style_required_allowed": false,
+      "style_release_reason": "validated as continuous articulation evidence only",
+      "analysis_methods": ["vocal_activity_pitch_rhythm_v5"],
+      "minimum_samples": 50,
+      "minimum_within_tolerance_fraction": 0.8,
+      "calibration": {
+        "dataset": "MIR-1K",
+        "split": "SHA256 song-group-disjoint calibration split, 570 clips from 61 songs",
+        "method": "full mixture to Demucs htdemucs vocal stem, then contiguous pYIN voiced runs",
+        "definition": "voiced frames belonging to runs of at least 250 ms divided by all reliable voiced frames; only internal active gaps up to 60 ms are bridged"
+      },
+      "held_out_metrics": {
+        "dataset": "MIR-1K",
+        "split": "untuned SHA256 song-group-disjoint heldout subset passed through the full mixture-to-Demucs chain",
+        "sample_count": 100,
+        "song_group_count": 41,
+        "mean_absolute_error": 0.0577,
+        "within_tolerance_fraction": 0.91,
+        "absolute_error_tolerance": 0.15
+      },
+      "secondary_held_out_metrics": {
+        "split": "all remaining untuned isolated-vocal heldout clips",
+        "sample_count": 430,
+        "song_group_count": 49,
+        "mean_absolute_error": 0.0516,
+        "within_tolerance_fraction": 0.9186,
+        "absolute_error_tolerance": 0.15
+      },
+      "restrictions": [
+        "this measures continuity of detected pitched voicing, not note articulation or lyrical phrasing",
+        "it is not validated for rap, speech, growls, or heavily processed vocal chops",
+        "requires an htdemucs vocal stem",
+        "reproducible evaluator: scripts/evaluate_mir1k_vocal_pitch.py"
+      ]
+    },
+    "vocal_delivery.melodic_contour": {
+      "status": "validated",
+      "validation_scope": "full_mix_to_demucs_vocal_stem_to_range_plus_local_motion_rule",
+      "style_required_allowed": false,
+      "style_release_reason": "validated as a fixed melodic-shape measurement; it is not a singing-versus-rap classifier",
+      "analysis_methods": ["vocal_activity_pitch_rhythm_v5"],
+      "minimum_samples": 50,
+      "candidate_threshold": 0.4,
+      "confirmed_threshold": 0.55,
+      "probability_curve": [[0.0, 0.0], [1.0, 1.0]],
+      "calibration": {
+        "dataset": "MIR-1K",
+        "split": "SHA256 song-group-disjoint calibration split, 570 clips from 61 songs",
+        "method": "fixed 0.62 range plus 0.38 contiguous 100 ms pitch-motion score, calibrated before heldout evaluation",
+        "definition": "0.62 * min(p90-p10 range / 12 semitones, 1) + 0.38 * min(median contiguous 100 ms motion / 2.5 semitones, 1)"
+      },
+      "held_out_metrics": {
+        "dataset": "MIR-1K",
+        "split": "untuned SHA256 song-group-disjoint heldout subset passed through the full mixture-to-Demucs chain",
+        "sample_count": 100,
+        "song_group_count": 41,
+        "positive_count": 24,
+        "negative_count": 76,
+        "accuracy": 0.96,
+        "precision": 0.9545,
+        "recall": 0.875,
+        "f1": 0.913,
+        "mean_absolute_error": 0.0349,
+        "within_0_15_fraction": 0.94
+      },
+      "secondary_held_out_metrics": {
+        "split": "all remaining untuned isolated-vocal heldout clips",
+        "sample_count": 430,
+        "song_group_count": 49,
+        "accuracy": 0.9419,
+        "precision": 0.9429,
+        "recall": 0.7586,
+        "f1": 0.8408,
+        "within_0_15_fraction": 0.9814
+      },
+      "restrictions": [
+        "the separate high-motion decision is not released because the full-chain heldout subset contains no positive examples",
+        "this score must not be renamed singing probability or used to infer rap delivery",
+        "requires an htdemucs vocal stem",
+        "reproducible evaluator: scripts/evaluate_mir1k_vocal_pitch.py"
+      ]
+    },
+    "harmony.chord_change_activity": {
+      "status": "validated",
+      "validation_scope": "isolated_guitar_accompaniment_to_calibrated_high_low_change_activity",
+      "style_required_allowed": false,
+      "style_release_reason": "change activity may contribute continuously; full-mix validation and exact chord labels remain below release scope",
+      "analysis_methods": ["cnn_crf_chord_change_activity_guitarset_v2"],
+      "minimum_samples": 50,
+      "candidate_threshold": 0.4,
+      "confirmed_threshold": 0.58,
+      "probability_curve": [[0.0, 0.0], [1.0, 1.0]],
+      "calibration": {
+        "dataset": "GuitarSet accompaniment recordings",
+        "split": "SHA256 filename calibration split, 91 tracks",
+        "method": "0.85 multiplicative correction for CNN+CRF change over-segmentation"
+      },
+      "held_out_metrics": {
+        "dataset": "GuitarSet accompaniment recordings",
+        "split": "SHA256 filename heldout split",
+        "sample_count": 89,
+        "positive_count": 55,
+        "negative_count": 34,
+        "accuracy": 0.9213,
+        "precision": 0.9286,
+        "recall": 0.9455,
+        "f1": 0.9369,
+        "mean_absolute_error": 0.1136,
+        "within_0_20_fraction": 0.8652,
+        "boundary_f1_at_0_5_seconds": 0.8274,
+        "boundary_precision": 0.7778,
+        "boundary_recall": 0.8837,
+        "major_minor_weighted_accuracy": 0.766
+      },
+      "restrictions": [
+        "major/minor chord labels remain below 0.80 and are not released",
+        "exact boundary precision remains below 0.80 and is not released as a separate feature",
+        "full commercial-mix domain validation remains pending",
+        "reproducible evaluator: scripts/evaluate_guitarset_chords.py"
+      ]
+    },
+    "low_frequency.808_timbre_candidate": {
+      "status": "failed_validation",
+      "benchmark": "Open Drums TR-808 vs TR-909/TR-707 bass-drum samples",
+      "held_out_metrics": {
+        "sample_count": 51, "positive_count": 25, "negative_count": 26,
+        "accuracy": 0.6667, "precision": 0.625, "recall": 0.8, "f1": 0.7018
+      },
+      "failure_reason": "35-95 Hz tonal body and decay descriptors detect broad electronic kicks, not TR-808 identity",
+      "restrictions": [
+        "positive samples are 25 parameter settings from one original TR-808 recording set",
+        "result is sufficient to reject the current identity claim but insufficient to train a general replacement",
+        "reproducible evaluator: scripts/evaluate_open_drums_808.py"
+      ]
+    },
+    "low_frequency.bass_syncopation": {
+      "status": "failed_validation",
+      "benchmark": "BabySlakh 16k held-out Bass stems, source MIDI, four-bar windows",
+      "held_out_metrics": {
+        "sample_count": 171, "positive_count": 27, "negative_count": 144,
+        "accuracy": 0.9415, "precision": 0.7429, "recall": 0.963, "f1": 0.8387,
+        "mean_absolute_error": 0.0819, "within_0_20_fraction": 0.9006
+      },
+      "failure_reason": "Basic Pitch note errors create too many false-positive syncopated windows; precision is below 0.80",
+      "restrictions": ["8 held-out songs", "reproducible evaluator: scripts/evaluate_bass_transcriber.py"]
+    },
+    "low_frequency.bass_staccato_ratio": {
+      "status": "failed_validation",
+      "benchmark": "BabySlakh 16k held-out Bass stems, source MIDI, four-bar windows",
+      "held_out_metrics": {
+        "sample_count": 171, "positive_count": 39, "negative_count": 132,
+        "accuracy": 0.7719, "precision": 0.0, "recall": 0.0, "f1": 0.0,
+        "mean_absolute_error": 0.2598, "within_0_20_fraction": 0.614
+      },
+      "failure_reason": "transcribed note-off durations do not preserve the annotated staccato articulation boundary",
+      "restrictions": ["8 held-out songs", "reproducible evaluator: scripts/evaluate_bass_transcriber.py"]
+    },
+    "low_frequency.bass_riff_repetition": {
+      "status": "failed_validation",
+      "benchmark": "BabySlakh 16k held-out Bass stems, source MIDI, four-bar windows",
+      "held_out_metrics": {
+        "sample_count": 171, "positive_count": 135, "negative_count": 36,
+        "accuracy": 0.7251, "precision": 0.9314, "recall": 0.7037, "f1": 0.8017,
+        "mean_absolute_error": 0.2017, "within_0_20_fraction": 0.7193
+      },
+      "failure_reason": "missed and extra notes destabilize ordered bar-pattern recurrence",
+      "restrictions": ["8 held-out songs", "reproducible evaluator: scripts/evaluate_bass_transcriber.py"]
+    },
+    "percussion_timbre.full_snare": {
+      "status": "failed_validation",
+      "benchmark": "Groove MIDI Dataset v1.0.0 isolated exact-onset hits",
+      "held_out_metrics": {
+        "sample_count": 288, "positive_count": 144, "negative_count": 144,
+        "accuracy": 0.3854, "precision": 0.4127, "recall": 0.5417, "f1": 0.4685
+      },
+      "failure_reason": "fixed spectral rule does not distinguish TD-11 full snare from side-stick"
+    },
+    "percussion_timbre.short_rim_snap": {
+      "status": "failed_validation",
+      "benchmark": "Groove MIDI Dataset v1.0.0 isolated exact-onset hits",
+      "held_out_metrics": {
+        "sample_count": 288, "positive_count": 144, "negative_count": 144,
+        "accuracy": 0.5, "precision": 0.0, "recall": 0.0, "f1": 0.0
+      },
+      "failure_reason": "fixed spectral rule has zero held-out side-stick recall"
+    },
+    "percussion_timbre.short_metallic": {
+      "status": "failed_validation",
+      "benchmark": "Groove MIDI Dataset v1.0.0 isolated exact-onset hits",
+      "held_out_metrics": {
+        "sample_count": 1176, "positive_count": 588, "negative_count": 588,
+        "accuracy": 0.5085, "precision": 0.75, "recall": 0.0255, "f1": 0.0493
+      },
+      "failure_reason": "fixed spectral rule does not recover closed-hat articulations"
+    },
+    "percussion_timbre.sustained_metallic": {
+      "status": "failed_validation",
+      "benchmark": "Groove MIDI Dataset v1.0.0 isolated exact-onset hits",
+      "held_out_metrics": {
+        "sample_count": 1176, "positive_count": 588, "negative_count": 588,
+        "accuracy": 0.5102, "precision": 0.5064, "recall": 0.8044, "f1": 0.6216
+      },
+      "failure_reason": "fixed decay rule confuses open/ride/cymbal hits with closed hats"
+    }
+  }
+}

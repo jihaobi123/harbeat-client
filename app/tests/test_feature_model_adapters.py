@@ -18,12 +18,14 @@ def _disabled_config(
     *,
     drum_command: str | None = None,
     bass_command: str | None = None,
+    vocal_activity_command: str | None = None,
     style_command: str | None = None,
     instrument_command: str | None = None,
 ) -> FeatureModelConfig:
     return FeatureModelConfig(
         drum_command=drum_command,
         bass_command=bass_command,
+        vocal_activity_command=vocal_activity_command,
         style_command=style_command,
         instrument_command=instrument_command,
         timeout_seconds=10.0,
@@ -113,6 +115,31 @@ def test_bass_and_instrument_workers_remain_separate_optional_routes() -> None:
     assert set(result["ready_routes"]) == {"bass_transcription", "instrument_tags"}
 
 
+def test_vocal_activity_worker_receives_original_mix_as_separate_route() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        audio_path = os.path.join(directory, "song.wav")
+        sf.write(audio_path, np.zeros(8000, dtype=np.float32), 8000)
+        worker_path = os.path.join(directory, "vocal_worker.py")
+        with open(worker_path, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import json\n"
+                "print(json.dumps({'engine':'yamnet-test','vocal_density':0.42,"
+                "'vocal_activity_fraction':0.5,'frame_count':10,'time_ranges':[]}))\n"
+            )
+        result = collect_mature_model_evidence(
+            {},
+            original_path=audio_path,
+            config=_disabled_config(
+                vocal_activity_command=f'{sys.executable} "{worker_path}" "{{audio}}"',
+            ),
+        )
+
+    route = result["routes"]["vocal_activity"]
+    assert route["status"] == "ready"
+    assert route["result"]["vocal_density"] == 0.42
+    assert result["ready_routes"] == ["vocal_activity"]
+
+
 def test_dedicated_drum_model_replaces_spectral_fallback() -> None:
     sr = 8000
     audio = np.zeros(sr * 3, dtype=np.float32)
@@ -146,6 +173,8 @@ def test_dedicated_drum_model_replaces_spectral_fallback() -> None:
     assert result["detector_mode"] == "dedicated_model"
     assert result["counts"]["tom"] == 1
     assert result["counts"]["cymbal"] == 1
+    assert len(result["event_views"]["high_percussion"]) == 2
+    assert result["model_validation"]["status"] == "unvalidated"
     assert "spectral_proxy_fallback" not in result["quality_flags"]
 
 

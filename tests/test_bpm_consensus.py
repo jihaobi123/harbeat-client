@@ -10,18 +10,33 @@ def _result(bpm: float) -> dict:
     return {"bpm": bpm}
 
 
-def test_consensus_uses_majority_within_two_bpm() -> None:
+def test_consensus_does_not_let_half_tempo_majority_override_reference() -> None:
     consensus = _choose_bpm_consensus({
         "beat_this": _result(69.77),
         "all_in_one": _result(140.0),
         "essentia": _result(141.0),
     })
 
-    assert consensus["bpm"] == 140.5
-    assert consensus["winning_engines"] == ["all_in_one", "essentia"]
-    assert consensus["selected_engine"] == "all_in_one"
-    assert consensus["status"] == "majority"
-    assert consensus["needs_review"] is False
+    assert consensus["bpm"] == 69.77
+    assert consensus["winning_engines"] == ["beat_this"]
+    assert consensus["selected_engine"] == "beat_this"
+    assert consensus["status"] == "no_majority"
+    assert consensus["needs_review"] is True
+    assert consensus["metrical_level_conflict"] is True
+    assert any(item["relation"] == "double" for item in consensus["alias_relations"])
+
+
+def test_consensus_exposes_half_double_family_without_forcing_the_level() -> None:
+    consensus = _choose_bpm_consensus({
+        "beat_this": _result(70.0),
+        "all_in_one": _result(140.0),
+    })
+
+    assert consensus["bpm"] == 70.0
+    assert consensus["needs_review"] is True
+    assert consensus["metrical_level_conflict"] is True
+    assert 70.0 in consensus["tempo_hypotheses"]
+    assert 140.0 in consensus["tempo_hypotheses"]
 
 
 def test_consensus_uses_three_way_median_when_all_agree() -> None:
@@ -36,15 +51,15 @@ def test_consensus_uses_three_way_median_when_all_agree() -> None:
     assert consensus["status"] == "unanimous"
 
 
-def test_consensus_keeps_existing_engine_when_all_disagree() -> None:
+def test_consensus_keeps_validated_reference_when_all_disagree() -> None:
     consensus = _choose_bpm_consensus({
         "beat_this": _result(70.0),
         "all_in_one": _result(105.0),
         "essentia": _result(140.0),
     })
 
-    assert consensus["bpm"] == 140.0
-    assert consensus["selected_engine"] == "essentia"
+    assert consensus["bpm"] == 70.0
+    assert consensus["selected_engine"] == "beat_this"
     assert consensus["status"] == "no_majority"
     assert consensus["needs_review"] is True
 

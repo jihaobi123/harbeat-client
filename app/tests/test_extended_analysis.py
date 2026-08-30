@@ -15,6 +15,7 @@ from app.modules.library.analysis import (
     _generate_dj_hot_cues,
     _infer_downbeats_and_time_signature,
     _score_section_intensity,
+    _functional_segments_to_cues,
 )
 
 
@@ -81,6 +82,18 @@ class TimeSignatureTests(unittest.TestCase):
         self.assertTrue(ts["needs_review"])
         self.assertEqual(ts["method"], "beat_accent_periodicity_fallback_4_4")
         self.assertEqual(downbeats[:3], [0.0, 2.0, 4.0])
+
+
+class FunctionalSectionTests(unittest.TestCase):
+    def test_model_segments_keep_model_labels_and_boundaries(self):
+        cues = _functional_segments_to_cues([
+            {"start": 0.0, "end": 8.0, "label": "intro"},
+            {"start": 8.0, "end": 24.0, "label": "chorus"},
+        ])
+
+        self.assertEqual(cues[1]["label"], "Chorus")
+        self.assertEqual(cues[1]["time"], 8.0)
+        self.assertEqual(cues[1]["source"], "all_in_one_functional_segment")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

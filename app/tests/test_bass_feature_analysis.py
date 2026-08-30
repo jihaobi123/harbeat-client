@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 
 from app.modules.library.bass_feature_analysis import (
+    _collapse_simultaneous_bass_notes,
+    _ordered_pattern_similarity,
     _bass_groove_descriptors,
     _pitch_track,
     analyze_bass_features,
@@ -30,6 +32,19 @@ def _tone_events(
         start = int(event_time * sr)
         audio[start:start + event_length] += tone.astype(np.float32)
     return audio, times
+
+
+def test_simultaneous_octave_harmonic_keeps_stronger_bass_note() -> None:
+    result = _collapse_simultaneous_bass_notes([
+        {"start": 1.000, "end": 1.4, "midi": 48.0, "confidence": 0.31},
+        {"start": 1.012, "end": 1.4, "midi": 36.0, "confidence": 0.78},
+        {"start": 1.100, "end": 1.4, "midi": 48.0, "confidence": 0.60},
+    ])
+
+    assert [(item["start"], item["midi"]) for item in result] == [
+        (1.012, 36.0),
+        (1.100, 48.0),
+    ]
 
 
 def _separate_note_events(sr: int = 8000) -> np.ndarray:
@@ -84,6 +99,8 @@ def test_808_identity_uses_bass_body_and_drum_attack_without_requiring_slide() -
     }
     assert result["features"]["808_timbre_candidate"]["quality"]["estimator_quality"] == 0.58
     assert "sine_dominance_score" in result["features"]["808_timbre_candidate"]["evidence"]
+    assert "fundamental_35_95_hz_fraction" in result["features"]["808_timbre_candidate"]["evidence"]
+    assert "smooth_decay_score" in result["features"]["808_timbre_candidate"]["evidence"]
     assert (
         result["features"]["sustained_harmonic_bass_candidate"]["score"]
         != result["features"]["808_timbre_candidate"]["score"]
@@ -175,6 +192,35 @@ def test_groove_descriptors_measure_syncopation_octaves_and_riff_recurrence() ->
     assert result["octave_score"] > 0.9
     assert result["riff_score"] > 0.9
     assert result["interlock_score"] > 0.7
+    assert result["tied_syncopation_fraction"] > 0.9
+    assert result["median_articulation_ratio"] < 0.5
+
+
+def test_octave_pattern_uses_plus_or_minus_50_cent_tolerance() -> None:
+    beats = np.arange(0.0, 4.0, 0.5)
+    events = []
+    for index, midi in enumerate((36.0, 47.0, 36.0, 47.0)):
+        events.append({
+            "time": 0.25 + 0.5 * index,
+            "note_duration_sec": 0.15,
+            "fundamental_hz": 440.0 * 2.0 ** ((midi - 69.0) / 12.0),
+            "note_event_method": "basic_pitch_note_event",
+            "voiced_strength": 0.9,
+        })
+
+    result = _bass_groove_descriptors(events, beats, np.asarray([]), np.asarray([]))
+
+    assert result["octave_interval_count"] == 0
+    assert result["octave_score"] == 0.0
+
+
+def test_riff_similarity_preserves_note_order_and_allows_small_timing_error() -> None:
+    reference = [(0, 0.0), (4, 5.0), (8, 7.0)]
+    same_with_timing_error = [(0, 0.0), (5, 5.0), (8, 7.0)]
+    reordered = [(0, 0.0), (8, 7.0), (4, 5.0)]
+
+    assert _ordered_pattern_similarity(reference, same_with_timing_error) > 0.85
+    assert _ordered_pattern_similarity(reference, reordered) < 0.75
 
 
 def test_new_bass_features_are_unknown_without_required_grids() -> None:
@@ -205,6 +251,7 @@ def test_optional_note_model_supplies_pitch_duration_and_event_timing() -> None:
                     "end": 0.68 + index,
                     "midi": 36 if index % 2 == 0 else 48,
                     "confidence": 0.9,
+                    "pitch_bends": [0, 1, 3, 6, 9, 12],
                 }
                 for index in range(7)
             ],
@@ -224,3 +271,6 @@ def test_optional_note_model_supplies_pitch_duration_and_event_timing() -> None:
     assert result["features"]["bass_octave_pattern"]["score"] > 0.9
     assert result["features"]["bass_staccato_ratio"]["score"] > 0.9
     assert all(event["note_event_method"] == "basic_pitch_note_event" for event in result["events"])
+    assert result["features"]["bass_slide"]["evidence"]["slide_measurement_methods"] == [
+        "basic_pitch_pitch_bend"
+    ]
