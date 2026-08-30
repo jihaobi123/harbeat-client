@@ -102,6 +102,7 @@ def test_save_validates_and_increments_workspace_revision(tmp_path) -> None:
     [
         ("end_sec", 3.0),
         ("value", "not-a-section"),
+        ("value", ["intro"]),
         ("task_id", "elements.other.state"),
         ("track_id", "another-track"),
     ],

@@ -94,7 +94,7 @@ candidate → annotated → reviewed / adjudicated
 - `adjudicated`：出现分歧后，指定负责人给出最终结论；
 - `rejected`：该记录不能使用。
 
-当前页面保存的是 `annotated`。正式监督训练默认只读取 `reviewed` 和 `adjudicated`。如果 Pilot 阶段为了快速看趋势临时使用 `annotated`，实验报告必须单独写明，不能把结果当作正式模型结论。
+当前页面只能保存 `annotated`，标注人由后端根据登录账号填写，浏览器不能自行声明“已复核”或冒用其他标注人。正式监督训练默认只读取 `reviewed` 和 `adjudicated`。如果 Pilot 阶段为了快速看趋势临时使用 `annotated`，实验报告必须单独写明，不能把结果当作正式模型结论。
 
 ## 6. 文件和版本
 
@@ -106,7 +106,7 @@ data/annotations/
     └── <track_id>.json
 ```
 
-文件中包含 Track ID、Dataset Version、Timeline 指纹、Revision、更新时间和 `AnnotationRecord V1` 数组。写入过程使用临时文件和原子替换，避免只写了一半就留下损坏文件。
+文件中包含 Track ID、Dataset Version、Timeline 指纹、Revision、更新时间和 `AnnotationRecord V1` 数组。保存时会先取得这首歌的文件锁，再完成读取、Revision 校验和原子替换。这样既能避免只写了一半，也能阻止两个同时到达的请求都以为自己保存成功。
 
 如果 Beat、Downbeat、拍号或小节边界发生变化，Timeline 指纹也会变化。系统会拒绝把旧标注直接覆盖到新时间轴上。此时应建立新的 Dataset Version，并明确迁移或重标，不能改掉旧文件假装没有发生变化。
 

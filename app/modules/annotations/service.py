@@ -86,7 +86,11 @@ def build_annotation_workspace(
 
 def _validate_task(record: AnnotationRecord) -> None:
     if record.task_id == "structure.section_label":
-        if record.granularity != "section" or record.value not in SECTION_LABELS:
+        if (
+            record.granularity != "section"
+            or not isinstance(record.value, str)
+            or record.value not in SECTION_LABELS
+        ):
             raise AnnotationValidationError(
                 f"{record.annotation_id}: invalid Section task granularity or value"
             )
@@ -99,6 +103,7 @@ def _validate_task(record: AnnotationRecord) -> None:
         if (
             element not in ELEMENTS
             or record.granularity != "bar"
+            or not isinstance(record.value, str)
             or record.value not in ELEMENT_STATES
         ):
             raise AnnotationValidationError(
