@@ -1,0 +1,28 @@
+{
+  "dataset": "Raveform",
+  "source_version": "fixture-1",
+  "track": {
+    "id": "raveform-track-001",
+    "title": "Fixture Track",
+    "duration_sec": 32.0
+  },
+  "sections": [
+    {
+      "time": 0.0,
+      "label": "Ambient-Intro"
+    },
+    {
+      "start_sec": 8.0,
+      "end_sec": 16.0,
+      "function": "Build-up"
+    },
+    {
+      "start": 16.0,
+      "label": "Drop 1"
+    },
+    {
+      "start": 24.0,
+      "label": "Ambient-Outro"
+    }
+  ]
+}
