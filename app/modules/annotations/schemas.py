@@ -9,6 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Granularity = Literal["track", "section", "bar", "beat", "event"]
 AnnotationStatus = Literal["candidate", "annotated", "reviewed", "adjudicated", "rejected"]
+SectionLabel = Literal["intro", "main", "build", "breakdown", "outro", "unknown"]
+ElementState = Literal[
+    "absent", "background", "foreground", "entering", "ending", "unknown"
+]
 
 
 class AnnotationRecord(BaseModel):
@@ -68,3 +72,58 @@ class StoredAnnotationSet(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+
+class SectionCandidate(BaseModel):
+    value: SectionLabel
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    source: str | None = None
+    source_label: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ElementCandidate(BaseModel):
+    value: ElementState
+    activity: float | None = Field(default=None, ge=0, le=1)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    source: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class CandidateBar(BaseModel):
+    bar_index: int = Field(ge=0)
+    start_sec: float = Field(ge=0)
+    end_sec: float = Field(gt=0)
+    beat_times_sec: list[float]
+    is_partial: bool
+    section: SectionCandidate
+    elements: dict[str, ElementCandidate]
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AnnotationWorkspace(BaseModel):
+    schema_name: Literal["harbeat.annotation_workspace"] = "harbeat.annotation_workspace"
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    dataset_version: str
+    track_id: str
+    title: str
+    artist: str
+    duration_sec: float = Field(gt=0)
+    timeline_fingerprint: str
+    timeline_warnings: list[str] = Field(default_factory=list)
+    revision: int = Field(ge=0)
+    annotations: list[AnnotationRecord] = Field(default_factory=list)
+    bars: list[CandidateBar]
+    updated_at: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SaveAnnotationWorkspaceRequest(BaseModel):
+    dataset_version: str = Field(min_length=1)
+    revision: int = Field(ge=0)
+    annotations: list[AnnotationRecord]
+
+    model_config = ConfigDict(extra="forbid")
