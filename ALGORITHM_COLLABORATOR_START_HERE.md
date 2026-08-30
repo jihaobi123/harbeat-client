@@ -1,13 +1,15 @@
-# HarBeat 已完成算法工作交接
+# HarBeat 算法工作与网络方案交接
 
-这份入口只包含已经完成的算法工作：
+这份入口只包含算法研发直接相关的内容：
 
 1. 传统/显式 69 项音乐特征；
 2. 已完成的 Discogs-EffNet 神经网络表示与风格分类实验；
-3. 实验使用的数据集、划分、指标和限制；
-4. 对应的代码、配置、测试和报告。
+3. 当前 All-In-One 段落基线和后续段落网络；
+4. 未来 MERT 共享表示架构；
+5. 实验使用的数据集、划分、指标和限制；
+6. 对应的代码、配置、测试和报告。
 
-其他内容暂时不用考虑，包括段落网络、未来 MERT 架构、手机端、Web、RK、部署和接歌业务。
+手机端、Web、RK、部署和其他产品业务暂时不用考虑。
 
 ## 1. 怎么拉取
 
@@ -33,6 +35,7 @@ git sparse-checkout set \
   app/tests \
   config \
   docs/history \
+  docs/roadmap \
   experiments \
   scripts \
   tests \
@@ -68,26 +71,28 @@ git switch -c feature/algorithm-followup
 
 ## 2. 只看这些文档
 
-### 第一步：10 分钟了解结论
+### 第一步：先了解四条主线
 
 1. [69 项传统特征摘要](docs/history/music-analysis-20260830/01_传统69项特征.md)
 2. [已完成的机器学习实验摘要](docs/history/music-analysis-20260830/02_风格机器学习实验.md)
+3. [段落识别现状与段落网络](docs/history/music-analysis-20260830/03_段落识别与神经网络架构.md)
+4. [未来 MERT 与多任务网络路线](docs/roadmap/README.md)
 
 ### 第二步：看完整证据
 
-3. [69 项特征的完整方法和验证结果](docs/HarBeat_音乐特征分析方法与验证结果_20260828.md)
-4. [13 类神经网络表示实验方法](experiments/style_reference_v0/reports/methodology.md)
-5. [13 类四折结果](experiments/style_reference_v0/reports/cross_validation.md)
-6. [稳健性和反泄漏检查](experiments/style_reference_v0/reports/robustness.md)
-7. [69 项规则与机器学习配对实验](experiments/traditional_vs_ml_20260829/reports/traditional_vs_ml_assessment.md)
+5. [69 项特征的完整方法和验证结果](docs/HarBeat_音乐特征分析方法与验证结果_20260828.md)
+6. [13 类神经网络表示实验方法](experiments/style_reference_v0/reports/methodology.md)
+7. [13 类四折结果](experiments/style_reference_v0/reports/cross_validation.md)
+8. [稳健性和反泄漏检查](experiments/style_reference_v0/reports/robustness.md)
+9. [69 项规则与机器学习配对实验](experiments/traditional_vs_ml_20260829/reports/traditional_vs_ml_assessment.md)
 
-### 第三步：需要核对数据时再看
+### 第三步：看网络设计和数据
 
-8. [数据集审计](experiments/style_reference_v0/reports/dataset_audit.md)
-9. [实验模型卡](experiments/style_reference_v0/model_card.json)
-10. [数据集和 Git 边界](docs/history/music-analysis-20260830/04_数据集登记.md)
-
-不需要阅读 `docs/roadmap/` 和段落识别文档；它们属于后续构想，不属于本次已完成工作交接。
+10. [完整音乐分析系统与网络实施方案](docs/roadmap/01_HarBeat_音乐分析系统_完整实施方案与工程路线.md)
+11. [MERT 和相关模型技术背景](docs/roadmap/02_HarBeat_相关技术原理与成熟状态_背景资料.md)
+12. [数据集审计](experiments/style_reference_v0/reports/dataset_audit.md)
+13. [实验模型卡](experiments/style_reference_v0/model_card.json)
+14. [数据集和 Git 边界](docs/history/music-analysis-20260830/04_数据集登记.md)
 
 ## 3. 69 项传统特征已经完成了什么
 
@@ -254,7 +259,92 @@ experiments/style_reference_v0/feature_schema.json
 
 历史工作还使用 Groove MIDI、Jamendo Singing Voice、MIR-1K、GuitarSet、GiantSteps、GTZAN/Beat 等数据进行单项能力评测。下载和许可按各数据集要求单独处理，Git 只保存评测脚本、配置和聚合指标。
 
-## 8. 验证
+## 8. 段落识别与段落网络
+
+当前已经完成：
+
+- All-In-One 已接入分析链并能真实推理；
+- 能输出 Beat、Downbeat 和 intro/verse/chorus/bridge/outro 等功能段落；
+- 分析函数内能取得每段 start、end、raw label 和 source；
+- 模型失败时有能量变化候选作为 fallback；
+- 一次 239.32 秒歌曲测试输出 415 Beat、104 Downbeat 和 13 个段落。
+
+当前没有完成：
+
+- 完整 `sections[]` 持久化；
+- 30 首人工段落真值；
+- Boundary Precision/Recall/F1；
+- Bar Macro-F1、Segment IoU 和标签混淆矩阵；
+- HarBeat 自己的 Boundary Head；
+- HarBeat 自己的 Section Label Head。
+
+后续段落网络采用两阶段设计：
+
+```text
+Bar-level MERT/其他音乐表示
++ All-In-One 候选
++ Vocal/Drum/Bass/Energy/Chroma 显式特征
+        ↓
+TCN / BiGRU Boundary Head
+        ↓
+形成候选 Section
+        ↓
+Segment Attention + 位置 + 重复关系
+        ↓
+Section Label Head
+```
+
+相关位置：
+
+- 当前实现：`app/modules/library/analysis.py`
+- 当前落库：`app/modules/library/background_tasks.py`
+- 详细状态和方案：`docs/history/music-analysis-20260830/03_段落识别与神经网络架构.md`
+
+必须先建立人工真值和基线评价，再决定只训练 Label Head、Boundary Correction Head 或完整两阶段网络。
+
+## 9. 未来 MERT 架构
+
+MERT 部分目前是架构和实施方案，尚未训练完成。目标不是用一个模型直接替代全部显式分析，而是：
+
+```text
+专项 MIR / DSP
+        +
+MERT / MAEST / Discogs-EffNet 时序表示
+        ↓
+统一 Frame / Beat / Bar 对齐
+        ↓
+任务专用多尺度编码
+├─ Classification Head
+├─ Regression Head
+├─ Boundary/Sequence Head
+└─ Metric Embedding Head
+```
+
+计划覆盖：
+
+- Vocal：Rap/Singing/Spoken/Vocal Chop；
+- Bass：808/Synth/Electric Bass；
+- Groove；
+- Phrase Boundary；
+- Section Boundary 和 Label；
+- 21 类 Style；
+- Rhythm/Timbre/Melody 因子化相似度。
+
+首轮要求：
+
+- 冻结 Backbone；
+- 先做线性 Probe 和小型 Head；
+- 每项比较 Explicit Only、Representation Only、Fusion；
+- 按歌曲和艺人拆分；
+- 加 Calibration、OOD 和 availability mask；
+- 只有明确证明收益后才考虑 LoRA 或顶部层微调。
+
+完整设计：
+
+- `docs/roadmap/01_HarBeat_音乐分析系统_完整实施方案与工程路线.md`
+- `docs/roadmap/02_HarBeat_相关技术原理与成熟状态_背景资料.md`
+
+## 10. 验证
 
 安装环境后：
 
@@ -280,11 +370,9 @@ python -m pytest \
   -q
 ```
 
-## 9. 本次不需要看的内容
+## 11. 本次不需要看的内容
 
-- `docs/roadmap/`：后续构想；
-- 段落识别和未来 Boundary/Label Head；
 - `mobile/`、`web/`、`jetson/`、`rk_deploy/`；
 - DJ Transition 和播放控制；
 - 部署、数据库和前端文档；
-- 与 69 项特征和 13 类 embedding 实验无关的历史模块。
+- 与 69 项特征、已有 embedding 实验、段落网络和 MERT 架构无关的历史模块。
