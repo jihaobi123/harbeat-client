@@ -13,6 +13,7 @@ import RecommendPanel from '../components/RecommendPanel'
 import SessionPanel from '../components/SessionPanel'
 import ProfilePanel from '../components/ProfilePanel'
 import DjControlPanel from '../components/DjControlPanel'
+import AnnotationWorkbench from './AnnotationWorkbench'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export default function MainLayout() {
@@ -57,6 +58,8 @@ export default function MainLayout() {
         return <SessionPanel />
       case 'dj':
         return <DjControlPanel />
+      case 'annotation':
+        return <AnnotationWorkbench />
       case 'profile':
         return <ProfilePanel />
       case 'library':
@@ -168,7 +171,7 @@ export default function MainLayout() {
         </ErrorBoundary>
       </div>
 
-      <AudioPlayer />
+      {currentView !== 'annotation' && <AudioPlayer />}
 
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
       {showPlaylistImport && <PlaylistImportModal onClose={() => setShowPlaylistImport(false)} />}

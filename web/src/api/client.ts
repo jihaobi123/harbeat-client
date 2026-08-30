@@ -113,6 +113,26 @@ export function getStemStreamUrl(songId: string, stemName: string): string {
   return `${BASE}/api/stream/${songId}/stem/${stemName}?token=${token || ''}`
 }
 
+// ---- Assisted annotation ----
+export async function getAnnotationWorkspace(
+  trackId: string,
+  datasetVersion = 'bar-understanding-1.0.0',
+) {
+  return request<import('../types/annotation').AnnotationWorkspace>(
+    `/api/annotations/tracks/${encodeURIComponent(trackId)}/workspace?dataset_version=${encodeURIComponent(datasetVersion)}`,
+  )
+}
+
+export async function saveAnnotationWorkspace(
+  trackId: string,
+  data: import('../types/annotation').SaveAnnotationWorkspaceRequest,
+) {
+  return request<import('../types/annotation').AnnotationWorkspace>(
+    `/api/annotations/tracks/${encodeURIComponent(trackId)}/workspace`,
+    { method: 'PUT', body: JSON.stringify(data) },
+  )
+}
+
 // ---- Playlists ----
 export async function getPlaylists(userId: number) {
   return request<{ playlists: import('../types').Playlist[] }>(`/api/playlists?user_id=${userId}`)
