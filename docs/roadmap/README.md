@@ -14,7 +14,7 @@
 ├─ Beat / Downbeat / Bar 共识时间轴
 ├─ Demucs 四分轨
 ├─ 69 项显式特征及验证门禁
-├─ All-In-One 段落候选
+├─ All-In-One 唯一段落边界与标签来源
 └─ Discogs-EffNet 13 类原型实验
         ↓
 后续建设
@@ -41,7 +41,7 @@
 |---|---|
 | Beat/Downbeat/Bar、分轨和部分显式特征 | 已实现，按各自验证范围使用 |
 | Discogs-EffNet 风格表示原型 | 已实验，未批准上线 |
-| All-In-One 功能段落 | 已接通，未完成人工真值验证和完整落库 |
+| All-In-One 功能段落 | 已作为唯一段落来源接通并落库；仍需扩大人工真值验证 |
 | MERT 共享表示基础设施 | 方案阶段 |
 | Vocal/Bass/Groove 语义 Head | 方案阶段 |
 | Phrase/Section Boundary 与 Label Head | 方案阶段 |

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from app.modules.library.background_tasks import (
     ANALYSIS_STAGE_KEYS,
+    REQUIRED_CORE_ANALYSIS_VERSION,
     queue_song_analysis,
     run_analysis_and_separation,
 )
@@ -43,6 +44,7 @@ def _song(source_path: str):
         cue_points=[{"time": 0.0}],
         transition_windows=[{"start": 0.0, "end": 8.0}],
         music_features={"dj": {"bpm": 120.0}},
+        beat_confidence_details={"core_analysis_version": REQUIRED_CORE_ANALYSIS_VERSION},
         analysis_status="none",
         stems=None,
     )

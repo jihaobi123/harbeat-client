@@ -24,6 +24,7 @@ DOWNBEAT_MATCH_TOLERANCE_SECONDS = 0.07
 DOWNBEAT_AGREEMENT_F1 = 0.70
 DOWNBEAT_PERIOD_TOLERANCE = 0.12
 DOWNBEAT_MAX_INTRO_BARS = 2.0
+CORE_ANALYSIS_VERSION = "all_in_one_sections_v2"
 
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
@@ -36,6 +37,42 @@ def _env_flag(name: str, default: bool = True) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+@lru_cache(maxsize=1)
+def _preload_all_in_one_ffmpeg_libraries() -> str | None:
+    """Make local macOS FFmpeg shared libraries visible to TorchCodec.
+
+    macOS does not honor a DYLD path added after the Python process starts.
+    Loading the FFmpeg libraries globally before TorchCodec is imported keeps
+    direct original-file inference working when HarBeat is launched normally.
+    Other platforms use their standard loader configuration unchanged.
+    """
+    if sys.platform != "darwin":
+        return None
+    configured = os.getenv("ALL_IN_ONE_FFMPEG_SHARED_LIB_DIR", "").strip()
+    lib_dir = (
+        Path(configured).expanduser().resolve()
+        if configured
+        else Path(__file__).resolve().parents[3] / ".runtime" / "ffmpeg-shared" / "lib"
+    )
+    required = [
+        "libavutil.59.dylib",
+        "libswresample.5.dylib",
+        "libswscale.8.dylib",
+        "libavcodec.61.dylib",
+        "libavformat.61.dylib",
+        "libavfilter.10.dylib",
+        "libavdevice.61.dylib",
+    ]
+    if not all((lib_dir / name).is_file() for name in required):
+        return None
+
+    import ctypes
+
+    for name in required:
+        ctypes.CDLL(str(lib_dir / name), mode=ctypes.RTLD_GLOBAL)
+    return str(lib_dir)
 
 
 def _bpm_consensus_tolerance() -> float:
@@ -143,21 +180,30 @@ def _generate_dj_hot_cues(
     if not pm:
         return cues
 
-    # ── intro_end: first phrase with energy > 0.35 after intro ──
+    # ── intro_end: exact All-In-One intro boundary ──
     intro_end_time = None
-    for p in pm:
-        if float(p.get("energy", 0)) > 0.35 and p.get("label") != "intro":
-            intro_end_time = float(p.get("start", 0))
+    saw_intro = False
+    for index, p in enumerate(pm):
+        label = str(p.get("label", "")).lower()
+        if label == "intro" and (index == 0 or saw_intro):
+            saw_intro = True
+            intro_end_time = float(p.get("end", p.get("start", 0)))
+            continue
+        if saw_intro:
             break
-    if intro_end_time is None and len(pm) >= 2:
-        intro_end_time = float(pm[1].get("start", 0))
+        break
+    if intro_end_time is None and pm:
+        intro_end_time = float(pm[0].get("start", 0))
     if intro_end_time is not None:
         cues.append({
             "name": "intro_end", "label": "Intro End",
             "time": round(intro_end_time, 2),
             "color": "#22c55e",
-            "confidence": 0.75,
-            "source": "phrase_energy",
+            "confidence": 0.9 if saw_intro else 0.5,
+            "source": (
+                "all_in_one_intro_boundary"
+                if saw_intro else "all_in_one_first_section_start_no_intro_label"
+            ),
         })
 
     # ── main_groove: highest intensity section ──
@@ -736,8 +782,20 @@ def _analyze_rhythm_beat_this(y: np.ndarray, sr: int) -> dict:
     return route
 
 
-def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
-    """Run All-In-One on a temporary WAV to avoid platform MP3 decoder drift."""
+def _analyze_rhythm_all_in_one(
+    y: np.ndarray,
+    sr: int,
+    *,
+    file_path: str | os.PathLike[str] | None = None,
+) -> dict:
+    """Run the native All-In-One pipeline.
+
+    Production analysis passes ``file_path`` so All-In-One receives the
+    original audio file directly.  The decoded-array compatibility path is
+    retained only for isolated callers that do not have a source path.
+    """
+    ffmpeg_shared_lib_dir = _preload_all_in_one_ffmpeg_libraries()
+
     import soundfile as sf
     from allin1_infer import analyze
 
@@ -745,11 +803,28 @@ def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
     device = _resolve_torch_device("BPM_ALL_IN_ONE_DEVICE", prefer_accelerator=True)
     with TemporaryDirectory(prefix="harbeat-all-in-one-") as tmp:
         tmp_path = Path(tmp)
-        wav_path = tmp_path / "analysis.wav"
-        sf.write(wav_path, np.asarray(y, dtype=np.float32), int(sr), subtype="PCM_16")
+        if file_path is not None:
+            analysis_path = Path(file_path).expanduser().resolve()
+            if not analysis_path.is_file():
+                raise FileNotFoundError(analysis_path)
+            input_mode = "original_audio_file"
+            try:
+                source_sample_rate = int(sf.info(str(analysis_path)).samplerate)
+            except Exception:
+                source_sample_rate = None
+        else:
+            analysis_path = tmp_path / "analysis.wav"
+            sf.write(
+                analysis_path,
+                np.asarray(y, dtype=np.float32),
+                int(sr),
+                subtype="FLOAT",
+            )
+            input_mode = "decoded_float_wav_compatibility"
+            source_sample_rate = int(sr)
         with _ALL_IN_ONE_INFERENCE_LOCK:
             result = analyze(
-                wav_path,
+                analysis_path,
                 model=model_name,
                 device=device,
                 multiprocess=False,
@@ -798,7 +873,10 @@ def _analyze_rhythm_all_in_one(y: np.ndarray, sr: int) -> dict:
         "bpm_candidates": [{"bpm": round(bpm, 3), "source": "all_in_one"}],
         "bpm_intervals": [round(float(x), 6) for x in list(intervals)[:16]],
         "engine": f"all_in_one:{model_name}",
-        "sample_rate": int(sr),
+        "sample_rate": source_sample_rate,
+        "input_mode": input_mode,
+        "input_path": str(analysis_path) if input_mode == "original_audio_file" else None,
+        "ffmpeg_shared_lib_dir": ffmpeg_shared_lib_dir,
         "method": "all_in_one_model",
     }
 
@@ -983,13 +1061,24 @@ def _choose_bpm_consensus(
     }
 
 
-def _analyze_rhythm_parallel(y: np.ndarray, sr: int, *, max_duration: float | None = None) -> tuple[dict, dict, dict]:
+def _analyze_rhythm_parallel(
+    y: np.ndarray,
+    sr: int,
+    *,
+    max_duration: float | None = None,
+    file_path: str | os.PathLike[str] | None = None,
+) -> tuple[dict, dict, dict]:
     """Run Beat This, All-In-One, and Essentia concurrently and vote on BPM."""
     jobs = {}
     if _env_flag("BPM_ENABLE_BEAT_THIS"):
         jobs["beat_this"] = lambda: _analyze_rhythm_beat_this(y, sr)
     if _env_flag("BPM_ENABLE_ALL_IN_ONE"):
-        jobs["all_in_one"] = lambda: _analyze_rhythm_all_in_one(y, sr)
+        if file_path is None:
+            jobs["all_in_one"] = lambda: _analyze_rhythm_all_in_one(y, sr)
+        else:
+            jobs["all_in_one"] = lambda: _analyze_rhythm_all_in_one(
+                y, sr, file_path=file_path,
+            )
     if _env_flag("BPM_ENABLE_ESSENTIA"):
         jobs["essentia"] = lambda: _analyze_rhythm_essentia(y, sr, max_duration=max_duration)
     if not jobs:
@@ -1455,68 +1544,6 @@ def camelot_score(key_a: str, key_b: str) -> int:
     return 0
 
 
-def _detect_sections(y: np.ndarray, sr: int, duration: float) -> list[dict]:
-    """Detect song sections via energy envelope transitions (port of Electron audioAnalyzer)."""
-    import librosa
-
-    # RMS energy with 2-second windows and 1-second hop
-    hop_length = sr
-    frame_length = sr * 2
-    rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
-    sec_fps = sr / hop_length
-
-    if len(rms) < 4:
-        return [{"time": 0, "label": "Intro", "color": "#22c55e"}]
-
-    # Smooth energy contour (moving average ~4s)
-    smooth_win = max(1, round(sec_fps * 4))
-    smoothed = np.convolve(rms, np.ones(smooth_win) / smooth_win, mode="same")
-
-    # Derivative (rate of change)
-    deriv = np.diff(smoothed, prepend=smoothed[0])
-
-    # Find significant transitions
-    mean_abs = float(np.mean(np.abs(deriv))) + 1e-9
-    transitions = []
-    for i in range(2, len(deriv) - 1):
-        abs_der = abs(deriv[i])
-        if abs_der > mean_abs * 2.5:
-            t = i / sec_fps
-            if not transitions or t - transitions[-1]["time"] > 3:
-                transitions.append({"time": t, "strength": abs_der, "rising": deriv[i] > 0})
-
-    transitions.sort(key=lambda x: -x["strength"])
-    top = sorted(transitions[:8], key=lambda x: x["time"])
-
-    cue_points: list[dict] = [{"time": 0, "label": "Intro", "color": "#22c55e"}]
-
-    for t in top:
-        if t["time"] < 3 or t["time"] > duration - 3:
-            continue
-        rel_pos = t["time"] / duration
-        if rel_pos < 0.12:
-            label, color = "Verse", "#3b82f6"
-        elif t["rising"] and rel_pos < 0.5:
-            label, color = "Chorus", "#ef4444"
-        elif not t["rising"] and rel_pos < 0.5:
-            label, color = "Verse", "#3b82f6"
-        elif t["rising"]:
-            label, color = "Chorus", "#ef4444"
-        elif rel_pos > 0.8:
-            label, color = "Outro", "#64748b"
-        else:
-            label, color = "Bridge", "#f59e0b"
-        cue_points.append({"time": round(t["time"], 2), "label": label, "color": color})
-
-    # Ensure Outro marker
-    if duration > 30 and not any(c["label"] == "Outro" for c in cue_points):
-        outro_cand = [t for t in transitions if not t["rising"] and t["time"] > duration * 0.7]
-        outro_time = outro_cand[0]["time"] if outro_cand else duration - 15
-        cue_points.append({"time": round(outro_time, 2), "label": "Outro", "color": "#64748b"})
-
-    return cue_points
-
-
 def _functional_segments_to_cues(segments: list[dict] | None) -> list[dict]:
     """Convert model segments without relabelling them from energy or position."""
     colors = {
@@ -1543,6 +1570,168 @@ def _functional_segments_to_cues(segments: list[dict] | None) -> list[dict]:
                 "source": "all_in_one_functional_segment",
             })
     return cues
+
+
+def _all_in_one_segments_to_phrase_map(
+    segments: list[dict] | None,
+    downbeats: list[float] | None = None,
+) -> list[dict]:
+    """Expose All-In-One sections as the sole product phrase map.
+
+    Explicit ``start``/``end`` markers are metadata rather than musical
+    sections and are omitted.  All other boundaries and labels are preserved;
+    energy and intensity may be attached later but cannot move a boundary or
+    change a label.
+    """
+    grid = sorted({round(float(value), 6) for value in (downbeats or [])})
+    phrases: list[dict] = []
+    for segment in segments or []:
+        try:
+            start = max(0.0, float(segment["start"]))
+            end = max(start, float(segment["end"]))
+            label = str(segment["label"]).strip().lower()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not label or label in {"start", "end"} or end <= start:
+            continue
+        phrases.append({
+            "start": round(start, 3),
+            "end": round(end, 3),
+            "label": label,
+            "raw_label": label,
+            "bars": sum(start - 0.1 <= value < end - 0.1 for value in grid),
+            "source": "all_in_one_functional_segment",
+        })
+    return phrases
+
+
+def _all_in_one_intro_end(segments: list[dict] | None) -> tuple[float, dict]:
+    """Return the end of the leading All-In-One intro region.
+
+    Some tracks have only a short ``start`` marker and no explicit ``intro``.
+    In that case the marker end is the best available origin; if neither is
+    present, bar numbering starts from the first available downbeat.
+    """
+    parsed: list[tuple[float, float, str]] = []
+    for segment in segments or []:
+        try:
+            start = max(0.0, float(segment["start"]))
+            end = max(start, float(segment["end"]))
+            label = str(segment["label"]).strip().lower()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if label and end > start:
+            parsed.append((start, end, label))
+    parsed.sort(key=lambda item: (item[0], item[1]))
+
+    marker_end = 0.0
+    intro_end = 0.0
+    intro_detected = False
+    cursor = 0.0
+    for start, end, label in parsed:
+        if start > cursor + 0.25:
+            break
+        if label == "start":
+            marker_end = max(marker_end, end)
+            cursor = max(cursor, end)
+            continue
+        if label == "intro":
+            intro_detected = True
+            intro_end = max(intro_end, end)
+            cursor = max(cursor, end)
+            continue
+        break
+
+    if intro_detected:
+        origin = intro_end
+        reason = "leading_intro_end"
+    elif marker_end > 0.0:
+        origin = marker_end
+        reason = "start_marker_end_no_intro_label"
+    else:
+        origin = 0.0
+        reason = "no_intro_label"
+    return round(origin, 4), {
+        "intro_detected": intro_detected,
+        "intro_end": round(origin, 4),
+        "origin_reason": reason,
+    }
+
+
+def _start_bar_grid_after_all_in_one_intro(
+    downbeats: list[float] | None,
+    segments: list[dict] | None,
+    *,
+    beat_times: list[float] | np.ndarray | None = None,
+    beats_per_bar: int = 4,
+    boundary_tolerance: float = 0.1,
+) -> tuple[list[float], dict]:
+    """Number bars from the first detected downbeat after the model intro.
+
+    Once the first strong beat is located, subsequent bar starts are counted
+    every ``beats_per_bar`` beat ticks.  This prevents a downbeat model that
+    emits occasional half-bars or double-bars from changing bar numbering in
+    the middle of a song.
+    """
+    raw_grid = sorted({round(float(value), 3) for value in (downbeats or [])})
+    intro_end, intro_meta = _all_in_one_intro_end(segments)
+    if not segments:
+        return [], {
+            **intro_meta,
+            "status": "all_in_one_sections_unavailable",
+            "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+            "raw_downbeat_count": len(raw_grid),
+            "removed_intro_downbeats": len(raw_grid),
+            "first_bar_downbeat": None,
+        }
+    if not raw_grid:
+        return [], {
+            **intro_meta,
+            "status": "downbeats_unavailable",
+            "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+            "raw_downbeat_count": 0,
+            "removed_intro_downbeats": 0,
+            "first_bar_downbeat": None,
+        }
+
+    first_index = next((
+        index for index, value in enumerate(raw_grid)
+        if value >= intro_end - max(0.0, float(boundary_tolerance))
+    ), len(raw_grid))
+    candidate_grid = raw_grid[first_index:]
+    product_grid = candidate_grid
+    grid_mode = "native_downbeats_after_intro"
+    anchor_beat_index = None
+    meter = max(1, int(beats_per_bar or 4))
+    beat_values = list(beat_times) if beat_times is not None else []
+    beats = sorted({round(float(value), 6) for value in beat_values})
+    if candidate_grid and beats:
+        anchor = candidate_grid[0]
+        anchor_beat_index = min(range(len(beats)), key=lambda index: abs(beats[index] - anchor))
+        intervals = np.diff(np.asarray(beats, dtype=float))
+        median_interval = float(np.median(intervals)) if len(intervals) else 0.0
+        snap_tolerance = max(0.1, median_interval * 0.55)
+        if abs(beats[anchor_beat_index] - anchor) <= snap_tolerance:
+            product_grid = [
+                round(float(value), 3)
+                for value in beats[anchor_beat_index::meter]
+            ]
+            grid_mode = "counted_beats_from_first_post_intro_downbeat"
+    return product_grid, {
+        **intro_meta,
+        "status": "ok" if product_grid else "no_downbeat_after_intro",
+        "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+        "boundary_tolerance_seconds": round(max(0.0, float(boundary_tolerance)), 3),
+        "raw_downbeat_count": len(raw_grid),
+        "removed_intro_downbeats": first_index,
+        "first_bar_downbeat": product_grid[0] if product_grid else None,
+        "grid_mode": grid_mode,
+        "beats_per_bar": meter,
+        "anchor_beat_index": anchor_beat_index,
+        "first_bar_offset_from_intro_end": (
+            round(product_grid[0] - intro_end, 4) if product_grid else None
+        ),
+    }
 
 
 def _infer_downbeats_and_time_signature(
@@ -2011,81 +2200,6 @@ def _choose_downbeat_consensus(
             for name, value in native_valid.items() if value.get("model_validation")
         },
     }
-
-
-def _detect_phrase_structure(
-    y: np.ndarray, sr: int, duration: float, downbeat_times: list[float]
-) -> list[dict]:
-    """
-    Build a phrase structure map by analyzing energy over 8-bar phrases.
-    Labels: intro, buildup, drop, breakdown, outro.
-    """
-    import librosa
-
-    if len(downbeat_times) < 4:
-        return [{"start": 0, "end": duration, "label": "intro", "bars": 0}]
-
-    # Compute RMS energy at each downbeat
-    hop = 512
-    rms = librosa.feature.rms(y=y, hop_length=hop)[0]
-    db_frames = librosa.time_to_frames(downbeat_times, sr=sr, hop_length=hop)
-    db_frames = np.clip(db_frames, 0, len(rms) - 1)
-
-    # Group into 8-bar phrases
-    phrase_size = 8  # bars per phrase
-    phrases: list[dict] = []
-    i = 0
-    while i < len(downbeat_times):
-        end_i = min(i + phrase_size, len(downbeat_times))
-        start_t = downbeat_times[i]
-        end_t = downbeat_times[end_i - 1] if end_i < len(downbeat_times) else duration
-
-        # Average energy in this phrase
-        frame_start = db_frames[i]
-        frame_end = db_frames[min(end_i, len(db_frames) - 1)]
-        if frame_end > frame_start:
-            avg_energy = float(np.mean(rms[frame_start:frame_end]))
-        else:
-            avg_energy = float(rms[frame_start]) if frame_start < len(rms) else 0.0
-
-        phrases.append({
-            "start": round(start_t, 3),
-            "end": round(end_t, 3),
-            "bars": end_i - i,
-            "energy": round(avg_energy, 4),
-        })
-        i = end_i
-
-    if not phrases:
-        return [{"start": 0, "end": duration, "label": "intro", "bars": 0}]
-
-    # Normalize energies
-    energies = np.array([p["energy"] for p in phrases])
-    max_e = float(energies.max()) if energies.max() > 1e-8 else 1.0
-    norm_energies = energies / max_e
-
-    # Label phrases based on energy profile and position
-    total = len(phrases)
-    for idx, p in enumerate(phrases):
-        ne = norm_energies[idx]
-        rel = idx / max(total - 1, 1)
-
-        if rel < 0.12 or (idx == 0 and ne < 0.4):
-            p["label"] = "intro"
-        elif rel > 0.85 and ne < 0.5:
-            p["label"] = "outro"
-        elif ne >= 0.75:
-            p["label"] = "drop"
-        elif idx > 0 and norm_energies[idx] > norm_energies[idx - 1] + 0.15:
-            p["label"] = "buildup"
-        elif ne < 0.4:
-            p["label"] = "breakdown"
-        else:
-            p["label"] = "verse"
-
-        p["energy"] = round(float(ne), 4)
-
-    return phrases
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2856,7 +2970,11 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     madmom_error: str | None = None
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="rhythm-family") as executor:
         rhythm_future = executor.submit(
-            _analyze_rhythm_parallel, y, sr, max_duration=MAX_ANALYSIS_DURATION,
+            _analyze_rhythm_parallel,
+            y,
+            sr,
+            max_duration=MAX_ANALYSIS_DURATION,
+            file_path=file_path,
         )
         madmom_future = (
             executor.submit(_analyze_downbeats_madmom, y, sr)
@@ -2926,7 +3044,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     }
     if madmom_result is not None:
         downbeat_results["madmom"] = madmom_result
-    downbeats, downbeat_consensus = _choose_downbeat_consensus(
+    raw_downbeats, downbeat_consensus = _choose_downbeat_consensus(
         downbeat_results,
         accent_fallback=accent_downbeats,
         tolerance=_downbeat_match_tolerance(),
@@ -2936,11 +3054,24 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         period_tolerance=_downbeat_period_tolerance(),
         max_intro_bars=_downbeat_max_intro_bars(),
     )
+    functional_segments = list((rhythm_results.get("all_in_one") or {}).get("segments") or [])
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
-    time_signature = _detect_time_signature(beat_times, downbeats, bpm=bpm)
+    time_signature = _detect_time_signature(beat_times, raw_downbeats, bpm=bpm)
+    downbeats, bar_grid_origin = _start_bar_grid_after_all_in_one_intro(
+        raw_downbeats,
+        functional_segments,
+        beat_times=beat_times,
+        beats_per_bar=int(time_signature.get("numerator", 4) or 4),
+    )
+    bar_grid_origin["downbeat_engine"] = downbeat_consensus.get("selected_engine")
+    bar_grid_origin["downbeat_engine_name"] = downbeat_consensus.get("selected_engine_name")
+    downbeat_consensus["bar_grid_origin"] = bar_grid_origin
     time_signature["pre_consensus_meter"] = accent_time_signature
-    time_signature["needs_review"] = bool(downbeat_consensus["needs_review"])
+    time_signature["needs_review"] = bool(
+        downbeat_consensus["needs_review"] or bar_grid_origin.get("status") != "ok"
+    )
     time_signature["downbeat_consensus"] = downbeat_consensus
+    time_signature["bar_grid_origin"] = bar_grid_origin
     selected_downbeat_validation = (
         (downbeat_results.get(str(downbeat_consensus.get("selected_engine"))) or {})
         .get("model_validation")
@@ -2952,10 +3083,13 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         else "provisional"
     )
     beatgrid_summary["beat_needs_review"] = bool(
-        beatgrid_summary.get("beat_needs_review") or downbeat_consensus["needs_review"]
+        beatgrid_summary.get("beat_needs_review")
+        or downbeat_consensus["needs_review"]
+        or bar_grid_origin.get("status") != "ok"
     )
     beat_details = dict(beatgrid_summary.get("beat_confidence_details") or {})
     beat_details["downbeat_consensus"] = downbeat_consensus
+    beat_details["core_analysis_version"] = CORE_ANALYSIS_VERSION
     beatgrid_summary["beat_confidence_details"] = beat_details
 
     # Energy
@@ -3005,21 +3139,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         local_fallback=local_key_result,
     )
 
-    # Prefer model functional structure; retain energy transitions as a
-    # separately named fallback rather than treating position as semantics.
-    functional_segments = list((rhythm_results.get("all_in_one") or {}).get("segments") or [])
+    # All product-facing section boundaries and labels come from All-In-One.
+    # Energy remains an attribute of a model section, never a section detector
+    # or semantic fallback.
+    all_in_one_route = rhythm_results.get("all_in_one") or {}
     cue_points = _functional_segments_to_cues(functional_segments)
-    energy_transition_candidates = _detect_sections(y, sr, analysis_duration)
-    section_source = "all_in_one_functional_segments"
-    if not cue_points:
-        cue_points = [
-            {**item, "source": "energy_transition_candidate"}
-            for item in energy_transition_candidates
-        ]
-        section_source = "energy_transition_fallback"
+    section_source = (
+        "all_in_one_functional_segments"
+        if cue_points else "all_in_one_unavailable"
+    )
 
-    # Phrase structure (8-bar segments with labels)
-    phrase_map = _detect_phrase_structure(y, sr, analysis_duration, downbeats)
+    # Phrase map uses the same All-In-One boundaries as cue_points. Bar counts
+    # use the exported grid whose Bar 1 starts after the intro.
+    phrase_map = _all_in_one_segments_to_phrase_map(functional_segments, downbeats)
     phrase_map = _attach_phrase_energy(phrase_map, energy_curve)
 
     # ── Extended analysis ──────────────────────────────────────────
@@ -3041,6 +3173,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     )
 
     return {
+        "core_analysis_version": CORE_ANALYSIS_VERSION,
         "bpm": round(bpm, 1),
         "duration": round(duration, 2),
         "energy": round(energy, 3),
@@ -3078,9 +3211,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "cue_points": cue_points,
         "section_analysis": {
             "source": section_source,
+            "status": "ok" if functional_segments else "unavailable",
+            "engine": all_in_one_route.get("engine"),
+            "input_mode": all_in_one_route.get("input_mode"),
+            "source_sample_rate": all_in_one_route.get("sample_rate"),
+            "ffmpeg_shared_libraries_preloaded": bool(
+                all_in_one_route.get("ffmpeg_shared_lib_dir")
+            ),
             "functional_segments": functional_segments,
-            "energy_transition_candidates": energy_transition_candidates,
+            "fallback_used": False,
+            "fallback_policy": "disabled_only_all_in_one_is_authoritative",
+            "error": (bpm_consensus or {}).get("errors", {}).get("all_in_one"),
             "semantic_labels_from_energy": False,
+            "bar_grid_origin": bar_grid_origin,
         },
         "phrase_map": phrase_map,
         "energy_curve": energy_curve,

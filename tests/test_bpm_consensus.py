@@ -102,3 +102,34 @@ def test_three_engines_are_started_in_parallel(monkeypatch) -> None:
     assert consensus["status"] == "unanimous"
     assert consensus["agreement_count"] == 3
     assert selected["bpm"] == 120.5
+
+
+def test_original_file_path_is_forwarded_only_to_all_in_one(monkeypatch) -> None:
+    observed = {}
+
+    def fake_result(bpm: float) -> dict:
+        return {
+            "bpm": bpm,
+            "beat_times": np.array([0.0, 0.5, 1.0]),
+            "engine": "fake",
+        }
+
+    def fake_all_in_one(y, sr, *, file_path=None):
+        observed["file_path"] = file_path
+        return fake_result(120.5)
+
+    monkeypatch.setattr(analysis, "_analyze_rhythm_beat_this", lambda y, sr: fake_result(120.0))
+    monkeypatch.setattr(analysis, "_analyze_rhythm_all_in_one", fake_all_in_one)
+    monkeypatch.setattr(
+        analysis,
+        "_analyze_rhythm_essentia",
+        lambda y, sr, max_duration=None: fake_result(121.0),
+    )
+
+    analysis._analyze_rhythm_parallel(
+        np.zeros(22050, dtype=np.float32),
+        22050,
+        file_path="/tmp/original-source.mp3",
+    )
+
+    assert observed["file_path"] == "/tmp/original-source.mp3"

@@ -39,6 +39,7 @@ npm-debug.log*
 .tmp_vibe_pull/
 .tmp_*
 tmp/
+.runtime/
 scripts/.openapi.json
 scripts/.jetson_openapi.json
 scripts/.inspect_openapi.py
@@ -69,6 +70,7 @@ _external/
 # machine-specific source paths.  Keep it local; only code and aggregate
 # conclusions belong in Git.
 reports/pre_style_validation_*/
+reports/allinone_native_*/
 
 # Flutter / Android build outputs and caches
 mobile/android/build/

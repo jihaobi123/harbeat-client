@@ -1373,15 +1373,19 @@ RDS `library_songs` 当前样例记录：
 }
 ```
 
-源码确认分析任务会写这些字段：
+> 版本说明（2026-08-31）：以下数据库统计保留为历史快照，但旧的固定小节段落
+> 生成逻辑已经删除。当前段落边界与标签只来自 All-In-One；`phrase_map` 只是同一
+> All-In-One 段落结果的产品映射，能量仅作段落属性，不再生成或修改段落。
+
+当前源码中的对应写入链路为：
 
 - `app/modules/library/background_tasks.py`
   - `song.transition_windows = result.get("transition_windows", [])`
   - `song.downbeats = result.get("downbeats", [])`
   - `song.phrase_map = result.get("phrase_map", [])`
 - `app/modules/library/analysis.py`
-  - `_detect_downbeats_with_meter(...)`
-  - `_detect_phrase_structure(...)`
+  - `_start_bar_grid_after_all_in_one_intro(...)`
+  - `_all_in_one_segments_to_phrase_map(...)`
   - `_build_transition_windows(phrase_map)`
   - 返回 `downbeats` / `phrase_map` / `transition_windows`
 

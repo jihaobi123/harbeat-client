@@ -12,6 +12,7 @@ from app.shared.database import SessionLocal
 logger = logging.getLogger(__name__)
 
 ANALYSIS_STAGE_KEYS = ("core", "stem_separation", "feature_analysis", "style_analysis")
+REQUIRED_CORE_ANALYSIS_VERSION = "all_in_one_sections_v2"
 
 
 def _utc_now() -> str:
@@ -225,6 +226,12 @@ def run_analysis_and_separation(song_id: str) -> None:
             and song.beat_points
             and song.cue_points
             and song.transition_windows
+            and (
+                (getattr(song, "beat_confidence_details", {}) or {}).get(
+                    "core_analysis_version"
+                )
+                == REQUIRED_CORE_ANALYSIS_VERSION
+            )
         )
         if core_ready:
             update_analysis_stage(song, "core", "completed")
@@ -296,7 +303,15 @@ def run_analysis_and_separation(song_id: str) -> None:
                 song.key_profile = result.get("key_profile", {})
                 raw_cues = result.get("cue_points", [])
                 song.cue_points = [
-                    {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
+                    {
+                        "id": f"cue-{song_id}-{i}",
+                        "time": c["time"],
+                        "end": c.get("end"),
+                        "label": c["label"],
+                        "raw_label": c.get("raw_label"),
+                        "color": c["color"],
+                        "source": c.get("source"),
+                    }
                     for i, c in enumerate(raw_cues)
                 ]
                 update_analysis_stage(song, "core", "completed")

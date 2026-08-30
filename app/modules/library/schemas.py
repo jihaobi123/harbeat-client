@@ -8,8 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class LibraryCuePoint(BaseModel):
     id: str
     time: float
+    end: float | None = None
     label: str
+    raw_label: str | None = None
     color: str
+    source: str | None = None
 
 
 class LibrarySongBase(BaseModel):

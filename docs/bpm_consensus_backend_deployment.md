@@ -77,6 +77,8 @@ BPM_BEAT_THIS_DEVICE=cpu
 BPM_ALL_IN_ONE_MODEL=harmonix-all
 # 空值表示自动选择 CUDA -> MPS -> CPU
 BPM_ALL_IN_ONE_DEVICE=
+# macOS 可指定 FFmpeg 7 动态库目录；空值会检测 .runtime/ffmpeg-shared/lib
+ALL_IN_ONE_FFMPEG_SHARED_LIB_DIR=
 
 DOWNBEAT_ENABLE_MADMOM=true
 DOWNBEAT_MATCH_TOLERANCE_MS=70
@@ -270,8 +272,10 @@ All-In-One 的 GPU 显存。
 
 ### MP3 解码或 TorchCodec 报错
 
-模块会先把已解码音频写成临时 PCM WAV 后交给 All-In-One，避免直接依赖其 MP3
-解码链。仍失败时检查系统 `ffmpeg` 和 `libsndfile`；Dockerfile 已安装这两项。
+生产分析会把原始音频文件直接交给 All-In-One，不再先转换为临时 PCM WAV。
+仍失败时检查 TorchCodec 对 FFmpeg 共享库的加载情况；macOS 可设置
+`ALL_IN_ONE_FFMPEG_SHARED_LIB_DIR`，不设置时会自动检测
+`.runtime/ffmpeg-shared/lib`。Docker 环境应确认 FFmpeg 共享库可被动态加载器发现。
 
 ### 三路结果长期分裂
 
