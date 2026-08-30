@@ -1,0 +1,42 @@
+{
+  "schema_name": "harbeat.annotation_label_registry",
+  "schema_version": "1.0.0",
+  "dataset_version": "bar-understanding-1.0.0",
+  "section_labels": [
+    "intro",
+    "main",
+    "build",
+    "breakdown",
+    "outro",
+    "unknown"
+  ],
+  "element_names": [
+    "drums",
+    "vocal",
+    "bass",
+    "melody"
+  ],
+  "element_states": [
+    "absent",
+    "background",
+    "foreground",
+    "entering",
+    "ending",
+    "unknown"
+  ],
+  "public_dataset_mappings": {
+    "raveform": {
+      "intro": "intro",
+      "ambient-intro": "intro",
+      "buildup": "build",
+      "build-up": "build",
+      "drop": "main",
+      "cooldown": "main",
+      "bridge": "main",
+      "breakdown": "breakdown",
+      "ambient-breakdown": "breakdown",
+      "outro": "outro",
+      "ambient-outro": "outro"
+    }
+  }
+}
