@@ -1,0 +1,132 @@
+{
+  "schema_name": "harbeat.presence_pilot_selection",
+  "schema_version": "1.0.0",
+  "dataset_version": "bar-presence-pilot-1.0.0",
+  "status": "candidates_generated_pending_human_review",
+  "candidate_generation": {
+    "generated_at": "2026-08-31T13:53:14Z",
+    "tracks_total": 10,
+    "bars_total": 706,
+    "revision": 1,
+    "candidate_source": "method:bar_presence_candidate@0.1.0",
+    "validation": "10/10 bundles validated; authenticated public API sample returned HTTP 200"
+  },
+  "selection_notes": [
+    "从 Jetson 当前 43 首曲库中筛出 18 首具备四轨 Stem、至少两个 downbeat 且 beat_needs_review=false 的可处理歌曲，再选取 10 首作为 Pilot。",
+    "本组覆盖 74.7–235.4 秒、90.1–139.5 BPM、0.802–0.993 能量，以及 44.1 kHz/48 kHz 来源音频。",
+    "当前 18 首可处理歌曲全部标记 has_drum_loop=true，首个 downbeat 最晚为 2.67 秒，因此本轮无法真实覆盖长 Intro 和鼓组稀疏；这两项留待补充合适源文件后追加。",
+    "人声、鼓、贝斯和旋律候选由机器按 Bar 生成，最终标签必须由审核人逐首听辨纠错。"
+  ],
+  "tracks": [
+    {
+      "track_id": "mt2_bb6003cafad04057a25d8fbc9ac23ebf",
+      "title": "GIVEAHOOP",
+      "duration_sec": 74.7,
+      "source_sample_rate": 44100,
+      "bpm": 90.1,
+      "energy": 0.913,
+      "first_downbeat_sec": 1.37,
+      "selection_reason": "当前可处理曲目中最短，用于验证短曲和尾部 partial Bar。",
+      "listen_focus": ["短事件", "尾部边界", "贝斯候选连续性"]
+    },
+    {
+      "track_id": "mt2_36e912c52484487e8d48453d3078bd27",
+      "title": "KITSCH",
+      "duration_sec": 126.4,
+      "source_sample_rate": 44100,
+      "bpm": 96.0,
+      "energy": 0.993,
+      "first_downbeat_sec": 1.8,
+      "selection_reason": "可处理曲目中已有的人声事件最多，用于检查频繁进出的人声边界。",
+      "listen_focus": ["间歇人声", "人声 Stem 泄漏"]
+    },
+    {
+      "track_id": "mt2_aa21861414a54fdaad9576be8a66dd8e",
+      "title": "DAYDAY - FUN FACT",
+      "duration_sec": 126.9,
+      "source_sample_rate": 44100,
+      "bpm": 139.5,
+      "energy": 0.882,
+      "first_downbeat_sec": 1.08,
+      "selection_reason": "Pilot 中 BPM 最高，用于检查快速 Bar 下的短边界。",
+      "listen_focus": ["快速 Bar", "短人声事件", "鼓点连续性"]
+    },
+    {
+      "track_id": "mt2_500a92d8e4c1425f84762fbcaa7e9519",
+      "title": "GHOST",
+      "duration_sec": 130.6,
+      "source_sample_rate": 48000,
+      "bpm": 97.2,
+      "energy": 0.935,
+      "first_downbeat_sec": 1.985,
+      "selection_reason": "48 kHz 来源且已有的人声事件很少，用于检查采样率兼容和低人声密度。",
+      "listen_focus": ["低人声密度", "旋律误报", "采样率兼容"]
+    },
+    {
+      "track_id": "mt2_4a56419a0d3e450a87b4cc03aec14231",
+      "title": "GOT IT",
+      "duration_sec": 167.8,
+      "source_sample_rate": 44100,
+      "bpm": 105.0,
+      "energy": 0.802,
+      "first_downbeat_sec": 2.67,
+      "selection_reason": "Pilot 中能量最低且首个 downbeat 最晚，用于检查弱元素漏检和开头边界。",
+      "listen_focus": ["弱贝斯漏检", "开头边界", "旋律误报"]
+    },
+    {
+      "track_id": "mt2_0d88ee2084da4ae1aa254e3ecb42ae37",
+      "title": "J'viens du 7-5",
+      "duration_sec": 109.2,
+      "source_sample_rate": 44100,
+      "bpm": 108.0,
+      "energy": 0.965,
+      "first_downbeat_sec": 0.546,
+      "selection_reason": "首个 downbeat 较早，用于与较晚进入样本对照 Bar 起点。",
+      "listen_focus": ["Bar 起点", "人声进入退出", "低频密集"]
+    },
+    {
+      "track_id": "mt2_74669fa3abbf4346b887c7e8250e400d",
+      "title": "James Baby ~",
+      "duration_sec": 191.6,
+      "source_sample_rate": 48000,
+      "bpm": 111.0,
+      "energy": 0.927,
+      "first_downbeat_sec": 1.115,
+      "selection_reason": "较长的 48 kHz 来源歌曲，用于与 GHOST 交叉验证采样率兼容。",
+      "listen_focus": ["长时间轴", "采样率兼容", "Stem 泄漏"]
+    },
+    {
+      "track_id": "mt2_b71b445d21ab431a88b89a7a38fccb65",
+      "title": "Hot $hit [ flip ]",
+      "duration_sec": 192.3,
+      "source_sample_rate": 44100,
+      "bpm": 108.0,
+      "energy": 0.817,
+      "first_downbeat_sec": 1.579,
+      "selection_reason": "较长、低能量且已有的人声事件较少，用于检查弱元素漏检。",
+      "listen_focus": ["弱元素漏检", "低人声密度", "贝斯边界"]
+    },
+    {
+      "track_id": "mt2_2736e29e7d3646c3a059fd72b0d906dc",
+      "title": "BUSTAR 2.0 w_YXNGJUGO(1)",
+      "duration_sec": 219.5,
+      "source_sample_rate": 44100,
+      "bpm": 104.8,
+      "energy": 0.941,
+      "first_downbeat_sec": 2.415,
+      "selection_reason": "长曲且有人声多次进出，用于检查整曲时间轴稳定性。",
+      "listen_focus": ["长时间轴", "人声进入退出", "Bar 偏移"]
+    },
+    {
+      "track_id": "mt2_718c7b675b8e45eea64ed1dd3a43b2fa",
+      "title": "brandnew (happy new year)",
+      "duration_sec": 235.4,
+      "source_sample_rate": 44100,
+      "bpm": 104.8,
+      "energy": 0.948,
+      "first_downbeat_sec": 1.196,
+      "selection_reason": "当前可处理曲目中最长，用于检查整曲 Bar 对齐和候选连续性。",
+      "listen_focus": ["长时间轴", "整曲 Bar 偏移", "候选连续性"]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema_name": "harbeat.presence_pilot_candidate_summary",
+  "schema_version": "1.0.0",
+  "dataset_version": "bar-presence-pilot-1.0.0",
+  "candidate_source": "method:bar_presence_candidate@0.1.0",
+  "generated_at": "2026-08-31T13:53:14Z",
+  "tracks_total": 10,
+  "bars_total": 706,
+  "status": "pending_human_review",
+  "tracks": [
+    {"track_id":"mt2_bb6003cafad04057a25d8fbc9ac23ebf","title":"GIVEAHOOP","bars":29,"revision":1,"ranges":{"vocal":4,"drums":1,"bass":1,"melody":1}},
+    {"track_id":"mt2_36e912c52484487e8d48453d3078bd27","title":"KITSCH","bars":51,"revision":1,"ranges":{"vocal":8,"drums":1,"bass":1,"melody":1}},
+    {"track_id":"mt2_aa21861414a54fdaad9576be8a66dd8e","title":"DAYDAY - FUN FACT","bars":72,"revision":1,"ranges":{"vocal":7,"drums":1,"bass":1,"melody":2}},
+    {"track_id":"mt2_500a92d8e4c1425f84762fbcaa7e9519","title":"GHOST","bars":54,"revision":1,"ranges":{"vocal":1,"drums":1,"bass":1,"melody":6}},
+    {"track_id":"mt2_4a56419a0d3e450a87b4cc03aec14231","title":"GOT IT","bars":73,"revision":1,"ranges":{"vocal":2,"drums":1,"bass":1,"melody":2}},
+    {"track_id":"mt2_0d88ee2084da4ae1aa254e3ecb42ae37","title":"J'viens du 7-5","bars":50,"revision":1,"ranges":{"vocal":2,"drums":1,"bass":11,"melody":7}},
+    {"track_id":"mt2_74669fa3abbf4346b887c7e8250e400d","title":"James Baby ~","bars":90,"revision":1,"ranges":{"vocal":30,"drums":1,"bass":4,"melody":2}},
+    {"track_id":"mt2_b71b445d21ab431a88b89a7a38fccb65","title":"Hot $hit [ flip ]","bars":87,"revision":1,"ranges":{"vocal":1,"drums":2,"bass":3,"melody":2}},
+    {"track_id":"mt2_2736e29e7d3646c3a059fd72b0d906dc","title":"BUSTAR 2.0 w_YXNGJUGO(1)","bars":96,"revision":1,"ranges":{"vocal":4,"drums":1,"bass":5,"melody":1}},
+    {"track_id":"mt2_718c7b675b8e45eea64ed1dd3a43b2fa","title":"brandnew (happy new year)","bars":104,"revision":1,"ranges":{"vocal":2,"drums":1,"bass":3,"melody":1}}
+  ],
+  "review_priorities": [
+    "James Baby ~ 的 Vocal 被切成 30 段，优先检查是否受 Stem 泄漏或阈值抖动影响。",
+    "J'viens du 7-5 的 Bass 11 段、Melody 7 段，优先检查弱区间和边界碎片化。",
+    "GHOST 的 Melody 6 段但 Vocal 仅 1 段，检查 other 活动是否被误当旋律。"
+  ]
+}

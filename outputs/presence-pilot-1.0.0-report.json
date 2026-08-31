@@ -1,0 +1,119 @@
+{
+  "schema_name": "harbeat.presence_pilot_report",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-31T13:53:14.622762Z",
+  "annotation_dir": "/data/harbeat/annotations",
+  "output_path": "/data/harbeat/exports/bar-presence-pilot-1.0.0.jsonl",
+  "dataset_versions": [
+    "bar-presence-pilot-1.0.0"
+  ],
+  "tracks_total": 10,
+  "tracks_reviewed": 0,
+  "tracks_unreviewed": 10,
+  "bars_total": 706,
+  "records_exported": 0,
+  "elements": {
+    "vocal": {
+      "candidate_ranges": 0,
+      "reviewed_ranges": 0,
+      "accepted_candidate_ranges": 0,
+      "candidate_acceptance_rate": null,
+      "manually_added_ranges": 0,
+      "deleted_candidate_ranges": 0,
+      "boundary_adjustments": 0,
+      "unavailable_tracks": 0
+    },
+    "drums": {
+      "candidate_ranges": 0,
+      "reviewed_ranges": 0,
+      "accepted_candidate_ranges": 0,
+      "candidate_acceptance_rate": null,
+      "manually_added_ranges": 0,
+      "deleted_candidate_ranges": 0,
+      "boundary_adjustments": 0,
+      "unavailable_tracks": 0
+    },
+    "bass": {
+      "candidate_ranges": 0,
+      "reviewed_ranges": 0,
+      "accepted_candidate_ranges": 0,
+      "candidate_acceptance_rate": null,
+      "manually_added_ranges": 0,
+      "deleted_candidate_ranges": 0,
+      "boundary_adjustments": 0,
+      "unavailable_tracks": 0
+    },
+    "melody": {
+      "candidate_ranges": 0,
+      "reviewed_ranges": 0,
+      "accepted_candidate_ranges": 0,
+      "candidate_acceptance_rate": null,
+      "manually_added_ranges": 0,
+      "deleted_candidate_ranges": 0,
+      "boundary_adjustments": 0,
+      "unavailable_tracks": 0
+    }
+  },
+  "needs_review": [
+    {
+      "track_id": "mt2_0d88ee2084da4ae1aa254e3ecb42ae37",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_2736e29e7d3646c3a059fd72b0d906dc",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_36e912c52484487e8d48453d3078bd27",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_4a56419a0d3e450a87b4cc03aec14231",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_500a92d8e4c1425f84762fbcaa7e9519",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_718c7b675b8e45eea64ed1dd3a43b2fa",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_74669fa3abbf4346b887c7e8250e400d",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_aa21861414a54fdaad9576be8a66dd8e",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_b71b445d21ab431a88b89a7a38fccb65",
+      "reasons": [
+        "no_human_revision"
+      ]
+    },
+    {
+      "track_id": "mt2_bb6003cafad04057a25d8fbc9ac23ebf",
+      "reasons": [
+        "no_human_revision"
+      ]
+    }
+  ]
+}
