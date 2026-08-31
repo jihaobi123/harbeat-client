@@ -69,6 +69,7 @@ it('renders four Bar-aligned element lanes and reviewed regions', () => {
   expect(html).toContain('aria-label="Bass presence lane"')
   expect(html).toContain('aria-label="Melody presence lane"')
   expect(html).toContain('data-bar-index="0"')
+  expect(html).toContain('aria-label="Vocal Bar 1, confidence 90%"')
   expect(html).toContain('data-presence-range="0-1"')
   expect(html).toContain('Melody 为低置信候选')
 })

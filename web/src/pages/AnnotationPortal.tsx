@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 
 import AnnotationWorkbench from './AnnotationWorkbench'
 import { useAuthStore } from '../store/useAuthStore'
+import { StatusTag } from '../components/editorial/EditorialPrimitives'
 
 
 export default function AnnotationPortal() {
@@ -22,16 +23,17 @@ export default function AnnotationPortal() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-surface street-theme p-1 sm:p-2 gap-1 sm:gap-2">
-      <header className="street-sticker bg-surface-light px-3 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div>
-          <div className="text-2xl street-title leading-none">HarBeat 标注工作台</div>
-          <div className="text-xs street-subtitle mt-1">公共 Pilot · 每位标注者独立保存</div>
+    <div className="annotation-portal street-theme">
+      <header className="annotation-header street-sticker">
+        <div className="annotation-header__title">
+          <span aria-hidden="true">03</span>
+          <div>
+            <h1>HarBeat / 标注工作台</h1>
+            <p>公共 Pilot · 每位标注者独立保存</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="px-3 py-2 bg-surface-lighter border-2 border-black rounded-md">
-            标注者：{user?.username}
-          </span>
+        <div className="annotation-header__actions text-sm">
+          <StatusTag tone="online">{user?.username || '标注者'} · ONLINE</StatusTag>
           <button className="px-3 py-2 bg-white" onClick={leavePortal}>返回原网站</button>
           <button className="px-3 py-2 bg-white" onClick={logout}>退出登录</button>
         </div>

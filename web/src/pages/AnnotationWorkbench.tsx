@@ -14,6 +14,7 @@ import type {
   PilotTrackSummary,
   SectionLabel,
 } from '../types/annotation'
+import { BrandIllustration } from '../components/editorial/BrandIllustration'
 
 
 const DATASET_VERSION = 'bar-understanding-1.0.0'
@@ -273,9 +274,9 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     : '尚未选择'
 
   return (
-    <main className="flex-1 min-w-0 min-h-0 overflow-y-auto bg-surface-light street-sticker p-3 sm:p-5">
+    <main className="annotation-workbench">
       <div className="max-w-[1500px] mx-auto space-y-4">
-        <section className="flex flex-col xl:flex-row xl:items-end gap-3">
+        <section className="annotation-track-picker flex flex-col xl:flex-row xl:items-end gap-3">
           <div className="flex-1">
             <div className="text-xs street-subtitle mb-1">WORKFLOW B · PILOT</div>
             <h1 className="text-3xl leading-none">音乐段落标注工作台</h1>
@@ -322,7 +323,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
 
         {workspace && draft && (
           <>
-            <section className="street-sticker bg-surface-lighter p-3 sm:p-4 grid lg:grid-cols-[minmax(0,1fr)_auto] gap-4">
+            <section className="annotation-transport street-sticker bg-surface-lighter p-3 sm:p-4 grid lg:grid-cols-[minmax(0,1fr)_auto] gap-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <h2 className="text-2xl truncate">{workspace.title}</h2>
@@ -375,7 +376,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
               </div>
             </section>
 
-            <section className="street-sticker bg-surface-lighter p-3 sm:p-4">
+            <section className="annotation-bars street-sticker bg-surface-lighter p-3 sm:p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div>
                   <h2 className="text-xl">1. 选择连续小节</h2>
@@ -441,7 +442,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
             </section>
 
             <section className="grid xl:grid-cols-2 gap-4">
-              <div className="street-sticker bg-surface-lighter p-3 sm:p-4">
+              <div className="annotation-sections street-sticker bg-surface-lighter p-3 sm:p-4">
                 <div className="flex flex-wrap justify-between gap-2 mb-3">
                   <div>
                     <h2 className="text-xl">2. 标记段落</h2>
@@ -467,7 +468,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                 </div>
               </div>
 
-              <div className="street-sticker bg-surface-lighter p-3 sm:p-4">
+              <div className="annotation-elements street-sticker bg-surface-lighter p-3 sm:p-4">
                 <div className="flex flex-wrap justify-between gap-2 mb-3">
                   <div>
                     <h2 className="text-xl">3. 标记元素状态</h2>
@@ -505,7 +506,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
               </div>
             </section>
 
-            <section className="sticky bottom-2 z-10 street-sticker bg-surface-lighter p-3 flex flex-wrap items-center justify-between gap-3">
+            <section className="annotation-savebar street-sticker bg-surface-lighter p-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">
                 <strong>{confirmedCount}</strong> 条人工记录 · 修订 {workspace.revision}
                 {dirty ? ' · 有尚未保存的修改' : ' · 已与服务器同步'}
@@ -522,8 +523,8 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
         )}
 
         {!workspace && !loading && !error && (
-          <section className="street-sticker bg-surface-lighter p-8 text-center">
-            <div className="text-4xl mb-3">🏷️</div>
+          <section className="editorial-state editorial-state--empty street-sticker bg-surface-lighter p-8 text-center">
+            <BrandIllustration variant="headphones" />
             <h2 className="text-2xl">从上方选择一首已经分析过的歌曲</h2>
             <p className="text-sm mt-2">歌曲需要先有可用的 Beat Grid，工作台才会生成统一的小节边界。</p>
           </section>

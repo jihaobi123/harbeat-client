@@ -222,6 +222,7 @@ export default function PresenceTimeline({
                       key={bar.index}
                       data-bar-index={bar.index}
                       className="presence-probability-cell"
+                      aria-label={`${info.label} Bar ${bar.index + 1}, confidence ${(probability * 100).toFixed(0)}%`}
                       style={{ backgroundColor: `${info.color}${Math.round(probability * 170 + 20).toString(16).padStart(2, '0')}` }}
                       onPointerDown={event => {
                         onSelectElement(element)
