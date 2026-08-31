@@ -1,0 +1,64 @@
+{
+  "schema_name": "harbeat.editorial_web_deployment",
+  "schema_version": "1.0.0",
+  "deployed_at": "2026-08-31T16:25:23Z",
+  "source_commit": "86d36dc17738528fa89821976f8c7dbb200bb86d",
+  "release_path": "/opt/harbeat/releases/editorial-web-86d36dc",
+  "previous_release_path": "/opt/harbeat/releases/public-annotation-a177ffe",
+  "persistent_annotation_dir": "/data/harbeat/bar-annotations",
+  "public_urls": {
+    "original_site": "http://8.136.120.255/",
+    "annotation_portal": "http://8.136.120.255/annotate"
+  },
+  "tests": {
+    "frontend_vitest": 39,
+    "frontend_test_files": 13,
+    "frontend_production_build": "passed",
+    "typescript": "passed",
+    "independent_code_review": "ready"
+  },
+  "staging_acceptance": {
+    "port": 18000,
+    "health_status": 200,
+    "original_site_status": 200,
+    "annotation_portal_status": 200,
+    "staging_service_stopped_after_switch": true
+  },
+  "production_acceptance": {
+    "service_active": true,
+    "effective_working_directory": "/opt/harbeat/releases/editorial-web-86d36dc",
+    "gateway_health_status": 200,
+    "original_site_status": 200,
+    "annotation_portal_status": 200,
+    "css_asset_status": 200,
+    "javascript_asset_status": 200,
+    "local_font_asset_status": 200,
+    "public_registration_verified": true,
+    "temporary_acceptance_account": "deactivated",
+    "pilot_tracks_visible": 10,
+    "annotation_workspace_loaded": true,
+    "annotation_files_before": 4,
+    "annotation_files_after": 4,
+    "persistence_after_restart": true,
+    "service_errors_after_switch": 0
+  },
+  "visual_acceptance": {
+    "desktop_viewport": "1440x900",
+    "mobile_viewport": "390x844",
+    "desktop_horizontal_overflow": false,
+    "mobile_horizontal_overflow": false,
+    "login_page": "passed",
+    "main_site": "passed",
+    "annotation_empty_state": "passed",
+    "annotation_loaded_workspace": "passed"
+  },
+  "rollback": {
+    "drop_in_backup": "/etc/systemd/system/harbeat-api.service.d/public-annotation.conf.pre-editorial-86d36dc",
+    "steps": [
+      "Restore the drop-in backup to /etc/systemd/system/harbeat-api.service.d/public-annotation.conf",
+      "Run systemctl daemon-reload",
+      "Restart harbeat-api"
+    ],
+    "annotation_data_policy": "Keep /data/harbeat/bar-annotations untouched"
+  }
+}
