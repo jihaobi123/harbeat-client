@@ -1,0 +1,1931 @@
+{
+  "schema_version": "harbeat_mert_vectors_v1",
+  "created_at": "2026-08-31T08:12:34.391687+00:00",
+  "dataset_root": "external:style_reference_v0",
+  "model": {
+    "id": "m-a-p/MERT-v1-95M",
+    "requested_revision": "12af15f",
+    "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+    "license": "CC-BY-NC-4.0",
+    "frozen": true,
+    "native_sample_rate": 24000,
+    "native_feature_rate_hz": 75.0,
+    "hidden_layers_including_projection": 13,
+    "hidden_size": 768
+  },
+  "extraction": {
+    "device": "mps",
+    "chunk_sec": 5.0,
+    "hop_sec": 2.5,
+    "time_bin_sec": 0.5,
+    "storage_dtype": "float16",
+    "time_pooling": "token_mean_with_overlap_averaging",
+    "bar_pooling": "time_bin_overlap_weighted_mean",
+    "song_pooling": "duration_weighted_time_bin_mean"
+  },
+  "track_count_requested": 65,
+  "track_count_completed": 65,
+  "track_count_failed": 0,
+  "labels_are_reviewed": false,
+  "tracks": [
+    {
+      "track_id": "01717e42ff56d162",
+      "primary_style": "dancehall",
+      "artist": "Bad Bunny,Drake",
+      "primary_artist": "Bad Bunny",
+      "title": "MIA (feat. Drake)",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "01717e42ff56d1620e688fe7199119d75942899eaa2e9eb7312e3c1aa8a1c3cd",
+      "time_shape": [
+        421,
+        13,
+        768
+      ],
+      "bar_shape": [
+        85,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 210.3678741455078,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "042c62464b524ce4",
+      "primary_style": "boombap",
+      "artist": "Lords of the Underground",
+      "primary_artist": "Lords of the Underground",
+      "title": "What I'm After",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "042c62464b524ce46103dfe910b094b7bf03ea4c35ed6b4c84293a55e9870709",
+      "time_shape": [
+        521,
+        13,
+        768
+      ],
+      "bar_shape": [
+        104,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 260.4000549316406,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "074b5867a7993833",
+      "primary_style": "jazz_hiphop",
+      "artist": "Robert de Boron,Othello",
+      "primary_artist": "Robert de Boron",
+      "title": "Prayer Vox feat. Vivian Chen ~infused by Caccini πÇîAve MariaπÇì~",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+      "time_shape": [
+        505,
+        13,
+        768
+      ],
+      "bar_shape": [
+        96,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 252.2400360107422,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "09371f0f29e2c6a4",
+      "primary_style": "jersey_club",
+      "artist": "Bandmanrill",
+      "primary_artist": "Bandmanrill",
+      "title": "FREE BRO",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "09371f0f29e2c6a482f012b7363c8a9aa0451bf3010bff8ac9e8c6f25bff7e56",
+      "time_shape": [
+        207,
+        13,
+        768
+      ],
+      "bar_shape": [
+        58,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 103.08728790283203,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "0d8966dace278086",
+      "primary_style": "breakbeat",
+      "artist": "2 Bad Mice",
+      "primary_artist": "2 Bad Mice",
+      "title": "No Respect",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "0d8966dace27808689980d4c9d93cb300efbcd502036db44ea364b2563b98e1b",
+      "time_shape": [
+        720,
+        13,
+        768
+      ],
+      "bar_shape": [
+        193,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 359.82342529296875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "1016c9c0d9a4ecd6",
+      "primary_style": "house",
+      "artist": "Phonique",
+      "primary_artist": "Phonique",
+      "title": "For The Time Being",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "1016c9c0d9a4ecd66bc5408881df51ae132386aa8b960e5cecaa0df74691b03b",
+      "time_shape": [
+        827,
+        13,
+        768
+      ],
+      "bar_shape": [
+        213,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 413.0726318359375,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "120cc0677da8aa7f",
+      "primary_style": "baile_funk",
+      "artist": "Lazuli",
+      "primary_artist": "Lazuli",
+      "title": "No Me Tocas",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "120cc0677da8aa7fb3f501b0f28494eb6581c70c17f7423892dc54497e73b45d",
+      "time_shape": [
+        239,
+        13,
+        768
+      ],
+      "bar_shape": [
+        65,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 119.33025360107422,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "160ae213bbe0b921",
+      "primary_style": "afro_afrobeats",
+      "artist": "Rema,Selena Gomez",
+      "primary_artist": "Rema",
+      "title": "Calm Down",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "160ae213bbe0b921dd79ef923ae4cab80dc56461e43b66a7ebc0f078877f0cbb",
+      "time_shape": [
+        479,
+        13,
+        768
+      ],
+      "bar_shape": [
+        105,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 239.3177947998047,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "164314a928b8d35d",
+      "primary_style": "trap",
+      "artist": "Nicki Minaj",
+      "primary_artist": "Nicki Minaj",
+      "title": "Yikes",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "164314a928b8d35d764afe28b87fd2d70f45c57f0501410a24ed872541efb25a",
+      "time_shape": [
+        314,
+        13,
+        768
+      ],
+      "bar_shape": [
+        58,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 156.8820037841797,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "19dd6399e3f1caa0",
+      "primary_style": "amapiano",
+      "artist": "Boohle,Busta 929,Reece Madlisa",
+      "primary_artist": "Boohle",
+      "title": "Hamba Nobani",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "19dd6399e3f1caa0a9fad6aa7e05011eb08f992decf83808273eba58a16ff90b",
+      "time_shape": [
+        776,
+        13,
+        768
+      ],
+      "bar_shape": [
+        186,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 387.9495849609375,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "1b0fdbbffc8d0e98",
+      "primary_style": "amapiano",
+      "artist": "Remy Baggins",
+      "primary_artist": "Remy Baggins",
+      "title": "Sample",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "1b0fdbbffc8d0e98688fc7502ab66bdf150016ab5358b4e4961633bfb3b0410b",
+      "time_shape": [
+        458,
+        13,
+        768
+      ],
+      "bar_shape": [
+        141,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 228.84957885742188,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "1c495e2c042293db",
+      "primary_style": "amapiano",
+      "artist": "DJ Shawn,L.A.X,Reekado Banks",
+      "primary_artist": "DJ Shawn",
+      "title": "BADDEST",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "1c495e2c042293db340f884768ee04197b7a57bccb26f7eb77bd28fe16fc1032",
+      "time_shape": [
+        451,
+        13,
+        768
+      ],
+      "bar_shape": [
+        102,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 225.48899841308594,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "1f5e732a369cc1be",
+      "primary_style": "jazz_hiphop",
+      "artist": "GAGLE",
+      "primary_artist": "GAGLE",
+      "title": "Love Note (Original Instrumental)",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\", \"version_or_remix_name\"]",
+      "audio_sha256": "1f5e732a369cc1becc273b4587ae50abbec5d5dee185fcf35db7aedca62f8f15",
+      "time_shape": [
+        524,
+        13,
+        768
+      ],
+      "bar_shape": [
+        97,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 261.5640869140625,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "2421bf94e8c0430c",
+      "primary_style": "boombap",
+      "artist": "Wreckx-N-Effect",
+      "primary_artist": "Wreckx-N-Effect",
+      "title": "Rump Shaker",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "2421bf94e8c0430cd78c3c700786359fb2d01bd6e85a9ca5d7de3e18e34aab79",
+      "time_shape": [
+        712,
+        13,
+        768
+      ],
+      "bar_shape": [
+        151,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 355.760009765625,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "246e6a0378742289",
+      "primary_style": "funk",
+      "artist": "The Reddings",
+      "primary_artist": "The Reddings",
+      "title": "Doin' It",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+      "time_shape": [
+        553,
+        13,
+        768
+      ],
+      "bar_shape": [
+        139,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 276.48004150390625,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "30542f6b6f86e278",
+      "primary_style": "disco",
+      "artist": "Michael Fortunati",
+      "primary_artist": "Michael Fortunati",
+      "title": "Give Me Up",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "30542f6b6f86e2789810b6cb9bb550bbce27b197597dcb2b6ec241693bfc1efa",
+      "time_shape": [
+        451,
+        13,
+        768
+      ],
+      "bar_shape": [
+        116,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 225.4267120361328,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "44108e04909e6bd1",
+      "primary_style": "breakbeat",
+      "artist": "Sonz of a Loop Da Loop Era",
+      "primary_artist": "Sonz of a Loop Da Loop Era",
+      "title": "Far Out",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "44108e04909e6bd101d27a5ebbf8c8a310f354d16ba32b96fc1ce13b806f526f",
+      "time_shape": [
+        592,
+        13,
+        768
+      ],
+      "bar_shape": [
+        170,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 295.7757873535156,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "441fc43b35110f9b",
+      "primary_style": "disco",
+      "artist": "Divine",
+      "primary_artist": "Divine",
+      "title": "Shoot Your Shot",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "441fc43b35110f9b50f1862b6e05b5eb8789619da0e06072efe199663c9df097",
+      "time_shape": [
+        773,
+        13,
+        768
+      ],
+      "bar_shape": [
+        222,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 386.06475830078125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "4901bfdc3cf959f2",
+      "primary_style": "breakbeat",
+      "artist": "ankokushinwa",
+      "primary_artist": "ankokushinwa",
+      "title": "Lose Control",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "4901bfdc3cf959f2899f7ee182aad3153b5d839bfa2ea1b650713b9a43269844",
+      "time_shape": [
+        569,
+        13,
+        768
+      ],
+      "bar_shape": [
+        161,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 284.11767578125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "49d4ac83da372eab",
+      "primary_style": "funk",
+      "artist": "Bruno Mars",
+      "primary_artist": "Bruno Mars",
+      "title": "24K Magic (1)",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "49d4ac83da372eab5722524cb71d732dca8d14bcd6eb5f21393026c8d0e2986f",
+      "time_shape": [
+        452,
+        13,
+        768
+      ],
+      "bar_shape": [
+        97,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 225.98312377929688,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "506d0d59407ac4c5",
+      "primary_style": "disco",
+      "artist": "Ken Laszlo",
+      "primary_artist": "Ken Laszlo",
+      "title": "Tonight",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "506d0d59407ac4c53c1af6bab9216b58d5dce51f7c922af9b7e65e87e8f5dc8b",
+      "time_shape": [
+        695,
+        13,
+        768
+      ],
+      "bar_shape": [
+        180,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 347.4933776855469,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "5f7a688d0c0dff4e",
+      "primary_style": "jazz_hiphop",
+      "artist": "Nieve",
+      "primary_artist": "Nieve",
+      "title": "Playback (feat. Ine)",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "5f7a688d0c0dff4e1bc7b9ae70470b8fe2afe69ecafd75397755e6668dc7eb5e",
+      "time_shape": [
+        544,
+        13,
+        768
+      ],
+      "bar_shape": [
+        104,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 271.6133728027344,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "61926ee832b5095d",
+      "primary_style": "amapiano",
+      "artist": "Ms Dee,A-Star",
+      "primary_artist": "Ms Dee",
+      "title": "Yensa",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "61926ee832b5095d266abd56abf569a4cfdbfdafbc75378d15fa80078b5dbb68",
+      "time_shape": [
+        653,
+        13,
+        768
+      ],
+      "bar_shape": [
+        167,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 326.10003662109375,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "61f26b2414652cfe",
+      "primary_style": "dancehall",
+      "artist": "DJ Snake,Justin Bieber",
+      "primary_artist": "DJ Snake",
+      "title": "Let Me Love You",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "61f26b2414652cfe39e8d98802ca7999301f4bf42135d5de63ac9e7a5167d651",
+      "time_shape": [
+        412,
+        13,
+        768
+      ],
+      "bar_shape": [
+        84,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 205.94667053222656,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "64f489707fddc310",
+      "primary_style": "afro_afrobeats",
+      "artist": "Doja Cat",
+      "primary_artist": "Doja Cat",
+      "title": "Woman",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "64f489707fddc3101438f447d1cf35b1675b7bfd7bb79a9c266fdfb010027665",
+      "time_shape": [
+        346,
+        13,
+        768
+      ],
+      "bar_shape": [
+        77,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 172.68682861328125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "660a7b9fd0a7eca8",
+      "primary_style": "jersey_club",
+      "artist": "Yamaica",
+      "primary_artist": "Yamaica",
+      "title": "Shake The Room Jersey Club",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "660a7b9fd0a7eca81b19b0dbb2d00bc63232410e41e2f31c85fa17762cefa945",
+      "time_shape": [
+        431,
+        13,
+        768
+      ],
+      "bar_shape": [
+        164,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 215.45799255371094,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "68e1b6036f7f3d0d",
+      "primary_style": "house",
+      "artist": "Cassius",
+      "primary_artist": "Cassius",
+      "title": "Feeling for You",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "68e1b6036f7f3d0dfc316caa9bdc95f4b3d00331cce57e9b7c5a29d11f08b975",
+      "time_shape": [
+        556,
+        13,
+        768
+      ],
+      "bar_shape": [
+        152,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 277.8133239746094,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "6aa43bf8997b9757",
+      "primary_style": "grime_uk_hiphop",
+      "artist": "Skrillex,Missy Elliott,Mr. Oizo",
+      "primary_artist": "Skrillex",
+      "title": "RATATA",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "6aa43bf8997b97571097a958043260e838a4aee716e25ee1bca7ed68a4cc79f5",
+      "time_shape": [
+        254,
+        13,
+        768
+      ],
+      "bar_shape": [
+        66,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 126.77420806884766,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "6b70bdcea259890c",
+      "primary_style": "funk",
+      "artist": "Bruno Mars",
+      "primary_artist": "Bruno Mars",
+      "title": "Treasure (1)",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "6b70bdcea259890c30a4585bcb4254a7692772d5e9a05cb6bb1a63140bc883ef",
+      "time_shape": [
+        358,
+        13,
+        768
+      ],
+      "bar_shape": [
+        87,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 178.55999755859375,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "6f1731cc39ec867d",
+      "primary_style": "trap",
+      "artist": "Trip Lee,Thi'sl",
+      "primary_artist": "Trip Lee",
+      "title": "Lazarus",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "6f1731cc39ec867d2f231c673c49f13fe94d710971149c0d1dac95cb71f25d0a",
+      "time_shape": [
+        564,
+        13,
+        768
+      ],
+      "bar_shape": [
+        102,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 281.7289733886719,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "79b8034c69bfb4de",
+      "primary_style": "grime_uk_hiphop",
+      "artist": "Redlight,Kam-Bu,Tia Carys",
+      "primary_artist": "Redlight",
+      "title": "I Like",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "79b8034c69bfb4de05c891b560f24bc3ca763880b79a26ea8b8c07bfaeae3cb8",
+      "time_shape": [
+        315,
+        13,
+        768
+      ],
+      "bar_shape": [
+        89,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 157.27395629882812,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "7ae130bf79ad0b47",
+      "primary_style": "amapiano",
+      "artist": "Costa Titch,CΓÇÖBuda M,Alfa Kat",
+      "primary_artist": "Costa Titch",
+      "title": "Big Flexa",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "7ae130bf79ad0b474a4109a3cb068cd867c5f4f1be62a28d0c399452b7b0c855",
+      "time_shape": [
+        655,
+        13,
+        768
+      ],
+      "bar_shape": [
+        183,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 327.08026123046875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "7c28de573d1db91e",
+      "primary_style": "boombap",
+      "artist": "Manafest",
+      "primary_artist": "Manafest",
+      "title": "Bounce",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "7c28de573d1db91e6dd372c1f79f5ae9a5b72f152d3bc793c3d27fa2373a2eee",
+      "time_shape": [
+        381,
+        13,
+        768
+      ],
+      "bar_shape": [
+        86,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 190.413330078125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "8609b4e8327adfe2",
+      "primary_style": "house",
+      "artist": "Mujuice",
+      "primary_artist": "Mujuice",
+      "title": "Gone Gone Gone",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "8609b4e8327adfe21adc3ab72af799f2751483bab888bda00c5cbd194e7d6914",
+      "time_shape": [
+        803,
+        13,
+        768
+      ],
+      "bar_shape": [
+        236,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 401.2750549316406,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "86facefc6cb91411",
+      "primary_style": "jersey_club",
+      "artist": "IShowSpeed",
+      "primary_artist": "IShowSpeed",
+      "title": "Big Girls",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "86facefc6cb91411d57e5136e3ab8b9610707c716cc1fe4d507c9166070abe18",
+      "time_shape": [
+        271,
+        13,
+        768
+      ],
+      "bar_shape": [
+        80,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 135.21128845214844,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "8728534e623361f3",
+      "primary_style": "jazz_hiphop",
+      "artist": "Shing02,Cradle Orchestra",
+      "primary_artist": "Shing02",
+      "title": "Ampersand",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "8728534e623361f3587005b72c0c698507f715ffe2f585e074c4a0d6a9dc5d10",
+      "time_shape": [
+        555,
+        13,
+        768
+      ],
+      "bar_shape": [
+        113,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 277.1301574707031,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "8978aa380e85155e",
+      "primary_style": "boombap",
+      "artist": "Gramatik",
+      "primary_artist": "Gramatik",
+      "title": "Lonely & Cold",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "8978aa380e85155e8a2dbc87f140c030a1a5fed29339b235958965b8baa50263",
+      "time_shape": [
+        382,
+        13,
+        768
+      ],
+      "bar_shape": [
+        81,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 190.75,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "8ce53e9395381408",
+      "primary_style": "jazz_hiphop",
+      "artist": "Uyama Hiroto,Cise Starr",
+      "primary_artist": "Uyama Hiroto",
+      "title": "Soul Of Freedom",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "8ce53e93953814086ae03093be6d285b794767b8b0bf061a833f24b1e1a6f74a",
+      "time_shape": [
+        605,
+        13,
+        768
+      ],
+      "bar_shape": [
+        136,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 302.3333740234375,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "9008996c0865ce47",
+      "primary_style": "baile_funk",
+      "artist": "The Weeknd",
+      "primary_artist": "The Weeknd",
+      "title": "Sa╠âo Paulo",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "9008996c0865ce4778de5eff56504d8ad938d71112a0d80104fce972fbbc4b44",
+      "time_shape": [
+        604,
+        13,
+        768
+      ],
+      "bar_shape": [
+        193,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 301.6231689453125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "90b739cb337d1003",
+      "primary_style": "dancehall",
+      "artist": "Justin Bieber",
+      "primary_artist": "Justin Bieber",
+      "title": "Sorry",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "90b739cb337d10030cc582cc2fd0bea61c88b8e98f862da3a49aa6daa371d6ee",
+      "time_shape": [
+        402,
+        13,
+        768
+      ],
+      "bar_shape": [
+        89,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 200.7866668701172,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "94f7145943172f32",
+      "primary_style": "grime_uk_hiphop",
+      "artist": "Fred again..,Skepta,PlaqueBoyMax",
+      "primary_artist": "Fred again..",
+      "title": "Victory Lap Five",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "94f7145943172f32bcc019f588bb01610fa8120378a702d09907d22879a2c7d1",
+      "time_shape": [
+        690,
+        13,
+        768
+      ],
+      "bar_shape": [
+        171,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 344.5714111328125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "a51ea8ccae8992c6",
+      "primary_style": "dancehall",
+      "artist": "Stefflon Don",
+      "primary_artist": "Stefflon Don",
+      "title": "16 Shots",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "a51ea8ccae8992c6f06f564a14c3145e70c4b27a4558280a418b23dc7b0af9e7",
+      "time_shape": [
+        450,
+        13,
+        768
+      ],
+      "bar_shape": [
+        94,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 224.72792053222656,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "a9a3ae9c675678f6",
+      "primary_style": "disco",
+      "artist": "Rick Astley",
+      "primary_artist": "Rick Astley",
+      "title": "Never Gonna Give You Up",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "B",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "a9a3ae9c675678f624f6d1c3a6f8c1c798e3269b16fa7d5cc3a9be55971826d6",
+      "time_shape": [
+        425,
+        13,
+        768
+      ],
+      "bar_shape": [
+        129,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 212.39999389648438,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "ace27450c5d5ab36",
+      "primary_style": "jersey_club",
+      "artist": "YK ACE,Unicorn151",
+      "primary_artist": "YK ACE",
+      "title": "Come Up",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "ace27450c5d5ab365e64616eae425aded757fd05bc91bccb4a11af4cb65a8e0c",
+      "time_shape": [
+        323,
+        13,
+        768
+      ],
+      "bar_shape": [
+        104,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 161.07537841796875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "af4abf1b2f376930",
+      "primary_style": "dancehall",
+      "artist": "Chris Brown",
+      "primary_artist": "Chris Brown",
+      "title": "Questions",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "af4abf1b2f3769305105bef0650e7dbc25d754a851b96b55d3d18eec10271ad7",
+      "time_shape": [
+        258,
+        13,
+        768
+      ],
+      "bar_shape": [
+        57,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 128.7447052001953,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "afc2c5c171a1fce8",
+      "primary_style": "boombap",
+      "artist": "Nujabes,Shing02",
+      "primary_artist": "Nujabes",
+      "title": "Luv(sic.) Part 3 (feat. Shing02)",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "afc2c5c171a1fce80ef0481c2eaa586766cfed81ee282ed13e78045d7d303cce",
+      "time_shape": [
+        674,
+        13,
+        768
+      ],
+      "bar_shape": [
+        133,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 336.86669921875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "b3f6c0aa6864581c",
+      "primary_style": "trap",
+      "artist": "Mahogany Lox",
+      "primary_artist": "Mahogany Lox",
+      "title": "Wylin'",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "b3f6c0aa6864581c436675414134db0c282f3a614a9857d9e30c44b365b79fd9",
+      "time_shape": [
+        283,
+        13,
+        768
+      ],
+      "bar_shape": [
+        44,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 141.369873046875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "b6591545584d43e0",
+      "primary_style": "grime_uk_hiphop",
+      "artist": "Flava D,Stush",
+      "primary_artist": "Flava D",
+      "title": "Energy",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "b6591545584d43e0a6fdeb1c4a692202573fc95f16800dae9496622a521a89ea",
+      "time_shape": [
+        426,
+        13,
+        768
+      ],
+      "bar_shape": [
+        65,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 212.6714630126953,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "b8ffcc19b1cb7e07",
+      "primary_style": "house",
+      "artist": "Edu Imbernon",
+      "primary_artist": "Edu Imbernon",
+      "title": "Talgo",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+      "time_shape": [
+        833,
+        13,
+        768
+      ],
+      "bar_shape": [
+        211,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 416.3929138183594,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "bd261eec5af100ee",
+      "primary_style": "baile_funk",
+      "artist": "Dj Scuff",
+      "primary_artist": "Dj Scuff",
+      "title": "Clap Clap",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "bd261eec5af100ee721c4b128403eb8e7f431bdbde2cc1ef2dbc13153bca6773",
+      "time_shape": [
+        292,
+        13,
+        768
+      ],
+      "bar_shape": [
+        81,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 145.73716735839844,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "c6b932fd11db127b",
+      "primary_style": "breakbeat",
+      "artist": "Congress",
+      "primary_artist": "Congress",
+      "title": "40 Miles",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "c6b932fd11db127bcf74cd65e6de910aca57ba4b3fa5c7966a3ff2bb191e3bf0",
+      "time_shape": [
+        658,
+        13,
+        768
+      ],
+      "bar_shape": [
+        170,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 328.887451171875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "c7ec310ec6b714c8",
+      "primary_style": "afro_afrobeats",
+      "artist": "Tyla",
+      "primary_artist": "Tyla",
+      "title": "Truth or Dare",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "c7ec310ec6b714c831cf2dcf64e36ba8d29d2d639a5f9e8a039fa94551fbfc59",
+      "time_shape": [
+        381,
+        13,
+        768
+      ],
+      "bar_shape": [
+        99,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 190.45008850097656,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "cbd413e0e1c43d7e",
+      "primary_style": "funk",
+      "artist": "Pages",
+      "primary_artist": "Pages",
+      "title": "If I Saw You Again",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "cbd413e0e1c43d7e419f4f23797b25598f59570880815d2b9c33d5b2f1744269",
+      "time_shape": [
+        411,
+        13,
+        768
+      ],
+      "bar_shape": [
+        93,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 205.42666625976562,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "d11e0b16330b9731",
+      "primary_style": "trap",
+      "artist": "Tyga",
+      "primary_artist": "Tyga",
+      "title": "Lightskin Lil Wayne",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "d11e0b16330b97317d773a171768257daab50e144bad5bccc81d14c62451890a",
+      "time_shape": [
+        308,
+        13,
+        768
+      ],
+      "bar_shape": [
+        65,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 153.57533264160156,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "d6bc87ba8daaaa9d",
+      "primary_style": "jersey_club",
+      "artist": "Implaccable",
+      "primary_artist": "Implaccable",
+      "title": "DSK",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "d6bc87ba8daaaa9d4178a58b60587019c448d9e1cf0a80c9fbdc3498d1aefb4e",
+      "time_shape": [
+        149,
+        13,
+        768
+      ],
+      "bar_shape": [
+        25,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 74.26604461669922,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "d762327fee24ce3e",
+      "primary_style": "afro_afrobeats",
+      "artist": "Tyla",
+      "primary_artist": "Tyla",
+      "title": "Water",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "d762327fee24ce3e04af0b9f782c783681c682e0c10ac7956f39963ddb9607c1",
+      "time_shape": [
+        401,
+        13,
+        768
+      ],
+      "bar_shape": [
+        97,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 200.31858825683594,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "d8e167ca8fe99139",
+      "primary_style": "afro_afrobeats",
+      "artist": "Lojay,Sarz,Chris Brown",
+      "primary_artist": "Lojay",
+      "title": "Monalisa",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "B",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "d8e167ca8fe99139729a48e21ca4667f2199bdc5f5fa504d3e5cabb617d9ccd6",
+      "time_shape": [
+        426,
+        13,
+        768
+      ],
+      "bar_shape": [
+        100,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 212.9757080078125,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "dcc387e31f96b0f7",
+      "primary_style": "disco",
+      "artist": "Fred Ventura",
+      "primary_artist": "Fred Ventura",
+      "title": "Leave Me Alone",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "dcc387e31f96b0f72a6de064199680780d7684e9b8fa8406ce209e4dbd4eafb5",
+      "time_shape": [
+        673,
+        13,
+        768
+      ],
+      "bar_shape": [
+        169,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 336.01416015625,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "dfa2711a5ba3f541",
+      "primary_style": "baile_funk",
+      "artist": "Tion Wayne,LeoStayTrill,MJ Cole",
+      "primary_artist": "Tion Wayne",
+      "title": "Crazy Love",
+      "fold": 0,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "dfa2711a5ba3f541fb471ce9c00ad263e9be1e0aecd33e1ac0cab7c9bf79777b",
+      "time_shape": [
+        242,
+        13,
+        768
+      ],
+      "bar_shape": [
+        63,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 120.51342010498047,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "ec77d16b9f1c0372",
+      "primary_style": "house",
+      "artist": "XG",
+      "primary_artist": "XG",
+      "title": "SOMETHING AIN'T RIGHT",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "ec77d16b9f1c0372f32608aa535f06d2b9739ba574e909c20d6d58c3514e11a1",
+      "time_shape": [
+        382,
+        13,
+        768
+      ],
+      "bar_shape": [
+        117,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 190.6666717529297,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "eeab700d2f17b14f",
+      "primary_style": "trap",
+      "artist": "Lil Nas X",
+      "primary_artist": "Lil Nas X",
+      "title": "Old Town Road",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "eeab700d2f17b14f5c6ba8296c52c026cfc0ad4a0f0067783fd078060a49707f",
+      "status": "completed",
+      "duration": 113.0,
+      "sample_rate": 24000,
+      "chunk_count": 45,
+      "time_shape": [
+        226,
+        13,
+        768
+      ],
+      "bar_shape": [
+        38,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "quantization": {
+        "mean_cosine_float32_vs_float16": 1.0,
+        "min_cosine_float32_vs_float16": 0.9999997,
+        "max_abs_error": 0.00194168
+      },
+      "elapsed_sec": 3.975,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5"
+    },
+    {
+      "track_id": "f0697213cb363c43",
+      "primary_style": "grime_uk_hiphop",
+      "artist": "Stormzy",
+      "primary_artist": "Stormzy",
+      "title": "Cold",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "f0697213cb363c4373049e22da02614831bb6fa8bb3bf4c1c5049e822dda2079",
+      "time_shape": [
+        314,
+        13,
+        768
+      ],
+      "bar_shape": [
+        91,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 156.9600372314453,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "f2b99cc618ddbeeb",
+      "primary_style": "baile_funk",
+      "artist": "JENNIE",
+      "primary_artist": "JENNIE",
+      "title": "like JENNIE",
+      "fold": 1,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "f2b99cc618ddbeeb7eae3119d65e7d54925c698fbd23baea112a3ebc0c25bdd1",
+      "time_shape": [
+        248,
+        13,
+        768
+      ],
+      "bar_shape": [
+        67,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 123.51753997802734,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "f2c81091b622e284",
+      "primary_style": "funk",
+      "artist": "Chipper",
+      "primary_artist": "Chipper",
+      "title": "Let's Groove",
+      "fold": 2,
+      "label_status": "model_audited",
+      "purity_grade": "C",
+      "risk_flags": "[\"label_unreviewed\"]",
+      "audio_sha256": "f2c81091b622e28460c2e50181df063647abf0b035f036fea70c1b63da309ae2",
+      "time_shape": [
+        478,
+        13,
+        768
+      ],
+      "bar_shape": [
+        122,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 238.72438049316406,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    },
+    {
+      "track_id": "f73c75305b8a88de",
+      "primary_style": "breakbeat",
+      "artist": "Baby D",
+      "primary_artist": "Baby D",
+      "title": "Let Me Be Your Fantasy - Original Mix",
+      "fold": 3,
+      "label_status": "model_audited",
+      "purity_grade": "A",
+      "risk_flags": "[\"label_unreviewed\", \"version_or_remix_name\"]",
+      "audio_sha256": "f73c75305b8a88de4dfb66ff61805d98c7955cbce4e69111132785996b6468cb",
+      "time_shape": [
+        940,
+        13,
+        768
+      ],
+      "bar_shape": [
+        240,
+        13,
+        768
+      ],
+      "song_shape": [
+        13,
+        768
+      ],
+      "duration": 469.9178466796875,
+      "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+      "status": "cached"
+    }
+  ],
+  "errors": [],
+  "publication": {
+    "audio_included": false,
+    "local_paths_removed": true,
+    "source_audio_bound_by_sha256": true
+  }
+}

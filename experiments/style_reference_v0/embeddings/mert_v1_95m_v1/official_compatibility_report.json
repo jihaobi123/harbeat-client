@@ -1,0 +1,66 @@
+{
+  "schema_version": "harbeat_mert_official_compatibility_v1",
+  "created_at": "2026-08-31T08:01:18.912616+00:00",
+  "status": "passed",
+  "failures": [],
+  "model": {
+    "id": "m-a-p/MERT-v1-95M",
+    "requested_revision": "12af15f",
+    "resolved_revision": "12af15fef9d0ac838c3f475bfbbf26d2060dd4f5",
+    "asset_sha256": {
+      "pytorch_model.bin": "a2b8b747f72c06e0595aeae41ae5473f4364938c6b39b2c58be38c48e6bd3fcd",
+      "config.json": "ea2627c4c7825cd66f3c944b6b966331604c35928174e0100cd4a82829424e32",
+      "preprocessor_config.json": "cc5a5e4a5d3b1a758a5ed984b2eaa15bb0522d811d44a9eed82bfca4baa0dc8f",
+      "modeling_MERT.py": "6c3ee73cef6f0c30ef494f88d96f891fa6925ffe663fa391b512f4b57abecc6c",
+      "configuration_MERT.py": "ae0ec2bab8f59c724ba9878a7c20b67210189536ea62d34a56775968e9decb03"
+    }
+  },
+  "runtime": {
+    "python": "3.12.13",
+    "platform": "macOS-26.3.2-arm64-arm-64bit",
+    "torch": "2.2.2",
+    "transformers": "4.38.2",
+    "numpy": "1.26.4"
+  },
+  "checkpoint_loading": {
+    "checkpoint_tensor_count": 211,
+    "loaded_tensor_count": 211,
+    "missing_keys": [],
+    "extra_keys": [],
+    "unequal_tensors": [],
+    "max_parameter_abs_diff": 0.0
+  },
+  "weight_norm": {
+    "representation": "legacy_weight_g_weight_v_dim_2",
+    "effective_weight_max_abs_diff": 0.0,
+    "conv_output_max_abs_diff": 0.0
+  },
+  "cpu_reference": {
+    "input": "deterministic_5_second_24khz_three_sine_signal_v1",
+    "output_shape": [
+      1,
+      13,
+      374,
+      768
+    ],
+    "output_dtype": "torch.float32",
+    "finite": true,
+    "repeat_max_abs_diff": 0.0,
+    "output_sha256": "6f8af74373609eb92736fa6489e3890a6d7702d8d06307247169398dd87dcd4c",
+    "mean": -0.0025343578308820724,
+    "std": 0.3210841715335846,
+    "l2_norm": 620.4067993164062
+  },
+  "device_agreement": {
+    "tested": true,
+    "mps_finite": true,
+    "max_abs_diff": 3.361701965332031e-05,
+    "mean_abs_diff": 1.3100190017212299e-06,
+    "cosine_similarity": 0.9999999999835744,
+    "allclose_atol_1e-3_rtol_1e-3": true
+  },
+  "scope": {
+    "verified": "official MERT chunk-level hidden states and preprocessing",
+    "not_official": "HarBeat overlap merging and time/bar/song pooling"
+  }
+}
