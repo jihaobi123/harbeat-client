@@ -316,7 +316,7 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <div className="bg-surface rounded-xl p-4 space-y-3">
+    <div className="waveform-card p-4 space-y-3">
       <h3 className="text-sm font-semibold text-white">波形播放器</h3>
 
       {/* Waveform canvas */}

@@ -285,10 +285,13 @@ export default function SessionPanel() {
   const offlinePreviewUrl = offlinePreviewFile ? getMixStreamUrl(offlinePreviewFile) : ''
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-700">
-        <h2 className="text-base sm:text-lg font-semibold text-white mb-1">🎤 DJ 练舞会话</h2>
-        <p className="text-xs text-gray-500">记录你的练舞过程和关键时刻</p>
+    <div className="feature-panel feature-panel--session flex flex-col overflow-hidden min-w-0">
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">04</span>
+        <div>
+          <h1>DJ Session / 练舞会话</h1>
+          <p className="text-xs text-gray-500">记录你的练舞过程和关键时刻</p>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 sm:space-y-5">
@@ -769,5 +772,4 @@ export default function SessionPanel() {
     </div>
   )
 }
-
 

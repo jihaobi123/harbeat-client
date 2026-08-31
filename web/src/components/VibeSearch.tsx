@@ -63,7 +63,7 @@ export default function VibeSearch() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+    <div className="feature-panel feature-panel--vibe flex flex-col overflow-hidden min-w-0">
       {/* Search bar */}
       <div className="px-5 py-4 border-b border-gray-700 space-y-3">
         <div className="flex gap-2">
@@ -100,7 +100,7 @@ export default function VibeSearch() {
       {/* Results */}
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
         {error && (
-          <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-4 py-2 text-red-300 text-sm">
+          <div className="editorial-state editorial-state--error text-sm" role="alert">
             {error}
           </div>
         )}

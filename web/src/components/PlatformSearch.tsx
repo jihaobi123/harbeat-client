@@ -188,11 +188,13 @@ export default function PlatformSearch() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="feature-panel feature-panel--search flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-5 border-b border-gray-700">
-        <h2 className="text-lg font-bold text-white mb-1">🌐 在线搜索</h2>
-        <p className="text-xs text-gray-500 mb-3">搜索在线音乐资源，点击下载时可为歌曲设置标签</p>
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">02</span>
+        <div><h1>Search / 在线搜索</h1><p>搜索在线音乐资源，下载时可以设置歌曲标签</p></div>
+      </div>
+      <div className="p-5 border-b-2 border-black">
         <div className="relative">
           <input
             type="text"
@@ -208,7 +210,7 @@ export default function PlatformSearch() {
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+        {error && <p className="editorial-state editorial-state--error text-xs mt-3" role="alert">{error}</p>}
       </div>
 
       {/* Results */}

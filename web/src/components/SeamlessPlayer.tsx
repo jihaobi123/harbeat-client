@@ -721,7 +721,7 @@ export default function SeamlessPlayer({
   if (!tracks.length) return null
 
   return (
-    <div className="bg-gradient-to-b from-surface-light to-surface rounded-xl border border-gray-700/50 overflow-hidden shadow-xl">
+    <div className="deck-card overflow-hidden">
       <div className="px-4 py-2.5 flex items-center gap-2 border-b border-gray-700/50">
         <span className="relative flex h-2.5 w-2.5">
           {playing && (

@@ -92,16 +92,17 @@ export default function RecommendPanel() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-      <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between">
+    <div className="feature-panel feature-panel--discover flex flex-col overflow-hidden min-w-0">
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">03</span>
         <div>
-          <h2 className="text-lg font-semibold text-white mb-1">🎯 发现音乐</h2>
+          <h1>Discover / 发现音乐</h1>
           <p className="text-xs text-gray-500">自动推荐不同舞种、场景下适合的音乐</p>
         </div>
         <button
           onClick={fetchDiscover}
           disabled={loading}
-          className="bg-surface hover:bg-surface-lighter text-gray-300 border border-gray-600 px-3 py-1.5 rounded-lg text-sm transition disabled:opacity-50"
+          className="self-center ml-auto mr-3 bg-surface hover:bg-surface-lighter text-gray-300 px-3 py-1.5 text-sm transition disabled:opacity-50"
         >
           {loading ? '刷新中...' : '🔄 换一批'}
         </button>
@@ -109,7 +110,7 @@ export default function RecommendPanel() {
 
       <div className="flex-1 overflow-y-auto p-5 space-y-6">
         {error && (
-          <div className="bg-red-500/20 border border-red-500/40 rounded-lg px-4 py-2 text-red-300 text-sm">
+          <div className="editorial-state editorial-state--error text-sm" role="alert">
             {error}
           </div>
         )}
@@ -121,7 +122,7 @@ export default function RecommendPanel() {
         )}
 
         {!loading && sections.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+          <div className="editorial-state editorial-state--empty flex flex-col items-center justify-center py-16 text-gray-500">
             <span className="text-4xl mb-3">🎵</span>
             <p className="text-sm">服务器上还没有歌曲</p>
             <p className="text-xs mt-1">去「在线搜索」下载一些歌曲吧</p>

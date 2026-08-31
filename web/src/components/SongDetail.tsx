@@ -546,7 +546,7 @@ export default function SongDetail() {
   }[song.analysis_status] || '未分析'
 
   return (
-    <div className="hidden md:flex w-96 bg-surface-light border-l border-gray-700 flex-col shrink-0 overflow-y-auto">
+    <aside className="song-detail hidden md:flex w-96 bg-surface-light border-l-2 border-black flex-col shrink-0 overflow-y-auto">
       {/* Header */}
       <div className="p-5">
         <div className="w-full aspect-video bg-surface rounded-xl flex items-center justify-center text-5xl mb-4">🎵</div>
@@ -669,7 +669,7 @@ export default function SongDetail() {
           className="w-full text-gray-500 hover:text-red-400 text-sm py-2 transition"
         >删除</button>
       </div>
-    </div>
+    </aside>
   )
 }
 

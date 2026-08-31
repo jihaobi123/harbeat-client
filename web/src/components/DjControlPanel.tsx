@@ -37,11 +37,16 @@ export default function DjControlPanel() {
   function prev() { if (step > 1) setStep((step - 1) as StepId) }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-surface-light street-sticker md:rounded-[10px] p-3 sm:p-4">
-      <div className="flex items-center gap-2 sm:gap-3 mb-3 flex-wrap">
-        <span className="text-2xl">🎛️</span>
-        <div className="street-title text-xl sm:text-2xl leading-none">DJ Control · 5 步打歌单</div>
+    <div className="feature-panel feature-panel--dj flex flex-col overflow-hidden">
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">05</span>
+        <div>
+          <h1>DJ Control / 5 步打歌单</h1>
+          <p>Pick · Sequence · Mix · Cut · FX</p>
+        </div>
       </div>
+
+      <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-4">
 
       <Stepper step={step} onJump={setStep} pickedCount={picked.length} sequencedCount={sequence.length} />
 
@@ -77,6 +82,7 @@ export default function DjControlPanel() {
           className="bg-primary text-black px-4 py-1.5 text-sm font-bold rounded-md disabled:opacity-40">
           下一步 →
         </button>
+      </div>
       </div>
     </div>
   )

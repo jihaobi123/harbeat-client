@@ -3,6 +3,7 @@ import { useMusicStore } from '../store/useMusicStore'
 import { useAuthStore } from '../store/useAuthStore'
 import * as api from '../api/client'
 import type { LibrarySong, Playlist } from '../types'
+import { BrandIllustration } from './editorial/BrandIllustration'
 
 function formatDuration(sec: number): string {
   if (!sec || sec <= 0) return '--:--'
@@ -70,8 +71,8 @@ function SongRow({ song }: { song: LibrarySong }) {
   return (
     <>
       <div
-        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition group ${
-          isSelected ? 'bg-primary/15' : 'hover:bg-surface-lighter'
+        className={`song-list-row flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition group ${
+          isSelected ? 'is-selected' : 'hover:bg-surface-lighter'
         }`}
         onClick={() => selectSong(song)}
         onDoubleClick={() => playSong(song)}
@@ -184,15 +185,14 @@ export default function SongList() {
   const { songs, songsLoading, selectedPlaylist } = useMusicStore()
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+    <div className="feature-panel feature-panel--library flex flex-col overflow-hidden min-w-0">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-3">
-        <h2 className="text-sm font-semibold text-white">
-          {selectedPlaylist ? selectedPlaylist.playlist_name : '我的音乐库'}
-        </h2>
-        <span className="text-xs text-gray-500">
-          {selectedPlaylist ? `${selectedPlaylist.songs.length} 首` : `${songs.length} 首`}
-        </span>
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">01</span>
+        <div>
+          <h1>{selectedPlaylist ? selectedPlaylist.playlist_name : 'Library / 我的音乐库'}</h1>
+          <p>{selectedPlaylist ? `${selectedPlaylist.songs.length} 首` : `${songs.length} 首`} · your music collection</p>
+        </div>
       </div>
 
       {/* Column headers */}
@@ -237,8 +237,8 @@ export default function SongList() {
             ))
           )
         ) : songs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-            <div className="text-4xl mb-3">🎵</div>
+          <div className="editorial-state editorial-state--empty flex flex-col items-center justify-center h-64 text-gray-500 m-4">
+            <BrandIllustration variant="turntable" />
             <div className="text-sm">音乐库为空</div>
             <div className="text-xs mt-1">点击右上角「上传」添加音乐</div>
           </div>

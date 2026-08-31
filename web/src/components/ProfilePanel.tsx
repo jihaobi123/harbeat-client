@@ -42,10 +42,13 @@ export default function ProfilePanel() {
   ] : []
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-      <div className="px-5 py-4 border-b border-gray-700">
-        <h2 className="text-lg font-semibold text-white mb-1">👤 音乐画像</h2>
-        <p className="text-xs text-gray-500">基于你的音乐库自动分析你的音乐品味</p>
+    <div className="feature-panel feature-panel--profile flex flex-col overflow-hidden min-w-0">
+      <div className="feature-panel__heading">
+        <span aria-hidden="true">06</span>
+        <div>
+          <h1>Profile / 音乐画像</h1>
+          <p className="text-xs text-gray-500">基于你的音乐库自动分析你的音乐品味</p>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
