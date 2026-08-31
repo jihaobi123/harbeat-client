@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useMusicStore } from '../store/useMusicStore'
 import * as api from '../api/client'
+import { EditorialIcon } from './editorial/EditorialIcon'
+import type { EditorialIconName } from './editorial/EditorialIcon'
 
 export type NavView = 'library' | 'platform' | 'recommend' | 'session' | 'dj' | 'profile'
 
@@ -11,13 +13,13 @@ interface Props {
   onMobileAction?: () => void
 }
 
-const NAV_ITEMS: { id: NavView; icon: string; label: string }[] = [
-  { id: 'library', icon: '🎵', label: 'Library' },
-  { id: 'platform', icon: '🌐', label: 'Search' },
-  { id: 'recommend', icon: '🔥', label: 'Discover' },
-  { id: 'session', icon: '🎧', label: 'DJ Session' },
-  { id: 'dj', icon: '🎛️', label: 'DJ Control' },
-  { id: 'profile', icon: '👤', label: 'Profile' },
+const NAV_ITEMS: { id: NavView; icon: EditorialIconName; label: string }[] = [
+  { id: 'library', icon: 'library', label: 'Library' },
+  { id: 'platform', icon: 'search', label: 'Search' },
+  { id: 'recommend', icon: 'discover', label: 'Discover' },
+  { id: 'session', icon: 'headphones', label: 'DJ Session' },
+  { id: 'dj', icon: 'mixer', label: 'DJ Control' },
+  { id: 'profile', icon: 'profile', label: 'Profile' },
 ]
 
 export default function Sidebar({ currentView, onViewChange, onMobileAction }: Props) {
@@ -39,7 +41,7 @@ export default function Sidebar({ currentView, onViewChange, onMobileAction }: P
   }
 
   return (
-    <div className="w-full h-full bg-surface-light flex flex-col overflow-hidden street-sticker md:rounded-[10px]">
+    <div className="editorial-sidebar w-full h-full bg-surface-light flex flex-col overflow-hidden street-sticker">
       <nav className="p-3 space-y-2">
         {NAV_ITEMS.map(item => (
           <button
@@ -51,15 +53,18 @@ export default function Sidebar({ currentView, onViewChange, onMobileAction }: P
             className={`w-full text-left px-3 py-2 text-sm font-semibold rounded-md ${
               currentView === item.id && !selectedPlaylist ? 'bg-primary text-black' : 'bg-surface-lighter'
             }`}
+            aria-current={currentView === item.id && !selectedPlaylist ? 'page' : undefined}
           >
-            {item.icon} {item.label}
+            <EditorialIcon name={item.icon} decorative />
+            <span>{item.label}</span>
           </button>
         ))}
         <button
           onClick={() => window.location.assign('/annotate')}
           className="w-full text-left px-3 py-2 text-sm font-semibold rounded-md bg-surface-lighter"
         >
-          🏷️ 公共标注工作台
+          <EditorialIcon name="tag" decorative />
+          <span>公共标注工作台</span>
         </button>
       </nav>
 

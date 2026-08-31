@@ -14,6 +14,20 @@ import SessionPanel from '../components/SessionPanel'
 import ProfilePanel from '../components/ProfilePanel'
 import DjControlPanel from '../components/DjControlPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { EditorialIcon } from '../components/editorial/EditorialIcon'
+import type { EditorialIconName } from '../components/editorial/EditorialIcon'
+
+const MOBILE_NAV: Array<{
+  id: NavView | 'annotation'
+  label: string
+  icon: EditorialIconName
+}> = [
+  { id: 'library', label: '音乐', icon: 'library' },
+  { id: 'recommend', label: '发现', icon: 'discover' },
+  { id: 'dj', label: 'DJ', icon: 'mixer' },
+  { id: 'annotation', label: '标注', icon: 'tag' },
+  { id: 'profile', label: '我的', icon: 'profile' },
+]
 
 export default function MainLayout() {
   const { user } = useAuthStore()
@@ -71,24 +85,23 @@ export default function MainLayout() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-surface overflow-hidden street-theme p-1 sm:p-2 gap-1 sm:gap-2">
+    <div className="editorial-app street-theme">
       {/* Header */}
-      <header className="street-sticker min-h-12 sm:min-h-16 bg-surface-light px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+      <header className="editorial-topbar street-sticker">
         {/* Left: hamburger + logo */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="editorial-brand shrink-0">
           <button
-            className="md:hidden w-8 h-8 flex items-center justify-center text-lg"
+            className="md:hidden w-10 h-10 flex items-center justify-center"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? '关闭菜单' : '打开菜单'}
+            aria-expanded={sidebarOpen}
           >
-            ☰
+            <EditorialIcon name="menu" decorative />
           </button>
-          <span className="text-xl sm:text-2xl">🎚️</span>
-          <div className="hidden sm:block">
-            <div className="text-2xl street-title leading-none">HarBeat</div>
-            <div className="text-xs street-subtitle">street dance / dj platform</div>
-          </div>
-          <div className="sm:hidden">
-            <div className="text-lg street-title leading-none">HarBeat</div>
+          <div className="editorial-brand__mark" aria-hidden="true">HB</div>
+          <div>
+            <div className="editorial-brand__title">HarBeat</div>
+            <div className="editorial-brand__subtitle">street dance / dj platform</div>
           </div>
         </div>
 
@@ -104,27 +117,27 @@ export default function MainLayout() {
         </div>
 
         {/* Right: actions */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="editorial-topbar__actions shrink-0">
           {/* Mobile search toggle */}
           <button
-            className="sm:hidden w-8 h-8 flex items-center justify-center text-sm"
+            className="sm:hidden w-10 h-10 flex items-center justify-center"
             onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+            aria-label={mobileSearchOpen ? '关闭搜索' : '打开搜索'}
+            aria-expanded={mobileSearchOpen}
           >
-            🔍
+            <EditorialIcon name="search" decorative />
           </button>
           <button
             onClick={() => setShowPlaylistImport(true)}
-            className="hidden sm:block bg-surface-lighter text-sm font-semibold px-3 py-2 rounded-md"
+            className="hidden sm:block bg-surface-lighter text-sm font-semibold px-3 py-2"
           >
             Import Playlist
           </button>
           <button
             onClick={() => setShowUpload(true)}
-            className="bg-primary text-xs sm:text-sm font-bold px-2 sm:px-4 py-1.5 sm:py-2 rounded-md flex items-center gap-1"
+            className="is-primary bg-primary text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <EditorialIcon name="upload" decorative />
             <span className="hidden sm:inline">Upload</span>
           </button>
         </div>
@@ -145,7 +158,7 @@ export default function MainLayout() {
       )}
 
       {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden gap-1 sm:gap-2 min-h-0">
+      <div className="editorial-workspace">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div
@@ -155,7 +168,7 @@ export default function MainLayout() {
         )}
 
         {/* Sidebar: drawer on mobile, static on desktop */}
-        <div className={`
+        <div className={`editorial-sidebar-shell
           fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out
           md:relative md:inset-auto md:z-auto md:w-60 md:transform-none md:transition-none
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -169,6 +182,30 @@ export default function MainLayout() {
       </div>
 
       <AudioPlayer />
+
+      <nav className="editorial-mobile-nav" aria-label="手机主导航">
+        {MOBILE_NAV.map(item => {
+          const active = item.id !== 'annotation' && currentView === item.id
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={active ? 'is-active' : ''}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => {
+                if (item.id === 'annotation') {
+                  window.location.assign('/annotate')
+                } else {
+                  handleViewChange(item.id)
+                }
+              }}
+            >
+              <EditorialIcon name={item.icon} decorative />
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
 
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
       {showPlaylistImport && <PlaylistImportModal onClose={() => setShowPlaylistImport(false)} />}

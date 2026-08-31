@@ -294,7 +294,7 @@ input[type='range']::-webkit-slider-thumb, .bg-surface-lighter input[type='range
   .editorial-brand__mark { width: 40px; height: 40px; }
   .editorial-brand__subtitle { display: none; }
   .editorial-workspace { display: block; flex: 1; min-height: 0; }
-  .editorial-sidebar { display: none; }
+  .editorial-sidebar-shell { top: .45rem; bottom: .45rem; height: auto; }
   .editorial-mobile-nav { position: fixed; left: .45rem; right: .45rem; bottom: .45rem; z-index: 35; display: grid; grid-template-columns: repeat(5, 1fr); border: 3px solid var(--editorial-ink); background: var(--editorial-paper-bright); box-shadow: 4px 4px 0 var(--editorial-ink); }
   .editorial-mobile-nav button { min-width: 0; min-height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .25rem; border: 0; border-right: 2px solid var(--editorial-ink); box-shadow: none; font-size: .65rem; }
   .editorial-mobile-nav button:last-child { border-right: 0; }

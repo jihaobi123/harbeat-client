@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { getStreamUrl, logInteraction } from '../api/client'
+import { EditorialIcon } from './editorial/EditorialIcon'
 
 function formatTime(sec: number): string {
   if (!sec || sec < 0) return '0:00'
@@ -90,14 +91,14 @@ export default function AudioPlayer() {
 
   if (!playingSong) {
     return (
-      <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center justify-center shrink-0 street-sticker">
-        <span className="street-subtitle text-sm">Pick a track to start.</span>
+      <div className="editorial-player shrink-0" role="status">
+        <span className="street-subtitle text-sm">Pick a track to start / 选择一首歌曲开始播放</span>
       </div>
     )
   }
 
   return (
-    <div className="min-h-14 sm:min-h-20 bg-surface-light flex items-center px-2 sm:px-4 py-1.5 sm:py-2 gap-2 sm:gap-4 shrink-0 street-sticker">
+    <div className="editorial-player shrink-0">
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
@@ -115,22 +116,15 @@ export default function AudioPlayer() {
       <div className="flex-1 flex flex-col items-center gap-0.5 sm:gap-1 max-w-2xl mx-auto">
         <button
           onClick={togglePlay}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center"
+          className="editorial-player__play w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center"
+          aria-label={isPlaying ? '暂停' : '播放'}
         >
-          {isPlaying ? (
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-            </svg>
-          ) : (
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
+          <EditorialIcon name={isPlaying ? 'pause' : 'play'} decorative />
         </button>
 
         <div className="w-full flex items-center gap-1 sm:gap-2">
           <span className="text-[10px] sm:text-xs w-8 sm:w-10 text-right">{formatTime(currentTime)}</span>
-          <div className="flex-1 relative h-1.5 sm:h-2 border-2 border-black bg-white">
+          <div className="editorial-player__progress flex-1 relative h-2">
             <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress}%` }} />
             <input
               type="range"
@@ -144,6 +138,7 @@ export default function AudioPlayer() {
               onTouchStart={() => setSeeking(true)}
               onTouchEnd={handleSeekCommit}
               className="absolute inset-0 w-full opacity-0 cursor-pointer"
+              aria-label="播放进度"
             />
           </div>
           <span className="text-[10px] sm:text-xs w-8 sm:w-10">{formatTime(duration)}</span>
@@ -152,9 +147,7 @@ export default function AudioPlayer() {
 
       {/* Volume - hidden on mobile */}
       <div className="hidden sm:flex w-36 shrink-0 items-center gap-2">
-        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-        </svg>
+        <EditorialIcon name="volume" decorative />
         <input
           type="range"
           min={0}
@@ -163,6 +156,7 @@ export default function AudioPlayer() {
           value={volume}
           onChange={(e) => setVolume(parseFloat(e.target.value))}
           className="w-full"
+          aria-label="音量"
         />
       </div>
     </div>
