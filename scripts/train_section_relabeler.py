@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -22,11 +23,18 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.section_contract import canonical_structure_label
+from app.modules.library.section_relabel_dataset import (
+    DatasetValidationError,
+    annotation_is_reviewed,
+    annotation_is_trainable,
+    validate_dataset,
+)
 from app.modules.library.section_relabeler import (
     RELABELER_SCHEMA_VERSION,
     STRUCTURE_LABELS,
     build_track_feature_matrix,
     feature_names,
+    load_relabeler_model,
 )
 
 
@@ -36,7 +44,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-output", type=Path, required=True)
     parser.add_argument("--report-output", type=Path, required=True)
     parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--minimum-override-precision", type=float, default=0.80)
+    parser.add_argument("--minimum-override-precision", type=float, default=0.90)
+    parser.add_argument("--minimum-override-count", type=int, default=10)
     parser.add_argument("--include-low-confidence", action="store_true")
     parser.add_argument("--allow-incomplete", action="store_true")
     return parser.parse_args()
@@ -50,18 +59,8 @@ def review_progress(payload: dict[str, Any], split: str) -> dict[str, int]:
         for segment in track.get("segments") or []:
             total += 1
             annotation = dict(segment.get("annotation") or {})
-            label = canonical_structure_label(annotation.get("human_label"))
-            is_reviewed = (
-                label in STRUCTURE_LABELS
-                or bool(annotation.get("uncertain"))
-                or annotation.get("boundary_ok") is False
-            )
-            reviewed += int(is_reviewed)
-            trainable += int(
-                label in STRUCTURE_LABELS
-                and not annotation.get("uncertain")
-                and annotation.get("boundary_ok") is not False
-            )
+            reviewed += int(annotation_is_reviewed(annotation))
+            trainable += int(annotation_is_trainable(annotation))
     return {"total": total, "reviewed": reviewed, "trainable": trainable}
 
 
@@ -187,13 +186,17 @@ def choose_threshold(
     originals: np.ndarray,
     targets: np.ndarray,
     minimum_precision: float,
+    minimum_override_count: int,
 ) -> tuple[float, dict[str, Any]]:
     candidates = [round(value, 2) for value in np.arange(0.50, 0.951, 0.025)] + [1.0]
     scored: list[tuple[tuple[float, ...], float, dict[str, Any]]] = []
     for threshold in candidates:
         prediction, _ = gated_predictions(probabilities, labels, originals, threshold)
         result = metrics(targets, prediction, originals)
-        acceptable = result["override_precision"] >= minimum_precision
+        acceptable = result["changed_count"] == 0 or (
+            result["changed_count"] >= minimum_override_count
+            and result["override_precision"] >= minimum_precision
+        )
         score = (
             1.0 if acceptable else 0.0,
             float(result["net_gain"]),
@@ -214,6 +217,7 @@ def cross_validate(
     *,
     folds: int,
     minimum_precision: float,
+    minimum_override_count: int = 10,
 ) -> tuple[float, float, np.ndarray, dict[str, Any]]:
     labels = sorted(set(y.tolist()))
     unique_groups = len(set(groups.tolist()))
@@ -238,7 +242,12 @@ def cross_validate(
                 classifier, scaler.transform(x[validation_index]), labels
             )
         threshold, gated_metrics = choose_threshold(
-            oof, labels, originals, y, minimum_precision
+            oof,
+            labels,
+            originals,
+            y,
+            minimum_precision,
+            minimum_override_count,
         )
         score = (
             float(gated_metrics["net_gain"]),
@@ -255,6 +264,8 @@ def cross_validate(
         "labels_seen": labels,
         "selected_c": c_value,
         "selected_override_threshold": threshold,
+        "minimum_override_precision": minimum_precision,
+        "minimum_override_count": minimum_override_count,
         "gated_metrics": gated_metrics,
     }
 
@@ -268,11 +279,38 @@ def export_parameters(classifier) -> tuple[np.ndarray, np.ndarray]:
     return coefficients, intercept
 
 
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8") as destination:
+        json.dump(payload, destination, ensure_ascii=False, indent=2)
+        destination.write("\n")
+        destination.flush()
+        os.fsync(destination.fileno())
+    temporary.replace(path)
+
+
 def main() -> int:
     args = parse_args()
+    if not 0.0 <= args.minimum_override_precision <= 1.0:
+        raise SystemExit("--minimum-override-precision must be between 0 and 1")
+    if args.minimum_override_count < 0:
+        raise SystemExit("--minimum-override-count must be non-negative")
+    if args.folds < 2:
+        raise SystemExit("--folds must be at least 2")
     dataset_path = args.dataset.expanduser().resolve()
     raw_bytes = dataset_path.read_bytes()
     payload = json.loads(raw_bytes)
+    try:
+        dataset_validation = validate_dataset(
+            payload,
+            require_complete_splits=(
+                () if args.allow_incomplete else ("development",)
+            ),
+            include_low_confidence=args.include_low_confidence,
+        )
+    except DatasetValidationError as exc:
+        raise SystemExit(f"dataset contract validation failed: {exc}") from exc
     development_progress = review_progress(payload, "development")
     if (
         not args.allow_incomplete
@@ -295,6 +333,7 @@ def main() -> int:
         groups,
         folds=args.folds,
         minimum_precision=args.minimum_override_precision,
+        minimum_override_count=args.minimum_override_count,
     )
     scaler, classifier = fit_classifier(x, y, c_value)
     coefficients, intercept = export_parameters(classifier)
@@ -325,22 +364,20 @@ def main() -> int:
     report: dict[str, Any] = {
         "model_version": model_version,
         "dataset": str(dataset_path),
+        "dataset_schema_version": dataset_validation["schema_version"],
+        "dataset_validation": dataset_validation,
         "development": cv_report,
         "review_progress": {
             "development": development_progress,
             "test": review_progress(payload, "test"),
         },
-        "test": {"status": "not_fully_labelled"},
+        "test": {"status": "not_fully_reviewed"},
     }
     test_x, test_y, test_originals, _, test_records = collect_rows(
         payload, "test", include_low_confidence=args.include_low_confidence
     )
-    test_track_segment_count = sum(
-        len(track.get("segments") or [])
-        for track in payload.get("tracks") or []
-        if track.get("split") == "test"
-    )
-    if len(test_y) == test_track_segment_count and len(test_y) > 0:
+    test_progress = review_progress(payload, "test")
+    if test_progress["reviewed"] == test_progress["total"] and len(test_y) > 0:
         probabilities = aligned_probabilities(
             classifier, scaler.transform(test_x), list(classifier.classes_)
         )
@@ -349,6 +386,10 @@ def main() -> int:
         )
         test_metrics = metrics(test_y, prediction, test_originals)
         test_metrics["status"] = "evaluated_once"
+        test_metrics["reviewed_segments"] = test_progress["reviewed"]
+        test_metrics["evaluated_segments"] = int(len(test_y))
+        test_metrics["excluded_segments"] = test_progress["total"] - int(len(test_y))
+        test_metrics["evaluation_coverage"] = float(len(test_y) / test_progress["total"])
         test_metrics["predictions"] = [
             {
                 **record,
@@ -359,17 +400,24 @@ def main() -> int:
             for index, record in enumerate(test_records)
         ]
         report["test"] = test_metrics
+    elif test_progress["reviewed"] == test_progress["total"]:
+        report["test"] = {
+            "status": "no_evaluable_segments",
+            "reviewed_segments": test_progress["reviewed"],
+            "evaluated_segments": 0,
+            "excluded_segments": test_progress["total"],
+            "evaluation_coverage": 0.0,
+        }
+    else:
+        report["test"] = {
+            "status": "not_fully_reviewed",
+            "reviewed_segments": test_progress["reviewed"],
+            "pending_segments": test_progress["total"] - test_progress["reviewed"],
+        }
 
-    args.model_output.parent.mkdir(parents=True, exist_ok=True)
-    args.report_output.parent.mkdir(parents=True, exist_ok=True)
-    args.model_output.write_text(
-        json.dumps(model_payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    args.report_output.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_json(args.model_output, model_payload)
+    load_relabeler_model(args.model_output)
+    atomic_write_json(args.report_output, report)
     print(json.dumps({
         "model": str(args.model_output),
         "report": str(args.report_output),

@@ -15,12 +15,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.section_contract import canonical_structure_label
+from app.modules.library.section_relabel_dataset import (
+    DATASET_SCHEMA_VERSION,
+    validate_dataset,
+)
 
 
 AUDIO_SUFFIXES = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg"}
-DATASET_SCHEMA_VERSION = "harbeat_section_label_dataset_v1"
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--development-root", type=Path, required=True)
@@ -217,6 +218,8 @@ def main() -> int:
         },
         "tracks": tracks,
     }
+    validation = validate_dataset(payload, require_audio=True)
+    payload["validation_summary"] = validation
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + ".tmp")
     temporary.write_text(

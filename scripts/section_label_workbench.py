@@ -6,13 +6,27 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import re
+import shutil
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.modules.library.section_relabel_dataset import (
+    DatasetValidationError,
+    validate_annotation,
+    validate_annotation_patch,
+    validate_dataset,
+)
 
 
 LABELS = (
@@ -52,16 +66,16 @@ let data,track,selected=0,stopTimer=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function annotationDone(s){const a=s.annotation||{};return !!a.human_label||a.uncertain||a.boundary_ok===false}
 function trackDone(t){return t.segments.length>0&&t.segments.every(annotationDone)}
-function refreshProgress(){const all=data.tracks.flatMap(t=>t.segments),n=all.filter(annotationDone).length;document.querySelector('#progress').textContent=`${n}/${all.length} 段已确认`}
+function refreshProgress(){const all=data.tracks.flatMap(t=>t.segments),n=all.filter(annotationDone).length;document.querySelector('#progress').textContent=`${n}/${all.length} 段已确认 · 输出格式已校验`}
 function renderTracks(){const split=document.querySelector('#split').value,status=document.querySelector('#status').value;let html='';for(const t of data.tracks){const done=trackDone(t);if(split!=='all'&&t.split!==split)continue;if(status==='done'&&!done)continue;if(status==='pending'&&done)continue;html+=`<div class="track ${track===t?'active':''}" data-id="${esc(t.track_id)}"><div>${esc(t.display_name)}</div><small class="${done?'done':'pending'}">${esc(t.style)} · ${t.segments.length}段 · ${done?'已完成':'待确认'}</small></div>`}document.querySelector('#tracks').innerHTML=html;document.querySelectorAll('.track').forEach(el=>el.onclick=()=>selectTrack(el.dataset.id));refreshProgress()}
 function selectTrack(id){track=data.tracks.find(t=>t.track_id===id);selected=0;renderTracks();renderContent()}
 function probs(s){const p=s.structure_label_probabilities||{};return Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${ZH[k]||k} ${(100*v).toFixed(1)}%`).join('　')}
 function renderContent(){if(!track)return;const cards=track.segments.map((s,i)=>{const a=s.annotation||{},human=a.human_label||'';const buttons=LABELS.map((l,j)=>`<button class="label ${l===s.structure_label_candidate?'current':''} ${l===human?'human':''}" data-i="${i}" data-label="${l}">${j+1}.${ZH[l]}</button>`).join('');return `<article class="segment ${i===selected?'selected':''}" data-seg="${i}"><div class="row"><b>段 ${i+1}</b><button class="label play" data-i="${i}">▶ ${s.start.toFixed(2)}–${s.end.toFixed(2)}s</button><span>SongFormer：<b>${ZH[s.structure_label_candidate]||s.structure_label_candidate}</b></span>${a.boundary_ok===false?'<span class="warning">边界有问题</span>':''}${a.uncertain?'<span class="warning">不确定</span>':''}</div><p class="prob muted">${esc(probs(s))}</p><div class="row">${buttons}<button class="label accept" data-i="${i}">A.接受原标签</button><button class="label uncertain" data-i="${i}">U.不确定</button><button class="label boundary" data-i="${i}">B.边界问题</button><select class="confidence" data-i="${i}"><option value="high" ${a.human_confidence==='high'?'selected':''}>高信心</option><option value="medium" ${a.human_confidence==='medium'?'selected':''}>中信心</option><option value="low" ${a.human_confidence==='low'?'selected':''}>低信心</option></select></div><textarea data-note="${i}" placeholder="可选备注">${esc(a.notes||'')}</textarea></article>`}).join('');document.querySelector('#content').innerHTML=`<h2>${esc(track.display_name)}</h2><p class="muted">${esc(track.style)} · ${track.split==='test'?'锁定测试集':'开发集'} · ${track.songformer_status}</p><audio id="audio" controls preload="metadata" src="/audio/${encodeURIComponent(track.track_id)}"></audio>${cards}`;bind();scrollSelected(false)}
-function bind(){document.querySelectorAll('[data-seg]').forEach(el=>el.onclick=e=>{if(!e.target.closest('button,textarea,select')){selected=+el.dataset.seg;renderContent()}});document.querySelectorAll('.play').forEach(b=>b.onclick=()=>play(+b.dataset.i));document.querySelectorAll('[data-label]').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:b.dataset.label,uncertain:false,boundary_ok:true}));document.querySelectorAll('.accept').forEach(b=>b.onclick=()=>{const s=track.segments[+b.dataset.i];save(+b.dataset.i,{human_label:s.structure_label_candidate,uncertain:false,boundary_ok:true})});document.querySelectorAll('.uncertain').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:'',uncertain:true}));document.querySelectorAll('.boundary').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:'',boundary_ok:false}));document.querySelectorAll('[data-note]').forEach(t=>t.onchange=()=>save(+t.dataset.note,{notes:t.value},false));document.querySelectorAll('.confidence').forEach(s=>s.onchange=()=>save(+s.dataset.i,{human_confidence:s.value},false))}
+function bind(){document.querySelectorAll('[data-seg]').forEach(el=>el.onclick=e=>{if(!e.target.closest('button,textarea,select')){selected=+el.dataset.seg;renderContent()}});document.querySelectorAll('.play').forEach(b=>b.onclick=()=>play(+b.dataset.i));document.querySelectorAll('[data-label]').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:b.dataset.label,uncertain:false,boundary_ok:true}));document.querySelectorAll('.accept').forEach(b=>b.onclick=()=>{const s=track.segments[+b.dataset.i];save(+b.dataset.i,{human_label:s.structure_label_candidate,uncertain:false,boundary_ok:true})});document.querySelectorAll('.uncertain').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:'',human_confidence:'',uncertain:true,boundary_ok:true}));document.querySelectorAll('.boundary').forEach(b=>b.onclick=()=>save(+b.dataset.i,{human_label:'',human_confidence:'',uncertain:false,boundary_ok:false}));document.querySelectorAll('[data-note]').forEach(t=>t.onchange=()=>save(+t.dataset.note,{notes:t.value},false));document.querySelectorAll('.confidence').forEach(s=>s.onchange=()=>save(+s.dataset.i,{human_confidence:s.value},false))}
 function play(i){selected=i;const s=track.segments[i],a=document.querySelector('#audio');a.currentTime=s.start;a.play();clearTimeout(stopTimer);stopTimer=setTimeout(()=>a.pause(),Math.max(200,(s.end-s.start)*1000));document.querySelectorAll('.segment').forEach((e,j)=>e.classList.toggle('selected',j===i));scrollSelected(false)}
-async function save(i,patch,advance=true){selected=i;const s=track.segments[i],confidence=document.querySelector(`.confidence[data-i="${i}"]`)?.value||'high';patch.human_confidence=patch.human_confidence||confidence;const r=await fetch('/api/annotation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({track_id:track.track_id,segment_index:i,patch})});if(!r.ok){alert(await r.text());return}s.annotation={...(s.annotation||{}),...patch};if(advance&&i+1<track.segments.length)selected=i+1;renderTracks();renderContent()}
+async function save(i,patch,advance=true){selected=i;const s=track.segments[i],confidence=document.querySelector(`.confidence[data-i="${i}"]`)?.value||'high';if(!Object.prototype.hasOwnProperty.call(patch,'human_confidence'))patch.human_confidence=confidence;const r=await fetch('/api/annotation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({track_id:track.track_id,segment_index:i,patch})});if(!r.ok){alert(await r.text());return}s.annotation={...(s.annotation||{}),...patch};if(advance&&i+1<track.segments.length)selected=i+1;renderTracks();renderContent()}
 function scrollSelected(smooth=true){document.querySelector('.segment.selected')?.scrollIntoView({block:'center',behavior:smooth?'smooth':'auto'})}
-document.addEventListener('keydown',e=>{if(!track||['TEXTAREA','SELECT'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();play(selected)}else if(e.key.toLowerCase()==='a'){const s=track.segments[selected];save(selected,{human_label:s.structure_label_candidate,uncertain:false,boundary_ok:true})}else if(e.key.toLowerCase()==='u')save(selected,{human_label:'',uncertain:true});else if(e.key.toLowerCase()==='b')save(selected,{human_label:'',boundary_ok:false});else if(/^[1-8]$/.test(e.key))save(selected,{human_label:LABELS[+e.key-1],uncertain:false,boundary_ok:true})});
+document.addEventListener('keydown',e=>{if(!track||['TEXTAREA','SELECT'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();play(selected)}else if(e.key.toLowerCase()==='a'){const s=track.segments[selected];save(selected,{human_label:s.structure_label_candidate,uncertain:false,boundary_ok:true})}else if(e.key.toLowerCase()==='u')save(selected,{human_label:'',human_confidence:'',uncertain:true,boundary_ok:true});else if(e.key.toLowerCase()==='b')save(selected,{human_label:'',human_confidence:'',uncertain:false,boundary_ok:false});else if(/^[1-8]$/.test(e.key))save(selected,{human_label:LABELS[+e.key-1],uncertain:false,boundary_ok:true})});
 document.querySelector('#split').onchange=renderTracks;document.querySelector('#status').onchange=renderTracks;
 fetch('/api/dataset').then(r=>r.json()).then(d=>{data=d;renderTracks();if(d.tracks.length)selectTrack(d.tracks[0].track_id)});
 </script></body></html>"""
@@ -79,8 +93,12 @@ def parse_args() -> argparse.Namespace:
 class Store:
     def __init__(self, path: Path):
         self.path = path.expanduser().resolve()
+        self.backup_path = self.path.with_name(
+            f"{self.path.stem}.backup{self.path.suffix}"
+        )
         self.lock = threading.Lock()
         self.payload = json.loads(self.path.read_text(encoding="utf-8"))
+        validate_dataset(self.payload, require_audio=True)
 
     def public_payload(self) -> dict[str, Any]:
         return self.payload
@@ -96,14 +114,41 @@ class Store:
             track = self.track(track_id)
             if track is None or not 0 <= index < len(track.get("segments") or []):
                 raise KeyError("unknown track or segment")
-            annotation = track["segments"][index].setdefault("annotation", {})
-            annotation.update(patch)
-            temporary = self.path.with_suffix(self.path.suffix + ".tmp")
-            temporary.write_text(
-                json.dumps(self.payload, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
+            validated_patch = validate_annotation_patch(patch)
+            annotation = dict(track["segments"][index].get("annotation") or {})
+            annotation.update(validated_patch)
+            normalized = validate_annotation(
+                annotation,
+                location=f"{track_id}.segments[{index}].annotation",
             )
-            temporary.replace(self.path)
+            temporary = self.path.with_suffix(self.path.suffix + ".tmp")
+            backup_temporary = self.backup_path.with_suffix(
+                self.backup_path.suffix + ".tmp"
+            )
+            previous_annotation = track["segments"][index].get("annotation")
+            missing = object()
+            previous_summary = self.payload.get("validation_summary", missing)
+            try:
+                track["segments"][index]["annotation"] = normalized
+                self.payload["validation_summary"] = validate_dataset(
+                    self.payload, require_audio=True
+                )
+                if self.path.is_file():
+                    shutil.copy2(self.path, backup_temporary)
+                    backup_temporary.replace(self.backup_path)
+                with temporary.open("w", encoding="utf-8") as destination:
+                    json.dump(self.payload, destination, ensure_ascii=False, indent=2)
+                    destination.write("\n")
+                    destination.flush()
+                    os.fsync(destination.fileno())
+                temporary.replace(self.path)
+            except Exception:
+                track["segments"][index]["annotation"] = previous_annotation
+                if previous_summary is missing:
+                    self.payload.pop("validation_summary", None)
+                else:
+                    self.payload["validation_summary"] = previous_summary
+                raise
 
 
 def handler_factory(store: Store):
@@ -192,7 +237,13 @@ def handler_factory(store: Store):
                 store.update_annotation(
                     str(payload["track_id"]), int(payload["segment_index"]), patch
                 )
-            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            except (
+                DatasetValidationError,
+                KeyError,
+                TypeError,
+                ValueError,
+                json.JSONDecodeError,
+            ) as exc:
                 self.send_json({"error": str(exc)}, 400)
                 return
             self.send_json({"ok": True})
