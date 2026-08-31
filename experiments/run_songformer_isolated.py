@@ -34,12 +34,42 @@ import torch
 
 scipy.inf = np.inf
 
+if __package__:
+    from .songformer_runtime_support import (
+        LABEL_CONTRACT_VERSION,
+        RUNNER_VERSION,
+        attach_segment_label_evidence,
+        build_cache_namespace,
+        fingerprint_model_path,
+        source_revision,
+    )
+else:
+    from songformer_runtime_support import (
+        LABEL_CONTRACT_VERSION,
+        RUNNER_VERSION,
+        attach_segment_label_evidence,
+        build_cache_namespace,
+        fingerprint_model_path,
+        source_revision,
+    )
+
 
 SR = 24_000
 LAYER = 10
 FRAME_RATE = 8.333
 DATASET_LABEL = "SongForm-HX-8Class"
 DATASET_ID = 5
+
+SONGFORMER_LABEL_BY_ID = {
+    0: "intro",
+    1: "verse",
+    2: "chorus",
+    3: "bridge",
+    4: "inst",
+    5: "outro",
+    6: "silence",
+    26: "pre-chorus",
+}
 
 ZH_LABELS = {
     "intro": "前奏",
@@ -158,6 +188,7 @@ def extract_encoder(
     device: torch.device,
     precision: str,
     overwrite: bool,
+    cache_namespace: str,
 ) -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
     if encoder_name == "musicfm":
@@ -213,6 +244,7 @@ def extract_encoder(
                 "encoder": encoder_name,
                 "layer": LAYER,
                 "precision": precision,
+                "cache_namespace": cache_namespace,
                 **views,
             },
             target,
@@ -279,6 +311,8 @@ def run_backend(
     songformer_root: Path,
     device: torch.device,
     overwrite: bool,
+    runtime_fingerprint: dict[str, Any],
+    cache_namespace: str,
 ) -> None:
     from dataset.label2id import DATASET_ID_ALLOWED_LABEL_IDS
     from postprocessing.functional import postprocess_functional_structure
@@ -291,17 +325,32 @@ def run_backend(
     label_mask = torch.from_numpy(mask).to(device).unsqueeze(0).unsqueeze(0)
     dataset_ids = torch.tensor([DATASET_ID], device=device, dtype=torch.long)
 
+    allowed_label_ids = list(DATASET_ID_ALLOWED_LABEL_IDS[DATASET_ID])
+    if set(allowed_label_ids) != set(SONGFORMER_LABEL_BY_ID):
+        raise RuntimeError(
+            "SongFormer dataset label ids changed; update SONGFORMER_LABEL_BY_ID "
+            f"before inference: {allowed_label_ids}"
+        )
+    evidence_label_ids = list(SONGFORMER_LABEL_BY_ID)
+
     manifest: dict[str, Any] = {
         "model": "ASLP-lab/SongFormer",
         "pipeline": "official MusicFM+MuQ layer-10, global+30s views",
         "device": str(device),
         "frame_rate": FRAME_RATE,
+        "runner_version": RUNNER_VERSION,
+        "label_contract_version": LABEL_CONTRACT_VERSION,
+        "runtime_fingerprint": runtime_fingerprint,
+        "cache_namespace": cache_namespace,
         "tracks": [],
     }
     manifest_path = out_dir / "manifest.json"
     if manifest_path.exists() and not overwrite:
-        manifest = json.loads(manifest_path.read_text())
-        manifest["device"] = str(device)
+        existing_manifest = json.loads(manifest_path.read_text())
+        if existing_manifest.get("cache_namespace") == cache_namespace:
+            manifest = existing_manifest
+            manifest["device"] = str(device)
+            manifest["runtime_fingerprint"] = runtime_fingerprint
 
     completed = {
         item.get("audio_path"): item.get("audio_fingerprint")
@@ -318,6 +367,7 @@ def run_backend(
         record: dict[str, Any] = {
             "audio_path": resolved,
             "audio_fingerprint": audio_fingerprint,
+            "cache_namespace": cache_namespace,
             "title": path.stem,
         }
         try:
@@ -370,6 +420,13 @@ def run_backend(
                         "label_zh": ZH_LABELS.get(label, label),
                     }
                 )
+            segments = attach_segment_label_evidence(
+                segments,
+                function_logits=cpu_logits["function_logits"],
+                frame_rate=FRAME_RATE,
+                allowed_label_ids=evidence_label_ids,
+                id_to_label=SONGFORMER_LABEL_BY_ID,
+            )
             record.update(
                 duration=musicfm["duration"],
                 embedding_lengths=lengths,
@@ -377,7 +434,7 @@ def run_backend(
                 segments=segments,
                 elapsed_seconds=round(time.perf_counter() - started, 3),
             )
-            output_path = out_dir / f"{index:02d}_{key}.json"
+            output_path = out_dir / f"{index:02d}_{key}_{cache_namespace}.json"
             output_path.write_text(
                 json.dumps(record, ensure_ascii=False, indent=2) + "\n"
             )
@@ -415,8 +472,33 @@ def main() -> int:
     songformer_root = add_source_paths(source_root)
     muq_model_path = args.muq_model.expanduser().resolve()
     out_dir = args.out_dir.expanduser().resolve()
-    cache_dir = out_dir / "feature_cache"
     out_dir.mkdir(parents=True, exist_ok=True)
+    hash_manifest_path = out_dir / "model_hashes.json"
+    runtime_fingerprint: dict[str, Any] = {
+        "runner_version": RUNNER_VERSION,
+        "label_contract_version": LABEL_CONTRACT_VERSION,
+        "songformer_source_revision": source_revision(
+            songformer_root, hash_manifest_path
+        ),
+        "songformer_checkpoint_sha256": fingerprint_model_path(
+            songformer_root / "ckpts" / "SongFormer.safetensors",
+            hash_manifest_path,
+        ),
+        "musicfm_checkpoint_sha256": fingerprint_model_path(
+            songformer_root / "ckpts" / "MusicFM" / "pretrained_msd.pt",
+            hash_manifest_path,
+        ),
+        "muq_model_sha256": fingerprint_model_path(
+            muq_model_path, hash_manifest_path
+        ),
+        "dataset_id": f"{DATASET_LABEL}:{DATASET_ID}",
+        "sample_rate": SR,
+        "encoder_layer": LAYER,
+        "precision": args.precision,
+        "frame_rate": FRAME_RATE,
+    }
+    cache_namespace = build_cache_namespace(runtime_fingerprint)
+    cache_dir = out_dir / "feature_cache" / cache_namespace
     device = choose_device(args.device)
     print(
         json.dumps(
@@ -426,6 +508,7 @@ def main() -> int:
                 "songs": len(audio_paths),
                 "stage": args.stage,
                 "precision": args.precision,
+                "cache_namespace": cache_namespace,
                 "output": str(out_dir),
             },
             ensure_ascii=False,
@@ -443,6 +526,7 @@ def main() -> int:
             device,
             args.precision,
             args.overwrite,
+            cache_namespace,
         )
     if args.stage in ("all", "muq"):
         extract_encoder(
@@ -454,6 +538,7 @@ def main() -> int:
             device,
             args.precision,
             args.overwrite,
+            cache_namespace,
         )
     if args.stage in ("all", "backend"):
         run_backend(
@@ -463,6 +548,8 @@ def main() -> int:
             songformer_root,
             device,
             args.overwrite,
+            runtime_fingerprint,
+            cache_namespace,
         )
     return 0
 
