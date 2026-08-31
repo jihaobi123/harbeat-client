@@ -135,3 +135,13 @@ class SaveAnnotationWorkspaceRequest(BaseModel):
     annotations: list[AnnotationRecord]
 
     model_config = ConfigDict(extra="forbid")
+
+
+class PilotTrackSummary(BaseModel):
+    id: str
+    title: str
+    artist: str
+    duration_sec: float = Field(ge=0)
+    stems_available: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")

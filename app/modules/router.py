@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.modules.annotations.router import router as annotations_router
+from app.modules.bar_annotations.router import router as bar_annotations_router
 from app.modules.auth.router import router as auth_router
 from app.modules.dj_control.router import router as dj_control_router
 from app.modules.fangpi.router import router as fangpi_router
@@ -21,6 +22,11 @@ api_router.include_router(
     annotations_router,
     prefix="/api/annotations",
     tags=["annotations"],
+)
+api_router.include_router(
+    bar_annotations_router,
+    prefix="/api/bar-annotations",
+    tags=["bar-annotations"],
 )
 api_router.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 api_router.include_router(stream_router, prefix="/api/stream", tags=["stream"])
