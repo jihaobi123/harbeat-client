@@ -76,10 +76,10 @@ export default function MainLayout() {
       case 'library':
       default:
         return (
-          <>
+          <div className="editorial-library-layout">
             <SongList />
             <SongDetail />
-          </>
+          </div>
         )
     }
   }
@@ -136,6 +136,7 @@ export default function MainLayout() {
           <button
             onClick={() => setShowUpload(true)}
             className="is-primary bg-primary text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2"
+            aria-label="上传音乐"
           >
             <EditorialIcon name="upload" decorative />
             <span className="hidden sm:inline">Upload</span>
@@ -177,7 +178,9 @@ export default function MainLayout() {
         </div>
 
         <ErrorBoundary>
-          {renderMainContent()}
+          <main className="editorial-main-content">
+            {renderMainContent()}
+          </main>
         </ErrorBoundary>
       </div>
 

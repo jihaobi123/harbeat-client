@@ -484,7 +484,7 @@ export default function SessionPanel() {
             <button
               onClick={handleGenerateStyleMix}
               disabled={mixLoading}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold transition bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 text-white"
+              className="w-full py-2.5 text-sm font-semibold transition bg-primary hover:bg-primary-dark disabled:opacity-50 text-white"
             >
               {mixLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -772,4 +772,3 @@ export default function SessionPanel() {
     </div>
   )
 }
-

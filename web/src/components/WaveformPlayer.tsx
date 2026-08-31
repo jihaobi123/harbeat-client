@@ -330,31 +330,45 @@ export default function WaveformPlayer({ song }: { song: LibrarySong }) {
       {/* Transport */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
-          <button onClick={() => skip(-5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏪</button>
+          <button aria-label="后退 5 秒" onClick={() => skip(-5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏪</button>
           <button
             onClick={togglePlay}
             disabled={isLoading}
+            aria-label={isPlaying ? '暂停波形音频' : '播放波形音频'}
             className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark text-white flex items-center justify-center text-sm transition disabled:opacity-40"
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
-          <button onClick={() => skip(5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏩</button>
+          <button aria-label="前进 5 秒" onClick={() => skip(5)} className="p-1.5 text-gray-400 hover:text-white rounded transition text-sm">⏩</button>
         </div>
 
         <div className="flex-1 flex items-center gap-2 text-xs">
           <span className="text-gray-300 w-10 text-right font-mono">{formatTime(currentTime)}</span>
-          <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-primary/60 rounded-full" style={{ width: `${progress}%` }} />
-          </div>
+          <input
+            type="range"
+            aria-label="波形播放位置"
+            min={0}
+            max={duration || 0}
+            step={0.05}
+            value={currentTime}
+            onChange={(event) => {
+              const nextTime = Number(event.target.value)
+              setCurrentTime(nextTime)
+              if (audioRef.current) audioRef.current.currentTime = nextTime
+            }}
+            className="flex-1 accent-primary"
+            style={{ '--waveform-progress': `${progress}%` } as React.CSSProperties}
+          />
           <span className="text-gray-500 w-10 font-mono">{formatTime(duration)}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button onClick={() => { setIsMuted(!isMuted); if (audioRef.current) audioRef.current.volume = isMuted ? volume : 0 }} className="text-gray-400 hover:text-white text-sm">
+          <button aria-label={isMuted ? '取消静音' : '静音'} onClick={() => { setIsMuted(!isMuted); if (audioRef.current) audioRef.current.volume = isMuted ? volume : 0 }} className="text-gray-400 hover:text-white text-sm">
             {isMuted ? '🔇' : '🔊'}
           </button>
           <input
             type="range" min={0} max={1} step={0.01}
+            aria-label="音量"
             value={isMuted ? 0 : volume}
             onChange={(e) => { const v = parseFloat(e.target.value); setVolumeState(v); setIsMuted(false); if (audioRef.current) audioRef.current.volume = v }}
             className="w-16 accent-primary"

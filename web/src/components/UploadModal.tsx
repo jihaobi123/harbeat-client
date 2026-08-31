@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
 import { EditorialIcon } from './editorial/EditorialIcon'
 
@@ -6,7 +6,6 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
   const { uploadFile, uploading } = useMusicStore()
   const [files, setFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState(0)
   const [total, setTotal] = useState(0)
 
@@ -58,27 +57,27 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
         <div className="editorial-modal__body">
 
         {/* Drop zone */}
-        <div
-          className={`border-2 border-dashed rounded-xl p-4 sm:p-8 text-center transition cursor-pointer ${
+        <label
+          htmlFor="upload-file-input"
+          className={`upload-dropzone border-2 border-dashed rounded-xl p-4 sm:p-8 text-center transition cursor-pointer ${
             dragOver ? 'border-primary bg-primary/10' : 'border-gray-600 hover:border-gray-500'
           }`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
-          onClick={() => inputRef.current?.click()}
         >
           <EditorialIcon name="upload" decorative className="w-10 h-10 mx-auto mb-2" />
           <div className="text-sm text-gray-400">拖拽文件到此处，或点击选择</div>
           <div className="text-xs text-gray-500 mt-1">支持 MP3, FLAC, WAV, OGG, AAC, M4A</div>
           <input
-            ref={inputRef}
+            id="upload-file-input"
             type="file"
             accept=".mp3,.flac,.wav,.ogg,.aac,.m4a,.opus"
             multiple
-            className="hidden"
+            className="sr-only"
             onChange={(e) => e.target.files && handleFiles(e.target.files)}
           />
-        </div>
+        </label>
 
         {/* File list */}
         {files.length > 0 && (

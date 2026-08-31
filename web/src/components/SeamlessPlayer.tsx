@@ -749,17 +749,17 @@ export default function SeamlessPlayer({
       </div>
 
       <div className="px-4 py-3 flex items-center gap-3">
-        <button onClick={() => skipTo(idx - 1)} disabled={idx === 0} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
+        <button aria-label="上一首" onClick={() => skipTo(idx - 1)} disabled={idx === 0} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" /></svg>
         </button>
-        <button onClick={togglePlay} className="w-10 h-10 rounded-full flex items-center justify-center transition hover:scale-110 shadow-lg" style={{ background: accentColor }}>
+        <button aria-label={playing ? '暂停连续混音' : '播放连续混音'} onClick={togglePlay} className="w-10 h-10 rounded-full flex items-center justify-center transition hover:scale-110 shadow-lg" style={{ background: accentColor }}>
           {playing ? (
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>
           ) : (
             <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           )}
         </button>
-        <button onClick={() => skipTo(idx + 1)} disabled={!nextTrack} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
+        <button aria-label="下一首" onClick={() => skipTo(idx + 1)} disabled={!nextTrack} className="text-gray-400 hover:text-white disabled:opacity-30 transition p-1">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg>
         </button>
 
@@ -784,6 +784,7 @@ export default function SeamlessPlayer({
           </div>
           <input
             type="range"
+            aria-label="连续混音播放位置"
             min={0}
             max={dur || 0}
             step={0.05}
@@ -805,6 +806,7 @@ export default function SeamlessPlayer({
           Crossfade
           <input
             type="range"
+            aria-label="交叉淡化强度"
             min={0.5}
             max={2}
             step={0.05}
@@ -817,12 +819,14 @@ export default function SeamlessPlayer({
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => setTempoSync((v) => !v)}
+            aria-pressed={tempoSync}
             className={`rounded px-2 py-1 border transition ${tempoSync ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}
           >
             Tempo Sync
           </button>
           <button
             onClick={() => setKeyLock((v) => !v)}
+            aria-pressed={keyLock}
             className={`rounded px-2 py-1 border transition ${keyLock ? 'border-primary text-primary' : 'border-gray-600 text-gray-400'}`}
           >
             Key Lock
@@ -843,6 +847,8 @@ export default function SeamlessPlayer({
           <button
             key={`${t.songId}-${i}`}
             onClick={() => skipTo(i)}
+            aria-current={i === idx ? 'true' : undefined}
+            aria-label={`播放队列第 ${i + 1} 首：${t.title}`}
             className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-left text-xs transition hover:bg-white/5 ${i === idx ? 'bg-white/10' : i < idx ? 'opacity-40' : ''}`}
           >
             <span className="w-5 text-center shrink-0 text-[11px]" style={i === idx ? { color: accentColor } : { color: '#6b7280' }}>

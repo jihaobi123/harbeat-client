@@ -249,6 +249,9 @@ export default function PresenceTimeline({
                     key={`${range.start_bar_index}-${range.end_bar_index}-${rangeIndex}`}
                     data-presence-range={`${range.start_bar_index}-${range.end_bar_index}`}
                     className={`presence-range ${isRangeSelected ? 'is-range-selected' : ''}`}
+                    role="group"
+                    tabIndex={0}
+                    aria-label={`${info.label} range, Bars ${range.start_bar_index + 1} to ${range.end_bar_index}, ${lane.review.review_state}`}
                     style={{
                       left: `${timePercent(rangeStart, startSec, duration)}%`,
                       width: `${timePercent(rangeEnd, startSec, duration) - timePercent(rangeStart, startSec, duration)}%`,
@@ -284,25 +287,101 @@ export default function PresenceTimeline({
                       }
                       onLoopRange(range.start_bar_index, range.end_bar_index)
                     }}
-                    title="点击循环播放；双击删除；Shift 点击拆分；Cmd/Ctrl 点击多选"
+                    onKeyDown={event => {
+                      onSelectElement(element)
+                      onActiveRangeChange?.(element, rangeIndex)
+
+                      if ((event.metaKey || event.ctrlKey) && event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedRanges(previous => ({
+                          ...previous,
+                          [element]: previous[element].includes(rangeIndex)
+                            ? previous[element].filter(index => index !== rangeIndex)
+                            : [...previous[element], rangeIndex],
+                        }))
+                        return
+                      }
+
+                      if (event.key === 'Delete' || event.key === 'Backspace') {
+                        event.preventDefault()
+                        onDeleteRange(element, rangeIndex)
+                        clearSelectedRanges(element)
+                        return
+                      }
+
+                      if (event.shiftKey && event.key === 'Enter') {
+                        event.preventDefault()
+                        const splitBar = range.start_bar_index + Math.floor(
+                          (range.end_bar_index - range.start_bar_index) / 2,
+                        )
+                        if (splitBar > range.start_bar_index && splitBar < range.end_bar_index) {
+                          onSplitRange(element, rangeIndex, splitBar)
+                          clearSelectedRanges(element)
+                        }
+                        return
+                      }
+
+                      if ((event.altKey || event.shiftKey) && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                        event.preventDefault()
+                        const delta = event.key === 'ArrowLeft' ? -1 : 1
+                        const startBar = event.altKey
+                          ? Math.max(0, Math.min(range.end_bar_index - 1, range.start_bar_index + delta))
+                          : range.start_bar_index
+                        const endBar = event.shiftKey
+                          ? Math.max(range.start_bar_index + 1, Math.min(bars.length, range.end_bar_index + delta))
+                          : range.end_bar_index
+                        onResizeRange(element, rangeIndex, startBar, endBar)
+                        return
+                      }
+
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onLoopRange(range.start_bar_index, range.end_bar_index)
+                      }
+                    }}
+                    title="Enter/空格循环；Delete 删除；Shift+Enter 拆分；Alt/Shift+方向键调整边界；Cmd/Ctrl+空格多选"
                   >
                     <button
                       type="button"
                       className="presence-resize-handle is-start"
-                      aria-label={`Resize ${info.label} range start`}
+                      aria-label={`调整 ${info.label} 起点，当前 Bar ${range.start_bar_index + 1}`}
                       onPointerDown={event => {
                         event.stopPropagation()
                         setResizeState({ element, rangeIndex, edge: 'start' })
+                      }}
+                      onKeyDown={event => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const delta = event.key === 'ArrowLeft' ? -1 : 1
+                        onResizeRange(
+                          element,
+                          rangeIndex,
+                          Math.max(0, Math.min(range.end_bar_index - 1, range.start_bar_index + delta)),
+                          range.end_bar_index,
+                        )
                       }}
                     />
                     <span>{range.end_bar_index - range.start_bar_index} Bars</span>
                     <button
                       type="button"
                       className="presence-resize-handle is-end"
-                      aria-label={`Resize ${info.label} range end`}
+                      aria-label={`调整 ${info.label} 终点，当前 Bar ${range.end_bar_index}`}
                       onPointerDown={event => {
                         event.stopPropagation()
                         setResizeState({ element, rangeIndex, edge: 'end' })
+                      }}
+                      onKeyDown={event => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const delta = event.key === 'ArrowLeft' ? -1 : 1
+                        onResizeRange(
+                          element,
+                          rangeIndex,
+                          range.start_bar_index,
+                          Math.max(range.start_bar_index + 1, Math.min(bars.length, range.end_bar_index + delta)),
+                        )
                       }}
                     />
                   </div>

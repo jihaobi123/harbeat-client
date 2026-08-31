@@ -74,8 +74,21 @@ function SongRow({ song }: { song: LibrarySong }) {
         className={`song-list-row flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition group ${
           isSelected ? 'is-selected' : 'hover:bg-surface-lighter'
         }`}
+        role="option"
+        aria-selected={isSelected}
+        tabIndex={0}
         onClick={() => selectSong(song)}
         onDoubleClick={() => playSong(song)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            selectSong(song)
+          }
+          if (event.key === ' ') {
+            event.preventDefault()
+            playSong(song)
+          }
+        }}
         onContextMenu={handleContextMenu}
       >
       {/* Play indicator / index */}
@@ -85,6 +98,7 @@ function SongRow({ song }: { song: LibrarySong }) {
         ) : (
           <button
             className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition"
+            aria-label={`播放 ${song.title}`}
             onClick={(e) => { e.stopPropagation(); playSong(song) }}
           >
             ▶
@@ -120,6 +134,7 @@ function SongRow({ song }: { song: LibrarySong }) {
       <button
         className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary transition shrink-0 ml-1"
         title="添加到歌单"
+        aria-label={`将 ${song.title} 添加到歌单`}
         onClick={(e) => { e.stopPropagation(); handleContextMenu(e) }}
       >
         +
@@ -205,7 +220,11 @@ export default function SongList() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        role={selectedPlaylist ? 'list' : 'listbox'}
+        aria-label={selectedPlaylist ? `${selectedPlaylist.playlist_name} 歌曲` : '音乐库歌曲'}
+      >
         {songsLoading ? (
           <div className="flex items-center justify-center h-32 text-gray-500 text-sm">加载中...</div>
         ) : selectedPlaylist ? (
@@ -216,6 +235,7 @@ export default function SongList() {
               <div
                 key={ps.song_id}
                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-lighter transition cursor-pointer"
+                role="listitem"
               >
                 <div className="w-8 text-center shrink-0 text-xs text-gray-500">{ps.order_index + 1}</div>
                 <div className="flex-1 min-w-0">

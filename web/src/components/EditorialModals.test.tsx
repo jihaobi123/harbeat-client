@@ -12,6 +12,9 @@ describe('editorial modal flows', () => {
     expect(html).toContain('editorial-modal__heading')
     expect(html).toContain('aria-modal="true"')
     expect(html).toContain('>07<')
+    expect(html).toContain('for="upload-file-input"')
+    expect(html).toContain('id="upload-file-input"')
+    expect(html).toContain('class="sr-only"')
   })
 
   it('keeps playlist import inside the numbered dialog shell', () => {

@@ -422,7 +422,7 @@ function StyleProcessor({ songId, title }: { songId: string; title: string }) {
           <button
             onClick={handleProcess}
             disabled={selectedStyles.length === 0 || processing}
-            className="w-full py-2 rounded-lg text-xs font-semibold transition bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-40 text-white"
+            className="w-full py-2 text-xs font-semibold transition bg-primary hover:bg-primary-dark disabled:opacity-40 text-white"
           >
             {processing ? (
               <span className="flex items-center justify-center gap-2">
