@@ -109,7 +109,7 @@ export default function SeamlessPlayer({
     raf: 0,
     transitionStartSec: 0,
     transitionDurationSec: 0,
-    transitionTimer: 0 as ReturnType<typeof window.setTimeout> | 0,
+    transitionTimer: 0 as number,
     preloadedNextIdx: -1,
   })
 
