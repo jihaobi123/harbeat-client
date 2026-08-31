@@ -281,7 +281,13 @@ def separate_stems_endpoint(
         from app.modules.library.background_tasks import apply_dj_fingerprint
         apply_dj_fingerprint(db, song)
         db.commit()
-        return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
+        from app.modules.annotations.service import try_generate_presence_candidates
+        presence = try_generate_presence_candidates(song)
+        return APIResponse(data={
+            "stems": stems,
+            "stem_quality_score": song.stem_quality_score,
+            "presence_candidates": presence,
+        })
 
     # Run demucs
     python_exe = sys.executable
@@ -317,4 +323,10 @@ def separate_stems_endpoint(
     from app.modules.library.background_tasks import apply_dj_fingerprint
     apply_dj_fingerprint(db, song)
     db.commit()
-    return APIResponse(data={"stems": stems, "stem_quality_score": song.stem_quality_score})
+    from app.modules.annotations.service import try_generate_presence_candidates
+    presence = try_generate_presence_candidates(song)
+    return APIResponse(data={
+        "stems": stems,
+        "stem_quality_score": song.stem_quality_score,
+        "presence_candidates": presence,
+    })

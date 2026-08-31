@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
+import logging
 from typing import Any
 
 from app.modules.annotations.schemas import (
@@ -24,6 +25,7 @@ from app.shared.config import get_settings
 
 DATASET_VERSION = "bar-presence-pilot-1.0.0"
 TIMELINE_VERSION = "bar_timeline@0.1.0"
+logger = logging.getLogger(__name__)
 
 
 class AnnotationAccessError(PermissionError):
@@ -156,10 +158,14 @@ def try_generate_presence_candidates(song: Any) -> dict[str, Any]:
             requesting_user_id=int(song.user_id),
         )
         return {"status": "candidate", "revision": bundle.revision}
-    except (AnnotationGenerationError, TimelineError, PresenceAnalysisError) as exc:
+    except Exception as exc:
+        logger.warning(
+            "[presence] candidate generation needs review for %s: %s",
+            getattr(song, "id", "unknown"),
+            exc,
+        )
         return {
             "status": "needs_review",
             "code": getattr(exc, "code", "presence_analysis_failed"),
             "error": str(exc),
         }
-

@@ -209,6 +209,13 @@ def run_analysis_and_separation(song_id: str) -> None:
             if all(os.path.isfile(os.path.join(stems_dir, f"{s}.wav")) for s in stem_names):
                 song.stems = {s: os.path.join(stems_dir, f"{s}.wav") for s in stem_names}
                 apply_stem_analysis(song)
+                from app.modules.annotations.service import try_generate_presence_candidates
+                presence = try_generate_presence_candidates(song)
+                logger.info(
+                    "[bg-analysis] presence candidates for %s: %s",
+                    song_id,
+                    presence.get("status"),
+                )
                 logger.info("[bg-analysis] stems separated for %s", song_id)
             else:
                 logger.warning("[bg-analysis] stem files not found after demucs for %s", song_id)
