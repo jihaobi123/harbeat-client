@@ -65,6 +65,21 @@ def test_pre_chorus_exposes_transition_and_buildup_candidates() -> None:
     assert segment["label_evidence_status"] == "missing"
 
 
+def test_candidate_confidence_is_not_replaced_by_another_classes_top_score() -> None:
+    segment = enrich_section_segment(
+        {
+            "start": 8.0,
+            "end": 16.0,
+            "label": "chorus",
+            "label_probabilities": {"verse": 0.6, "chorus": 0.3, "bridge": 0.1},
+        },
+        source="songformer",
+    )
+
+    assert segment["structure_label_confidence"] == pytest.approx(0.3)
+    assert segment["structure_label_margin"] == pytest.approx(0.3)
+
+
 def test_fallback_contract_marks_missing_evidence_without_songformer_label() -> None:
     segment = enrich_section_segment(
         {"start": 0.0, "end": 8.0, "label": "intro"},

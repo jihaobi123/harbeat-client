@@ -15,6 +15,11 @@ from typing import Any
 
 import numpy as np
 
+from app.modules.library.section_contract import (
+    LABEL_CONTRACT_VERSION,
+    SECTION_CONTRACT_FIELDS,
+    enrich_section_segment,
+)
 from app.shared.command_line import split_command_line
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -24,7 +29,7 @@ DOWNBEAT_MATCH_TOLERANCE_SECONDS = 0.07
 DOWNBEAT_AGREEMENT_F1 = 0.70
 DOWNBEAT_PERIOD_TOLERANCE = 0.12
 DOWNBEAT_MAX_INTRO_BARS = 2.0
-CORE_ANALYSIS_VERSION = "songformer_sections_v1"
+CORE_ANALYSIS_VERSION = LABEL_CONTRACT_VERSION
 
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
@@ -202,6 +207,7 @@ def _normalize_functional_segments(
     segments: list[dict] | None,
     *,
     duration: float | None = None,
+    source: str = "songformer_functional_segment",
 ) -> list[dict]:
     """Validate and normalize one model's functional-section sequence."""
     normalized: list[dict] = []
@@ -218,12 +224,13 @@ def _normalize_functional_segments(
             end = min(end, upper_bound)
         if not label or end <= start:
             continue
-        normalized.append({
+        normalized.append(enrich_section_segment({
+            **item,
             "start": round(start, 4),
             "end": round(end, 4),
             "label": label,
             **({"label_zh": str(item["label_zh"])} if item.get("label_zh") else {}),
-        })
+        }, source=source))
     normalized.sort(key=lambda item: (item["start"], item["end"]))
     return normalized
 
@@ -236,10 +243,12 @@ def _select_authoritative_sections(
 ) -> tuple[list[dict], dict]:
     """Select one section model without blending boundaries or labels."""
     songformer_segments = _normalize_functional_segments(
-        (songformer_route or {}).get("segments")
+        (songformer_route or {}).get("segments"),
+        source="songformer_functional_segment",
     )
     all_in_one_segments = _normalize_functional_segments(
-        (all_in_one_route or {}).get("segments")
+        (all_in_one_route or {}).get("segments"),
+        source="all_in_one_fallback_functional_segment",
     )
     if songformer_segments:
         return songformer_segments, {
@@ -309,6 +318,10 @@ def _songformer_payload_from_output(
             "pipeline": manifest.get("pipeline"),
             "device": manifest.get("device"),
             "frame_rate": manifest.get("frame_rate"),
+            "runner_version": manifest.get("runner_version"),
+            "label_contract_version": manifest.get("label_contract_version"),
+            "runtime_fingerprint": manifest.get("runtime_fingerprint"),
+            "cache_namespace": manifest.get("cache_namespace"),
         }
 
     result_path = output_dir / "songformer_result.json"
@@ -358,6 +371,7 @@ def _analyze_sections_songformer(file_path: str | os.PathLike[str]) -> dict:
     segments = _normalize_functional_segments(
         payload.get("segments"),
         duration=payload.get("duration"),
+        source="songformer_functional_segment",
     )
     if not segments:
         raise ValueError("SongFormer returned no functional sections")
@@ -368,6 +382,10 @@ def _analyze_sections_songformer(file_path: str | os.PathLike[str]) -> dict:
         "pipeline": payload.get("pipeline"),
         "device": payload.get("device"),
         "frame_rate": payload.get("frame_rate"),
+        "runner_version": payload.get("runner_version"),
+        "label_contract_version": payload.get("label_contract_version"),
+        "runtime_fingerprint": payload.get("runtime_fingerprint"),
+        "cache_namespace": payload.get("cache_namespace"),
         "input_mode": "original_audio_file",
         "input_path": str(audio_path),
         "sample_rate": 24_000,
@@ -1808,7 +1826,9 @@ def _functional_segments_to_cues(
     colors = {
         "start": "#22c55e", "intro": "#22c55e", "verse": "#3b82f6",
         "chorus": "#ef4444", "bridge": "#f59e0b", "break": "#a855f7",
-        "inst": "#06b6d4", "solo": "#14b8a6", "outro": "#64748b",
+        "inst": "#06b6d4", "instrumental": "#06b6d4",
+        "solo": "#14b8a6", "outro": "#64748b",
+        "pre-chorus": "#f97316",
         "end": "#64748b",
     }
     cues = []
@@ -1816,7 +1836,8 @@ def _functional_segments_to_cues(
         try:
             start = max(0.0, float(segment["start"]))
             end = max(start, float(segment["end"]))
-            label = str(segment["label"]).strip().lower()
+            contract = enrich_section_segment(segment, source=source)
+            label = str(contract["structure_label_candidate"]).strip().lower()
         except (KeyError, TypeError, ValueError):
             continue
         if label:
@@ -1824,9 +1845,13 @@ def _functional_segments_to_cues(
                 "time": round(start, 3),
                 "end": round(end, 3),
                 "label": label.title(),
-                "raw_label": label,
+                "raw_label": contract.get("songformer_label") or label,
                 "color": colors.get(label, "#64748b"),
                 "source": source,
+                **{
+                    key: contract.get(key)
+                    for key in SECTION_CONTRACT_FIELDS
+                },
             })
     return cues
 
@@ -1850,7 +1875,8 @@ def _functional_segments_to_phrase_map(
         try:
             start = max(0.0, float(segment["start"]))
             end = max(start, float(segment["end"]))
-            label = str(segment["label"]).strip().lower()
+            contract = enrich_section_segment(segment, source=source)
+            label = str(contract["structure_label_candidate"]).strip().lower()
         except (KeyError, TypeError, ValueError):
             continue
         if not label or label in {"start", "end"} or end <= start:
@@ -1859,9 +1885,13 @@ def _functional_segments_to_phrase_map(
             "start": round(start, 3),
             "end": round(end, 3),
             "label": label,
-            "raw_label": label,
+            "raw_label": contract.get("songformer_label") or label,
             "bars": sum(start - 0.1 <= value < end - 0.1 for value in grid),
             "source": source,
+            **{
+                key: contract.get(key)
+                for key in SECTION_CONTRACT_FIELDS
+            },
         })
     return phrases
 
@@ -3334,6 +3364,9 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         all_in_one_route,
         songformer_error=songformer_error,
     )
+    intro_end_candidate, intro_end_details = _functional_intro_end(
+        functional_segments
+    )
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
     time_signature = _detect_time_signature(beat_times, raw_downbeats, bpm=bpm)
     downbeats, bar_grid_origin = _start_bar_grid_after_intro(
@@ -3496,6 +3529,16 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "section_analysis": {
             "source": section_source,
             "authoritative_model": "songformer",
+            "authoritative_boundary_model": "songformer",
+            "structure_label_source": (
+                "all_in_one_fallback_candidate"
+                if section_selection["fallback_used"]
+                else "songformer_candidate"
+            ),
+            "label_contract_version": LABEL_CONTRACT_VERSION,
+            "intro_end_candidate": intro_end_candidate,
+            "intro_end_candidate_details": intro_end_details,
+            "semantic_intro_applied_to_bar_grid": False,
             "status": section_selection["status"],
             "engine": section_selection.get("engine"),
             "input_mode": section_route.get("input_mode"),
@@ -3513,7 +3556,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
                 "pipeline": (songformer_route or {}).get("pipeline"),
                 "device": (songformer_route or {}).get("device"),
                 "frame_rate": (songformer_route or {}).get("frame_rate"),
+                "runner_version": (songformer_route or {}).get("runner_version"),
+                "label_contract_version": (songformer_route or {}).get(
+                    "label_contract_version"
+                ),
+                "runtime_fingerprint": (songformer_route or {}).get(
+                    "runtime_fingerprint"
+                ),
+                "cache_namespace": (songformer_route or {}).get("cache_namespace"),
             },
+            "runtime_fingerprint": (songformer_route or {}).get(
+                "runtime_fingerprint"
+            ),
+            "cache_namespace": (songformer_route or {}).get("cache_namespace"),
             "all_in_one_retained_for_rhythm": "all_in_one" in rhythm_results,
             "all_in_one_section_count_for_audit": section_selection[
                 "all_in_one_segment_count_for_audit"

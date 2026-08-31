@@ -13,6 +13,17 @@ class LibraryCuePoint(BaseModel):
     raw_label: str | None = None
     color: str
     source: str | None = None
+    boundary_source: str | None = None
+    songformer_label: str | None = None
+    structure_label_candidate: str | None = None
+    structure_label_probabilities: dict[str, float] = Field(default_factory=dict)
+    structure_label_confidence: float | None = None
+    structure_label_margin: float | None = None
+    mix_roles: list[str] = Field(default_factory=list)
+    mix_role_scores: dict[str, float] = Field(default_factory=dict)
+    label_status: str | None = None
+    label_evidence_status: str | None = None
+    label_contract_version: str | None = None
 
 
 class LibrarySongBase(BaseModel):

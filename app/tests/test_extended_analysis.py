@@ -88,12 +88,14 @@ class FunctionalSectionTests(unittest.TestCase):
     def test_model_segments_keep_model_labels_and_boundaries(self):
         cues = _functional_segments_to_cues([
             {"start": 0.0, "end": 8.0, "label": "intro"},
-            {"start": 8.0, "end": 24.0, "label": "chorus"},
+            {"start": 8.0, "end": 24.0, "label": "pre-chorus"},
         ])
 
-        self.assertEqual(cues[1]["label"], "Chorus")
+        self.assertEqual(cues[1]["label"], "Pre-Chorus")
         self.assertEqual(cues[1]["time"], 8.0)
         self.assertEqual(cues[1]["source"], "songformer_functional_segment")
+        self.assertEqual(cues[1]["structure_label_candidate"], "pre-chorus")
+        self.assertEqual(cues[1]["mix_roles"], ["transition", "buildup"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

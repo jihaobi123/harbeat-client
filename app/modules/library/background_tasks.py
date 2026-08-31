@@ -12,7 +12,7 @@ from app.shared.database import SessionLocal
 logger = logging.getLogger(__name__)
 
 ANALYSIS_STAGE_KEYS = ("core", "stem_separation", "feature_analysis", "style_analysis")
-REQUIRED_CORE_ANALYSIS_VERSION = "songformer_sections_v1"
+REQUIRED_CORE_ANALYSIS_VERSION = "songformer_label_contract_v2"
 
 
 def _utc_now() -> str:
@@ -86,6 +86,16 @@ def _commit_stage(db, song) -> None:
 def _int_bool(value: object) -> int:
     """Normalize boolean-like values for legacy integer columns."""
     return 1 if bool(value) else 0
+
+
+def _persistable_cue_points(raw_cues: list[dict], *, song_id: object) -> list[dict]:
+    """Attach stable ids without discarding versioned section-contract fields."""
+    persisted: list[dict] = []
+    for index, cue in enumerate(raw_cues or []):
+        item = dict(cue)
+        item["id"] = f"cue-{song_id}-{index}"
+        persisted.append(item)
+    return persisted
 
 
 def apply_dancefloor_profile(song) -> None:
@@ -305,18 +315,10 @@ def run_analysis_and_separation(song_id: str) -> None:
                 song.key_confidence = result.get("key_confidence")
                 song.key_profile = result.get("key_profile", {})
                 raw_cues = result.get("cue_points", [])
-                song.cue_points = [
-                    {
-                        "id": f"cue-{song_id}-{i}",
-                        "time": c["time"],
-                        "end": c.get("end"),
-                        "label": c["label"],
-                        "raw_label": c.get("raw_label"),
-                        "color": c["color"],
-                        "source": c.get("source"),
-                    }
-                    for i, c in enumerate(raw_cues)
-                ]
+                song.cue_points = _persistable_cue_points(
+                    raw_cues,
+                    song_id=song_id,
+                )
                 update_analysis_stage(song, "core", "completed")
                 _commit_stage(db, song)
                 logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)

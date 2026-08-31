@@ -9,6 +9,20 @@ from typing import Any
 
 LABEL_CONTRACT_VERSION = "songformer_label_contract_v2"
 
+SECTION_CONTRACT_FIELDS = (
+    "boundary_source",
+    "songformer_label",
+    "structure_label_candidate",
+    "structure_label_probabilities",
+    "structure_label_confidence",
+    "structure_label_margin",
+    "mix_roles",
+    "mix_role_scores",
+    "label_status",
+    "label_evidence_status",
+    "label_contract_version",
+)
+
 _STRUCTURE_LABEL_ALIASES = {
     "inst": "instrumental",
 }
@@ -49,13 +63,16 @@ def normalize_structure_probabilities(raw: object) -> dict[str, float]:
     return {label: value / total for label, value in accumulated.items()}
 
 
-def _confidence_and_margin(probabilities: Mapping[str, float]) -> tuple[float | None, float | None]:
+def _confidence_and_margin(
+    probabilities: Mapping[str, float],
+    candidate: str,
+) -> tuple[float | None, float | None]:
     if not probabilities:
         return None, None
     ranked = sorted((float(value) for value in probabilities.values()), reverse=True)
-    confidence = ranked[0]
+    confidence = probabilities.get(candidate)
     runner_up = ranked[1] if len(ranked) > 1 else 0.0
-    return confidence, confidence - runner_up
+    return confidence, ranked[0] - runner_up
 
 
 def _boundary_source(source: str) -> str:
@@ -82,12 +99,14 @@ def enrich_section_segment(item: Mapping[str, Any], *, source: str) -> dict[str,
     if raw_probabilities is None:
         raw_probabilities = item.get("label_probabilities")
     probabilities = normalize_structure_probabilities(raw_probabilities)
-    confidence, margin = _confidence_and_margin(probabilities)
+    confidence, margin = _confidence_and_margin(probabilities, candidate)
     role_scores = dict(_MIX_ROLE_SCORES.get(candidate, {}))
     songformer_source = str(source or "").strip().lower().startswith("songformer")
 
     result = dict(item)
     result.pop("label_probabilities", None)
+    result.pop("label_confidence", None)
+    result.pop("label_margin", None)
     result.update(
         {
             "boundary_source": _boundary_source(source),
