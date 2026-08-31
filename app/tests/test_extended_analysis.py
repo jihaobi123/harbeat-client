@@ -93,7 +93,7 @@ class FunctionalSectionTests(unittest.TestCase):
 
         self.assertEqual(cues[1]["label"], "Chorus")
         self.assertEqual(cues[1]["time"], 8.0)
-        self.assertEqual(cues[1]["source"], "all_in_one_functional_segment")
+        self.assertEqual(cues[1]["source"], "songformer_functional_segment")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

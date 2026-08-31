@@ -1,8 +1,8 @@
 from app.modules.library.analysis import (
-    _all_in_one_intro_end,
-    _all_in_one_segments_to_phrase_map,
+    _functional_intro_end,
+    _functional_segments_to_phrase_map,
     _generate_dj_hot_cues,
-    _start_bar_grid_after_all_in_one_intro,
+    _start_bar_grid_after_intro,
 )
 
 
@@ -17,8 +17,8 @@ def _segments() -> list[dict]:
     ]
 
 
-def test_leading_intro_end_comes_only_from_all_in_one_segments() -> None:
-    intro_end, metadata = _all_in_one_intro_end(_segments())
+def test_leading_intro_end_comes_from_authoritative_sections() -> None:
+    intro_end, metadata = _functional_intro_end(_segments())
 
     assert intro_end == 10.0
     assert metadata == {
@@ -31,7 +31,7 @@ def test_leading_intro_end_comes_only_from_all_in_one_segments() -> None:
 def test_bar_one_is_first_downbeat_after_intro_end() -> None:
     downbeats = [0.2, 2.2, 4.2, 6.2, 8.2, 10.2, 12.2, 14.2]
 
-    product_grid, metadata = _start_bar_grid_after_all_in_one_intro(
+    product_grid, metadata = _start_bar_grid_after_intro(
         downbeats, _segments(),
     )
 
@@ -39,23 +39,23 @@ def test_bar_one_is_first_downbeat_after_intro_end() -> None:
     assert metadata["first_bar_downbeat"] == 10.2
     assert metadata["removed_intro_downbeats"] == 5
     assert metadata["intro_end"] == 10.0
-    assert metadata["rule"] == "first_downbeat_at_or_after_all_in_one_intro_end"
+    assert metadata["rule"] == "first_downbeat_at_or_after_functional_intro_end"
 
 
-def test_no_all_in_one_sections_means_no_product_bar_grid() -> None:
-    product_grid, metadata = _start_bar_grid_after_all_in_one_intro(
+def test_no_functional_sections_means_no_product_bar_grid() -> None:
+    product_grid, metadata = _start_bar_grid_after_intro(
         [0.2, 2.2, 4.2], [],
     )
 
     assert product_grid == []
-    assert metadata["status"] == "all_in_one_sections_unavailable"
+    assert metadata["status"] == "functional_sections_unavailable"
 
 
 def test_bar_grid_counts_meter_from_anchor_instead_of_copying_mid_song_errors() -> None:
     beats = [round(0.2 + index * 0.5, 3) for index in range(40)]
     noisy_downbeats = [0.2, 2.2, 4.2, 6.2, 8.2, 10.2, 11.2, 14.2, 18.2]
 
-    product_grid, metadata = _start_bar_grid_after_all_in_one_intro(
+    product_grid, metadata = _start_bar_grid_after_intro(
         noisy_downbeats,
         _segments(),
         beat_times=beats,
@@ -68,7 +68,7 @@ def test_bar_grid_counts_meter_from_anchor_instead_of_copying_mid_song_errors() 
 
 
 def test_phrase_map_preserves_adjacent_same_label_boundaries() -> None:
-    phrase_map = _all_in_one_segments_to_phrase_map(
+    phrase_map = _functional_segments_to_phrase_map(
         _segments(), [0.2, 2.2, 4.2, 6.2, 8.2, 10.2, 12.2, 14.2, 20.2, 30.2],
     )
 
@@ -76,11 +76,11 @@ def test_phrase_map_preserves_adjacent_same_label_boundaries() -> None:
         "intro", "verse", "verse", "chorus",
     ]
     assert phrase_map[1]["end"] == phrase_map[2]["start"] == 20.0
-    assert all(item["source"] == "all_in_one_functional_segment" for item in phrase_map)
+    assert all(item["source"] == "songformer_functional_segment" for item in phrase_map)
 
 
 def test_intro_hot_cue_uses_model_boundary_not_energy_threshold() -> None:
-    phrase_map = _all_in_one_segments_to_phrase_map(_segments())
+    phrase_map = _functional_segments_to_phrase_map(_segments())
     phrase_map[0]["energy"] = 0.95
     phrase_map[1]["energy"] = 0.1
 
@@ -88,4 +88,4 @@ def test_intro_hot_cue_uses_model_boundary_not_energy_threshold() -> None:
     intro_end = next(item for item in cues if item["name"] == "intro_end")
 
     assert intro_end["time"] == 10.0
-    assert intro_end["source"] == "all_in_one_intro_boundary"
+    assert intro_end["source"] == "songformer_intro_boundary"

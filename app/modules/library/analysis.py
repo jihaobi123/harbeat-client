@@ -24,10 +24,11 @@ DOWNBEAT_MATCH_TOLERANCE_SECONDS = 0.07
 DOWNBEAT_AGREEMENT_F1 = 0.70
 DOWNBEAT_PERIOD_TOLERANCE = 0.12
 DOWNBEAT_MAX_INTRO_BARS = 2.0
-CORE_ANALYSIS_VERSION = "all_in_one_sections_v2"
+CORE_ANALYSIS_VERSION = "songformer_sections_v1"
 
 _BEAT_THIS_INFERENCE_LOCK = threading.Lock()
 _ALL_IN_ONE_INFERENCE_LOCK = threading.Lock()
+_SONGFORMER_INFERENCE_LOCK = threading.Lock()
 _MADMOM_INFERENCE_LOCK = threading.Lock()
 _MADMOM_KEY_INFERENCE_LOCK = threading.Lock()
 
@@ -112,7 +113,7 @@ def _downbeat_max_intro_bars() -> float:
 
 
 def _madmom_beats_per_bar() -> tuple[int, ...]:
-    raw = os.getenv("DOWNBEAT_MADMOM_BEATS_PER_BAR", "4")
+    raw = os.getenv("DOWNBEAT_MADMOM_BEATS_PER_BAR", "3,4")
     values: list[int] = []
     for item in raw.split(","):
         try:
@@ -121,7 +122,257 @@ def _madmom_beats_per_bar() -> tuple[int, ...]:
             continue
         if 2 <= value <= 8 and value not in values:
             values.append(value)
-    return tuple(values or [4])
+    return tuple(values or [3, 4])
+
+
+def _songformer_timeout_seconds() -> float:
+    try:
+        return float(np.clip(
+            float(os.getenv("SECTION_SONGFORMER_TIMEOUT_SEC", "1800")),
+            30.0,
+            7200.0,
+        ))
+    except (TypeError, ValueError):
+        return 1800.0
+
+
+def _songformer_work_dir() -> Path:
+    configured = os.getenv("SECTION_SONGFORMER_WORK_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return Path(__file__).resolve().parents[3] / ".runtime" / "songformer-analysis"
+
+
+def _songformer_command(audio_path: Path, output_dir: Path) -> list[str]:
+    """Build the isolated SongFormer command without invoking a shell.
+
+    A deployment may provide ``SECTION_SONGFORMER_COMMAND`` with ``{audio}``
+    and ``{output_dir}`` placeholders.  A developer checkout automatically
+    uses the already-installed isolated SongFormer runtime when it is present.
+    """
+    configured = split_command_line(os.getenv("SECTION_SONGFORMER_COMMAND", ""))
+    replacements = {
+        "{audio}": str(audio_path),
+        "{output_dir}": str(output_dir),
+    }
+    if configured:
+        command = []
+        for part in configured:
+            for placeholder, value in replacements.items():
+                part = part.replace(placeholder, value)
+            command.append(part)
+        if not any(str(audio_path) == part for part in command):
+            command.append(str(audio_path))
+        if not any(str(output_dir) == part for part in command):
+            command.extend(["--out-dir", str(output_dir)])
+        return command
+
+    repository_root = Path(__file__).resolve().parents[3]
+    runner = repository_root / "experiments" / "run_songformer_isolated.py"
+    python_candidates = [
+        repository_root / ".runtime" / "songformer-venv" / "bin" / "python",
+        repository_root / ".runtime" / "songformer-venv" / "Scripts" / "python.exe",
+    ]
+    python_executable = next((path for path in python_candidates if path.is_file()), None)
+    if python_executable is None or not runner.is_file():
+        raise RuntimeError(
+            "SongFormer runtime is unavailable; configure SECTION_SONGFORMER_COMMAND"
+        )
+    command = [
+        str(python_executable),
+        str(runner),
+        str(audio_path),
+        "--out-dir",
+        str(output_dir),
+        "--device",
+        os.getenv("SECTION_SONGFORMER_DEVICE", "auto").strip() or "auto",
+        "--precision",
+        os.getenv("SECTION_SONGFORMER_PRECISION", "float32").strip() or "float32",
+    ]
+    source_root = os.getenv("SECTION_SONGFORMER_SOURCE_ROOT", "").strip()
+    if source_root:
+        command.extend(["--source-root", source_root])
+    muq_model = os.getenv("SECTION_SONGFORMER_MUQ_MODEL", "").strip()
+    if muq_model:
+        command.extend(["--muq-model", muq_model])
+    return command
+
+
+def _normalize_functional_segments(
+    segments: list[dict] | None,
+    *,
+    duration: float | None = None,
+) -> list[dict]:
+    """Validate and normalize one model's functional-section sequence."""
+    normalized: list[dict] = []
+    upper_bound = float(duration) if duration is not None and duration > 0 else None
+    for item in segments or []:
+        try:
+            start = max(0.0, float(item["start"]))
+            end = max(start, float(item["end"]))
+            label = str(item["label"]).strip().lower()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if upper_bound is not None:
+            start = min(start, upper_bound)
+            end = min(end, upper_bound)
+        if not label or end <= start:
+            continue
+        normalized.append({
+            "start": round(start, 4),
+            "end": round(end, 4),
+            "label": label,
+            **({"label_zh": str(item["label_zh"])} if item.get("label_zh") else {}),
+        })
+    normalized.sort(key=lambda item: (item["start"], item["end"]))
+    return normalized
+
+
+def _select_authoritative_sections(
+    songformer_route: dict | None,
+    all_in_one_route: dict | None,
+    *,
+    songformer_error: str | None = None,
+) -> tuple[list[dict], dict]:
+    """Select one section model without blending boundaries or labels."""
+    songformer_segments = _normalize_functional_segments(
+        (songformer_route or {}).get("segments")
+    )
+    all_in_one_segments = _normalize_functional_segments(
+        (all_in_one_route or {}).get("segments")
+    )
+    if songformer_segments:
+        return songformer_segments, {
+            "source": "songformer_functional_segments",
+            "segment_source": "songformer_functional_segment",
+            "status": "ok",
+            "engine": (songformer_route or {}).get("engine"),
+            "route": dict(songformer_route or {}),
+            "fallback_used": False,
+            "fallback_policy": "all_in_one_only_if_songformer_unavailable",
+            "songformer_error": None,
+            "all_in_one_segment_count_for_audit": len(all_in_one_segments),
+        }
+
+    fallback_enabled = _env_flag("SECTION_FALLBACK_ALL_IN_ONE", True)
+    if fallback_enabled and all_in_one_segments:
+        return all_in_one_segments, {
+            "source": "all_in_one_fallback_functional_segments",
+            "segment_source": "all_in_one_fallback_functional_segment",
+            "status": "fallback",
+            "engine": (all_in_one_route or {}).get("engine"),
+            "route": dict(all_in_one_route or {}),
+            "fallback_used": True,
+            "fallback_policy": "all_in_one_only_if_songformer_unavailable",
+            "songformer_error": songformer_error or "SongFormer returned no sections",
+            "all_in_one_segment_count_for_audit": len(all_in_one_segments),
+        }
+
+    return [], {
+        "source": "songformer_unavailable",
+        "segment_source": "songformer_functional_segment",
+        "status": "unavailable",
+        "engine": (songformer_route or {}).get("engine"),
+        "route": dict(songformer_route or {}),
+        "fallback_used": False,
+        "fallback_policy": (
+            "all_in_one_only_if_songformer_unavailable"
+            if fallback_enabled else "disabled"
+        ),
+        "songformer_error": songformer_error or "SongFormer returned no sections",
+        "all_in_one_segment_count_for_audit": len(all_in_one_segments),
+    }
+
+
+def _songformer_payload_from_output(
+    output_dir: Path,
+    audio_path: Path,
+    stdout: str,
+) -> dict:
+    """Read either the official-runner manifest or a custom worker JSON."""
+    manifest_path = output_dir / "manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        resolved_audio = str(audio_path.resolve())
+        tracks = list(manifest.get("tracks") or [])
+        record = next(
+            (item for item in reversed(tracks) if item.get("audio_path") == resolved_audio),
+            tracks[-1] if len(tracks) == 1 else None,
+        )
+        if record is None:
+            raise ValueError("SongFormer manifest has no matching track")
+        if record.get("error"):
+            raise RuntimeError(str(record["error"]))
+        return {
+            **record,
+            "model": manifest.get("model"),
+            "pipeline": manifest.get("pipeline"),
+            "device": manifest.get("device"),
+            "frame_rate": manifest.get("frame_rate"),
+        }
+
+    result_path = output_dir / "songformer_result.json"
+    if result_path.is_file():
+        return json.loads(result_path.read_text(encoding="utf-8"))
+
+    text = stdout.strip()
+    if text:
+        try:
+            payload = json.loads(text)
+            if isinstance(payload, dict) and payload.get("segments"):
+                return payload
+        except json.JSONDecodeError:
+            pass
+        for line in reversed(text.splitlines()):
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("segments"):
+                return payload
+    raise ValueError("SongFormer worker produced no section result")
+
+
+def _analyze_sections_songformer(file_path: str | os.PathLike[str]) -> dict:
+    """Run SongFormer as the authoritative functional-section model."""
+    audio_path = Path(file_path).expanduser().resolve()
+    if not audio_path.is_file():
+        raise FileNotFoundError(audio_path)
+    output_dir = _songformer_work_dir()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    command = _songformer_command(audio_path, output_dir)
+    with _SONGFORMER_INFERENCE_LOCK:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=_songformer_timeout_seconds(),
+            check=False,
+        )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()[-2000:]
+        raise RuntimeError(
+            f"SongFormer worker exited with {completed.returncode}: {detail}"
+        )
+    payload = _songformer_payload_from_output(output_dir, audio_path, completed.stdout)
+    segments = _normalize_functional_segments(
+        payload.get("segments"),
+        duration=payload.get("duration"),
+    )
+    if not segments:
+        raise ValueError("SongFormer returned no functional sections")
+    return {
+        "segments": segments,
+        "engine": "songformer:ASLP-lab/SongFormer",
+        "model": payload.get("model") or "ASLP-lab/SongFormer",
+        "pipeline": payload.get("pipeline"),
+        "device": payload.get("device"),
+        "frame_rate": payload.get("frame_rate"),
+        "input_mode": "original_audio_file",
+        "input_path": str(audio_path),
+        "sample_rate": 24_000,
+        "method": "songformer_functional_structure",
+    }
 
 MAJOR_TEMPLATE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 MINOR_TEMPLATE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
@@ -180,14 +431,18 @@ def _generate_dj_hot_cues(
     if not pm:
         return cues
 
-    # ── intro_end: exact All-In-One intro boundary ──
+    # ── intro_end: exact authoritative-model intro boundary ──
     intro_end_time = None
     saw_intro = False
+    intro_source = "functional_segment"
     for index, p in enumerate(pm):
         label = str(p.get("label", "")).lower()
         if label == "intro" and (index == 0 or saw_intro):
             saw_intro = True
             intro_end_time = float(p.get("end", p.get("start", 0)))
+            intro_source = str(p.get("source") or intro_source).replace(
+                "_functional_segment", ""
+            )
             continue
         if saw_intro:
             break
@@ -201,8 +456,8 @@ def _generate_dj_hot_cues(
             "color": "#22c55e",
             "confidence": 0.9 if saw_intro else 0.5,
             "source": (
-                "all_in_one_intro_boundary"
-                if saw_intro else "all_in_one_first_section_start_no_intro_label"
+                f"{intro_source}_intro_boundary"
+                if saw_intro else f"{intro_source}_first_section_start_no_intro_label"
             ),
         })
 
@@ -1544,7 +1799,11 @@ def camelot_score(key_a: str, key_b: str) -> int:
     return 0
 
 
-def _functional_segments_to_cues(segments: list[dict] | None) -> list[dict]:
+def _functional_segments_to_cues(
+    segments: list[dict] | None,
+    *,
+    source: str = "songformer_functional_segment",
+) -> list[dict]:
     """Convert model segments without relabelling them from energy or position."""
     colors = {
         "start": "#22c55e", "intro": "#22c55e", "verse": "#3b82f6",
@@ -1567,16 +1826,18 @@ def _functional_segments_to_cues(segments: list[dict] | None) -> list[dict]:
                 "label": label.title(),
                 "raw_label": label,
                 "color": colors.get(label, "#64748b"),
-                "source": "all_in_one_functional_segment",
+                "source": source,
             })
     return cues
 
 
-def _all_in_one_segments_to_phrase_map(
+def _functional_segments_to_phrase_map(
     segments: list[dict] | None,
     downbeats: list[float] | None = None,
+    *,
+    source: str = "songformer_functional_segment",
 ) -> list[dict]:
-    """Expose All-In-One sections as the sole product phrase map.
+    """Expose authoritative functional sections as the product phrase map.
 
     Explicit ``start``/``end`` markers are metadata rather than musical
     sections and are omitted.  All other boundaries and labels are preserved;
@@ -1600,13 +1861,13 @@ def _all_in_one_segments_to_phrase_map(
             "label": label,
             "raw_label": label,
             "bars": sum(start - 0.1 <= value < end - 0.1 for value in grid),
-            "source": "all_in_one_functional_segment",
+            "source": source,
         })
     return phrases
 
 
-def _all_in_one_intro_end(segments: list[dict] | None) -> tuple[float, dict]:
-    """Return the end of the leading All-In-One intro region.
+def _functional_intro_end(segments: list[dict] | None) -> tuple[float, dict]:
+    """Return the end of the leading authoritative-model intro region.
 
     Some tracks have only a short ``start`` marker and no explicit ``intro``.
     In that case the marker end is the best available origin; if neither is
@@ -1658,7 +1919,7 @@ def _all_in_one_intro_end(segments: list[dict] | None) -> tuple[float, dict]:
     }
 
 
-def _start_bar_grid_after_all_in_one_intro(
+def _start_bar_grid_after_intro(
     downbeats: list[float] | None,
     segments: list[dict] | None,
     *,
@@ -1674,12 +1935,12 @@ def _start_bar_grid_after_all_in_one_intro(
     the middle of a song.
     """
     raw_grid = sorted({round(float(value), 3) for value in (downbeats or [])})
-    intro_end, intro_meta = _all_in_one_intro_end(segments)
+    intro_end, intro_meta = _functional_intro_end(segments)
     if not segments:
         return [], {
             **intro_meta,
-            "status": "all_in_one_sections_unavailable",
-            "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+            "status": "functional_sections_unavailable",
+            "rule": "first_downbeat_at_or_after_functional_intro_end",
             "raw_downbeat_count": len(raw_grid),
             "removed_intro_downbeats": len(raw_grid),
             "first_bar_downbeat": None,
@@ -1688,7 +1949,7 @@ def _start_bar_grid_after_all_in_one_intro(
         return [], {
             **intro_meta,
             "status": "downbeats_unavailable",
-            "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+            "rule": "first_downbeat_at_or_after_functional_intro_end",
             "raw_downbeat_count": 0,
             "removed_intro_downbeats": 0,
             "first_bar_downbeat": None,
@@ -1720,7 +1981,7 @@ def _start_bar_grid_after_all_in_one_intro(
     return product_grid, {
         **intro_meta,
         "status": "ok" if product_grid else "no_downbeat_after_intro",
-        "rule": "first_downbeat_at_or_after_all_in_one_intro_end",
+        "rule": "first_downbeat_at_or_after_functional_intro_end",
         "boundary_tolerance_seconds": round(max(0.0, float(boundary_tolerance)), 3),
         "raw_downbeat_count": len(raw_grid),
         "removed_intro_downbeats": first_index,
@@ -2958,6 +3219,19 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     # Reported duration = real file length when available
     duration = real_duration if real_duration is not None else analysis_duration
 
+    # SongFormer is deliberately isolated from the rhythm family: it owns only
+    # functional sections, and it runs first so its temporary encoder models
+    # are released before All-In-One or the beat/downbeat models use memory.
+    songformer_route: dict[str, Any] | None = None
+    songformer_error: str | None = None
+    if _env_flag("SECTION_ENABLE_SONGFORMER", True):
+        try:
+            songformer_route = _analyze_sections_songformer(file_path)
+        except Exception as exc:
+            songformer_error = f"{type(exc).__name__}: {exc}"
+    else:
+        songformer_error = "SongFormer section analysis is disabled"
+
     # BPM + beat points. Beat This, All-In-One, and the existing Essentia route
     # Run independent rhythm routes concurrently. The held-out-validated Beat
     # This route fixes the BPM metrical level; same-level routes only smooth
@@ -3054,15 +3328,21 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         period_tolerance=_downbeat_period_tolerance(),
         max_intro_bars=_downbeat_max_intro_bars(),
     )
-    functional_segments = list((rhythm_results.get("all_in_one") or {}).get("segments") or [])
+    all_in_one_route = rhythm_results.get("all_in_one") or {}
+    functional_segments, section_selection = _select_authoritative_sections(
+        songformer_route,
+        all_in_one_route,
+        songformer_error=songformer_error,
+    )
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
     time_signature = _detect_time_signature(beat_times, raw_downbeats, bpm=bpm)
-    downbeats, bar_grid_origin = _start_bar_grid_after_all_in_one_intro(
+    downbeats, bar_grid_origin = _start_bar_grid_after_intro(
         raw_downbeats,
         functional_segments,
         beat_times=beat_times,
         beats_per_bar=int(time_signature.get("numerator", 4) or 4),
     )
+    bar_grid_origin["section_source"] = section_selection["source"]
     bar_grid_origin["downbeat_engine"] = downbeat_consensus.get("selected_engine")
     bar_grid_origin["downbeat_engine_name"] = downbeat_consensus.get("selected_engine_name")
     downbeat_consensus["bar_grid_origin"] = bar_grid_origin
@@ -3139,19 +3419,23 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         local_fallback=local_key_result,
     )
 
-    # All product-facing section boundaries and labels come from All-In-One.
-    # Energy remains an attribute of a model section, never a section detector
-    # or semantic fallback.
-    all_in_one_route = rhythm_results.get("all_in_one") or {}
-    cue_points = _functional_segments_to_cues(functional_segments)
-    section_source = (
-        "all_in_one_functional_segments"
-        if cue_points else "all_in_one_unavailable"
+    # SongFormer is authoritative for product-facing section boundaries and
+    # labels.  All-In-One sections are retained only as an explicit fallback;
+    # the two models are never blended.  Energy remains an attached attribute.
+    section_route = section_selection.get("route") or {}
+    cue_points = _functional_segments_to_cues(
+        functional_segments,
+        source=section_selection["segment_source"],
     )
+    section_source = section_selection["source"]
 
-    # Phrase map uses the same All-In-One boundaries as cue_points. Bar counts
+    # Phrase map uses the same authoritative boundaries as cue_points. Bar counts
     # use the exported grid whose Bar 1 starts after the intro.
-    phrase_map = _all_in_one_segments_to_phrase_map(functional_segments, downbeats)
+    phrase_map = _functional_segments_to_phrase_map(
+        functional_segments,
+        downbeats,
+        source=section_selection["segment_source"],
+    )
     phrase_map = _attach_phrase_energy(phrase_map, energy_curve)
 
     # ── Extended analysis ──────────────────────────────────────────
@@ -3211,17 +3495,29 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         "cue_points": cue_points,
         "section_analysis": {
             "source": section_source,
-            "status": "ok" if functional_segments else "unavailable",
-            "engine": all_in_one_route.get("engine"),
-            "input_mode": all_in_one_route.get("input_mode"),
-            "source_sample_rate": all_in_one_route.get("sample_rate"),
+            "authoritative_model": "songformer",
+            "status": section_selection["status"],
+            "engine": section_selection.get("engine"),
+            "input_mode": section_route.get("input_mode"),
+            "source_sample_rate": section_route.get("sample_rate"),
             "ffmpeg_shared_libraries_preloaded": bool(
-                all_in_one_route.get("ffmpeg_shared_lib_dir")
+                section_route.get("ffmpeg_shared_lib_dir")
             ),
             "functional_segments": functional_segments,
-            "fallback_used": False,
-            "fallback_policy": "disabled_only_all_in_one_is_authoritative",
-            "error": (bpm_consensus or {}).get("errors", {}).get("all_in_one"),
+            "fallback_used": section_selection["fallback_used"],
+            "fallback_policy": section_selection["fallback_policy"],
+            "error": section_selection.get("songformer_error"),
+            "songformer": {
+                "engine": (songformer_route or {}).get("engine"),
+                "model": (songformer_route or {}).get("model"),
+                "pipeline": (songformer_route or {}).get("pipeline"),
+                "device": (songformer_route or {}).get("device"),
+                "frame_rate": (songformer_route or {}).get("frame_rate"),
+            },
+            "all_in_one_retained_for_rhythm": "all_in_one" in rhythm_results,
+            "all_in_one_section_count_for_audit": section_selection[
+                "all_in_one_segment_count_for_audit"
+            ],
             "semantic_labels_from_energy": False,
             "bar_grid_origin": bar_grid_origin,
         },

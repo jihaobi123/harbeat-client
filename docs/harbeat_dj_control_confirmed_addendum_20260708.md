@@ -1384,8 +1384,8 @@ RDS `library_songs` 当前样例记录：
   - `song.downbeats = result.get("downbeats", [])`
   - `song.phrase_map = result.get("phrase_map", [])`
 - `app/modules/library/analysis.py`
-  - `_start_bar_grid_after_all_in_one_intro(...)`
-  - `_all_in_one_segments_to_phrase_map(...)`
+  - `_start_bar_grid_after_intro(...)`（正式段落来源为 SongFormer）
+  - `_functional_segments_to_phrase_map(...)`
   - `_build_transition_windows(phrase_map)`
   - 返回 `downbeats` / `phrase_map` / `transition_windows`
 

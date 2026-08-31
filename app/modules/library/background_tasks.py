@@ -12,7 +12,7 @@ from app.shared.database import SessionLocal
 logger = logging.getLogger(__name__)
 
 ANALYSIS_STAGE_KEYS = ("core", "stem_separation", "feature_analysis", "style_analysis")
-REQUIRED_CORE_ANALYSIS_VERSION = "all_in_one_sections_v2"
+REQUIRED_CORE_ANALYSIS_VERSION = "songformer_sections_v1"
 
 
 def _utc_now() -> str:
@@ -299,6 +299,9 @@ def run_analysis_and_separation(song_id: str) -> None:
                 song.transition_recommendations = result.get("transition_recommendations", [])
                 song.downbeats = result.get("downbeats", [])
                 song.phrase_map = result.get("phrase_map", [])
+                music_features = dict(getattr(song, "music_features", {}) or {})
+                music_features["section_analysis"] = result.get("section_analysis", {})
+                song.music_features = music_features
                 song.key_confidence = result.get("key_confidence")
                 song.key_profile = result.get("key_profile", {})
                 raw_cues = result.get("cue_points", [])
