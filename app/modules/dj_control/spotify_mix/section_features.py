@@ -14,6 +14,23 @@ DEFAULT_VOCAL_DENSITY = 0.55
 DEFAULT_LOW_ENERGY = 0.5
 
 
+def _structure_label(phrase: dict[str, Any]) -> str:
+    label = str(
+        phrase.get("structure_label_candidate")
+        or phrase.get("label")
+        or phrase.get("type")
+        or "unknown"
+    ).strip().lower()
+    return "instrumental" if label == "inst" else label
+
+
+def _mix_roles(phrase: dict[str, Any]) -> list[str]:
+    raw = phrase.get("mix_roles") or []
+    if not isinstance(raw, (list, tuple, set)):
+        return []
+    return [str(role).strip().lower() for role in raw if str(role).strip()]
+
+
 def extract_section_features(
     phrase: dict[str, Any],
     song_analysis: dict[str, Any],
@@ -24,7 +41,10 @@ def extract_section_features(
     start = _float(phrase.get("start", phrase.get("start_sec", phrase.get("time"))), 0.0)
     end = _float(phrase.get("end", phrase.get("end_sec")), start)
     duration = max(0.0, end - start)
-    label = str(phrase.get("label", phrase.get("type", "unknown")) or "unknown").lower()
+    label = _structure_label(phrase)
+    mix_roles = _mix_roles(phrase)
+    raw_role_scores = phrase.get("mix_role_scores")
+    mix_role_scores = dict(raw_role_scores) if isinstance(raw_role_scores, dict) else {}
     energy = _float(phrase.get("energy", phrase.get("intensity")), 0.5)
 
     energy_curve = song_analysis.get("energy_curve") or []
@@ -37,11 +57,14 @@ def extract_section_features(
         "end": end,
         "duration": duration,
         "label": label,
+        "structure_label_candidate": label,
+        "mix_roles": mix_roles,
+        "mix_role_scores": mix_role_scores,
         "role": role,
         "energy": energy,
         "intensity": _float(phrase.get("intensity"), energy),
-        "priority": _base_priority(label, role),
-        "cue_offset": _cue_offset(label, role, duration),
+        "priority": _base_priority(label, role, mix_roles=mix_roles),
+        "cue_offset": _cue_offset(label, role, duration, mix_roles=mix_roles),
         "loudness_start": _energy_to_loudness(_sample_energy_at(energy_curve, start)),
         "loudness_end": _energy_to_loudness(_sample_energy_at(energy_curve, max(start, end - 0.5))),
         "vocal_density_start": _vocal_density_in_range(vocal_events, start, min(end, start + 4.0)),
@@ -66,6 +89,7 @@ def enumerate_outro_sections(song_analysis: dict[str, Any], *, max_candidates: i
     for idx, phrase in enumerate(phrases):
         feature = extract_section_features(phrase, song_analysis, role=ROLE_OUTRO)
         label = feature["label"]
+        mix_roles = set(feature["mix_roles"])
         cue_time = feature["start"] + feature["cue_offset"]
         if duration > 0 and cue_time < min_exit_at:
             continue
@@ -73,6 +97,8 @@ def enumerate_outro_sections(song_analysis: dict[str, Any], *, max_candidates: i
             feature.update(priority=92, priority_reason="outro_label")
         elif label in {"chorus", "drop"}:
             feature.update(priority=88, priority_reason="mid_late_peak_exit")
+        elif "transition" in mix_roles:
+            feature.update(priority=86, priority_reason="transition_role_exit")
         elif label in {"break", "bridge", "instrumental"}:
             feature.update(priority=84, priority_reason="mid_late_break_exit")
         elif label == "verse" and idx >= 2:
@@ -100,10 +126,13 @@ def enumerate_intro_sections(song_analysis: dict[str, Any], *, max_candidates: i
     for idx, phrase in enumerate(phrases[:5]):
         feature = extract_section_features(phrase, song_analysis, role=ROLE_INTRO)
         label = feature["label"]
+        mix_roles = set(feature["mix_roles"])
         if label == "chorus":
             feature.update(priority=100, priority_reason="first_chorus")
         elif label == "drop":
             feature.update(priority=95, priority_reason="first_drop")
+        elif "buildup" in mix_roles:
+            feature.update(priority=85, priority_reason="buildup_role_entry")
         elif label == "verse" and idx <= 2:
             feature.update(priority=80, priority_reason="early_verse")
         elif label == "intro" and idx == 0:
@@ -323,16 +352,34 @@ def _is_near_downbeat(time_sec: float, downbeats: list[float], *, tolerance_sec:
     return any(abs(db - time_sec) <= tolerance_sec for db in downbeats)
 
 
-def _base_priority(label: str, role: str) -> int:
+def _base_priority(
+    label: str,
+    role: str,
+    *,
+    mix_roles: list[str] | tuple[str, ...] = (),
+) -> int:
+    roles = set(mix_roles)
     if role == ROLE_OUTRO:
+        if "transition" in roles:
+            return 86
         return {"outro": 100, "chorus": 80, "verse": 50}.get(label, 30)
     if role == ROLE_INTRO:
+        if "buildup" in roles:
+            return 85
         return {"chorus": 100, "drop": 95, "verse": 70, "intro": 50}.get(label, 30)
     return 40
 
 
-def _cue_offset(label: str, role: str, duration: float) -> float:
+def _cue_offset(
+    label: str,
+    role: str,
+    duration: float,
+    *,
+    mix_roles: list[str] | tuple[str, ...] = (),
+) -> float:
     if role == ROLE_OUTRO:
+        if "transition" in mix_roles:
+            return duration * 0.5
         return duration * (0.6 if label in {"outro", "chorus"} else 0.5)
     if role == ROLE_INTRO and label == "intro":
         return duration * 0.7

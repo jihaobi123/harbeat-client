@@ -25,8 +25,30 @@ from dataclasses import dataclass
 from typing import Any
 
 
-_VOCAL_LABELS = {"verse", "chorus", "hook", "rap", "bridge"}
-_INSTRUMENTAL_LABELS = {"intro", "outro", "break", "drop", "build", "instrumental"}
+_VOCAL_LABELS = {"verse", "chorus", "hook", "rap", "bridge", "pre-chorus"}
+_INSTRUMENTAL_LABELS = {
+    "intro", "outro", "break", "drop", "build", "instrumental", "inst",
+}
+
+
+def _canonical_section_label(section: dict[str, Any]) -> str:
+    label = str(
+        section.get("structure_label_candidate")
+        or section.get("label")
+        or "section"
+    ).strip().lower()
+    return "instrumental" if label == "inst" else label
+
+
+def _section_mix_roles(section: dict[str, Any]) -> tuple[str, ...]:
+    roles = section.get("mix_roles") or []
+    if not isinstance(roles, (list, tuple, set)):
+        return ()
+    return tuple(
+        str(role).strip().lower()
+        for role in roles
+        if str(role).strip()
+    )
 
 
 @dataclass(frozen=True)
@@ -38,6 +60,7 @@ class SectionEnergy:
     start: float
     end: float
     label: str  # phrase/cue label or "auto" if synthesized
+    mix_roles: tuple[str, ...]
 
     section_dance_energy: float
     section_groove_energy: float
@@ -54,6 +77,7 @@ class SectionEnergy:
             "start": round(self.start, 3),
             "end": round(self.end, 3),
             "label": self.label,
+            "mix_roles": list(self.mix_roles),
             "dance": round(self.section_dance_energy, 3),
             "groove": round(self.section_groove_energy, 3),
             "impact": round(self.section_impact_energy, 3),
@@ -75,22 +99,24 @@ def _build_section_boundaries(
     cue_points: list[dict],
     duration: float,
     bpm: float,
-) -> list[tuple[float, float, str]]:
-    """Return list of (start, end, label) covering [0, duration]."""
-    bounds: list[tuple[float, str]] = []  # (start, label)
+) -> list[tuple[float, float, str, tuple[str, ...]]]:
+    """Return timing boundaries with separate structure and mix-role layers."""
+    bounds: list[tuple[float, str, tuple[str, ...]]] = []
     for ph in phrase_map or []:
         try:
             t = float(ph.get("start") or ph.get("time") or 0.0)
-            label = str(ph.get("label") or "").lower() or "section"
-            bounds.append((t, label))
+            bounds.append((t, _canonical_section_label(ph), _section_mix_roles(ph)))
         except (TypeError, ValueError):
             continue
     if not bounds:
         for cue in cue_points or []:
             try:
                 t = float(cue.get("time") or 0.0)
-                label = str(cue.get("label") or "").lower() or "section"
-                bounds.append((t, label))
+                bounds.append((
+                    t,
+                    _canonical_section_label(cue),
+                    _section_mix_roles(cue),
+                ))
             except (TypeError, ValueError):
                 continue
     if not bounds:
@@ -99,20 +125,20 @@ def _build_section_boundaries(
         win = bar * 16
         t = 0.0
         while t < duration:
-            bounds.append((t, "auto"))
+            bounds.append((t, "auto", ()))
             t += win
     bounds.sort(key=lambda kv: kv[0])
     if not bounds or bounds[0][0] > 0.5:
-        bounds.insert(0, (0.0, "intro"))
+        bounds.insert(0, (0.0, "intro", ()))
     # Build (start, end, label)
-    sections: list[tuple[float, float, str]] = []
-    for i, (start, label) in enumerate(bounds):
+    sections: list[tuple[float, float, str, tuple[str, ...]]] = []
+    for i, (start, label, mix_roles) in enumerate(bounds):
         end = bounds[i + 1][0] if i + 1 < len(bounds) else duration
         if end - start < 1.5:
             continue
-        sections.append((float(start), float(end), label))
+        sections.append((float(start), float(end), label, mix_roles))
     if not sections:
-        sections = [(0.0, duration, "auto")]
+        sections = [(0.0, duration, "auto", ())]
     return sections
 
 
@@ -179,9 +205,12 @@ def _low_mid_section(beat_points: list[float], start: float, end: float,
 
 
 def _vocal_density_section(label: str, phrase_map: list[dict], start: float,
-                           end: float) -> float:
+                           end: float, *, mix_roles: tuple[str, ...] | list[str] = ()) -> float:
     """Use label first; if generic, count overlapping phrases."""
     lab = label.lower()
+    normalized_roles = {str(role).lower() for role in mix_roles}
+    if "instrumental_focus" in normalized_roles:
+        return 0.15
     if lab in _VOCAL_LABELS:
         # Hook/chorus tend to be the most vocal-loaded
         if lab in {"chorus", "hook"}:
@@ -195,7 +224,7 @@ def _vocal_density_section(label: str, phrase_map: list[dict], start: float,
     for ph in phrase_map or []:
         try:
             t = float(ph.get("start") or ph.get("time") or 0.0)
-            phl = str(ph.get("label") or "").lower()
+            phl = _canonical_section_label(ph)
             if start - 1 <= t < end + 1 and phl in _VOCAL_LABELS:
                 overlap += 1
         except (TypeError, ValueError):
@@ -210,11 +239,15 @@ def _density_section(beat_points: list[float], start: float, end: float) -> floa
 
 
 def _tension_section(label: str, phrase_map: list[dict], start: float,
-                     end: float, bpm: float) -> float:
+                     end: float, bpm: float, *,
+                     mix_roles: tuple[str, ...] | list[str] = ()) -> float:
     """Tension = phrase change rate near this section + label weight."""
     lab = label.lower()
+    normalized_roles = {str(role).lower() for role in mix_roles}
     base = 0.4
-    if lab in {"build", "drop", "bridge"}:
+    if normalized_roles.intersection({"transition", "buildup"}):
+        base = 0.85
+    elif lab in {"build", "drop", "bridge"}:
         base = 0.85
     elif lab == "outro":
         base = 0.2
@@ -246,14 +279,18 @@ def compute_section_energy_map(song) -> list[SectionEnergy]:
 
     sections = _build_section_boundaries(phrase_map, cue_points, duration, bpm)
     out: list[SectionEnergy] = []
-    for start, end, label in sections:
+    for start, end, label, mix_roles in sections:
         kp = _kick_punch_section(downbeats, start, end, bpm, global_energy)
         sc = _snare_crack_section(beat_points, downbeats, start, end, bpm)
         gt = _groove_tightness_section(beat_points, start, end, bpm)
         lm = _low_mid_section(beat_points, start, end, global_energy)
-        vd = _vocal_density_section(label, phrase_map, start, end)
+        vd = _vocal_density_section(
+            label, phrase_map, start, end, mix_roles=mix_roles
+        )
         dn = _density_section(beat_points, start, end)
-        tn = _tension_section(label, phrase_map, start, end, bpm)
+        tn = _tension_section(
+            label, phrase_map, start, end, bpm, mix_roles=mix_roles
+        )
 
         # Composite scores (mirror compute_dance_energy weighting):
         impact = 0.55 * kp + 0.45 * sc
@@ -261,7 +298,7 @@ def compute_section_energy_map(song) -> list[SectionEnergy]:
         section_dance = 0.30 * kp + 0.25 * sc + 0.15 * gt + 0.15 * lm + 0.10 * vd + 0.05 * min(1.0, bpm / 130.0 if bpm > 0 else 0.5)
 
         out.append(SectionEnergy(
-            start=start, end=end, label=label,
+            start=start, end=end, label=label, mix_roles=mix_roles,
             section_dance_energy=float(min(1.0, section_dance)),
             section_groove_energy=float(min(1.0, groove)),
             section_impact_energy=float(min(1.0, impact)),

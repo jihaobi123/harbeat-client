@@ -1746,6 +1746,8 @@ def _build_transition_windows(phrase_map: list[dict]) -> list[dict]:
         "intro": (0.92, 0.35),
         "verse": (0.68, 0.58),
         "buildup": (0.45, 0.72),
+        "transition": (0.65, 0.76),
+        "instrumental_focus": (0.72, 0.72),
         "drop": (0.52, 0.48),
         "breakdown": (0.74, 0.80),
         "outro": (0.30, 0.94),
@@ -1753,7 +1755,17 @@ def _build_transition_windows(phrase_map: list[dict]) -> list[dict]:
     windows: list[dict] = []
     for phrase in phrase_map:
         label = str(phrase.get("label", "verse")).lower()
-        mix_in, mix_out = role_scores.get(label, (0.55, 0.55))
+        mix_roles = [
+            str(role).lower()
+            for role in (phrase.get("mix_roles") or [])
+            if str(role).strip()
+        ]
+        score_key = next(
+            (role for role in ("buildup", "transition", "instrumental_focus")
+             if role in mix_roles),
+            label,
+        )
+        mix_in, mix_out = role_scores.get(score_key, (0.55, 0.55))
         energy = float(phrase.get("energy", 0.5))
         bars = int(phrase.get("bars", 0) or 0)
         if energy < 0.45:
@@ -1770,6 +1782,7 @@ def _build_transition_windows(phrase_map: list[dict]) -> list[dict]:
             "start": round(float(phrase.get("start", 0.0)), 3),
             "end": round(float(phrase.get("end", phrase.get("start", 0.0))), 3),
             "label": label,
+            "mix_roles": mix_roles,
             "bars": bars,
             "energy": round(energy, 4),
             "mix_in_score": round(float(np.clip(mix_in, 0.0, 1.0)), 4),
