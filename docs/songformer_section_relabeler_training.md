@@ -22,15 +22,27 @@ SongFormer 继续提供段落边界和八类原始概率。HarBeat 的小型线�
 - 所有交叉验证按歌曲分组，绝不随机拆分同一首歌的段落。
 - 8 首测试歌只在模型、特征和阈值锁定后评估一次。
 
-## 人工只需要做什么
+## 双人标注
 
-启动本地标注页：
+在保存主数据的同一台电脑上启动唯一一个共享服务：
 
 ```bash
 /Users/xueyawen/xywfiles/harbeat/harbeat-client/.venv/bin/python \
   scripts/section_label_workbench.py \
-  /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/annotations.json
+  /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/annotations.json \
+  --host 0.0.0.0 \
+  --partition-count 2
 ```
+
+服务会输出三个带随机密钥的链接：`part-1`、`part-2` 和 `all-results-read-only`。
+把前两个链接分别交给两位标注者；第三个链接可交给所有评审者。两位标注者必须访问这一台共享服务，
+不要各自复制并运行 JSON，否则实时共享和后端写保护无法成立。
+
+当前固定分片按整首歌曲、开发/测试划分、风格和段落工作量均衡：Part 1 为 37 首、524 段，
+Part 2 为 36 首、533 段。分片映射和随机密钥保存在本机标注数据中，不提交 Git。全部结果页面只读并每 5 秒刷新；
+两个编辑页面也显示全局实时进度。主 JSON 始终是自动汇总结果，不需要最后手工合并。
+
+## 人工只需要做什么
 
 浏览器中逐段操作：
 

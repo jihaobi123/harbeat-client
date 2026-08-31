@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from app.modules.library.section_contract import canonical_structure_label
+from app.modules.library.section_annotation_partitions import partition_contract_issues
 from app.modules.library.section_relabeler import (
     STRUCTURE_LABELS,
     build_track_feature_matrix,
@@ -165,6 +166,7 @@ def validate_dataset(
             "schema_version must be "
             f"{DATASET_SCHEMA_VERSION}, got {payload.get('schema_version')!r}"
         )
+    issues.extend(partition_contract_issues(payload))
     tracks = payload.get("tracks")
     if not isinstance(tracks, list) or not tracks:
         issues.append("tracks must be a non-empty list")

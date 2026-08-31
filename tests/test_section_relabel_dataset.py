@@ -76,8 +76,10 @@ def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> 
         json.dumps(_dataset(str(audio)), ensure_ascii=False), encoding="utf-8"
     )
     store = Store(dataset_path)
+    access_key = store.payload["annotation_partition"]["partitions"][0]["access_key"]
 
     store.update_annotation(
+        access_key,
         "track-1",
         0,
         {
@@ -88,6 +90,7 @@ def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> 
         },
     )
     store.update_annotation(
+        access_key,
         "track-1",
         1,
         {
