@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
 import WaveformPlayer from './WaveformPlayer'
+import PresenceAnnotationPanel from './PresenceAnnotationPanel'
 import * as api from '../api/client'
 import { getStemStreamUrl, getProcessedStreamUrl } from '../api/client'
 import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
@@ -597,6 +598,12 @@ export default function SongDetail() {
       <div className="px-5 mt-4">
         <WaveformPlayer song={song} />
       </div>
+
+      {song.stems && (
+        <div className="px-5 mt-4">
+          <PresenceAnnotationPanel song={song} />
+        </div>
+      )}
 
       {/* Stem separation */}
       <div className="px-5 mt-4 space-y-3">
