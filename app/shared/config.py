@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/music-files"
     annotation_dir: str = "./data/annotations"
     presence_dataset_version: str = "bar-presence-pilot-1.0.0"
+    bar_annotation_dir: str = "./data/bar-annotations"
+    bar_annotation_pilot_manifest: str = "./config/public-annotation-pilot.json"
 
     model_config = SettingsConfigDict(
         env_file=".env",

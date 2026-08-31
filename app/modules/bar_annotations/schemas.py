@@ -72,6 +72,7 @@ class StoredAnnotationSet(BaseModel):
     schema_version: Literal["1.0.0"] = "1.0.0"
     dataset_version: str
     track_id: str
+    annotator_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
     timeline_fingerprint: str = ""
     revision: int = Field(default=0, ge=0)
     annotations: list[AnnotationRecord] = Field(default_factory=list)
