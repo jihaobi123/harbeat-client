@@ -1,8 +1,8 @@
 from app.modules.library.analysis import (
+    _build_canonical_bar_grid,
     _functional_intro_end,
     _functional_segments_to_phrase_map,
     _generate_dj_hot_cues,
-    _start_bar_grid_after_intro,
 )
 
 
@@ -28,42 +28,37 @@ def test_leading_intro_end_comes_from_authoritative_sections() -> None:
     }
 
 
-def test_bar_one_is_first_downbeat_after_intro_end() -> None:
+def test_intro_candidate_does_not_remove_base_downbeats() -> None:
     downbeats = [0.2, 2.2, 4.2, 6.2, 8.2, 10.2, 12.2, 14.2]
 
-    product_grid, metadata = _start_bar_grid_after_intro(
-        downbeats, _segments(),
-    )
+    product_grid, metadata = _build_canonical_bar_grid(downbeats)
 
-    assert product_grid == [10.2, 12.2, 14.2]
-    assert metadata["first_bar_downbeat"] == 10.2
-    assert metadata["removed_intro_downbeats"] == 5
-    assert metadata["intro_end"] == 10.0
-    assert metadata["rule"] == "first_downbeat_at_or_after_functional_intro_end"
+    assert product_grid == downbeats
+    assert metadata["first_bar_downbeat"] == 0.2
+    assert metadata["removed_intro_downbeats"] == 0
+    assert metadata["semantic_intro_applied"] is False
+    assert metadata["rule"] == "timing_only_full_bar_grid"
 
 
-def test_no_functional_sections_means_no_product_bar_grid() -> None:
-    product_grid, metadata = _start_bar_grid_after_intro(
-        [0.2, 2.2, 4.2], [],
-    )
+def test_bar_grid_does_not_require_functional_sections() -> None:
+    product_grid, metadata = _build_canonical_bar_grid([0.2, 2.2, 4.2])
 
-    assert product_grid == []
-    assert metadata["status"] == "functional_sections_unavailable"
+    assert product_grid == [0.2, 2.2, 4.2]
+    assert metadata["status"] == "ok"
 
 
 def test_bar_grid_counts_meter_from_anchor_instead_of_copying_mid_song_errors() -> None:
     beats = [round(0.2 + index * 0.5, 3) for index in range(40)]
     noisy_downbeats = [0.2, 2.2, 4.2, 6.2, 8.2, 10.2, 11.2, 14.2, 18.2]
 
-    product_grid, metadata = _start_bar_grid_after_intro(
+    product_grid, metadata = _build_canonical_bar_grid(
         noisy_downbeats,
-        _segments(),
         beat_times=beats,
         beats_per_bar=4,
     )
 
-    assert product_grid[:5] == [10.2, 12.2, 14.2, 16.2, 18.2]
-    assert metadata["grid_mode"] == "counted_beats_from_first_post_intro_downbeat"
+    assert product_grid[:5] == [0.2, 2.2, 4.2, 6.2, 8.2]
+    assert metadata["grid_mode"] == "counted_beats_from_first_timing_downbeat"
     assert metadata["beats_per_bar"] == 4
 
 

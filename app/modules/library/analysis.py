@@ -1949,55 +1949,40 @@ def _functional_intro_end(segments: list[dict] | None) -> tuple[float, dict]:
     }
 
 
-def _start_bar_grid_after_intro(
+def _build_canonical_bar_grid(
     downbeats: list[float] | None,
-    segments: list[dict] | None,
     *,
     beat_times: list[float] | np.ndarray | None = None,
     beats_per_bar: int = 4,
-    boundary_tolerance: float = 0.1,
 ) -> tuple[list[float], dict]:
-    """Number bars from the first detected downbeat after the model intro.
+    """Build the complete bar grid using timing evidence only.
 
-    Once the first strong beat is located, subsequent bar starts are counted
-    every ``beats_per_bar`` beat ticks.  This prevents a downbeat model that
-    emits occasional half-bars or double-bars from changing bar numbering in
-    the middle of a song.
+    Semantic section labels are deliberately absent from the signature. Once
+    the first timing downbeat is located, later bars may be counted from the
+    beat sequence to repair occasional half-bar or double-bar model errors.
     """
     raw_grid = sorted({round(float(value), 3) for value in (downbeats or [])})
-    intro_end, intro_meta = _functional_intro_end(segments)
-    if not segments:
-        return [], {
-            **intro_meta,
-            "status": "functional_sections_unavailable",
-            "rule": "first_downbeat_at_or_after_functional_intro_end",
-            "raw_downbeat_count": len(raw_grid),
-            "removed_intro_downbeats": len(raw_grid),
-            "first_bar_downbeat": None,
-        }
     if not raw_grid:
         return [], {
-            **intro_meta,
             "status": "downbeats_unavailable",
-            "rule": "first_downbeat_at_or_after_functional_intro_end",
+            "rule": "timing_only_full_bar_grid",
             "raw_downbeat_count": 0,
             "removed_intro_downbeats": 0,
             "first_bar_downbeat": None,
+            "grid_mode": "unavailable",
+            "beats_per_bar": max(1, int(beats_per_bar or 4)),
+            "anchor_beat_index": None,
+            "semantic_intro_applied": False,
         }
 
-    first_index = next((
-        index for index, value in enumerate(raw_grid)
-        if value >= intro_end - max(0.0, float(boundary_tolerance))
-    ), len(raw_grid))
-    candidate_grid = raw_grid[first_index:]
-    product_grid = candidate_grid
-    grid_mode = "native_downbeats_after_intro"
+    product_grid = raw_grid
+    grid_mode = "native_full_downbeats"
     anchor_beat_index = None
     meter = max(1, int(beats_per_bar or 4))
     beat_values = list(beat_times) if beat_times is not None else []
     beats = sorted({round(float(value), 6) for value in beat_values})
-    if candidate_grid and beats:
-        anchor = candidate_grid[0]
+    if beats:
+        anchor = raw_grid[0]
         anchor_beat_index = min(range(len(beats)), key=lambda index: abs(beats[index] - anchor))
         intervals = np.diff(np.asarray(beats, dtype=float))
         median_interval = float(np.median(intervals)) if len(intervals) else 0.0
@@ -2007,21 +1992,17 @@ def _start_bar_grid_after_intro(
                 round(float(value), 3)
                 for value in beats[anchor_beat_index::meter]
             ]
-            grid_mode = "counted_beats_from_first_post_intro_downbeat"
+            grid_mode = "counted_beats_from_first_timing_downbeat"
     return product_grid, {
-        **intro_meta,
-        "status": "ok" if product_grid else "no_downbeat_after_intro",
-        "rule": "first_downbeat_at_or_after_functional_intro_end",
-        "boundary_tolerance_seconds": round(max(0.0, float(boundary_tolerance)), 3),
+        "status": "ok" if product_grid else "downbeats_unavailable",
+        "rule": "timing_only_full_bar_grid",
         "raw_downbeat_count": len(raw_grid),
-        "removed_intro_downbeats": first_index,
+        "removed_intro_downbeats": 0,
         "first_bar_downbeat": product_grid[0] if product_grid else None,
         "grid_mode": grid_mode,
         "beats_per_bar": meter,
         "anchor_beat_index": anchor_beat_index,
-        "first_bar_offset_from_intro_end": (
-            round(product_grid[0] - intro_end, 4) if product_grid else None
-        ),
+        "semantic_intro_applied": False,
     }
 
 
@@ -3369,9 +3350,8 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     )
     downbeat_consensus["errors"] = ({"madmom": madmom_error} if madmom_error else {})
     time_signature = _detect_time_signature(beat_times, raw_downbeats, bpm=bpm)
-    downbeats, bar_grid_origin = _start_bar_grid_after_intro(
+    downbeats, bar_grid_origin = _build_canonical_bar_grid(
         raw_downbeats,
-        functional_segments,
         beat_times=beat_times,
         beats_per_bar=int(time_signature.get("numerator", 4) or 4),
     )
@@ -3463,7 +3443,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
     section_source = section_selection["source"]
 
     # Phrase map uses the same authoritative boundaries as cue_points. Bar counts
-    # use the exported grid whose Bar 1 starts after the intro.
+    # use the complete timing-only bar grid; intro semantics never trim it.
     phrase_map = _functional_segments_to_phrase_map(
         functional_segments,
         downbeats,
