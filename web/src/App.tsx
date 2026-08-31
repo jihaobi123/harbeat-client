@@ -14,8 +14,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-surface street-theme">
-        <div className="street-sticker px-6 py-4 text-lg street-subtitle">Loading...</div>
+      <div className="app-loading street-theme" role="status" aria-live="polite">
+        <div className="editorial-kicker"><b aria-hidden="true">00</b><span>HarBeat</span></div>
+        <p>Loading your workspace…</p>
       </div>
     )
   }
