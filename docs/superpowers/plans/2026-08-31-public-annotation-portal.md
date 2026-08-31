@@ -18,7 +18,8 @@
 - Create: `app/modules/bar_annotations/public_datasets.py`
 - Create: `app/modules/bar_annotations/schemas.py`
 - Create: `app/modules/library/bar_feature_adapter.py`
-- Create: `app/modules/library/feature_review_artifacts.py`
+- Create: `contracts/fixtures/analysis/raveform_track.valid.json`
+- Create: `contracts/registries/annotation_labels_v1.json`
 - Test: `app/tests/test_bar_annotation_candidates.py`
 - Test: `app/tests/test_bar_annotation_public_datasets.py`
 
@@ -50,7 +51,8 @@ app/modules/annotations/candidates.py       -> app/modules/bar_annotations/candi
 app/modules/annotations/public_datasets.py  -> app/modules/bar_annotations/public_datasets.py
 app/modules/annotations/schemas.py          -> app/modules/bar_annotations/schemas.py
 app/modules/library/bar_feature_adapter.py  -> app/modules/library/bar_feature_adapter.py
-app/modules/library/feature_review_artifacts.py -> app/modules/library/feature_review_artifacts.py
+contracts/fixtures/analysis/raveform_track.valid.json -> same local path
+contracts/registries/annotation_labels_v1.json -> same local path
 ```
 
 Replace imports beginning with `app.modules.annotations` by `app.modules.bar_annotations`. Keep label mappings and candidate behavior byte-for-byte otherwise.
@@ -62,7 +64,7 @@ Run the Task 1 pytest command. Expected: all imported candidate and public-datas
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/modules/bar_annotations app/modules/library/bar_feature_adapter.py app/modules/library/feature_review_artifacts.py app/tests/test_bar_annotation_candidates.py app/tests/test_bar_annotation_public_datasets.py
+git add app/modules/bar_annotations app/modules/library/bar_feature_adapter.py contracts/fixtures/analysis/raveform_track.valid.json contracts/registries/annotation_labels_v1.json app/tests/test_bar_annotation_candidates.py app/tests/test_bar_annotation_public_datasets.py
 git commit -m "feat: import bar annotation domain"
 ```
 
