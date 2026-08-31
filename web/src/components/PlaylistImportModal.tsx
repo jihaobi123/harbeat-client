@@ -4,6 +4,7 @@ import { useMusicStore } from '../store/useMusicStore'
 import { DANCE_STYLES, DANCE_STYLE_LABELS, DANCE_STYLE_COLORS } from '../types'
 import type { DanceStyle } from '../types'
 import * as api from '../api/client'
+import { EditorialIcon } from './editorial/EditorialIcon'
 
 interface Props {
   onClose: () => void
@@ -278,13 +279,13 @@ export default function PlaylistImportModal({ onClose }: Props) {
   const notFoundCount = tracks.filter(t => t.selected && t.searchStatus === 'not-found').length
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-surface-light rounded-2xl w-full max-w-[800px] mx-2 sm:mx-4 max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="editorial-modal-backdrop street-theme" onClick={onClose}>
+      <section className="editorial-modal flex flex-col" role="dialog" aria-modal="true" aria-labelledby="playlist-import-title" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+        <header className="editorial-modal__heading">
+          <span aria-hidden="true">08</span>
           <div className="flex items-center gap-2">
-            <span className="text-lg">📋</span>
-            <h2 className="text-base font-semibold text-white">
+            <h2 id="playlist-import-title">
               {stage === 'parse' && '导入歌单'}
               {stage === 'select' && '选择歌曲'}
               {stage === 'search' && '搜索音源中...'}
@@ -303,9 +304,9 @@ export default function PlaylistImportModal({ onClose }: Props) {
                 {i < 3 && <span className="text-gray-700 mx-0.5">›</span>}
               </div>
             ))}
-            <button onClick={onClose} className="text-gray-500 hover:text-white text-xl ml-3 transition">×</button>
+            <button onClick={onClose} aria-label="关闭歌单导入窗口"><EditorialIcon name="close" decorative /></button>
           </div>
-        </div>
+        </header>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -541,7 +542,7 @@ export default function PlaylistImportModal({ onClose }: Props) {
             <><span /><button onClick={onClose} className="bg-primary hover:bg-primary-dark text-white px-5 py-2 rounded-lg text-sm transition">完成</button></>
           )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

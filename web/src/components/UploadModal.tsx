@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useMusicStore } from '../store/useMusicStore'
+import { EditorialIcon } from './editorial/EditorialIcon'
 
 export default function UploadModal({ onClose }: { onClose: () => void }) {
   const { uploadFile, uploading } = useMusicStore()
@@ -40,15 +41,21 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-surface-light rounded-2xl w-full max-w-lg mx-2 sm:mx-4 p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+    <div className="editorial-modal-backdrop street-theme" onClick={onClose}>
+      <section
+        className="editorial-modal max-w-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">上传音乐</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl">×</button>
-        </div>
+        <header className="editorial-modal__heading">
+          <span aria-hidden="true">07</span>
+          <h2 id="upload-modal-title">Upload / 上传音乐</h2>
+          <button onClick={onClose} aria-label="关闭上传窗口"><EditorialIcon name="close" decorative /></button>
+        </header>
+
+        <div className="editorial-modal__body">
 
         {/* Drop zone */}
         <div
@@ -60,7 +67,7 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
           onClick={() => inputRef.current?.click()}
         >
-          <div className="text-3xl mb-2">📁</div>
+          <EditorialIcon name="upload" decorative className="w-10 h-10 mx-auto mb-2" />
           <div className="text-sm text-gray-400">拖拽文件到此处，或点击选择</div>
           <div className="text-xs text-gray-500 mt-1">支持 MP3, FLAC, WAV, OGG, AAC, M4A</div>
           <input
@@ -122,7 +129,8 @@ export default function UploadModal({ onClose }: { onClose: () => void }) {
             {uploading ? `上传中 (${progress}/${total})` : `上传 ${files.length} 个文件`}
           </button>
         </div>
-      </div>
+        </div>
+      </section>
     </div>
   )
 }
