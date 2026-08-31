@@ -88,6 +88,7 @@ def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> 
             "boundary_ok": True,
             "uncertain": False,
         },
+        0,
     )
     store.update_annotation(
         access_key,
@@ -99,6 +100,7 @@ def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> 
             "boundary_ok": True,
             "uncertain": False,
         },
+        0,
     )
 
     saved = json.loads(dataset_path.read_text(encoding="utf-8"))

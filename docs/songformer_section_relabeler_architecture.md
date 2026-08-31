@@ -20,7 +20,7 @@ flowchart LR
     D --> P[固定双分片路由]
     P --> P1[Part 1<br/>532 段可编辑]
     P --> P2[Part 2<br/>525 段可编辑]
-    D --> R[全部结果<br/>只读实时评估]
+    D --> R[全部结果<br/>实时复核与修正]
     P1 --> D
     P2 --> D
 
@@ -85,8 +85,13 @@ flowchart LR
 ### 如何共享和汇总
 
 两个标注页面都写入同一个 `annotations.json`，服务端用互斥锁串行化写入，并采用临时文件替换完成
-原子保存。每次保存前，旧版本自动备份为 `annotations.backup.json`。第三个随机密钥对应“全部结果”
-只读页面，显示 73 首的实时进度和人工标签，每 5 秒刷新。
+原子保存。每次保存前，旧版本自动备份为 `annotations.backup.json`。第三个随机密钥对应“全部结果
+复核”页面，显示 73 首的实时进度和人工标签，每 5 秒刷新。复核者只能修改已经完成初标的段落，
+不能替两位标注者填写空白段落，因此初标工作仍然不会重复。
+
+每个段落都有独立修订号。保存时浏览器必须提交它读到的版本；若其他人已经更新，后端返回冲突并
+要求重新加载，避免后写入静默覆盖先写入。所有实际变化都会在主 JSON 的 `annotation_review.audit_log`
+中记录时间、操作来源、修改前内容和修改后内容。
 
 因此不存在后期手工合并步骤：主 JSON 始终就是汇总结果，训练器直接读取它。
 
@@ -108,7 +113,7 @@ flowchart LR
 - `app/modules/library/section_relabeler.py`：52 维特征和纯 NumPy 推理。
 - `app/modules/library/section_relabel_dataset.py`：标注与训练共用的数据契约。
 - `app/modules/library/section_annotation_partitions.py`：固定分片、访问控制和进度汇总。
-- `scripts/section_label_workbench.py`：实时标注服务、写保护与只读总览。
+- `scripts/section_label_workbench.py`：实时标注服务、写保护、复核修正与并发版本检查。
 - `scripts/train_section_relabeler.py`：歌曲级交叉验证、阈值选择、模型导出和锁定评估。
 - `tests/test_section_annotation_partitions.py`：分片互斥、越权拒绝和实时汇总测试。
 - `tests/test_section_relabeler_training.py`：从数据集到模型回读的端到端测试。

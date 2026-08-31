@@ -176,7 +176,7 @@ def partition_contract_issues(payload: Mapping[str, Any]) -> list[str]:
 
 
 def resolve_access(payload: Mapping[str, Any], access_key: str) -> tuple[str, bool]:
-    """Return (scope, read_only), rejecting unknown capability keys."""
+    """Return (scope, review_mode), rejecting unknown capability keys."""
     partition = payload.get("annotation_partition")
     if not isinstance(partition, Mapping):
         raise PermissionError("annotation dataset has not been partitioned")

@@ -104,9 +104,21 @@ def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -
     ids_2 = {track["track_id"] for track in part_2["tracks"]}
     assert ids_1.isdisjoint(ids_2)
     assert ids_1 | ids_2 == {track["track_id"] for track in review["tracks"]}
-    assert review["access"] == {"scope": "all", "read_only": True}
+    assert review["access"] == {
+        "scope": "all",
+        "review_mode": True,
+        "read_only": False,
+    }
 
     track_id = part_1["tracks"][0]["track_id"]
+    with pytest.raises(PermissionError, match="after its initial annotation"):
+        store.update_annotation(
+            partition["review_access_key"],
+            track_id,
+            0,
+            {"human_label": "verse", "human_confidence": "high"},
+            0,
+        )
     store.update_annotation(
         keys["part-1"],
         track_id,
@@ -117,6 +129,7 @@ def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -
             "boundary_ok": True,
             "uncertain": False,
         },
+        0,
     )
     refreshed = store.public_payload(partition["review_access_key"])
     assert refreshed["annotation_progress"]["global"]["reviewed_segments"] == 1
@@ -124,11 +137,34 @@ def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -
         track for track in refreshed["tracks"] if track["track_id"] == track_id
     )["segments"][0]["annotation"]["human_label"] == "chorus"
 
+    store.update_annotation(
+        partition["review_access_key"],
+        track_id,
+        0,
+        {
+            "human_label": "verse",
+            "human_confidence": "high",
+            "boundary_ok": True,
+            "uncertain": False,
+        },
+        1,
+    )
+    corrected = store.public_payload(partition["review_access_key"])
+    corrected_segment = next(
+        track for track in corrected["tracks"] if track["track_id"] == track_id
+    )["segments"][0]
+    assert corrected_segment["annotation"]["human_label"] == "verse"
+    assert corrected_segment["annotation_revision"] == 2
+    audit = store.payload["annotation_review"]["audit_log"]
+    assert [entry["actor"] for entry in audit] == ["part-1", "review"]
+    assert audit[-1]["before"]["human_label"] == "chorus"
+    assert audit[-1]["after"]["human_label"] == "verse"
+
     with pytest.raises(PermissionError, match="belongs to"):
         store.update_annotation(
-            keys["part-2"], track_id, 0, {"human_label": "verse"}
+            keys["part-2"], track_id, 0, {"human_label": "verse"}, 2
         )
-    with pytest.raises(PermissionError, match="read-only"):
+    with pytest.raises(RuntimeError, match="revision 1 to 2"):
         store.update_annotation(
-            partition["review_access_key"], track_id, 0, {"human_label": "verse"}
+            keys["part-1"], track_id, 0, {"human_label": "chorus"}, 1
         )
