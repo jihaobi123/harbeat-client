@@ -4,6 +4,7 @@ uvicorn[standard]==0.35.0
 sqlalchemy==2.0.43
 psycopg2-binary==2.9.11
 redis==6.4.0
+rq==2.4.0
 pydantic-settings==2.10.1
 PyJWT==2.9.0
 python-multipart==0.0.20
@@ -17,10 +18,7 @@ pyloudnorm
 pedalboard
 
 # === Stem Separation (demucs) ===
-# torch CPU installed separately in Dockerfile (smaller, faster)
-# torch==2.6.0
-# torchaudio==2.6.0
-# torch runtime deps (needed because torch is installed with --no-deps)
+# torch + torchaudio: already provided by nvcr.io/nvidia/l4t-pytorch base image (GPU)
 sympy==1.13.1
 networkx
 filelock

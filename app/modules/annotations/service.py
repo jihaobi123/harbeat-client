@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 import logging
+import os
 from typing import Any
 
 from app.modules.annotations.schemas import (
@@ -64,6 +65,17 @@ class PresenceAnnotationService:
                 "stems_unavailable",
                 "no separated Stems are available for this song",
             )
+        readable_stems = [
+            path for name, path in stems.items()
+            if name in {"vocals", "drums", "bass", "other"}
+            and path
+            and os.path.isfile(path)
+        ]
+        if not readable_stems:
+            raise AnnotationGenerationError(
+                "stems_unavailable",
+                "separated Stem paths are missing or unreadable",
+            )
         try:
             timeline = build_bar_timeline(
                 downbeats=getattr(song, "downbeats", []) or [],
@@ -79,10 +91,11 @@ class PresenceAnnotationService:
             raise AnnotationGenerationError(code, str(exc)) from exc
 
         now = datetime.now(timezone.utc)
+        dataset_version = get_settings().presence_dataset_version or DATASET_VERSION
         bundle = PresenceAnnotationBundle(
             schema_name="harbeat.presence_annotation_bundle",
             schema_version="1.0.0",
-            dataset_version=DATASET_VERSION,
+            dataset_version=dataset_version,
             track_id=str(song.id),
             user_id=int(song.user_id),
             timeline=TimelineSnapshot(

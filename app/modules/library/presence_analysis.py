@@ -27,6 +27,7 @@ THRESHOLDS = {
 
 CANDIDATE_VERSION = "method:bar_presence_candidate@0.1.0"
 THRESHOLD_VERSION = "bar_presence_thresholds@0.1.0"
+ABSOLUTE_SILENCE_DBFS = -60.0
 
 
 class PresenceAnalysisError(ValueError):
@@ -144,6 +145,7 @@ def _element_probabilities(
     rms_values = [_rms(segment) for segment in segments]
     activity = _normalize(rms_values)
     peak = max(rms_values, default=0.0)
+    below_noise_floor = _dbfs(peak) < ABSOLUTE_SILENCE_DBFS
     gate = max(1e-6, peak * 0.03)
     coverage = [_coverage(segment, sample_rate, gate) for segment in segments]
     transients = _normalize([_transient_strength(segment) for segment in segments])
@@ -156,7 +158,9 @@ def _element_probabilities(
     probabilities: list[float] = []
     features: list[dict[str, float]] = []
     for index, segment in enumerate(segments):
-        if element == "drums":
+        if below_noise_floor:
+            probability = 0.0
+        elif element == "drums":
             probability = 0.72 * activity[index] + 0.28 * transients[index]
         elif element == "bass":
             probability = 0.80 * activity[index] + 0.20 * low_band[index]

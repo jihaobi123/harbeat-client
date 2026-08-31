@@ -1,4 +1,5 @@
 import json
+from copy import copy
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -80,6 +81,23 @@ def test_candidate_review_export_and_pilot_report_round_trip(tmp_path: Path):
             elements=_accept_candidates(candidate),
         ),
     )
+    incomplete_song = copy(song)
+    incomplete_song.id = "pilot-track-incomplete"
+    incomplete_candidate = service.generate_for_song(
+        song=incomplete_song,
+        requesting_user_id=incomplete_song.user_id,
+    )
+    incomplete_elements = _accept_candidates(incomplete_candidate)
+    incomplete_elements["vocal"] = {"review_state": "unknown", "ranges": []}
+    service.review(
+        song=incomplete_song,
+        requesting_user_id=incomplete_song.user_id,
+        actor_id="user:7",
+        payload=PresenceReviewRequest(
+            expected_revision=incomplete_candidate.revision,
+            elements=incomplete_elements,
+        ),
+    )
     single_records = [
         json.loads(line)
         for line in service.export(
@@ -105,11 +123,15 @@ def test_candidate_review_export_and_pilot_report_round_trip(tmp_path: Path):
     }
     assert all(record["annotation_status"] == "reviewed" for record in single_records)
     assert batch_records == single_records
-    assert report["tracks_total"] == 1
+    assert report["tracks_total"] == 2
     assert report["tracks_reviewed"] == 1
-    assert report["bars_total"] == 4
+    assert report["tracks_unreviewed"] == 1
+    assert report["bars_total"] == 8
     assert report["records_exported"] == len(single_records)
     assert report["elements"]["vocal"]["candidate_acceptance_rate"] == 1.0
+    assert report["needs_review"] == [
+        {"track_id": "pilot-track-incomplete", "reasons": ["vocal:unknown"]}
+    ]
     assert json.loads(report_path.read_text())["dataset_versions"] == [
         "bar-presence-pilot-1.0.0"
     ]

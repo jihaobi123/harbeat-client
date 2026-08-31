@@ -24,6 +24,7 @@ from app.modules.annotations import router as annotation_router
 from app.modules.annotations.router import generate_presence_endpoint
 from app.modules.annotations.service import (
     AnnotationAccessError,
+    AnnotationGenerationError,
     PresenceAnnotationService,
 )
 from app.modules.annotations.store import AnnotationStore
@@ -87,6 +88,24 @@ def test_generate_candidates_rejects_other_users_song(tmp_path: Path):
 
     with pytest.raises(AnnotationAccessError):
         service.generate_for_song(song=song, requesting_user_id=7)
+
+
+def test_generate_candidates_rejects_stale_stem_paths(tmp_path: Path):
+    song = _song(tmp_path)
+    song.stems = {
+        "vocals": str(tmp_path / "missing-vocals.wav"),
+        "drums": str(tmp_path / "missing-drums.wav"),
+        "bass": str(tmp_path / "missing-bass.wav"),
+        "other": str(tmp_path / "missing-other.wav"),
+    }
+    service = PresenceAnnotationService(
+        AnnotationStore(str(tmp_path / "annotations"))
+    )
+
+    with pytest.raises(AnnotationGenerationError) as exc_info:
+        service.generate_for_song(song=song, requesting_user_id=7)
+
+    assert exc_info.value.code == "stems_unavailable"
 
 
 def test_generate_endpoint_uses_authenticated_user(tmp_path: Path, monkeypatch):

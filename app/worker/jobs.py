@@ -22,6 +22,7 @@ def job_analyze(song_id: str) -> dict:
     try:
         from app.modules.library.models import LibrarySong
         from app.modules.library.analysis import analyze_audio_file
+        from app.modules.library.analysis_persistence import apply_analysis_result
 
         song = db.get(LibrarySong, song_id)
         if not song or not song.source_path or not os.path.isfile(song.source_path):
@@ -35,24 +36,7 @@ def job_analyze(song_id: str) -> dict:
         db.commit()
 
         result = analyze_audio_file(song.source_path)
-        song.bpm = result["bpm"]
-        song.duration = result["duration"]
-        song.key = result.get("key")
-        song.camelot_key = result.get("camelot_key")
-        song.energy = result.get("energy")
-        song.beat_points = result.get("beat_points", [])
-        song.bpm_curve = result.get("bpm_curve", [])
-        song.tempo_stability = result.get("tempo_stability")
-        song.energy_curve = result.get("energy_curve", [])
-        song.transition_windows = result.get("transition_windows", [])
-        song.downbeats = result.get("downbeats", [])
-        song.phrase_map = result.get("phrase_map", [])
-        song.key_confidence = result.get("key_confidence")
-        raw_cues = result.get("cue_points", [])
-        song.cue_points = [
-            {"id": f"cue-{song_id}-{i}", "time": c["time"], "label": c["label"], "color": c["color"]}
-            for i, c in enumerate(raw_cues)
-        ]
+        apply_analysis_result(song, result)
         song.analysis_status = "ready"
         db.commit()
         logger.info("[job:analyze] analysis ready for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)

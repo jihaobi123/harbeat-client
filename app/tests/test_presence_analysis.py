@@ -156,3 +156,24 @@ def test_melody_candidates_are_always_marked_for_review(tmp_path: Path):
     assert melody["requires_review"] is True
     assert melody["confidence_cap"] == 0.65
     assert all(value <= 0.65 for value in melody["bar_probabilities"])
+
+
+def test_very_quiet_stem_leakage_is_treated_as_silence(tmp_path: Path):
+    sample_rate = 2000
+    duration = 4
+    time = np.arange(sample_rate * duration) / sample_rate
+    leakage = (1e-4 * np.sin(2 * np.pi * 220 * time)).astype(np.float32)
+    paths = _write_stems(
+        tmp_path,
+        vocals=leakage,
+        drums=leakage,
+        bass=leakage,
+        other=leakage,
+        sample_rate=sample_rate,
+    )
+
+    result = analyze_bar_presence(paths, _bars(2))
+
+    for element in ("vocal", "drums", "bass", "melody"):
+        assert result["elements"][element]["bar_probabilities"] == [0.0, 0.0]
+        assert result["elements"][element]["candidate_ranges"] == []

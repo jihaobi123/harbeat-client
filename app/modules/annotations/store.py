@@ -9,12 +9,15 @@ import re
 import tempfile
 from typing import Literal
 
+from filelock import FileLock
+
 from app.modules.annotations.schemas import (
     ELEMENT_NAMES,
     ElementReview,
     PresenceAnnotationBundle,
     ReviewRevision,
 )
+from app.modules.annotations.record_validation import validate_annotation_record
 
 
 TRACK_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -76,6 +79,27 @@ class AnnotationStore:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
+    @staticmethod
+    def _lock(path: str) -> FileLock:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        return FileLock(f"{path}.lock", timeout=30)
+
+    @staticmethod
+    def _archive_path(current_path: str, bundle: PresenceAnnotationBundle) -> str:
+        payload = json.dumps(
+            bundle.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        digest = hashlib.sha256(payload).hexdigest()[:12]
+        version = re.sub(r"[^A-Za-z0-9._-]+", "-", bundle.dataset_version)[:80]
+        return os.path.join(
+            os.path.dirname(current_path),
+            "versions",
+            f"{version}-{digest}.json",
+        )
+
     def create_candidates(
         self,
         *,
@@ -85,17 +109,24 @@ class AnnotationStore:
         if bundle.user_id != user_id:
             raise AnnotationStoreError("bundle user_id does not match storage owner")
         path = self._path(user_id, bundle.track_id)
-        if os.path.isfile(path):
-            existing = self.read(user_id=user_id, track_id=bundle.track_id)
-            if (
-                existing.dataset_version == bundle.dataset_version
-                and existing.candidate_source == bundle.candidate_source
-                and existing.timeline == bundle.timeline
-            ):
-                return existing
-            raise RevisionConflict("candidate bundle already exists with another version")
-        self._write(path, bundle)
-        return bundle
+        with self._lock(path):
+            if os.path.isfile(path):
+                existing = self.read(user_id=user_id, track_id=bundle.track_id)
+                if (
+                    existing.dataset_version == bundle.dataset_version
+                    and existing.candidate_source == bundle.candidate_source
+                    and existing.timeline == bundle.timeline
+                ):
+                    return existing
+                if existing.dataset_version == bundle.dataset_version:
+                    raise RevisionConflict(
+                        "candidate or timeline changed without a new dataset_version"
+                    )
+                self._write(self._archive_path(path, existing), existing)
+                self._write(path, bundle)
+                return bundle
+            self._write(path, bundle)
+            return bundle
 
     def read(self, *, user_id: int, track_id: str) -> PresenceAnnotationBundle:
         path = self._path(user_id, track_id)
@@ -114,42 +145,50 @@ class AnnotationStore:
         elements: dict,
         annotation_status: Literal["reviewed", "adjudicated"],
     ) -> PresenceAnnotationBundle:
-        bundle = self.read(user_id=user_id, track_id=track_id)
-        if bundle.revision != expected_revision:
-            raise RevisionConflict(
-                f"expected revision {expected_revision}, current revision is {bundle.revision}"
-            )
+        path = self._path(user_id, track_id)
+        with self._lock(path):
+            bundle = self.read(user_id=user_id, track_id=track_id)
+            if bundle.revision != expected_revision:
+                raise RevisionConflict(
+                    f"expected revision {expected_revision}, current revision is {bundle.revision}"
+                )
 
-        parsed = {
-            element: ElementReview.model_validate(elements[element])
-            for element in ELEMENT_NAMES
-        }
-        bar_count = len(bundle.timeline.bars)
-        for review in parsed.values():
-            previous_end = 0
-            for item in sorted(review.ranges, key=lambda value: value.start_bar_index):
-                if item.end_bar_index > bar_count:
-                    raise AnnotationStoreError("review range exceeds Bar timeline")
-                if item.start_bar_index < previous_end:
-                    raise AnnotationStoreError("review ranges cannot overlap")
-                previous_end = item.end_bar_index
+            parsed = {
+                element: ElementReview.model_validate(elements[element])
+                for element in ELEMENT_NAMES
+            }
+            for element, review in parsed.items():
+                availability = bundle.candidates.elements[element].availability
+                if availability != "available" and review.review_state != "unknown":
+                    raise AnnotationStoreError(
+                        f"{element} candidate is {availability}; review_state must be unknown"
+                    )
+            bar_count = len(bundle.timeline.bars)
+            for review in parsed.values():
+                previous_end = 0
+                for item in sorted(review.ranges, key=lambda value: value.start_bar_index):
+                    if item.end_bar_index > bar_count:
+                        raise AnnotationStoreError("review range exceeds Bar timeline")
+                    if item.start_bar_index < previous_end:
+                        raise AnnotationStoreError("review ranges cannot overlap")
+                    previous_end = item.end_bar_index
 
-        now = datetime.now(timezone.utc)
-        next_revision = bundle.revision + 1
-        updated = bundle.model_copy(deep=True)
-        updated.revision = next_revision
-        updated.updated_at = now
-        updated.revisions.append(
-            ReviewRevision(
-                revision=next_revision,
-                annotation_status=annotation_status,
-                actor_id=actor_id,
-                created_at=now,
-                elements=parsed,
+            now = datetime.now(timezone.utc)
+            next_revision = bundle.revision + 1
+            updated = bundle.model_copy(deep=True)
+            updated.revision = next_revision
+            updated.updated_at = now
+            updated.revisions.append(
+                ReviewRevision(
+                    revision=next_revision,
+                    annotation_status=annotation_status,
+                    actor_id=actor_id,
+                    created_at=now,
+                    elements=parsed,
+                )
             )
-        )
-        self._write(self._path(user_id, track_id), updated)
-        return updated
+            self._write(path, updated)
+            return updated
 
     def save_review(
         self,
@@ -204,8 +243,7 @@ class AnnotationStore:
                 ).hexdigest()[:24]
                 start_bar = bars[item.start_bar_index]
                 end_bar = bars[item.end_bar_index - 1]
-                records.append(
-                    {
+                record = {
                         "schema_name": "harbeat.annotation_record",
                         "schema_version": "1.0.0",
                         "annotation_id": f"ann:{digest}",
@@ -224,9 +262,9 @@ class AnnotationStore:
                         "candidate_source": bundle.candidate_source,
                         "created_at": revision.created_at.isoformat().replace("+00:00", "Z"),
                     }
-                )
+                validate_annotation_record(record)
+                records.append(record)
         return "\n".join(
             json.dumps(record, ensure_ascii=False, separators=(",", ":"))
             for record in records
         )
-

@@ -5,6 +5,15 @@ export interface EditableRange {
 }
 
 
+export function shouldCreateRangeFromPointer(
+  startClientX: number,
+  endClientX: number,
+  minimumMovement = 4,
+): boolean {
+  return Math.abs(endClientX - startClientX) >= minimumMovement
+}
+
+
 function manualRange(startBar: number, endBar: number): EditableRange {
   if (!Number.isInteger(startBar) || !Number.isInteger(endBar) || startBar < 0) {
     throw new Error('range boundaries must be non-negative Bar indexes')
@@ -97,7 +106,14 @@ export function mergeRanges(
   if (selected.length < 2 || selected.some(index => index < 0 || index >= ranges.length)) {
     throw new Error('select at least two valid ranges to merge')
   }
-  const selectedRanges = selected.map(index => ranges[index])
+  const selectedRanges = selected
+    .map(index => ranges[index])
+    .sort((left, right) => left.start_bar_index - right.start_bar_index)
+  if (selectedRanges.some((range, index) => (
+    index > 0 && range.start_bar_index > selectedRanges[index - 1].end_bar_index
+  ))) {
+    throw new Error('selected ranges must be adjacent')
+  }
   const merged = manualRange(
     Math.min(...selectedRanges.map(range => range.start_bar_index)),
     Math.max(...selectedRanges.map(range => range.end_bar_index)),

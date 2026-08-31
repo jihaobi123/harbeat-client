@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import type {
   PresenceBar,
@@ -7,6 +7,7 @@ import type {
   PresenceElementReview,
   PresenceReviewState,
 } from '../types'
+import { shouldCreateRangeFromPointer } from '../lib/presenceEditor'
 
 
 const ELEMENT_INFO: Record<PresenceElement, { label: string; color: string }> = {
@@ -47,6 +48,7 @@ type ResizeState = {
 type DrawState = {
   element: PresenceElement
   startBar: number
+  startClientX: number
 } | null
 
 
@@ -84,6 +86,12 @@ export default function PresenceTimeline({
     () => bars.map(bar => `${Math.max(0.001, bar.end_sec - bar.start_sec)}fr`).join(' '),
     [bars],
   )
+  useEffect(() => {
+    setSelectedRanges({ vocal: [], drums: [], bass: [], melody: [] })
+  }, [elements])
+  const clearSelectedRanges = (element: PresenceElement) => {
+    setSelectedRanges(previous => ({ ...previous, [element]: [] }))
+  }
 
   const barAtPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -94,7 +102,12 @@ export default function PresenceTimeline({
 
   const finishPointerEdit = (event: React.PointerEvent<HTMLDivElement>) => {
     const barIndex = barAtPointer(event)
-    if (drawState && drawState.element === selectedElement && barIndex >= 0) {
+    if (
+      drawState
+      && drawState.element === selectedElement
+      && barIndex >= 0
+      && shouldCreateRangeFromPointer(drawState.startClientX, event.clientX)
+    ) {
       onAddRange(
         drawState.element,
         Math.min(drawState.startBar, barIndex),
@@ -149,6 +162,13 @@ export default function PresenceTimeline({
         const info = ELEMENT_INFO[element]
         const lane = elements[element]
         const selected = selectedRanges[element]
+        const selectedIntervals = selected
+          .map(index => lane.review.ranges[index])
+          .filter(Boolean)
+          .sort((left, right) => left.start_bar_index - right.start_bar_index)
+        const canMergeSelected = selectedIntervals.length >= 2 && selectedIntervals.every(
+          (range, index) => index === 0 || range.start_bar_index <= selectedIntervals[index - 1].end_bar_index,
+        )
         return (
           <section
             key={element}
@@ -173,8 +193,11 @@ export default function PresenceTimeline({
                 <option value="unknown">无法判断</option>
                 <option value="rejected">候选无效</option>
               </select>
-              {selected.length >= 2 && (
-                <button type="button" onClick={() => onMergeRanges(element, selected)}>
+              {canMergeSelected && (
+                <button type="button" onClick={() => {
+                  onMergeRanges(element, selected)
+                  clearSelectedRanges(element)
+                }}>
                   合并 {selected.length} 段
                 </button>
               )}
@@ -200,9 +223,14 @@ export default function PresenceTimeline({
                       data-bar-index={bar.index}
                       className="presence-probability-cell"
                       style={{ backgroundColor: `${info.color}${Math.round(probability * 170 + 20).toString(16).padStart(2, '0')}` }}
-                      onPointerDown={() => {
+                      onPointerDown={event => {
                         onSelectElement(element)
-                        setDrawState({ element, startBar: barIndex })
+                        event.currentTarget.setPointerCapture(event.pointerId)
+                        setDrawState({
+                          element,
+                          startBar: barIndex,
+                          startClientX: event.clientX,
+                        })
                       }}
                       onClick={() => onSeek(bar.start_sec)}
                       title={`${info.label} · Bar ${bar.index + 1} · ${(probability * 100).toFixed(0)}%`}
@@ -225,7 +253,10 @@ export default function PresenceTimeline({
                       width: `${timePercent(rangeEnd, startSec, duration) - timePercent(rangeStart, startSec, duration)}%`,
                       borderColor: info.color,
                     }}
-                    onDoubleClick={() => onDeleteRange(element, rangeIndex)}
+                    onDoubleClick={() => {
+                      onDeleteRange(element, rangeIndex)
+                      clearSelectedRanges(element)
+                    }}
                     onClick={event => {
                       event.stopPropagation()
                       onActiveRangeChange?.(element, rangeIndex)
@@ -246,6 +277,7 @@ export default function PresenceTimeline({
                         )
                         if (splitBar > range.start_bar_index && splitBar < range.end_bar_index) {
                           onSplitRange(element, rangeIndex, splitBar)
+                          clearSelectedRanges(element)
                         }
                         return
                       }

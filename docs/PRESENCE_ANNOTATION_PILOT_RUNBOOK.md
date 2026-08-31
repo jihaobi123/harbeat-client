@@ -72,7 +72,7 @@ python scripts/export_presence_pilot.py \
 
 ### 时间轴需要复核
 
-出现 downbeat 不足、节拍置信度低或 Bar 时间轴无效时，先修正 downbeat/beat grid，再重新生成新的 Dataset Version。不要为了继续标注手工伪造 Bar，也不要把旧时间轴上的区间静默搬到新时间轴。
+出现 downbeat 不足、节拍置信度低或 Bar 时间轴无效时，先修正 downbeat/beat grid，再把 `PRESENCE_DATASET_VERSION` 提升到新版本后重新生成。系统会把旧 bundle 和人工修订保存在曲目目录的 `versions/` 下，再创建 Revision 1 的新时间轴。不要为了继续标注手工伪造 Bar，也不要把旧时间轴上的区间静默搬到新时间轴。
 
 ### Stem 缺失或错位
 

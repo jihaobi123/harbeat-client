@@ -80,6 +80,7 @@ export default function PresenceAnnotationPanel({ song }: { song: LibrarySong })
   const [undoStack, setUndoStack] = useState<DraftElements[]>([])
   const [dirty, setDirty] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [canGenerate, setCanGenerate] = useState(false)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
@@ -102,9 +103,11 @@ export default function PresenceAnnotationPanel({ song }: { song: LibrarySong })
     setError('')
     try {
       installBundle(await api.getPresenceAnnotations(song.id))
+      setCanGenerate(false)
     } catch (loadError) {
       setBundle(null)
       setDraft(null)
+      setCanGenerate(loadError instanceof api.ApiError && loadError.status === 404)
       setError(errorMessage(loadError))
     } finally {
       setLoading(false)
@@ -252,6 +255,7 @@ export default function PresenceAnnotationPanel({ song }: { song: LibrarySong })
     setError('')
     try {
       installBundle(await api.generatePresenceAnnotations(song.id))
+      setCanGenerate(false)
     } catch (generateError) {
       setError(errorMessage(generateError))
     } finally {
@@ -343,12 +347,18 @@ export default function PresenceAnnotationPanel({ song }: { song: LibrarySong })
       </div>
 
       {loading && <p className="presence-status">正在读取标注…</p>}
-      {!loading && !bundle && (
+      {!loading && !bundle && canGenerate && (
         <div className="presence-empty">
           <p>这首歌还没有机器候选。Stems 和节拍时间轴准备好后即可生成。</p>
           <button type="button" onClick={() => void generate()} disabled={generating}>
             {generating ? '正在生成…' : '生成机器候选'}
           </button>
+        </div>
+      )}
+      {!loading && !bundle && !canGenerate && (
+        <div className="presence-empty">
+          <p>标注服务暂时无法读取，请检查登录状态或服务连接后重试。</p>
+          <button type="button" onClick={() => void load()}>重新读取</button>
         </div>
       )}
 

@@ -13,58 +13,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from app.modules.annotations.record_validation import validate_annotation_record
 from app.modules.annotations.schemas import ELEMENT_NAMES, PresenceAnnotationBundle
 from app.modules.annotations.store import AnnotationStore
 
 
 BUNDLE_NAME = "bar-presence-1.0.0.json"
-ANNOTATION_RECORD_FIELDS = {
-    "schema_name",
-    "schema_version",
-    "annotation_id",
-    "dataset_version",
-    "track_id",
-    "task_id",
-    "granularity",
-    "start_sec",
-    "end_sec",
-    "start_bar_index",
-    "end_bar_index",
-    "value",
-    "annotator_id",
-    "annotation_status",
-    "annotator_confidence",
-    "candidate_source",
-    "created_at",
-}
-
-
 def _range_tuple(item: Any) -> tuple[int, int]:
     return item.start_bar_index, item.end_bar_index
 
 
 def _overlaps(left: tuple[int, int], right: tuple[int, int]) -> bool:
     return left[0] < right[1] and right[0] < left[1]
-
-
-def _validate_export_record(record: dict[str, Any]) -> None:
-    """Enforce the Annotation Record V1 constraints used by Presence export."""
-    if set(record) != ANNOTATION_RECORD_FIELDS:
-        raise ValueError("export record does not match Annotation Record V1 fields")
-    if record["schema_name"] != "harbeat.annotation_record":
-        raise ValueError("invalid annotation schema_name")
-    if record["schema_version"] != "1.0.0" or record["granularity"] != "bar":
-        raise ValueError("invalid annotation schema version or granularity")
-    if record["annotation_status"] not in {"reviewed", "adjudicated"}:
-        raise ValueError("Pilot export only accepts reviewed or adjudicated records")
-    if record["value"] is not True:
-        raise ValueError("Presence records must have value=true")
-    if record["start_bar_index"] < 0:
-        raise ValueError("start_bar_index must be non-negative")
-    if record["end_bar_index"] <= record["start_bar_index"]:
-        raise ValueError("end_bar_index must be greater than start_bar_index")
-    if record["end_sec"] <= record["start_sec"]:
-        raise ValueError("end_sec must be greater than start_sec")
 
 
 def _blank_element_stats() -> dict[str, Any]:
@@ -112,25 +72,35 @@ def export_presence_pilot(
 
         if latest is None:
             reasons.append("no_human_revision")
-        else:
+
+        if latest is not None:
+            for element in ("vocal", "drums", "bass"):
+                candidate = bundle.candidates.elements[element]
+                review = latest.elements[element]
+                if candidate.availability != "available":
+                    reasons.append(f"{element}:{candidate.availability}")
+                if review.review_state != "reviewed":
+                    reasons.append(f"{element}:{review.review_state}")
+            if latest.elements["melody"].review_state not in {"reviewed", "unknown"}:
+                reasons.append(f"melody:{latest.elements['melody'].review_state}")
+
+        track_complete = latest is not None and not reasons
+        if track_complete:
             tracks_reviewed += 1
 
         for element in ELEMENT_NAMES:
             candidate = bundle.candidates.elements[element]
             stats = element_stats[element]
             candidate_ranges = [_range_tuple(item) for item in candidate.candidate_ranges]
-            stats["candidate_ranges"] += len(candidate_ranges)
             if candidate.availability != "available":
                 stats["unavailable_tracks"] += 1
-                reasons.append(f"{element}:{candidate.availability}")
-            reasons.extend(f"{element}:{warning}" for warning in candidate.warnings)
 
-            if latest is None:
+            if not track_complete or latest is None:
                 continue
             review = latest.elements[element]
             if review.review_state != "reviewed":
-                reasons.append(f"{element}:{review.review_state}")
                 continue
+            stats["candidate_ranges"] += len(candidate_ranges)
             final_ranges = [_range_tuple(item) for item in review.ranges]
             stats["reviewed_ranges"] += len(final_ranges)
             exact = set(candidate_ranges) & set(final_ranges)
@@ -151,10 +121,10 @@ def export_presence_pilot(
         if reasons:
             needs_review.append({"track_id": bundle.track_id, "reasons": sorted(set(reasons))})
 
-        if latest is not None:
+        if track_complete:
             for line in AnnotationStore.export_reviewed_jsonl(bundle).splitlines():
                 record = json.loads(line)
-                _validate_export_record(record)
+                validate_annotation_record(record)
                 records.append(record)
 
     for stats in element_stats.values():

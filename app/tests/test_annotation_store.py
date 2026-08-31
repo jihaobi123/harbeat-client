@@ -1,12 +1,16 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
+from app.modules.annotations import store as store_module
 from app.modules.annotations.schemas import PresenceAnnotationBundle
 from app.modules.annotations.store import (
     AnnotationStore,
+    AnnotationStoreError,
     InvalidTrackId,
     RevisionConflict,
 )
@@ -131,6 +135,38 @@ def test_rejects_stale_review_revision(tmp_path: Path):
         )
 
 
+def test_concurrent_reviews_cannot_overwrite_the_same_revision(tmp_path: Path):
+    AnnotationStore(str(tmp_path)).create_candidates(
+        user_id=7,
+        bundle=_candidate_bundle(),
+    )
+    start = Barrier(2)
+
+    def save_from_independent_worker(_worker: int) -> str:
+        store = AnnotationStore(str(tmp_path))
+        start.wait()
+        try:
+            store.save_review(
+                user_id=7,
+                track_id="track-1",
+                expected_revision=1,
+                actor_id="user:7",
+                elements=_review_elements(),
+            )
+            return "saved"
+        except RevisionConflict:
+            return "conflict"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(save_from_independent_worker, range(2)))
+
+    assert sorted(outcomes) == ["conflict", "saved"]
+    assert AnnotationStore(str(tmp_path)).read(
+        user_id=7,
+        track_id="track-1",
+    ).revision == 2
+
+
 def test_exports_only_latest_reviewed_ranges_as_annotation_jsonl(tmp_path: Path):
     store = AnnotationStore(str(tmp_path))
     store.create_candidates(user_id=7, bundle=_candidate_bundle())
@@ -160,8 +196,78 @@ def test_exports_only_latest_reviewed_ranges_as_annotation_jsonl(tmp_path: Path)
     assert all(record["candidate_source"].startswith("method:") for record in records)
 
 
+def test_single_song_export_validates_every_annotation_record(
+    tmp_path: Path,
+    monkeypatch,
+):
+    store = AnnotationStore(str(tmp_path))
+    store.create_candidates(user_id=7, bundle=_candidate_bundle())
+    reviewed = store.save_review(
+        user_id=7,
+        track_id="track-1",
+        expected_revision=1,
+        actor_id="user:7",
+        elements=_review_elements(),
+    )
+    validated = []
+    monkeypatch.setattr(
+        store_module,
+        "validate_annotation_record",
+        lambda record: validated.append(record),
+    )
+
+    store.export_reviewed_jsonl(reviewed)
+
+    assert len(validated) == 3
+
+
 def test_rejects_unsafe_track_ids(tmp_path: Path):
     store = AnnotationStore(str(tmp_path))
 
     with pytest.raises(InvalidTrackId):
         store.read(user_id=7, track_id="../../escape")
+
+
+def test_new_dataset_version_archives_review_history_before_replacement(tmp_path: Path):
+    store = AnnotationStore(str(tmp_path))
+    store.create_candidates(user_id=7, bundle=_candidate_bundle())
+    store.save_review(
+        user_id=7,
+        track_id="track-1",
+        expected_revision=1,
+        actor_id="user:7",
+        elements=_review_elements(),
+    )
+    replacement = _candidate_bundle().model_copy(deep=True)
+    replacement.dataset_version = "bar-presence-pilot-1.0.1"
+
+    created = store.create_candidates(user_id=7, bundle=replacement)
+    archives = list((tmp_path / "7" / "track-1" / "versions").glob("*.json"))
+
+    assert created.dataset_version == "bar-presence-pilot-1.0.1"
+    assert created.revision == 1
+    assert created.revisions == []
+    assert len(archives) == 1
+    archived = PresenceAnnotationBundle.model_validate_json(archives[0].read_text())
+    assert archived.dataset_version == "bar-presence-pilot-1.0.0"
+    assert archived.revision == 2
+
+
+def test_unavailable_candidate_cannot_be_saved_as_reviewed_truth(tmp_path: Path):
+    bundle = _candidate_bundle().model_copy(deep=True)
+    bass = bundle.candidates.elements["bass"]
+    bass.availability = "unavailable"
+    bass.candidate_ranges = []
+    bass.bar_probabilities = [0.0]
+    bass.bar_features = []
+    store = AnnotationStore(str(tmp_path))
+    store.create_candidates(user_id=7, bundle=bundle)
+
+    with pytest.raises(AnnotationStoreError, match="unavailable.*unknown"):
+        store.save_review(
+            user_id=7,
+            track_id="track-1",
+            expected_revision=1,
+            actor_id="user:7",
+            elements=_review_elements(),
+        )

@@ -6,6 +6,16 @@ interface ApiResponse<T> {
   data: T
 }
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 function getToken(): string | null {
   return localStorage.getItem('harbeat_token')
 }
@@ -35,18 +45,21 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE}${url}`, { ...options, headers })
 
-  let json: ApiResponse<T>
+  let json: ApiResponse<T> & { detail?: string | { message?: string } }
   try {
     json = await res.json()
   } catch {
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`)
+      throw new ApiError(res.status, `HTTP ${res.status}`)
     }
     throw new Error('invalid server response')
   }
 
   if (!res.ok || json.code !== 0) {
-    throw new Error(json.message || `HTTP ${res.status}`)
+    const detail = typeof json.detail === 'string'
+      ? json.detail
+      : json.detail?.message
+    throw new ApiError(res.status, json.message || detail || `HTTP ${res.status}`)
   }
 
   return json.data

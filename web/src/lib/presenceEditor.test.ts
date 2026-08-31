@@ -5,6 +5,7 @@ import {
   deleteRange,
   mergeRanges,
   resizeRange,
+  shouldCreateRangeFromPointer,
   splitRange,
 } from './presenceEditor'
 
@@ -55,11 +56,23 @@ describe('presence interval editing', () => {
   it('merges selected ranges and keeps unselected ranges', () => {
     expect(mergeRanges([
       { start_bar_index: 0, end_bar_index: 1 },
-      { start_bar_index: 2, end_bar_index: 3 },
+      { start_bar_index: 1, end_bar_index: 3 },
       { start_bar_index: 5, end_bar_index: 6 },
     ], [0, 1])).toEqual([
       { start_bar_index: 0, end_bar_index: 3 },
       { start_bar_index: 5, end_bar_index: 6 },
     ])
+  })
+
+  it('rejects merging ranges when doing so would fill an unselected Bar gap', () => {
+    expect(() => mergeRanges([
+      { start_bar_index: 0, end_bar_index: 1 },
+      { start_bar_index: 2, end_bar_index: 3 },
+    ], [0, 1])).toThrow('selected ranges must be adjacent')
+  })
+
+  it('treats an ordinary Bar click as navigation, not a new range', () => {
+    expect(shouldCreateRangeFromPointer(120, 121)).toBe(false)
+    expect(shouldCreateRangeFromPointer(120, 128)).toBe(true)
   })
 })
