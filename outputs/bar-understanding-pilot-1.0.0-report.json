@@ -1,0 +1,11 @@
+{
+  "schema_name": "harbeat.bar_annotation_pilot_report",
+  "schema_version": "1.0.0",
+  "dataset_version": "bar-understanding-1.0.0",
+  "annotators_total": 0,
+  "tracks_total": 0,
+  "records_exported": 0,
+  "completion_by_annotator": {},
+  "annotators_by_track": {},
+  "parse_errors": []
+}

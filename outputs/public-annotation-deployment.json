@@ -1,0 +1,45 @@
+{
+  "schema_name": "harbeat.public_annotation_deployment",
+  "schema_version": "1.0.0",
+  "deployed_at": "2026-08-31T14:43:00Z",
+  "source_commit": "a177ffe",
+  "release_path": "/opt/harbeat/releases/public-annotation-a177ffe",
+  "persistent_annotation_dir": "/data/harbeat/bar-annotations",
+  "public_urls": {
+    "original_site": "http://8.136.120.255/",
+    "annotation_portal": "http://8.136.120.255/annotate"
+  },
+  "tests": {
+    "backend_pytest": 220,
+    "frontend_vitest": 19,
+    "frontend_production_build": "passed"
+  },
+  "production_acceptance": {
+    "pilot_tracks": 10,
+    "temporary_annotators": 2,
+    "independent_revisions": true,
+    "read_only_audio_range_status": 206,
+    "original_site_status": 200,
+    "annotation_portal_status": 200,
+    "presence_unauthenticated_status": 401,
+    "persistence_after_restart": true,
+    "active_formal_annotation_users_after_cleanup": 0
+  },
+  "cleanup": {
+    "temporary_accounts": "deactivated",
+    "temporary_annotations": "/data/harbeat/bar-annotations/acceptance-archive/a177ffe/users"
+  },
+  "ingress": {
+    "auth_rate_limit": "30 requests/minute per IP with burst 10",
+    "nginx_config_test": "passed"
+  },
+  "rollback": {
+    "previous_release": "/opt/harbeat/releases/presence-prod-3020684",
+    "steps": [
+      "Remove /etc/systemd/system/harbeat-api.service.d/public-annotation.conf",
+      "Run systemctl daemon-reload",
+      "Restart harbeat-api"
+    ],
+    "annotation_data_policy": "Keep /data/harbeat/bar-annotations untouched"
+  }
+}
