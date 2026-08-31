@@ -20,6 +20,7 @@ from app.modules.library.section_contract import (
     SECTION_CONTRACT_FIELDS,
     enrich_section_segment,
 )
+from app.modules.library.section_relabeler import apply_section_relabeler
 from app.shared.command_line import split_command_line
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -1850,7 +1851,7 @@ def _functional_segments_to_cues(
             start = max(0.0, float(segment["start"]))
             end = max(start, float(segment["end"]))
             contract = enrich_section_segment(segment, source=source)
-            label = str(contract["structure_label_candidate"]).strip().lower()
+            label = str(contract["structure_label"]).strip().lower()
         except (KeyError, TypeError, ValueError):
             continue
         if label:
@@ -1878,9 +1879,8 @@ def _functional_segments_to_phrase_map(
     """Expose authoritative functional sections as the product phrase map.
 
     Explicit ``start``/``end`` markers are metadata rather than musical
-    sections and are omitted.  All other boundaries and labels are preserved;
-    energy and intensity may be attached later but cannot move a boundary or
-    change a label.
+    sections and are omitted. SongFormer boundaries are preserved exactly;
+    a validated residual classifier may provide the final structure label.
     """
     grid = sorted({round(float(value), 6) for value in (downbeats or [])})
     phrases: list[dict] = []
@@ -1889,7 +1889,7 @@ def _functional_segments_to_phrase_map(
             start = max(0.0, float(segment["start"]))
             end = max(start, float(segment["end"]))
             contract = enrich_section_segment(segment, source=source)
-            label = str(contract["structure_label_candidate"]).strip().lower()
+            label = str(contract["structure_label"]).strip().lower()
         except (KeyError, TypeError, ValueError):
             continue
         if not label or label in {"start", "end"} or end <= start:
@@ -3358,6 +3358,14 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         all_in_one_route,
         songformer_error=songformer_error,
     )
+    functional_segments, section_relabeler_result = apply_section_relabeler(
+        functional_segments,
+        enabled=(
+            _env_flag("SECTION_RELABELER_ENABLED", True)
+            and not section_selection["fallback_used"]
+        ),
+        shadow_mode=_env_flag("SECTION_RELABELER_SHADOW_MODE", True),
+    )
     intro_end_candidate, intro_end_details = _functional_intro_end(
         functional_segments
     )
@@ -3445,9 +3453,9 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
         local_fallback=local_key_result,
     )
 
-    # SongFormer is authoritative for product-facing section boundaries and
-    # labels.  All-In-One sections are retained only as an explicit fallback;
-    # the two models are never blended.  Energy remains an attached attribute.
+    # SongFormer is authoritative for product-facing section boundaries. Its
+    # raw label remains audit evidence while the optional residual classifier
+    # may provide the final name. All-In-One is only an explicit fallback.
     section_route = section_selection.get("route") or {}
     cue_points = _functional_segments_to_cues(
         functional_segments,
@@ -3526,8 +3534,13 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
             "structure_label_source": (
                 "all_in_one_fallback_candidate"
                 if section_selection["fallback_used"]
-                else "songformer_candidate"
+                else (
+                    "harbeat_section_relabeler_v1"
+                    if section_relabeler_result.get("changed_count", 0) > 0
+                    else "songformer_candidate"
+                )
             ),
+            "section_relabeler": section_relabeler_result,
             "label_contract_version": LABEL_CONTRACT_VERSION,
             "intro_end_candidate": intro_end_candidate,
             "intro_end_candidate_details": intro_end_details,

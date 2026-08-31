@@ -7,12 +7,13 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+from app.modules.library.section_contract import LABEL_CONTRACT_VERSION
 from app.shared.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
 ANALYSIS_STAGE_KEYS = ("core", "stem_separation", "feature_analysis", "style_analysis")
-REQUIRED_CORE_ANALYSIS_VERSION = "songformer_label_contract_v2"
+REQUIRED_CORE_ANALYSIS_VERSION = LABEL_CONTRACT_VERSION
 
 
 def _utc_now() -> str:

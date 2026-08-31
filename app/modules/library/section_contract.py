@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-LABEL_CONTRACT_VERSION = "songformer_label_contract_v2"
+LABEL_CONTRACT_VERSION = "songformer_label_contract_v3"
 
 SECTION_CONTRACT_FIELDS = (
     "boundary_source",
@@ -16,6 +16,17 @@ SECTION_CONTRACT_FIELDS = (
     "structure_label_probabilities",
     "structure_label_confidence",
     "structure_label_margin",
+    "structure_label",
+    "structure_label_source",
+    "relabeler_label_candidate",
+    "relabeler_probabilities",
+    "relabeler_confidence",
+    "relabeler_margin",
+    "relabeler_override_threshold",
+    "label_change_proposed",
+    "label_changed",
+    "relabeler_status",
+    "relabeler_model_version",
     "mix_roles",
     "mix_role_scores",
     "label_status",
@@ -95,12 +106,13 @@ def enrich_section_segment(item: Mapping[str, Any], *, source: str) -> dict[str,
     candidate = canonical_structure_label(
         item.get("structure_label_candidate") or raw_label
     )
+    final_label = canonical_structure_label(item.get("structure_label") or candidate)
     raw_probabilities = item.get("structure_label_probabilities")
     if raw_probabilities is None:
         raw_probabilities = item.get("label_probabilities")
     probabilities = normalize_structure_probabilities(raw_probabilities)
     confidence, margin = _confidence_and_margin(probabilities, candidate)
-    role_scores = dict(_MIX_ROLE_SCORES.get(candidate, {}))
+    role_scores = dict(_MIX_ROLE_SCORES.get(final_label, {}))
     songformer_source = str(source or "").strip().lower().startswith("songformer")
 
     result = dict(item)
@@ -117,8 +129,11 @@ def enrich_section_segment(item: Mapping[str, Any], *, source: str) -> dict[str,
             "structure_label_margin": margin,
             "mix_roles": list(role_scores),
             "mix_role_scores": role_scores,
-            "label": candidate,
-            "label_status": "candidate",
+            "structure_label": final_label,
+            "structure_label_source": item.get("structure_label_source")
+            or "songformer_candidate",
+            "label": final_label,
+            "label_status": "predicted" if final_label != candidate else "candidate",
             "label_evidence_status": "available" if probabilities else "missing",
             "label_contract_version": LABEL_CONTRACT_VERSION,
             "source": source,

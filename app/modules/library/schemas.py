@@ -19,6 +19,17 @@ class LibraryCuePoint(BaseModel):
     structure_label_probabilities: dict[str, float] = Field(default_factory=dict)
     structure_label_confidence: float | None = None
     structure_label_margin: float | None = None
+    structure_label: str | None = None
+    structure_label_source: str | None = None
+    relabeler_label_candidate: str | None = None
+    relabeler_probabilities: dict[str, float] = Field(default_factory=dict)
+    relabeler_confidence: float | None = None
+    relabeler_margin: float | None = None
+    relabeler_override_threshold: float | None = None
+    label_change_proposed: bool = False
+    label_changed: bool = False
+    relabeler_status: str | None = None
+    relabeler_model_version: str | None = None
     mix_roles: list[str] = Field(default_factory=list)
     mix_role_scores: dict[str, float] = Field(default_factory=dict)
     label_status: str | None = None

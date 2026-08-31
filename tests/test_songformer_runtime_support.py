@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 
+from experiments.run_songformer_isolated import embedding_chunks
 from experiments.songformer_runtime_support import (
     aggregate_segment_label_evidence,
     attach_segment_label_evidence,
@@ -78,6 +80,22 @@ def test_evidence_uses_final_segment_boundaries_and_clips_empty_windows() -> Non
     assert attached[1]["label_probabilities"]["chorus"] > 0.99
     assert attached[2]["label_probabilities"]["chorus"] > 0.99
     assert segments[0].get("label_probabilities") is None
+
+
+def test_long_song_embedding_chunks_round_trip_cached_offsets() -> None:
+    payload = {
+        "global": torch.arange(18, dtype=torch.float32).reshape(1, 6, 3),
+        "local": torch.arange(18, dtype=torch.float32).reshape(1, 6, 3),
+        "chunk_lengths": [4, 2],
+    }
+
+    chunks = embedding_chunks(payload)
+
+    assert [chunk["global"].shape[1] for chunk in chunks] == [4, 2]
+    assert torch.equal(
+        torch.cat([chunk["global"] for chunk in chunks], dim=1),
+        payload["global"],
+    )
 
 
 def test_masked_disallowed_logits_may_be_negative_infinity() -> None:

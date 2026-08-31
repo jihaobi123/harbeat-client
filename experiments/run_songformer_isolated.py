@@ -58,6 +58,9 @@ else:
 SR = 24_000
 LAYER = 10
 FRAME_RATE = 8.333
+MAX_GLOBAL_SECONDS = max(
+    30, int(os.getenv("SONGFORMER_MAX_GLOBAL_SECONDS", "420"))
+)
 DATASET_LABEL = "SongForm-HX-8Class"
 DATASET_ID = 5
 
@@ -157,24 +160,77 @@ def extract_views(
     audio: torch.Tensor,
     device: torch.device,
     extract: Callable[[torch.Tensor], torch.Tensor],
-) -> dict[str, torch.Tensor]:
+) -> dict[str, Any]:
     audio = audio.to(device)
     with torch.inference_mode():
-        global_view = extract(audio.unsqueeze(0)).detach().cpu()
-        local_views: list[torch.Tensor] = []
-        chunk_samples = 30 * SR
-        for start in range(0, audio.shape[-1], chunk_samples):
-            end = min(start + chunk_samples, audio.shape[-1])
-            if end - start <= 1024:
-                continue
-            local_views.append(
-                extract(audio[start:end].unsqueeze(0)).detach().cpu()
-            )
+        if audio.shape[-1] <= MAX_GLOBAL_SECONDS * SR:
+            global_view = extract(audio.unsqueeze(0)).detach().cpu()
+            local_views: list[torch.Tensor] = []
+            chunk_samples = 30 * SR
+            for start in range(0, audio.shape[-1], chunk_samples):
+                end = min(start + chunk_samples, audio.shape[-1])
+                if end - start <= 1024:
+                    continue
+                local_views.append(
+                    extract(audio[start:end].unsqueeze(0)).detach().cpu()
+                )
+            if not local_views:
+                raise RuntimeError("No valid 30-second feature chunks were produced")
+            result = {"global": global_view, "local": torch.cat(local_views, dim=1)}
+        else:
+            global_chunks: list[torch.Tensor] = []
+            local_chunks: list[torch.Tensor] = []
+            chunk_lengths: list[int] = []
+            window_samples = MAX_GLOBAL_SECONDS * SR
+            local_samples = 30 * SR
+            for window_start in range(0, audio.shape[-1], window_samples):
+                window_end = min(window_start + window_samples, audio.shape[-1])
+                if window_end - window_start <= 1024:
+                    continue
+                window = audio[window_start:window_end]
+                global_chunk = extract(window.unsqueeze(0)).detach().cpu()
+                local_parts: list[torch.Tensor] = []
+                for local_start in range(0, window.shape[-1], local_samples):
+                    local_end = min(local_start + local_samples, window.shape[-1])
+                    if local_end - local_start <= 1024:
+                        continue
+                    local_parts.append(
+                        extract(window[local_start:local_end].unsqueeze(0)).detach().cpu()
+                    )
+                if not local_parts:
+                    raise RuntimeError("No valid local features in a long-song chunk")
+                local_chunk = torch.cat(local_parts, dim=1)
+                aligned_length = min(global_chunk.shape[1], local_chunk.shape[1])
+                global_chunks.append(global_chunk[:, :aligned_length, :])
+                local_chunks.append(local_chunk[:, :aligned_length, :])
+                chunk_lengths.append(int(aligned_length))
+            result = {
+                "global": torch.cat(global_chunks, dim=1),
+                "local": torch.cat(local_chunks, dim=1),
+                "chunk_lengths": chunk_lengths,
+            }
     del audio
     clear_device(device)
-    if not local_views:
-        raise RuntimeError("No valid 30-second feature chunks were produced")
-    return {"global": global_view, "local": torch.cat(local_views, dim=1)}
+    return result
+
+
+def embedding_chunks(payload: dict[str, Any]) -> list[dict[str, torch.Tensor]]:
+    lengths = [int(value) for value in payload.get("chunk_lengths") or []]
+    if not lengths:
+        return [{"global": payload["global"], "local": payload["local"]}]
+    chunks: list[dict[str, torch.Tensor]] = []
+    offset = 0
+    for length in lengths:
+        chunks.append(
+            {
+                "global": payload["global"][:, offset : offset + length, :],
+                "local": payload["local"][:, offset : offset + length, :],
+            }
+        )
+        offset += length
+    if offset != payload["global"].shape[1] or offset != payload["local"].shape[1]:
+        raise ValueError("cached long-song chunk lengths do not match embeddings")
+    return chunks
 
 
 def extract_encoder(
@@ -380,29 +436,44 @@ def run_backend(
                 map_location="cpu",
                 weights_only=True,
             )
-            embeddings = [
-                musicfm["local"],
-                muq["local"],
-                musicfm["global"],
-                muq["global"],
-            ]
-            lengths = [tensor.shape[1] for tensor in embeddings]
-            if max(lengths) - min(lengths) > 4:
-                raise RuntimeError(f"Embedding lengths differ too much: {lengths}")
-            min_length = min(lengths)
-            fused = torch.cat(
-                [tensor[:, :min_length, :] for tensor in embeddings], dim=-1
-            ).to(device=device, dtype=model_dtype)
-            with torch.inference_mode():
-                _, logits = model.infer(
-                    input_embeddings=fused,
-                    dataset_ids=dataset_ids,
-                    label_id_masks=label_mask,
-                    with_logits=True,
-                )
+            musicfm_chunks = embedding_chunks(musicfm)
+            muq_chunks = embedding_chunks(muq)
+            if len(musicfm_chunks) != len(muq_chunks):
+                raise RuntimeError("MusicFM and MuQ chunk counts differ")
+            function_logits_chunks: list[torch.Tensor] = []
+            boundary_logits_chunks: list[torch.Tensor] = []
+            lengths: list[list[int]] = []
+            for musicfm_chunk, muq_chunk in zip(musicfm_chunks, muq_chunks):
+                embeddings = [
+                    musicfm_chunk["local"],
+                    muq_chunk["local"],
+                    musicfm_chunk["global"],
+                    muq_chunk["global"],
+                ]
+                chunk_lengths = [tensor.shape[1] for tensor in embeddings]
+                lengths.append(chunk_lengths)
+                if max(chunk_lengths) - min(chunk_lengths) > 4:
+                    raise RuntimeError(
+                        f"Embedding lengths differ too much: {chunk_lengths}"
+                    )
+                min_length = min(chunk_lengths)
+                fused = torch.cat(
+                    [tensor[:, :min_length, :] for tensor in embeddings], dim=-1
+                ).to(device=device, dtype=model_dtype)
+                with torch.inference_mode():
+                    _, chunk_logits = model.infer(
+                        input_embeddings=fused,
+                        dataset_ids=dataset_ids,
+                        label_id_masks=label_mask,
+                        with_logits=True,
+                    )
+                function_logits_chunks.append(chunk_logits["function_logits"].cpu())
+                boundary_logits_chunks.append(chunk_logits["boundary_logits"].cpu())
+                del fused, chunk_logits
+                clear_device(device)
             cpu_logits = {
-                "function_logits": logits["function_logits"].cpu(),
-                "boundary_logits": logits["boundary_logits"].cpu(),
+                "function_logits": torch.cat(function_logits_chunks, dim=1),
+                "boundary_logits": torch.cat(boundary_logits_chunks, dim=1),
             }
             msa = rule_post_processing(postprocess_functional_structure(cpu_logits, hp))
             if msa[-1][1] != "end":
@@ -431,6 +502,7 @@ def run_backend(
             record.update(
                 duration=musicfm["duration"],
                 embedding_lengths=lengths,
+                embedding_chunk_count=len(lengths),
                 output_frames=int(cpu_logits["boundary_logits"].shape[1]),
                 segments=segments,
                 elapsed_seconds=round(time.perf_counter() - started, 3),
@@ -499,6 +571,7 @@ def main() -> int:
         "dataset_id": f"{DATASET_LABEL}:{DATASET_ID}",
         "sample_rate": SR,
         "encoder_layer": LAYER,
+        "max_global_seconds": MAX_GLOBAL_SECONDS,
         "precision": args.precision,
         "frame_rate": FRAME_RATE,
     }

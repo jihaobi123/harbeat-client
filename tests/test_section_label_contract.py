@@ -65,6 +65,27 @@ def test_pre_chorus_exposes_transition_and_buildup_candidates() -> None:
     assert segment["label_evidence_status"] == "missing"
 
 
+def test_relabelled_segment_preserves_candidate_and_exposes_final_label() -> None:
+    segment = enrich_section_segment(
+        {
+            "label": "chorus",
+            "songformer_label": "chorus",
+            "structure_label_candidate": "chorus",
+            "structure_label": "verse",
+            "structure_label_source": "harbeat_section_relabeler_v1",
+            "structure_label_probabilities": {"chorus": 0.52, "verse": 0.48},
+            "label_changed": True,
+        },
+        source="songformer_functional_segment",
+    )
+
+    assert segment["songformer_label"] == "chorus"
+    assert segment["structure_label_candidate"] == "chorus"
+    assert segment["structure_label"] == "verse"
+    assert segment["label"] == "verse"
+    assert segment["label_status"] == "predicted"
+
+
 def test_candidate_confidence_is_not_replaced_by_another_classes_top_score() -> None:
     segment = enrich_section_segment(
         {
