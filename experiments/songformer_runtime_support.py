@@ -44,8 +44,6 @@ def _as_frame_logits(function_logits: object) -> np.ndarray:
         )
     if logits.shape[0] == 0:
         raise ValueError("function_logits must contain at least one frame")
-    if not np.all(np.isfinite(logits)):
-        raise ValueError("function_logits contains non-finite values")
     return logits
 
 
@@ -65,7 +63,10 @@ def aggregate_segment_label_evidence(
     if max(label_ids) >= logits.shape[1] or min(label_ids) < 0:
         raise ValueError("allowed label id is outside function_logits")
     labels = [str(id_to_label[label_id]) for label_id in label_ids]
-    probabilities_by_frame = _softmax(logits[:, label_ids])
+    allowed_logits = logits[:, label_ids]
+    if not np.all(np.isfinite(allowed_logits)):
+        raise ValueError("allowed function logits contains non-finite values")
+    probabilities_by_frame = _softmax(allowed_logits)
     frames = probabilities_by_frame.shape[0]
     rate = float(frame_rate)
     if not math.isfinite(rate) or rate <= 0:

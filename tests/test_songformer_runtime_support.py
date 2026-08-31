@@ -76,6 +76,23 @@ def test_evidence_uses_final_segment_boundaries_and_clips_empty_windows() -> Non
     assert segments[0].get("label_probabilities") is None
 
 
+def test_masked_disallowed_logits_may_be_negative_infinity() -> None:
+    logits = np.full((2, 128), -np.inf, dtype=np.float64)
+    for label_id in LABELS:
+        logits[:, label_id] = 0.0
+    logits[:, 2] = 4.0
+
+    evidence = aggregate_segment_label_evidence(
+        logits,
+        segments=[{"start": 0.0, "end": 1.0, "label": "chorus"}],
+        frame_rate=2.0,
+        allowed_label_ids=list(LABELS),
+        id_to_label=LABELS,
+    )
+
+    assert evidence[0]["label_probabilities"]["chorus"] > 0.85
+
+
 def test_cache_namespace_changes_for_every_runtime_input() -> None:
     base = {
         "runner_version": "songformer_isolated_v2",
