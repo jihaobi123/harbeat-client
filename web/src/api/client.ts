@@ -113,6 +113,60 @@ export function getStemStreamUrl(songId: string, stemName: string): string {
   return `${BASE}/api/stream/${songId}/stem/${stemName}?token=${token || ''}`
 }
 
+export async function getPresenceAnnotations(songId: string) {
+  return request<import('../types').PresenceAnnotationBundle>(
+    `/api/annotations/songs/${encodeURIComponent(songId)}/presence`,
+  )
+}
+
+export async function generatePresenceAnnotations(songId: string) {
+  return request<import('../types').PresenceAnnotationBundle>(
+    `/api/annotations/songs/${encodeURIComponent(songId)}/presence/generate`,
+    { method: 'POST' },
+  )
+}
+
+export async function savePresenceReview(
+  songId: string,
+  payload: import('../types').PresenceReviewRequest,
+) {
+  return request<import('../types').PresenceAnnotationBundle>(
+    `/api/annotations/songs/${encodeURIComponent(songId)}/presence/review`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  )
+}
+
+export async function adjudicatePresenceReview(
+  songId: string,
+  payload: import('../types').PresenceReviewRequest,
+) {
+  return request<import('../types').PresenceAnnotationBundle>(
+    `/api/annotations/songs/${encodeURIComponent(songId)}/presence/adjudicate`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  )
+}
+
+export async function downloadPresenceExport(songId: string): Promise<Blob> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const response = await fetch(
+    `${BASE}/api/annotations/songs/${encodeURIComponent(songId)}/presence/export`,
+    { headers },
+  )
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`
+    try {
+      const body = await response.json()
+      message = body.message || message
+    } catch {
+      // Keep the HTTP status when the response is not JSON.
+    }
+    throw new Error(message)
+  }
+  return response.blob()
+}
+
 // ---- Playlists ----
 export async function getPlaylists(userId: number) {
   return request<{ playlists: import('../types').Playlist[] }>(`/api/playlists?user_id=${userId}`)

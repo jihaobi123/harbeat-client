@@ -37,6 +37,77 @@ export interface CuePoint {
   color: string
 }
 
+export type PresenceElement = 'vocal' | 'drums' | 'bass' | 'melody'
+export type PresenceReviewState = 'reviewed' | 'unknown' | 'rejected'
+
+export interface PresenceRange {
+  start_bar_index: number
+  end_bar_index: number
+  confidence?: number | null
+}
+
+export interface PresenceBar {
+  index: number
+  start_sec: number
+  end_sec: number
+  beat_start_index: number
+  beat_count: number
+  is_partial: boolean
+}
+
+export interface PresenceElementCandidate {
+  availability: 'available' | 'unavailable' | 'invalid'
+  requires_review: boolean
+  confidence_cap: number
+  bar_probabilities: number[]
+  bar_features: Array<Record<string, number>>
+  candidate_ranges: PresenceRange[]
+  warnings: string[]
+}
+
+export interface PresenceElementReview {
+  review_state: PresenceReviewState
+  ranges: PresenceRange[]
+}
+
+export interface PresenceReviewRevision {
+  revision: number
+  annotation_status: 'reviewed' | 'adjudicated'
+  actor_id: string
+  created_at: string
+  elements: Record<PresenceElement, PresenceElementReview>
+}
+
+export interface PresenceAnnotationBundle {
+  schema_name: 'harbeat.presence_annotation_bundle'
+  schema_version: '1.0.0'
+  dataset_version: string
+  track_id: string
+  user_id: number
+  timeline: {
+    source: 'downbeats' | 'beat_grid'
+    meter_numerator: number
+    confidence: number
+    version: string
+    bars: PresenceBar[]
+  }
+  candidate_source: string
+  threshold_version: string
+  revision: number
+  candidates: {
+    sample_rate: number | null
+    elements: Record<PresenceElement, PresenceElementCandidate>
+  }
+  revisions: PresenceReviewRevision[]
+  created_at: string
+  updated_at: string
+}
+
+export interface PresenceReviewRequest {
+  expected_revision: number
+  elements: Record<PresenceElement, PresenceElementReview>
+}
+
 export interface Playlist {
   id: number
   user_id: number
