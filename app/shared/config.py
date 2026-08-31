@@ -17,7 +17,12 @@ class Settings(BaseSettings):
     annotation_dir: str = "./data/annotations"
     presence_dataset_version: str = "bar-presence-pilot-1.0.0"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 @lru_cache
