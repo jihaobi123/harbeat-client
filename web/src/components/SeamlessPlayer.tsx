@@ -778,7 +778,7 @@ export default function SeamlessPlayer({
 
       <div className="px-4 pb-2 flex items-center gap-2">
         <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums">{fmt(shownTime)}</span>
-        <div className="flex-1 h-2 relative">
+        <div className="seamless-seek-control flex-1 h-2 relative">
           <div className="absolute inset-0 bg-gray-700/60 rounded-full overflow-hidden">
             <div className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200" style={{ width: `${pct}%`, background: accentColor }} />
           </div>

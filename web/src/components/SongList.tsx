@@ -18,7 +18,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function SongRow({ song }: { song: LibrarySong }) {
+export function SongRow({ song }: { song: LibrarySong }) {
   const { selectSong, selectedSong, playSong, playingSong, playlists, loadPlaylists, deleteSong } = useMusicStore()
   const { user } = useAuthStore()
   const isSelected = selectedSong?.id === song.id
@@ -74,65 +74,45 @@ function SongRow({ song }: { song: LibrarySong }) {
         className={`song-list-row flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition group ${
           isSelected ? 'is-selected' : 'hover:bg-surface-lighter'
         }`}
-        role="option"
-        aria-selected={isSelected}
-        tabIndex={0}
-        onClick={() => selectSong(song)}
-        onDoubleClick={() => playSong(song)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            selectSong(song)
-          }
-          if (event.key === ' ') {
-            event.preventDefault()
-            playSong(song)
-          }
-        }}
+        role="listitem"
         onContextMenu={handleContextMenu}
       >
-      {/* Play indicator / index */}
-      <div className="w-8 text-center shrink-0">
-        {isPlaying ? (
-          <span className="text-primary text-sm">♫</span>
-        ) : (
-          <button
-            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition"
-            aria-label={`播放 ${song.title}`}
-            onClick={(e) => { e.stopPropagation(); playSong(song) }}
-          >
-            ▶
-          </button>
-        )}
-      </div>
-
-      {/* Title & Artist */}
-      <div className="flex-1 min-w-0">
-        <div className={`text-sm truncate ${isPlaying ? 'text-primary font-medium' : 'text-white'}`}>
-          {song.title}
-        </div>
-        <div className="text-xs text-gray-500 truncate">{song.artist}</div>
-      </div>
-
-      {/* BPM */}
-      <div className="w-14 text-xs text-gray-400 text-right shrink-0 hidden sm:block">
-        {song.bpm ? `${Math.round(song.bpm)}` : '-'}
-        {song.bpm && <span className="text-gray-600 ml-0.5">bpm</span>}
-      </div>
-
-      {/* Duration */}
-      <div className="w-12 text-xs text-gray-400 text-right shrink-0">
-        {formatDuration(song.duration)}
-      </div>
-
-      {/* Format & Size */}
-      <div className="w-20 text-xs text-gray-500 text-right shrink-0 hidden lg:block">
-        {song.format?.toUpperCase()} {formatSize(song.file_size)}
-      </div>
-
-      {/* Add to playlist button */}
       <button
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary transition shrink-0 ml-1"
+        type="button"
+        className="song-list-row__select flex flex-1 min-w-0 items-center gap-2 sm:gap-3 text-left"
+        aria-pressed={isSelected}
+        aria-label={`${isSelected ? '已选择' : '选择'} ${song.title}，${song.artist}`}
+        onClick={() => selectSong(song)}
+        onDoubleClick={() => playSong(song)}
+      >
+        <span className={`w-8 text-center shrink-0 text-sm ${isPlaying ? 'text-primary' : 'text-gray-400'}`} aria-hidden="true">
+          {isPlaying ? '♫' : '▶'}
+        </span>
+
+        <span className="flex-1 min-w-0">
+          <span className={`block text-sm truncate ${isPlaying ? 'text-primary font-medium' : 'text-white'}`}>
+            {song.title}
+          </span>
+          <span className="block text-xs text-gray-500 truncate">{song.artist}</span>
+        </span>
+
+        <span className="w-14 text-xs text-gray-400 text-right shrink-0 hidden sm:block">
+          {song.bpm ? `${Math.round(song.bpm)}` : '-'}
+          {song.bpm && <span className="text-gray-600 ml-0.5">bpm</span>}
+        </span>
+
+        <span className="w-12 text-xs text-gray-400 text-right shrink-0">
+          {formatDuration(song.duration)}
+        </span>
+
+        <span className="w-20 text-xs text-gray-500 text-right shrink-0 hidden lg:block">
+          {song.format?.toUpperCase()} {formatSize(song.file_size)}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className="song-row-action text-gray-400 hover:text-primary transition shrink-0 ml-1"
         title="添加到歌单"
         aria-label={`将 ${song.title} 添加到歌单`}
         onClick={(e) => { e.stopPropagation(); handleContextMenu(e) }}
@@ -222,7 +202,7 @@ export default function SongList() {
       {/* List */}
       <div
         className="flex-1 overflow-y-auto"
-        role={selectedPlaylist ? 'list' : 'listbox'}
+        role="list"
         aria-label={selectedPlaylist ? `${selectedPlaylist.playlist_name} 歌曲` : '音乐库歌曲'}
       >
         {songsLoading ? (

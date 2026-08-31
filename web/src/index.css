@@ -206,6 +206,11 @@ button { color: inherit; }
 .editorial-chip { display: inline-flex; min-height: 32px; align-items: center; padding: .3rem .5rem; border: 2px solid var(--editorial-ink); border-radius: 0; background: var(--editorial-paper-bright); font-size: .75rem; font-weight: 700; }
 .editorial-chip--active { background: var(--editorial-acid); }
 .song-list-row, .editorial-card, .deck-card, .waveform-card { border: 2px solid var(--editorial-ink); border-radius: 0 !important; background: var(--editorial-paper-bright) !important; box-shadow: 2px 2px 0 var(--editorial-ink); }
+.song-list-row button { min-height: 36px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.song-list-row button:hover, .song-list-row button:active { transform: none; box-shadow: none; }
+.song-list-row__select:focus-visible, .song-row-action:focus-visible { outline: 4px solid var(--editorial-blue); outline-offset: 2px; }
+.song-row-action { min-width: 36px; opacity: .58; }
+.song-list-row:hover .song-row-action, .song-list-row:focus-within .song-row-action { opacity: 1; }
 .song-list-row.is-selected { color: #fff; background: var(--editorial-blue) !important; box-shadow: inset 8px 0 0 var(--editorial-acid), 2px 2px 0 var(--editorial-ink); }
 .song-list-row.is-selected * { color: #fff !important; }
 .song-list-row.is-selected:focus-visible { outline-color: var(--editorial-acid); }
@@ -266,6 +271,7 @@ button { color: inherit; }
 .presence-playhead { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--editorial-red); pointer-events: none; z-index: 4; }
 .presence-actions { justify-content: flex-end; margin-top: 10px; }
 .presence-shortcuts { text-align: right; }
+.seamless-seek-control:focus-within { outline: 4px solid var(--editorial-blue); outline-offset: 4px; }
 
 input[type='range'].stem-vol, .bg-surface-lighter input[type='range'] { appearance: none; height: 7px; border: 2px solid var(--editorial-ink) !important; border-radius: 0 !important; outline: none; }
 input[type='range']::-webkit-slider-thumb, .bg-surface-lighter input[type='range']::-webkit-slider-thumb { width: 18px; height: 18px; appearance: none; border: 2px solid var(--editorial-ink); border-radius: 0; background: var(--editorial-acid); box-shadow: 1px 1px 0 var(--editorial-ink); cursor: pointer; }
