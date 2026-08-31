@@ -182,6 +182,7 @@ The fingerprint must contain:
     "songformer_source_revision": source_revision,
     "songformer_checkpoint_sha256": songformer_checkpoint_sha256,
     "musicfm_checkpoint_sha256": musicfm_checkpoint_sha256,
+    "musicfm_stats_sha256": musicfm_stats_sha256,
     "muq_model_sha256": muq_model_sha256,
     "dataset_id": "harmonixset",
     "sample_rate": 24000,

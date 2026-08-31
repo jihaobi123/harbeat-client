@@ -124,11 +124,11 @@ MusicFM + MuQ
 - 运行器版本和标签合同版本；
 - SongFormer 源码 Git revision；
 - SongFormer Checkpoint SHA-256；
-- MusicFM Checkpoint SHA-256；
+- MusicFM Checkpoint 与归一化统计文件 SHA-256；
 - MuQ 模型文件 SHA-256；
 - 数据集 ID、采样率、特征层、精度和帧率。
 
-权重文件的 SHA-256 结果保存在带路径、文件大小和修改时间校验的本地指纹清单中，避免每首歌重复读取大模型文件。缓存目录包含命名空间；任何一项变化都会生成新缓存，不复用旧 Embedding 和旧标签。
+权重文件的 SHA-256 结果保存在带路径、文件大小和修改时间校验的本地指纹清单中，避免每首歌重复读取大模型文件。Git 工作树存在未提交源码改动时，指纹同时包含源码树摘要。音频缓存键使用完整文件内容摘要，不依赖路径、大小和修改时间的组合。缓存目录包含命名空间；任何一项变化都会生成新缓存，不复用旧 Embedding 和旧标签。
 
 Manifest 必须记录上述版本信息。无法取得 Git revision 时，使用 `unknown`，但 Checkpoint 哈希仍是必填项。
 

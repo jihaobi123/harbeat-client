@@ -28,6 +28,20 @@ _MODEL_FILE_SUFFIXES = {
 _SOURCE_FILE_SUFFIXES = {".py", ".toml", ".yaml", ".yml"}
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def audio_content_key(path: Path) -> str:
+    """Return a cache key derived from the complete audio byte content."""
+    resolved = path.expanduser().resolve()
+    return _sha256_file(resolved)[:20]
+
+
 def _softmax(values: np.ndarray) -> np.ndarray:
     shifted = values - np.max(values, axis=-1, keepdims=True)
     exponentials = np.exp(shifted)
@@ -76,8 +90,8 @@ def aggregate_segment_label_evidence(
     for segment in segments:
         start = max(0.0, float(segment["start"]))
         end = max(start, float(segment["end"]))
-        start_frame = min(frames, max(0, int(math.floor(start * rate))))
-        end_frame = min(frames, max(start_frame, int(math.ceil(end * rate))))
+        start_frame = min(frames, max(0, int(round(start * rate))))
+        end_frame = min(frames, max(start_frame, int(round(end * rate))))
         if end_frame <= start_frame:
             nearest = min(frames - 1, max(0, start_frame))
             window = probabilities_by_frame[nearest : nearest + 1]
@@ -155,11 +169,7 @@ def sha256_file_cached(path: Path, manifest_path: Path) -> str:
     ):
         return cached["sha256"]
 
-    digest = hashlib.sha256()
-    with resolved.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    value = digest.hexdigest()
+    value = _sha256_file(resolved)
     manifest["files"][key] = {
         "size": stat.st_size,
         "mtime_ns": stat.st_mtime_ns,
@@ -192,6 +202,23 @@ def _fingerprint_directory(
     return digest.hexdigest()
 
 
+def _fingerprint_source_tree(directory: Path) -> str:
+    files = sorted(
+        path
+        for path in directory.rglob("*")
+        if path.is_file() and path.suffix.lower() in _SOURCE_FILE_SUFFIXES
+    )
+    if not files:
+        return "empty-directory"
+    digest = hashlib.sha256()
+    for file_path in files:
+        digest.update(file_path.relative_to(directory).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(_sha256_file(file_path).encode("ascii"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def fingerprint_model_path(path: Path, manifest_path: Path) -> str:
     """Fingerprint one checkpoint file or a local pretrained-model directory."""
     resolved = path.expanduser().resolve()
@@ -218,16 +245,24 @@ def source_revision(source_root: Path, manifest_path: Path) -> str:
         )
         revision = result.stdout.strip()
         if revision:
+            status = subprocess.run(
+                [
+                    "git", "-C", str(resolved), "status", "--porcelain",
+                    "--untracked-files=all", "--", ".",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if status.stdout.strip():
+                dirty_digest = _fingerprint_source_tree(resolved)
+                return f"{revision}+dirty-tree-sha256:{dirty_digest}"
             return revision
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
     if not resolved.exists():
         return f"missing:{resolved}"
-    return "tree-sha256:" + _fingerprint_directory(
-        resolved,
-        manifest_path,
-        suffixes=_SOURCE_FILE_SUFFIXES,
-    )
+    return "tree-sha256:" + _fingerprint_source_tree(resolved)
 
 
 def build_cache_namespace(runtime_fingerprint: Mapping[str, Any]) -> str:

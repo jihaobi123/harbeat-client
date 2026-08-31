@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import gc
-import hashlib
 import json
 import os
 import sys
@@ -39,6 +38,7 @@ if __package__:
         LABEL_CONTRACT_VERSION,
         RUNNER_VERSION,
         attach_segment_label_evidence,
+        audio_content_key,
         build_cache_namespace,
         fingerprint_model_path,
         source_revision,
@@ -48,6 +48,7 @@ else:
         LABEL_CONTRACT_VERSION,
         RUNNER_VERSION,
         attach_segment_label_evidence,
+        audio_content_key,
         build_cache_namespace,
         fingerprint_model_path,
         source_revision,
@@ -136,10 +137,7 @@ def add_source_paths(source_root: Path) -> Path:
 
 
 def key_for(path: Path) -> str:
-    resolved = path.resolve()
-    stat = resolved.stat()
-    payload = f"{resolved}\0{stat.st_size}\0{stat.st_mtime_ns}".encode()
-    return hashlib.sha256(payload).hexdigest()[:16]
+    return audio_content_key(path)
 
 
 def load_audio(path: Path) -> tuple[torch.Tensor, float]:
@@ -414,8 +412,8 @@ def run_backend(
                 label = msa[part_index][1]
                 segments.append(
                     {
-                        "start": round(msa[part_index][0], 3),
-                        "end": round(msa[part_index + 1][0], 3),
+                        "start": float(msa[part_index][0]),
+                        "end": float(msa[part_index + 1][0]),
                         "label": label,
                         "label_zh": ZH_LABELS.get(label, label),
                     }
@@ -427,6 +425,9 @@ def run_backend(
                 allowed_label_ids=evidence_label_ids,
                 id_to_label=SONGFORMER_LABEL_BY_ID,
             )
+            for segment in segments:
+                segment["start"] = round(float(segment["start"]), 3)
+                segment["end"] = round(float(segment["end"]), 3)
             record.update(
                 duration=musicfm["duration"],
                 embedding_lengths=lengths,
@@ -478,7 +479,7 @@ def main() -> int:
         "runner_version": RUNNER_VERSION,
         "label_contract_version": LABEL_CONTRACT_VERSION,
         "songformer_source_revision": source_revision(
-            songformer_root, hash_manifest_path
+            source_root, hash_manifest_path
         ),
         "songformer_checkpoint_sha256": fingerprint_model_path(
             songformer_root / "ckpts" / "SongFormer.safetensors",
@@ -486,6 +487,10 @@ def main() -> int:
         ),
         "musicfm_checkpoint_sha256": fingerprint_model_path(
             songformer_root / "ckpts" / "MusicFM" / "pretrained_msd.pt",
+            hash_manifest_path,
+        ),
+        "musicfm_stats_sha256": fingerprint_model_path(
+            songformer_root / "ckpts" / "MusicFM" / "msd_stats.json",
             hash_manifest_path,
         ),
         "muq_model_sha256": fingerprint_model_path(

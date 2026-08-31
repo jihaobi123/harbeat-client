@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -8,9 +10,11 @@ import pytest
 from experiments.songformer_runtime_support import (
     aggregate_segment_label_evidence,
     attach_segment_label_evidence,
+    audio_content_key,
     build_cache_namespace,
     fingerprint_model_path,
     sha256_file_cached,
+    source_revision,
 )
 
 
@@ -93,6 +97,28 @@ def test_masked_disallowed_logits_may_be_negative_infinity() -> None:
     assert evidence[0]["label_probabilities"]["chorus"] > 0.85
 
 
+def test_rounded_adjacent_boundaries_do_not_share_a_frame() -> None:
+    frame_rate = 8.333
+    logits = np.full((20, 27), -20.0, dtype=np.float64)
+    logits[:10, 0] = 8.0
+    logits[10:, 2] = 8.0
+    segments = [
+        {"start": 0.0, "end": 1.2, "label": "intro"},
+        {"start": 1.2, "end": 2.4, "label": "chorus"},
+    ]
+
+    evidence = aggregate_segment_label_evidence(
+        logits,
+        segments=segments,
+        frame_rate=frame_rate,
+        allowed_label_ids=list(LABELS),
+        id_to_label=LABELS,
+    )
+
+    assert evidence[0]["label_probabilities"]["intro"] > 0.99
+    assert evidence[1]["label_probabilities"]["chorus"] > 0.99
+
+
 def test_cache_namespace_changes_for_every_runtime_input() -> None:
     base = {
         "runner_version": "songformer_isolated_v2",
@@ -100,6 +126,7 @@ def test_cache_namespace_changes_for_every_runtime_input() -> None:
         "songformer_source_revision": "git-a",
         "songformer_checkpoint_sha256": "sf-a",
         "musicfm_checkpoint_sha256": "music-a",
+        "musicfm_stats_sha256": "stats-a",
         "muq_model_sha256": "muq-a",
         "dataset_id": "SongForm-HX-8Class:5",
         "sample_rate": 24_000,
@@ -115,6 +142,7 @@ def test_cache_namespace_changes_for_every_runtime_input() -> None:
         "songformer_source_revision": "git-b",
         "songformer_checkpoint_sha256": "sf-b",
         "musicfm_checkpoint_sha256": "music-b",
+        "musicfm_stats_sha256": "stats-b",
         "muq_model_sha256": "muq-b",
         "dataset_id": "another-dataset",
         "sample_rate": 48_000,
@@ -147,6 +175,19 @@ def test_sha256_file_cache_is_scoped_by_path_size_and_mtime(tmp_path: Path) -> N
     assert str(model.resolve()) in saved["files"]
 
 
+def test_audio_content_key_detects_same_size_same_mtime_replacement(tmp_path: Path) -> None:
+    audio = tmp_path / "song.wav"
+    audio.write_bytes(b"audio-content-a")
+    original = audio.stat()
+    first = audio_content_key(audio)
+
+    audio.write_bytes(b"audio-content-b")
+    os.utime(audio, ns=(original.st_atime_ns, original.st_mtime_ns))
+    second = audio_content_key(audio)
+
+    assert second != first
+
+
 def test_directory_model_fingerprint_changes_when_weight_changes(tmp_path: Path) -> None:
     model_dir = tmp_path / "muq"
     model_dir.mkdir()
@@ -161,3 +202,38 @@ def test_directory_model_fingerprint_changes_when_weight_changes(tmp_path: Path)
     second = fingerprint_model_path(model_dir, manifest)
 
     assert first != second
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is required")
+def test_source_revision_changes_for_uncommitted_third_party_edits(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "songformer-src"
+    songformer = source / "src" / "SongFormer"
+    third_party = source / "src" / "third_party" / "musicfm"
+    songformer.mkdir(parents=True)
+    third_party.mkdir(parents=True)
+    (songformer / "model.py").write_text("MODEL = 1\n", encoding="utf-8")
+    module = third_party / "encoder.py"
+    module.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(["git", "-C", str(source), "add", "src"], check=True)
+    subprocess.run(
+        [
+            "git", "-C", str(source),
+            "-c", "user.name=HarBeat Test",
+            "-c", "user.email=harbeat-test@example.invalid",
+            "commit", "-q", "-m", "initial",
+        ],
+        check=True,
+    )
+    manifest = tmp_path / "hashes.json"
+    clean = source_revision(source, manifest)
+
+    original = module.stat()
+    module.write_text("VALUE = 2\n", encoding="utf-8")
+    os.utime(module, ns=(original.st_atime_ns, original.st_mtime_ns))
+    dirty = source_revision(source, manifest)
+
+    assert dirty != clean
+    assert "+dirty-tree-sha256:" in dirty
