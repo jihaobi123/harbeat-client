@@ -55,6 +55,12 @@ export default function Sidebar({ currentView, onViewChange, onMobileAction }: P
             {item.icon} {item.label}
           </button>
         ))}
+        <button
+          onClick={() => window.location.assign('/annotate')}
+          className="w-full text-left px-3 py-2 text-sm font-semibold rounded-md bg-surface-lighter"
+        >
+          🏷️ 公共标注工作台
+        </button>
       </nav>
 
       <div className="flex-1 overflow-y-auto px-3 pb-3">

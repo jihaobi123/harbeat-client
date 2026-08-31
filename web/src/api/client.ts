@@ -180,6 +180,43 @@ export async function downloadPresenceExport(songId: string): Promise<Blob> {
   return response.blob()
 }
 
+// ---- Shared Bar annotation Pilot ----
+export async function getPilotAnnotationTracks() {
+  return request<import('../types/annotation').PilotTrackSummary[]>(
+    '/api/bar-annotations/pilot/tracks',
+  )
+}
+
+export async function getBarAnnotationWorkspace(
+  trackId: string,
+  datasetVersion = 'bar-understanding-1.0.0',
+) {
+  return request<import('../types/annotation').AnnotationWorkspace>(
+    `/api/bar-annotations/tracks/${encodeURIComponent(trackId)}/workspace?dataset_version=${encodeURIComponent(datasetVersion)}`,
+  )
+}
+
+export async function saveBarAnnotationWorkspace(
+  trackId: string,
+  data: import('../types/annotation').SaveAnnotationWorkspaceRequest,
+) {
+  return request<import('../types/annotation').AnnotationWorkspace>(
+    `/api/bar-annotations/tracks/${encodeURIComponent(trackId)}/workspace`,
+    { method: 'PUT', body: JSON.stringify(data) },
+  )
+}
+
+export function getBarAnnotationAudioUrl(trackId: string): string {
+  const token = getToken()
+  return `${BASE}/api/bar-annotations/tracks/${encodeURIComponent(trackId)}/audio?token=${encodeURIComponent(token || '')}`
+}
+
+export function getBarAnnotationStemUrl(trackId: string, stemName: string): string {
+  const token = getToken()
+  return `${BASE}/api/bar-annotations/tracks/${encodeURIComponent(trackId)}/stems/${encodeURIComponent(stemName)}?token=${encodeURIComponent(token || '')}`
+}
+
+
 // ---- Playlists ----
 export async function getPlaylists(userId: number) {
   return request<{ playlists: import('../types').Playlist[] }>(`/api/playlists?user_id=${userId}`)
