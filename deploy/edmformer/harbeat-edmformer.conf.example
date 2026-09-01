@@ -1,0 +1,7 @@
+[Service]
+Environment="EDM_STRUCTURE_ENABLED=true"
+Environment="EDM_STRUCTURE_DEPLOYMENT_STATUS=shadow"
+Environment="EDM_STRUCTURE_COMMAND=/opt/harbeat/runtime/edmformer-python __HARBEAT_RELEASE__/experiments/run_edmformer_isolated.py --audio {audio} --output-dir {output_dir} --edm98-root /opt/harbeat/models/EDM-98 --checkpoint /opt/harbeat/models/EDM-98/data/checkpoints/model.pt --config /opt/harbeat/models/EDM-98/configs/edmformer.yaml --musicfm-source /opt/harbeat/models/SongFormer/src/third_party/musicfm --musicfm-model /opt/harbeat/models/SongFormer/src/SongFormer/ckpts/MusicFM/pretrained_msd.pt --musicfm-stats /opt/harbeat/models/SongFormer/src/SongFormer/ckpts/MusicFM/msd_stats.json --muq-model /opt/harbeat/models/MuQ-large-msd-iter --hf-cache-dir /opt/harbeat/cache/huggingface --device cuda"
+Environment="EDM_STRUCTURE_DIR=/data/harbeat/edm-structure"
+Environment="EDM_STRUCTURE_WORK_DIR=/mnt/nas/harbeat/cache/edm-structure"
+Environment="EDM_STRUCTURE_TIMEOUT_SEC=3600"

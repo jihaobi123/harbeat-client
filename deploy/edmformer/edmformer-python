@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="$(cd "$(dirname "$0")" && pwd)"
+MODEL_ROOT="${HARBEAT_MODEL_ROOT:-/opt/harbeat/models}"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+SONGFORMER_ROOT="$MODEL_ROOT/SongFormer"
+export MUSICFMPATH="$SONGFORMER_ROOT/src/third_party/musicfm"
+export PYTHONPATH="$MODEL_ROOT/EDM-98/src:$RUNTIME_ROOT/edmformer-packages:$RUNTIME_ROOT/songformer-packages:$SONGFORMER_ROOT/src/third_party/MuQ:$SONGFORMER_ROOT/src/third_party/musicfm${PYTHONPATH:+:$PYTHONPATH}"
+exec "$CORE_PYTHON" "$@"
