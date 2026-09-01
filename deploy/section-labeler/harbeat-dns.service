@@ -1,0 +1,13 @@
+[Unit]
+Description=HarBeat ECS DNS fallback
+After=network-online.target systemd-resolved.service tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/resolvectl dns eth0 223.5.5.5 223.6.6.6 100.100.2.136 100.100.2.138
+ExecStart=/usr/bin/resolvectl flush-caches
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

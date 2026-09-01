@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew the HarBeat ECS IP certificate
+After=network-online.target harbeat-dns.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/certbot/bin/certbot renew --quiet --deploy-hook "/usr/bin/systemctl reload nginx"
