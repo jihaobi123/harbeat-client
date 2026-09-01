@@ -17,8 +17,11 @@ def ready_payload() -> dict:
         "track_id": "track_001",
         "status": "ready",
         "duration_sec": 4.0,
+        "audio_sha256": "f" * 64,
         "timeline_fingerprint": "a" * 64,
         "taxonomy_version": "instrument_taxonomy@0.1.0",
+        "aggregation_version": "instrument_bar_aggregation_v1",
+        "runtime_fingerprint": {"runner_version": "test"},
         "models": {
             "adtof": {
                 "model_id": "adtof-pytorch",

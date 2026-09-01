@@ -4,8 +4,11 @@
   "track_id": "track_001",
   "status": "ready",
   "duration_sec": 4.0,
+  "audio_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "timeline_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "taxonomy_version": "instrument_taxonomy@0.1.0",
+  "aggregation_version": "instrument_bar_aggregation_v1",
+  "runtime_fingerprint": {"runner_version": "test"},
   "models": {
     "adtof": {"model_id": "adtof-pytorch", "model_version": "upstream", "deployment_status": "shadow", "availability": "available", "checkpoint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "source_revision": "cccccccccccccccccccccccccccccccccccccccc", "license_status": "review_required", "error": null},
     "panns": {"model_id": "panns-cnn14", "model_version": "upstream", "deployment_status": "shadow", "availability": "available", "checkpoint_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "source_revision": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "license_status": "review_required", "error": null}

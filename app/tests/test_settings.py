@@ -23,3 +23,8 @@ def test_settings_accepts_deployment_only_environment_keys(tmp_path):
     assert settings.songformer_command == ""
     assert settings.songformer_timeout_sec == 1800
     assert settings.songformer_enabled is False
+    assert settings.instrument_analysis_enabled is False
+    assert settings.instrument_analysis_dir == "./data/instrument-analysis"
+    assert settings.instrument_analysis_work_dir == "./data/instrument-analysis-cache"
+    assert settings.instrument_analysis_command == ""
+    assert settings.instrument_analysis_timeout_sec == 1800

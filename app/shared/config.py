@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     songformer_command: str = ""
     songformer_timeout_sec: int = 1800
     songformer_enabled: bool = False
+    instrument_analysis_enabled: bool = False
+    instrument_analysis_dir: str = "./data/instrument-analysis"
+    instrument_analysis_work_dir: str = "./data/instrument-analysis-cache"
+    instrument_analysis_command: str = ""
+    instrument_analysis_timeout_sec: int = 1800
 
     model_config = SettingsConfigDict(
         env_file=".env",

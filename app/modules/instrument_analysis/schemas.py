@@ -146,8 +146,13 @@ class InstrumentAnalysisDocument(BaseModel):
     track_id: str = Field(pattern=ID_PATTERN, min_length=1, max_length=128)
     status: Literal["ready", "partial", "failed"]
     duration_sec: float = Field(gt=0)
+    audio_sha256: str = Field(pattern=SHA256_PATTERN)
     timeline_fingerprint: str = Field(pattern=SHA256_PATTERN)
     taxonomy_version: Literal["instrument_taxonomy@0.1.0"]
+    aggregation_version: Literal["instrument_bar_aggregation_v1"] = (
+        "instrument_bar_aggregation_v1"
+    )
+    runtime_fingerprint: dict[str, object]
     models: dict[Literal["adtof", "panns"], ModelEvidence]
     bars: list[InstrumentBarAnalysis]
     warnings: list[str] = Field(default_factory=list)
@@ -175,4 +180,3 @@ class InstrumentAnalysisDocument(BaseModel):
             previous_index = bar.bar_index
             previous_end = bar.end_sec
         return self
-
