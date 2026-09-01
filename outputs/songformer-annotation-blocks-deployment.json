@@ -1,0 +1,65 @@
+{
+  "schema_name": "harbeat.songformer_annotation_blocks_deployment",
+  "schema_version": "1.0.0",
+  "deployed_at": "2026-09-01T10:27:47Z",
+  "source_commit": "54a4e63f8055d438c32a085e9d10b3883e7b43fa",
+  "release_path": "/opt/harbeat/releases/songformer-blocks-54a4e63",
+  "previous_release_path": "/opt/harbeat/releases/editorial-web-86d36dc",
+  "service": "harbeat-api.service",
+  "runtime": {
+    "device": "NVIDIA Jetson Orin",
+    "torch": "2.4.0a0+3bcc3cddb5.nv24.07",
+    "cuda": "12.2",
+    "torchvision": "0.19.0",
+    "transformers": "4.51.1",
+    "precision": "float16"
+  },
+  "models": {
+    "songformer_revision": "139b2aa3b14bd1c6d961d0994e9fc975f1ef7fd5",
+    "muq_repository": "OpenMuQ/MuQ-large-msd-iter",
+    "muq_source_revision": "28847ea50cd31ac4b8b6a7dacc051ad7d1c7606a",
+    "musicfm_revision": "b83ebedb401bcef639b26b05c0c8bee1dc2dfe71",
+    "checkpoint_hashes": "passed"
+  },
+  "annotation_blocks": {
+    "sidecar_dir": "/data/harbeat/songformer-sections",
+    "pilot_tracks": 10,
+    "successful_tracks": 10,
+    "failed_tracks": 0,
+    "generated_sections": 86,
+    "bar_snap_enabled": true,
+    "human_review_required": true
+  },
+  "residual_classifier": {
+    "enabled": false,
+    "mode": "disabled",
+    "model_status": "not_installed",
+    "interface_reserved": true
+  },
+  "data_safety": {
+    "persistent_annotation_dir": "/data/harbeat/bar-annotations",
+    "human_annotation_hash_before": "7d3ed85798750363608776a9269d6a58a7a1e48fa8ab586c428855df3b5bb952",
+    "human_annotation_hash_after": "7d3ed85798750363608776a9269d6a58a7a1e48fa8ab586c428855df3b5bb952",
+    "existing_annotations_unchanged": true
+  },
+  "production_acceptance": {
+    "service_active": true,
+    "original_site_status": 200,
+    "login_status": 200,
+    "registration_status": 200,
+    "annotation_portal_status": 200,
+    "health_status": 200,
+    "browser_console_errors": 0,
+    "service_warnings_after_switch": 0
+  },
+  "rollback": {
+    "drop_in_backup": "/etc/systemd/system/harbeat-api.service.d/public-annotation.conf.pre-songformer-54a4e63",
+    "steps": [
+      "Restore the drop-in backup to /etc/systemd/system/harbeat-api.service.d/public-annotation.conf",
+      "Remove /etc/systemd/system/harbeat-api.service.d/songformer.conf",
+      "Run systemctl daemon-reload",
+      "Restart harbeat-api"
+    ],
+    "annotation_data_policy": "Keep /data/harbeat/bar-annotations and /data/harbeat/songformer-sections untouched"
+  }
+}
