@@ -6,7 +6,7 @@ import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.modules.auth.dependencies import get_current_user
@@ -25,6 +25,8 @@ from app.modules.bar_annotations.service import (
 from app.modules.bar_annotations.store import AnnotationStore, RevisionConflict, TimelineConflict
 from app.modules.bar_annotations.songformer_sections import SongFormerSectionStore
 from app.modules.users.models import User
+from app.modules.instrument_analysis.schemas import InstrumentAnalysisDocument
+from app.modules.instrument_analysis.store import InstrumentAnalysisStore
 from app.shared.config import get_settings
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
@@ -55,6 +57,10 @@ def get_pilot_manifest() -> PilotManifest:
 
 def get_songformer_section_store() -> SongFormerSectionStore:
     return SongFormerSectionStore(get_settings().songformer_section_dir)
+
+
+def get_instrument_analysis_store() -> InstrumentAnalysisStore:
+    return InstrumentAnalysisStore(get_settings().instrument_analysis_dir)
 
 
 def _not_found() -> HTTPException:
@@ -173,6 +179,32 @@ def get_annotation_workspace_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     return APIResponse(data=workspace)
+
+
+@router.get(
+    "/tracks/{track_id}/instrument-candidates",
+    response_model=APIResponse[InstrumentAnalysisDocument],
+    responses={204: {"description": "No instrument-analysis sidecar"}},
+)
+def get_instrument_candidates_endpoint(
+    track_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    manifest: PilotManifest = Depends(get_pilot_manifest),
+    store: InstrumentAnalysisStore = Depends(get_instrument_analysis_store),
+):
+    del current_user
+    _pilot_song(db, manifest, track_id)
+    try:
+        document = store.load(track_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="instrument candidate sidecar is invalid",
+        ) from exc
+    if document is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return APIResponse(data=document)
 
 
 @router.put(

@@ -11,11 +11,15 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 from app.modules.bar_annotations.pilot import PilotManifest  # noqa: E402
 from app.modules.bar_annotations.router import (  # noqa: E402
     get_annotation_workspace_endpoint,
+    get_instrument_candidates_endpoint,
     get_pilot_tracks_endpoint,
     resolve_pilot_media_path,
     router as bar_annotation_router,
     save_annotation_workspace_endpoint,
 )
+from app.modules.instrument_analysis.schemas import InstrumentAnalysisDocument  # noqa: E402
+from app.modules.instrument_analysis.store import InstrumentAnalysisStore  # noqa: E402
+from app.tests.test_instrument_analysis_schema import ready_payload  # noqa: E402
 from app.modules.bar_annotations.schemas import (  # noqa: E402
     AnnotationRecord,
     SaveAnnotationWorkspaceRequest,
@@ -93,6 +97,7 @@ def test_bar_annotation_routes_are_registered_under_distinct_paths() -> None:
     paths = {route.path for route in bar_annotation_router.routes}
     assert "/pilot/tracks" in paths
     assert "/tracks/{track_id}/workspace" in paths
+    assert "/tracks/{track_id}/instrument-candidates" in paths
     assert "/tracks/{track_id}/audio" in paths
     assert "/tracks/{track_id}/stems/{stem_name}" in paths
 
@@ -172,6 +177,36 @@ def test_workspace_endpoint_exposes_shared_songformer_blocks(tmp_path) -> None:
     assert response.data.section_block_status == "ready"
     assert len(response.data.section_blocks) == 1
     assert response.data.section_relabeler.enabled is False
+
+
+def test_instrument_candidates_are_read_only_and_shared(tmp_path) -> None:
+    song = _song()
+    candidate_store = InstrumentAnalysisStore(tmp_path / "instrument-analysis")
+    payload = ready_payload()
+    payload.update(
+        {
+            "track_id": song.id,
+            "duration_sec": song.duration,
+            "audio_sha256": "f" * 64,
+        }
+    )
+    payload["bars"][0]["end_sec"] = song.duration
+    candidate_store.save(InstrumentAnalysisDocument.model_validate(payload))
+    human_store = AnnotationStore(tmp_path / "bar-annotations")
+    before = list((tmp_path / "bar-annotations").rglob("*.json"))
+
+    response = get_instrument_candidates_endpoint(
+        song.id,
+        FakeDB([song]),
+        SimpleNamespace(id=11),
+        _manifest(song.id),
+        candidate_store,
+    )
+
+    assert response.data.schema_name == "harbeat.instrument_analysis"
+    assert response.data.track_id == song.id
+    assert list((tmp_path / "bar-annotations").rglob("*.json")) == before
+    assert human_store.load(DATASET_VERSION, 11, song.id).revision == 0
 
 
 def test_media_resolver_allows_only_pilot_source_and_fixed_stems(tmp_path) -> None:

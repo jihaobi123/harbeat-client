@@ -129,3 +129,60 @@ export interface PilotTrackSummary {
   duration_sec: number
   stems_available: Array<'vocals' | 'drums' | 'bass' | 'other'>
 }
+
+export type DrumClass = 'kick' | 'snare' | 'hihat' | 'tom' | 'cymbal'
+export type InstrumentClass =
+  | 'drums' | 'percussion' | 'bass' | 'acoustic_guitar' | 'electric_guitar'
+  | 'piano' | 'electric_piano' | 'synthesizer' | 'strings' | 'brass'
+  | 'woodwind' | 'organ' | 'sampler_fx' | 'voice'
+
+export interface InstrumentModelEvidence {
+  availability: 'available' | 'unavailable' | 'failed'
+  deployment_status: 'shadow'
+  error: string | null
+}
+
+export interface DrumEventCandidate {
+  time_sec: number
+  drum_class: DrumClass
+  confidence: number
+  bar_index: number
+  beat_index_in_bar: number
+  beat_position: number
+}
+
+export interface InstrumentProbabilityCandidate {
+  instrument_class: InstrumentClass
+  mean_probability: number
+  max_probability: number
+  active_coverage: number
+}
+
+export interface InstrumentBarCandidate {
+  bar_index: number
+  start_sec: number
+  end_sec: number
+  drum_events: DrumEventCandidate[]
+  drum_summary: {
+    event_counts: Record<DrumClass, number>
+    density_per_sec: number
+  }
+  instrument_probabilities: InstrumentProbabilityCandidate[]
+  validation_status: 'unreviewed' | 'reviewed' | 'rejected'
+}
+
+export interface InstrumentAnalysisDocument {
+  schema_name: 'harbeat.instrument_analysis'
+  schema_version: '0.1.0'
+  track_id: string
+  status: 'ready' | 'partial' | 'failed'
+  duration_sec: number
+  audio_sha256: string
+  timeline_fingerprint: string
+  taxonomy_version: 'instrument_taxonomy@0.1.0'
+  aggregation_version: 'instrument_bar_aggregation_v1'
+  runtime_fingerprint: Record<string, unknown>
+  models: Record<'adtof' | 'panns', InstrumentModelEvidence>
+  bars: InstrumentBarCandidate[]
+  warnings: string[]
+}

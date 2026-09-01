@@ -17,6 +17,8 @@ import type {
   BarRange,
   ElementName,
   ElementState,
+  InstrumentAnalysisDocument,
+  InstrumentClass,
   PilotTrackSummary,
   SectionLabel,
 } from '../types/annotation'
@@ -48,6 +50,15 @@ const STATE_OPTIONS: Array<{ value: ElementState; label: string }> = [
 ]
 const SECTION_LABELS = Object.fromEntries(SECTION_OPTIONS.map(item => [item.value, item.label]))
 const STATE_LABELS = Object.fromEntries(STATE_OPTIONS.map(item => [item.value, item.label]))
+const DRUM_LABELS = {
+  kick: '底鼓', snare: '军鼓', hihat: '踩镲', tom: '通鼓', cymbal: '吊镲',
+} as const
+const INSTRUMENT_LABELS: Record<InstrumentClass, string> = {
+  drums: '鼓组', percussion: '打击乐', bass: '贝斯', acoustic_guitar: '木吉他',
+  electric_guitar: '电吉他', piano: '钢琴', electric_piano: '电钢琴',
+  synthesizer: '合成器', strings: '弦乐', brass: '铜管', woodwind: '木管',
+  organ: '风琴', sampler_fx: '采样／音效', voice: '人声',
+}
 
 interface Props {
   onDirtyChange: (dirty: boolean) => void
@@ -73,6 +84,109 @@ function annotationAt(
 }
 
 
+interface InstrumentCandidatePanelProps {
+  candidates: InstrumentAnalysisDocument | null
+  selectedRange: BarRange
+  onSeek: (timeSec: number) => void
+}
+
+
+export function InstrumentCandidatePanel({
+  candidates,
+  selectedRange,
+  onSeek,
+}: InstrumentCandidatePanelProps) {
+  if (!candidates || candidates.status === 'failed') {
+    return (
+      <section className="annotation-model-candidates street-sticker bg-surface-lighter p-3 sm:p-4">
+        <div className="text-xs street-subtitle">SHADOW · MODEL EVIDENCE</div>
+        <h2 className="text-xl mt-1">鼓件与乐器候选</h2>
+        <p className="text-sm mt-2">这首歌还没有可用的模型候选，人工标注仍可正常进行。</p>
+      </section>
+    )
+  }
+  const bars = candidates.bars.filter(bar => (
+    bar.bar_index >= selectedRange.start && bar.bar_index < selectedRange.end
+  ))
+  const counts = { kick: 0, snare: 0, hihat: 0, tom: 0, cymbal: 0 }
+  const events = bars.flatMap(bar => bar.drum_events)
+  bars.forEach(bar => {
+    Object.entries(bar.drum_summary.event_counts).forEach(([name, count]) => {
+      counts[name as keyof typeof counts] += count
+    })
+  })
+  const instrumentValues = new Map<InstrumentClass, { total: number; maximum: number; samples: number }>()
+  bars.forEach(bar => bar.instrument_probabilities.forEach(item => {
+    const current = instrumentValues.get(item.instrument_class) ?? { total: 0, maximum: 0, samples: 0 }
+    current.total += item.mean_probability
+    current.maximum = Math.max(current.maximum, item.max_probability)
+    current.samples += 1
+    instrumentValues.set(item.instrument_class, current)
+  }))
+  const instruments = [...instrumentValues.entries()]
+    .map(([instrumentClass, value]) => ({
+      instrumentClass,
+      mean: value.total / value.samples,
+      maximum: value.maximum,
+    }))
+    .sort((left, right) => right.mean - left.mean)
+
+  return (
+    <section className="annotation-model-candidates street-sticker bg-surface-lighter p-3 sm:p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs street-subtitle">SHADOW · MODEL EVIDENCE</div>
+          <h2 className="text-xl mt-1">五类鼓事件与乐器候选</h2>
+        </div>
+        <strong className="bg-primary border-2 border-black px-3 py-1 text-xs">
+          模型候选，不是人工真值
+        </strong>
+      </div>
+      <div className="grid lg:grid-cols-2 gap-4 mt-4">
+        <div>
+          <h3 className="font-bold">五类鼓事件</h3>
+          <div className="grid grid-cols-5 gap-1 mt-2 text-center text-xs">
+            {Object.entries(counts).map(([name, count]) => (
+              <div key={name} className="border-2 border-black bg-white p-2">
+                <div className="font-bold text-lg">{count}</div>
+                <div>{DRUM_LABELS[name as keyof typeof DRUM_LABELS]}</div>
+              </div>
+            ))}
+          </div>
+          {events.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2" aria-label="鼓事件时间">
+              {events.slice(0, 40).map((event, index) => (
+                <button
+                  key={`${event.time_sec}-${event.drum_class}-${index}`}
+                  className="px-2 py-1 bg-white text-xs"
+                  onClick={() => onSeek(event.time_sec)}
+                >
+                  {DRUM_LABELS[event.drum_class]} · {event.time_sec.toFixed(2)} 秒
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <h3 className="font-bold">乐器候选</h3>
+          <div className="grid sm:grid-cols-2 gap-1 mt-2 text-xs">
+            {instruments.map(item => (
+              <div key={item.instrumentClass} className="border-2 border-black bg-white p-2 flex justify-between gap-2">
+                <span className="font-bold">{INSTRUMENT_LABELS[item.instrumentClass]}</span>
+                <span>平均 {(item.mean * 100).toFixed(0)}% · 峰值 {(item.maximum * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {candidates.warnings.length > 0 && (
+        <p className="text-xs mt-3">模型提示：{candidates.warnings.join('、')}</p>
+      )}
+    </section>
+  )
+}
+
+
 export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const { user } = useAuthStore()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -81,6 +195,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const [tracksLoading, setTracksLoading] = useState(true)
   const [trackId, setTrackId] = useState('')
   const [workspace, setWorkspace] = useState<AnnotationWorkspace | null>(null)
+  const [instrumentCandidates, setInstrumentCandidates] = useState<InstrumentAnalysisDocument | null>(null)
   const [draft, setDraft] = useState<AnnotationDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -137,6 +252,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const loadWorkspace = async (nextTrackId: string) => {
     setTrackId(nextTrackId)
     setWorkspace(null)
+    setInstrumentCandidates(null)
     setDraft(null)
     setDirty(false)
     setMessage('')
@@ -152,9 +268,13 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     if (!nextTrackId) return
     setLoading(true)
     try {
-      const next = await api.getBarAnnotationWorkspace(nextTrackId, DATASET_VERSION)
+      const [next, nextInstrumentCandidates] = await Promise.all([
+        api.getBarAnnotationWorkspace(nextTrackId, DATASET_VERSION),
+        api.getInstrumentCandidates(nextTrackId).catch(() => null),
+      ])
       const blockIndex = defaultBlockIndex(next.section_blocks, next.annotations)
       setWorkspace(next)
+      setInstrumentCandidates(nextInstrumentCandidates)
       setDraft({
         datasetVersion: next.dataset_version,
         trackId: next.track_id,
@@ -315,6 +435,15 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     if (Math.abs(audioRef.current.currentTime - rangeStart) > 0.08) {
       resetPlaybackMode()
     }
+  }
+
+  const seekToCandidate = (timeSec: number) => {
+    if (!audioRef.current) return
+    resetPlaybackMode()
+    audioRef.current.currentTime = timeSec
+    void audioRef.current.play().catch(() => {
+      setError('浏览器没有允许播放，请先点一下播放器的播放按钮')
+    })
   }
 
   const confirmedCount = draft?.annotations.filter(record => (
@@ -561,6 +690,12 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                 </div>
               </div>
             </section>
+
+            <InstrumentCandidatePanel
+              candidates={instrumentCandidates}
+              selectedRange={selectedRange}
+              onSeek={seekToCandidate}
+            />
 
             <section className="grid xl:grid-cols-2 gap-4">
               <div className="annotation-sections street-sticker bg-surface-lighter p-3 sm:p-4">
