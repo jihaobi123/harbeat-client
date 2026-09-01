@@ -4,14 +4,21 @@ from __future__ import annotations
 from hashlib import sha256
 from datetime import datetime, timezone
 import json
-from typing import Any
+from typing import Any, Optional
 
 from app.modules.bar_annotations.candidates import ELEMENTS, build_candidate_bars
 from app.modules.bar_annotations.public_datasets import SECTION_LABELS
+from app.modules.bar_annotations.section_blocks import build_section_blocks
 from app.modules.bar_annotations.schemas import (
     AnnotationRecord,
     AnnotationWorkspace,
+    SectionModelState,
     SaveAnnotationWorkspaceRequest,
+)
+from app.modules.bar_annotations.songformer_sections import (
+    RelabelerState,
+    SongFormerSectionInvalid,
+    SongFormerSectionStore,
 )
 from app.modules.bar_annotations.store import AnnotationStore, TimelineConflict
 from app.modules.library.bar_feature_adapter import CanonicalTimeline, build_canonical_timeline
@@ -56,12 +63,48 @@ def _workspace(
     dataset_version: str,
     store: AnnotationStore,
     user_id: int,
+    section_store: Optional[SongFormerSectionStore] = None,
 ) -> AnnotationWorkspace:
     timeline = build_canonical_timeline(song)
     fingerprint = timeline_fingerprint(timeline)
     stored = store.load(dataset_version, user_id, str(song.id))
     if stored.timeline_fingerprint and stored.timeline_fingerprint != fingerprint:
         raise TimelineConflict("timeline changed; create a new Dataset Version before continuing")
+    section_block_status = "not_analyzed"
+    section_blocks = []
+    section_model = None
+    section_relabeler = RelabelerState()
+    if section_store is not None:
+        try:
+            section_document = section_store.load(str(song.id))
+        except SongFormerSectionInvalid:
+            section_block_status = "failed"
+            section_document = None
+            section_model = SectionModelState(
+                status="failed",
+                error="invalid_songformer_sidecar",
+            )
+        if section_document is not None:
+            section_relabeler = section_document.relabeler
+            section_model = SectionModelState(
+                status=section_document.status,
+                cache_namespace=section_document.cache_namespace,
+                runtime_fingerprint=section_document.runtime_fingerprint,
+                error=section_document.error,
+            )
+            if section_document.status == "failed":
+                section_block_status = "failed"
+            else:
+                section_blocks = build_section_blocks(
+                    track_id=str(song.id),
+                    timeline=timeline,
+                    document=section_document,
+                )
+                section_block_status = (
+                    "needs_review"
+                    if any(block.needs_review for block in section_blocks)
+                    else "ready"
+                )
     return AnnotationWorkspace(
         dataset_version=dataset_version,
         track_id=str(song.id),
@@ -73,6 +116,10 @@ def _workspace(
         revision=stored.revision,
         annotations=stored.annotations,
         bars=build_candidate_bars(song),
+        section_block_status=section_block_status,
+        section_blocks=section_blocks,
+        section_model=section_model,
+        section_relabeler=section_relabeler,
         updated_at=stored.updated_at,
     )
 
@@ -83,8 +130,9 @@ def build_annotation_workspace(
     store: AnnotationStore,
     *,
     user_id: int,
+    section_store: Optional[SongFormerSectionStore] = None,
 ) -> AnnotationWorkspace:
-    return _workspace(song, dataset_version, store, user_id)
+    return _workspace(song, dataset_version, store, user_id, section_store)
 
 
 def _validate_task(record: AnnotationRecord) -> None:
@@ -155,6 +203,7 @@ def save_annotation_workspace(
     store: AnnotationStore,
     *,
     user_id: int,
+    section_store: Optional[SongFormerSectionStore] = None,
 ) -> AnnotationWorkspace:
     annotator_id = f"user:{user_id}"
     timeline = build_canonical_timeline(song)
@@ -218,4 +267,4 @@ def save_annotation_workspace(
         normalized,
         annotator_id,
     )
-    return _workspace(song, request.dataset_version, store, user_id)
+    return _workspace(song, request.dataset_version, store, user_id, section_store)

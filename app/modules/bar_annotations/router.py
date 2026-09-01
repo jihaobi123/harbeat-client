@@ -23,6 +23,7 @@ from app.modules.bar_annotations.service import (
     save_annotation_workspace,
 )
 from app.modules.bar_annotations.store import AnnotationStore, RevisionConflict, TimelineConflict
+from app.modules.bar_annotations.songformer_sections import SongFormerSectionStore
 from app.modules.users.models import User
 from app.shared.config import get_settings
 from app.shared.database import get_db
@@ -50,6 +51,10 @@ def get_bar_annotation_store() -> AnnotationStore:
 
 def get_pilot_manifest() -> PilotManifest:
     return PilotManifest.load(get_settings().bar_annotation_pilot_manifest)
+
+
+def get_songformer_section_store() -> SongFormerSectionStore:
+    return SongFormerSectionStore(get_settings().songformer_section_dir)
 
 
 def _not_found() -> HTTPException:
@@ -149,12 +154,17 @@ def get_annotation_workspace_endpoint(
     current_user: User = Depends(get_current_user),
     store: AnnotationStore = Depends(get_bar_annotation_store),
     manifest: PilotManifest = Depends(get_pilot_manifest),
+    section_store: SongFormerSectionStore = Depends(get_songformer_section_store),
 ):
     _require_dataset(manifest, dataset_version)
     song = _pilot_song(db, manifest, track_id)
     try:
         workspace = build_annotation_workspace(
-            song, dataset_version, store, user_id=int(current_user.id)
+            song,
+            dataset_version,
+            store,
+            user_id=int(current_user.id),
+            section_store=section_store,
         )
     except TimelineConflict as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -176,12 +186,17 @@ def save_annotation_workspace_endpoint(
     current_user: User = Depends(get_current_user),
     store: AnnotationStore = Depends(get_bar_annotation_store),
     manifest: PilotManifest = Depends(get_pilot_manifest),
+    section_store: SongFormerSectionStore = Depends(get_songformer_section_store),
 ):
     _require_dataset(manifest, request.dataset_version)
     song = _pilot_song(db, manifest, track_id)
     try:
         workspace = save_annotation_workspace(
-            song, request, store, user_id=int(current_user.id)
+            song,
+            request,
+            store,
+            user_id=int(current_user.id),
+            section_store=section_store,
         )
     except (RevisionConflict, TimelineConflict) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

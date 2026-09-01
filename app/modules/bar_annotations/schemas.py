@@ -7,6 +7,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.modules.bar_annotations.songformer_sections import RelabelerState
+
 
 Granularity = Literal["track", "section", "bar", "beat", "event"]
 AnnotationStatus = Literal["candidate", "annotated", "reviewed", "adjudicated", "rejected"]
@@ -140,6 +142,16 @@ class SectionAnnotationBlock(BaseModel):
         return self
 
 
+class SectionModelState(BaseModel):
+    model: Literal["ASLP-lab/SongFormer"] = "ASLP-lab/SongFormer"
+    status: Literal["ready", "failed"]
+    cache_namespace: Optional[str] = None
+    runtime_fingerprint: dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class AnnotationWorkspace(BaseModel):
     schema_name: Literal["harbeat.annotation_workspace"] = "harbeat.annotation_workspace"
     schema_version: Literal["1.0.0"] = "1.0.0"
@@ -153,6 +165,12 @@ class AnnotationWorkspace(BaseModel):
     revision: int = Field(ge=0)
     annotations: list[AnnotationRecord] = Field(default_factory=list)
     bars: list[CandidateBar]
+    section_block_status: Literal[
+        "ready", "needs_review", "failed", "not_analyzed"
+    ] = "not_analyzed"
+    section_blocks: list[SectionAnnotationBlock] = Field(default_factory=list)
+    section_model: Optional[SectionModelState] = None
+    section_relabeler: RelabelerState = Field(default_factory=RelabelerState)
     updated_at: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")

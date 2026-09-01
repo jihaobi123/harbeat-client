@@ -21,6 +21,10 @@ from app.modules.bar_annotations.schemas import (  # noqa: E402
     SaveAnnotationWorkspaceRequest,
 )
 from app.modules.bar_annotations.store import AnnotationStore  # noqa: E402
+from app.modules.bar_annotations.songformer_sections import (  # noqa: E402
+    SongFormerSectionStore,
+    songformer_document,
+)
 
 
 DATASET_VERSION = "bar-understanding-1.0.0"
@@ -112,29 +116,62 @@ def test_non_pilot_song_returns_same_not_found_even_when_database_has_it(tmp_pat
             SimpleNamespace(id=11),
             AnnotationStore(tmp_path),
             _manifest("track-router-1"),
+            SongFormerSectionStore(tmp_path / "sections"),
         )
     assert error.value.status_code == 404
 
 
 def test_router_keeps_revisions_independent_for_two_users(tmp_path) -> None:
     store = AnnotationStore(tmp_path)
+    section_store = SongFormerSectionStore(tmp_path / "sections")
     db = FakeDB([_song()])
     manifest = _manifest("track-router-1")
 
     alice = save_annotation_workspace_endpoint(
-        "track-router-1", _request(value="intro"), db, SimpleNamespace(id=11), store, manifest
+        "track-router-1", _request(value="intro"), db, SimpleNamespace(id=11), store, manifest,
+        section_store,
     )
     bob = save_annotation_workspace_endpoint(
-        "track-router-1", _request(value="main"), db, SimpleNamespace(id=12), store, manifest
+        "track-router-1", _request(value="main"), db, SimpleNamespace(id=12), store, manifest,
+        section_store,
     )
 
     assert alice.data.annotations[0].annotator_id == "user:11"
     assert bob.data.annotations[0].annotator_id == "user:12"
     with pytest.raises(HTTPException) as error:
         save_annotation_workspace_endpoint(
-            "track-router-1", _request(), db, SimpleNamespace(id=11), store, manifest
+            "track-router-1", _request(), db, SimpleNamespace(id=11), store, manifest,
+            section_store,
         )
     assert error.value.status_code == 409
+
+
+def test_workspace_endpoint_exposes_shared_songformer_blocks(tmp_path) -> None:
+    song = _song()
+    section_store = SongFormerSectionStore(tmp_path / "sections")
+    section_store.save(
+        songformer_document(
+            track_id=song.id,
+            audio_fingerprint="audio-sha",
+            runtime_fingerprint={"runner_version": "songformer_isolated_v3"},
+            cache_namespace="songformer-cache-a",
+            segments=[{"start": 0.0, "end": 2.0, "label": "intro"}],
+        )
+    )
+
+    response = get_annotation_workspace_endpoint(
+        song.id,
+        DATASET_VERSION,
+        FakeDB([song]),
+        SimpleNamespace(id=11),
+        AnnotationStore(tmp_path / "annotations"),
+        _manifest(song.id),
+        section_store,
+    )
+
+    assert response.data.section_block_status == "ready"
+    assert len(response.data.section_blocks) == 1
+    assert response.data.section_relabeler.enabled is False
 
 
 def test_media_resolver_allows_only_pilot_source_and_fixed_stems(tmp_path) -> None:

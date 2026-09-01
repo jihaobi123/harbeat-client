@@ -11,6 +11,10 @@ from app.modules.bar_annotations.service import (
     save_annotation_workspace,
     timeline_fingerprint,
 )
+from app.modules.bar_annotations.songformer_sections import (
+    SongFormerSectionStore,
+    songformer_document,
+)
 from app.modules.bar_annotations.store import AnnotationStore
 from app.modules.library.bar_feature_adapter import build_canonical_timeline
 
@@ -79,6 +83,9 @@ def test_workspace_combines_candidates_with_current_users_saved_annotations(tmp_
     assert workspace.bars[0].section.value == "intro"
     assert workspace.bars[1].elements["vocal"].value == "entering"
     assert len(workspace.timeline_fingerprint) == 64
+    assert workspace.section_block_status == "not_analyzed"
+    assert workspace.section_blocks == []
+    assert workspace.section_relabeler.enabled is False
 
 
 def test_two_users_save_different_labels_without_conflict_or_leakage(tmp_path) -> None:
@@ -105,6 +112,77 @@ def test_two_users_save_different_labels_without_conflict_or_leakage(tmp_path) -
     assert bob.annotations[0].annotator_id == "user:12"
     assert build_annotation_workspace(song, DATASET_VERSION, store, user_id=11).annotations == alice.annotations
     assert build_annotation_workspace(song, DATASET_VERSION, store, user_id=12).annotations == bob.annotations
+
+
+def test_all_users_share_songformer_blocks_but_keep_annotations_independent(tmp_path) -> None:
+    song = _song()
+    annotation_store = AnnotationStore(tmp_path / "annotations")
+    section_store = SongFormerSectionStore(tmp_path / "sections")
+    section_store.save(
+        songformer_document(
+            track_id=song.id,
+            audio_fingerprint="audio-sha",
+            runtime_fingerprint={"runner_version": "songformer_isolated_v3"},
+            cache_namespace="songformer-cache-a",
+            segments=[
+                {"start": 0.0, "end": 2.1, "label": "intro"},
+                {"start": 2.1, "end": 4.0, "label": "verse"},
+            ],
+        )
+    )
+    save_annotation_workspace(
+        song,
+        SaveAnnotationWorkspaceRequest(
+            dataset_version=DATASET_VERSION,
+            revision=0,
+            annotations=[_annotation(value="intro")],
+        ),
+        annotation_store,
+        user_id=11,
+        section_store=section_store,
+    )
+
+    alice = build_annotation_workspace(
+        song,
+        DATASET_VERSION,
+        annotation_store,
+        user_id=11,
+        section_store=section_store,
+    )
+    bob = build_annotation_workspace(
+        song,
+        DATASET_VERSION,
+        annotation_store,
+        user_id=12,
+        section_store=section_store,
+    )
+
+    assert alice.section_blocks == bob.section_blocks
+    assert alice.annotations != bob.annotations
+    assert alice.section_block_status == "ready"
+    assert alice.section_relabeler.model_status == "not_installed"
+    assert alice.section_blocks[0].start_bar_index == 0
+    assert alice.section_blocks[0].end_bar_index == 1
+
+
+def test_invalid_songformer_sidecar_fails_closed_without_hiding_bars(tmp_path) -> None:
+    song = _song()
+    annotation_store = AnnotationStore(tmp_path / "annotations")
+    section_root = tmp_path / "sections"
+    section_root.mkdir()
+    (section_root / f"{song.id}.json").write_text('{"segments":"bad"}', encoding="utf-8")
+
+    workspace = build_annotation_workspace(
+        song,
+        DATASET_VERSION,
+        annotation_store,
+        user_id=11,
+        section_store=SongFormerSectionStore(section_root),
+    )
+
+    assert workspace.section_block_status == "failed"
+    assert workspace.section_blocks == []
+    assert len(workspace.bars) == 2
 
 
 @pytest.mark.parametrize(
