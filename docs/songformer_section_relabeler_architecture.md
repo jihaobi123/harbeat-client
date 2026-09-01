@@ -7,12 +7,9 @@
 
 正式标签固定为八类：
 
-`intro`、`verse`、`chorus`、`bridge`、`instrumental`、`outro`、`breakdown`、`pre-chorus`。
+`intro`、`verse`、`chorus`、`bridge`、`instrumental`、`outro`、`silence`、`pre-chorus`。
 
-SongFormer 的原始输出词表保持不变，其中仍包含 `silence`。它只作为来源证据进入
-`prob_silence` 等特征；标注页面、人工真值、训练目标和分类器输出统一使用 `breakdown`。
-点击接受 SongFormer 的 `silence` 候选时，系统会自动保存为 `breakdown`，因此旧数据特征
-不会失效，新标签也不会混入来源概率字段。
+SongFormer 来源概率、标注页面、人工真值、训练目标和分类器输出使用同一套规范化标签。
 
 ## 2. 总体架构
 
@@ -43,7 +40,7 @@ flowchart LR
 
 | 层 | 输入 | 输出 | 关键约束 |
 |---|---|---|---|
-| SongFormer | 单首音频 | `start/end`、候选标签、八类来源概率（含 `silence`） | 只负责段落边界和原始语义 |
+| SongFormer | 单首音频 | `start/end`、候选标签、八类概率 | 只负责段落边界和原始语义 |
 | 标注数据集 | SongFormer 段落 | `annotations.json` | 数据版本 `harbeat_section_label_dataset_v1` |
 | 双人分片 | 73 首完整歌曲 | 两个互斥的可编辑视图 | 按整首歌分配，绝不拆散同一首歌 |
 | 人工标注 | 当前歌曲音频和上下文 | 标签、信心、边界状态、不确定状态、备注 | 点击只写浏览器草稿；每首歌整批校验和原子提交 |
@@ -68,8 +65,6 @@ flowchart LR
 完整特征名称由
 `app/modules/library/section_relabeler.py::feature_names()` 唯一生成。数据校验器会实际调用
 `build_track_feature_matrix()`，确认结果严格为 `段落数 × 52` 且全部为有限数值。
-这 52 维的来源词表保持 SongFormer 原样，所以特征名仍包含 `prob_silence`，不包含
-`prob_breakdown`；`breakdown` 是监督目标而不是 SongFormer 概率通道。
 
 ## 5. 双人标注与实时汇总
 
@@ -102,9 +97,13 @@ flowchart LR
 中记录时间、操作来源、修改前内容和修改后内容。
 
 标注者在当前歌曲内的选择先保存在浏览器草稿，不会自动切段或滚动。点击“提交本首歌曲”时，未改
-段落自动使用来源标签（`silence` 会转换为人工目标 `breakdown`），改过的段落使用新选择；后端要求
+段落自动使用来源标签，改过的段落使用新选择；后端要求
 初标提交完整覆盖整首歌，并在写入前一次性校验全部段落和修订号。原始候选字段不被覆盖，人工标签
 独立保存在 `annotation.human_label`。
+
+结构极度混乱、无法可靠命名的歌曲可以按整曲排除。排除采用可恢复标记而非删除源数据，并记录原因、
+操作者、时间、修订号和审计事件。进度统计、数据完整度门、训练和锁定评估统一调用同一排除状态，
+避免页面显示已排除但训练器仍误读。恢复后原音频、候选结果和历史人工标签继续可用。
 
 因此不存在后期手工合并步骤：主 JSON 始终就是汇总结果，训练器直接读取它。
 

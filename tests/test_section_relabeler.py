@@ -93,7 +93,7 @@ def test_missing_model_fails_closed() -> None:
     assert metadata["status"] == "disabled"
 
 
-def test_songformer_silence_is_a_source_feature_but_breakdown_is_the_target() -> None:
+def test_songformer_silence_remains_the_training_and_output_label() -> None:
     source = {
         "start": 0.0,
         "end": 16.0,
@@ -113,7 +113,7 @@ def test_songformer_silence_is_a_source_feature_but_breakdown_is_the_target() ->
 
     assert "prob_silence" in feature_names()
     assert "prob_breakdown" not in feature_names()
-    assert "breakdown" in STRUCTURE_LABELS
-    assert "silence" not in STRUCTURE_LABELS
+    assert "silence" in STRUCTURE_LABELS
+    assert "breakdown" not in STRUCTURE_LABELS
     assert segments[0]["structure_label"] == "silence"
     assert segments[0]["label_change_proposed"] is True

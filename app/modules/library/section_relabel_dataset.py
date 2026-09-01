@@ -11,7 +11,10 @@ from typing import Any
 import numpy as np
 
 from app.modules.library.section_contract import canonical_structure_label
-from app.modules.library.section_annotation_partitions import partition_contract_issues
+from app.modules.library.section_annotation_partitions import (
+    partition_contract_issues,
+    track_is_excluded,
+)
 from app.modules.library.section_relabeler import (
     SOURCE_STRUCTURE_LABELS,
     STRUCTURE_LABELS,
@@ -31,6 +34,7 @@ ANNOTATION_FIELDS = {
     "uncertain",
     "notes",
 }
+TRACK_EXCLUSION_REASON = "structure_too_chaotic"
 
 
 class DatasetValidationError(ValueError):
@@ -184,6 +188,7 @@ def validate_dataset(
     uncertain_counts: Counter[str] = Counter()
     boundary_error_counts: Counter[str] = Counter()
     low_confidence_counts: Counter[str] = Counter()
+    excluded_track_counts: Counter[str] = Counter()
     class_counts: dict[str, Counter[str]] = {
         split: Counter() for split in DATASET_SPLITS
     }
@@ -206,6 +211,27 @@ def validate_dataset(
             issues.append(f"{track_location}.split is invalid: {split!r}")
             continue
         track_counts[split] += 1
+        exclusion = track.get("annotation_exclusion")
+        excluded = track_is_excluded(track)
+        if exclusion is not None:
+            if not isinstance(exclusion, Mapping):
+                issues.append(f"{track_location}.annotation_exclusion must be an object")
+            else:
+                if not isinstance(exclusion.get("excluded"), bool):
+                    issues.append(
+                        f"{track_location}.annotation_exclusion.excluded must be boolean"
+                    )
+                if excluded and exclusion.get("reason") != TRACK_EXCLUSION_REASON:
+                    issues.append(
+                        f"{track_location}.annotation_exclusion.reason is invalid"
+                    )
+                revision = exclusion.get("revision", 0)
+                if not isinstance(revision, int) or revision < 1:
+                    issues.append(
+                        f"{track_location}.annotation_exclusion.revision must be positive"
+                    )
+        if excluded:
+            excluded_track_counts[split] += 1
         if require_audio:
             audio_path = Path(str(track.get("audio_path") or "")).expanduser()
             if not audio_path.is_file():
@@ -223,7 +249,8 @@ def validate_dataset(
         previous_end = 0.0
         for index, raw_segment in enumerate(segments):
             location = f"{track_location}.segments[{index}]"
-            segment_counts[split] += 1
+            if not excluded:
+                segment_counts[split] += 1
             if not isinstance(raw_segment, Mapping):
                 issues.append(f"{location} must be an object")
                 continue
@@ -286,18 +313,22 @@ def validate_dataset(
             except DatasetValidationError as exc:
                 issues.extend(exc.issues)
                 continue
-            if annotation_is_reviewed(annotation):
+            if not excluded and annotation_is_reviewed(annotation):
                 reviewed_counts[split] += 1
-            if annotation_is_trainable(
+            if not excluded and annotation_is_trainable(
                 annotation, include_low_confidence=include_low_confidence
             ):
                 trainable_counts[split] += 1
                 class_counts[split][annotation["human_label"]] += 1
-            if annotation["uncertain"]:
+            if not excluded and annotation["uncertain"]:
                 uncertain_counts[split] += 1
-            if annotation["boundary_ok"] is False:
+            if not excluded and annotation["boundary_ok"] is False:
                 boundary_error_counts[split] += 1
-            if annotation["human_confidence"] == "low" and annotation["human_label"]:
+            if (
+                not excluded
+                and annotation["human_confidence"] == "low"
+                and annotation["human_label"]
+            ):
                 low_confidence_counts[split] += 1
 
         if all(isinstance(segment, Mapping) for segment in segments):
@@ -345,6 +376,9 @@ def validate_dataset(
         "segments": {split: segment_counts[split] for split in DATASET_SPLITS},
         "reviewed": {split: reviewed_counts[split] for split in DATASET_SPLITS},
         "trainable": {split: trainable_counts[split] for split in DATASET_SPLITS},
+        "excluded_tracks": {
+            split: excluded_track_counts[split] for split in DATASET_SPLITS
+        },
         "excluded": {
             split: {
                 "uncertain": uncertain_counts[split],

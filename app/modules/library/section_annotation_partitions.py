@@ -24,6 +24,11 @@ def annotation_is_reviewed(annotation: Mapping[str, Any]) -> bool:
     )
 
 
+def track_is_excluded(track: Mapping[str, Any]) -> bool:
+    exclusion = track.get("annotation_exclusion")
+    return isinstance(exclusion, Mapping) and exclusion.get("excluded") is True
+
+
 def _balanced_assignments(
     tracks: list[Mapping[str, Any]], partition_count: int
 ) -> dict[str, str]:
@@ -195,18 +200,30 @@ def partition_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
     assignments = partition.get("assignments") or {}
     result: dict[str, Any] = {}
     global_tracks = global_segments = global_reviewed = global_done = 0
+    global_excluded = 0
     for track in payload.get("tracks") or []:
         track_id = str(track.get("track_id") or "")
         partition_id = str(assignments.get(track_id) or "unassigned")
         segments = list(track.get("segments") or [])
+        excluded = track_is_excluded(track)
         reviewed = sum(
             annotation_is_reviewed(segment.get("annotation") or {})
             for segment in segments
         )
         bucket = result.setdefault(
             partition_id,
-            {"tracks": 0, "completed_tracks": 0, "segments": 0, "reviewed_segments": 0},
+            {
+                "tracks": 0,
+                "completed_tracks": 0,
+                "excluded_tracks": 0,
+                "segments": 0,
+                "reviewed_segments": 0,
+            },
         )
+        if excluded:
+            bucket["excluded_tracks"] += 1
+            global_excluded += 1
+            continue
         bucket["tracks"] += 1
         bucket["segments"] += len(segments)
         bucket["reviewed_segments"] += reviewed
@@ -220,6 +237,7 @@ def partition_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
         "global": {
             "tracks": global_tracks,
             "completed_tracks": global_done,
+            "excluded_tracks": global_excluded,
             "segments": global_segments,
             "reviewed_segments": global_reviewed,
         },

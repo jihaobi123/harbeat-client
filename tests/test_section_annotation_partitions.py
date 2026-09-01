@@ -100,11 +100,11 @@ def test_workbench_keeps_full_song_playing_during_background_refresh() -> None:
     assert "loadData(true,true)" in HTML
 
 
-def test_workbench_maps_songformer_silence_to_breakdown_target() -> None:
-    assert "'breakdown'" in HTML
-    assert "targetLabel=l=>l==='silence'?'breakdown':l" in HTML
-    assert "silence:'Breakdown'" in HTML
-    assert "silence:'静音'" not in HTML
+def test_workbench_keeps_songformer_silence_as_the_human_target() -> None:
+    assert "'silence'" in HTML
+    assert "const targetLabel=l=>l" in HTML
+    assert "silence:'静音'" in HTML
+    assert "silence:'Breakdown'" not in HTML
 
 
 def test_workbench_uses_song_drafts_without_automatic_segment_jump() -> None:
@@ -114,6 +114,9 @@ def test_workbench_uses_song_drafts_without_automatic_segment_jump() -> None:
     assert "function setDraft(" in HTML
     assert "i+1<track.segments.length" not in HTML
     assert "scrollIntoView" not in HTML
+    assert "结构太混乱，不参与" in HTML
+    assert "fetch('/api/track-exclusion'" in HTML
+    assert "恢复参与" in HTML
 
 
 def test_song_submission_saves_defaults_and_edits_atomically(tmp_path) -> None:
@@ -134,8 +137,6 @@ def test_song_submission_saves_defaults_and_edits_atomically(tmp_path) -> None:
     submissions = []
     for index, segment in enumerate(track["segments"]):
         label = "chorus" if index == 0 else segment["structure_label_candidate"]
-        if label == "silence":
-            label = "breakdown"
         submissions.append(
             {
                 "segment_index": index,
@@ -158,13 +159,9 @@ def test_song_submission_saves_defaults_and_edits_atomically(tmp_path) -> None:
     assert all(
         segment["annotation"]["human_label"]
         == (
-            "breakdown"
-            if segment["structure_label_candidate"] == "silence"
-            else (
-                "chorus"
-                if index == 0
-                else segment["structure_label_candidate"]
-            )
+            "chorus"
+            if index == 0
+            else segment["structure_label_candidate"]
         )
         for index, segment in enumerate(track["segments"])
     )
@@ -181,6 +178,54 @@ def test_song_submission_saves_defaults_and_edits_atomically(tmp_path) -> None:
     with pytest.raises(AnnotationConflictError):
         store.submit_track_annotations(access_key, track_id, conflicting)
     assert track["segments"][0]["annotation"]["human_label"] == "chorus"
+
+
+def test_chaotic_track_can_be_excluded_and_restored_without_data_loss(tmp_path) -> None:
+    dataset_path = tmp_path / "annotations.json"
+    dataset_path.write_text(json.dumps(_payload(tmp_path)), encoding="utf-8")
+    store = Store(dataset_path, partition_count=2)
+    partition = store.payload["annotation_partition"]
+    first = partition["partitions"][0]
+    track_id = next(
+        track_id
+        for track_id, part_id in partition["assignments"].items()
+        if part_id == first["id"]
+    )
+    track = store.track(track_id)
+    assert track is not None
+    original_segments = json.loads(json.dumps(track["segments"]))
+
+    excluded = store.set_track_excluded(
+        first["access_key"], track_id, excluded=True, expected_revision=0
+    )
+    summary = store.public_payload(first["access_key"])["annotation_progress"]
+
+    assert excluded == {
+        "ok": True,
+        "changed": True,
+        "revision": 1,
+        "excluded": True,
+    }
+    assert track["segments"] == original_segments
+    assert track["annotation_exclusion"]["reason"] == "structure_too_chaotic"
+    assert summary["global"]["excluded_tracks"] == 1
+    with pytest.raises(PermissionError, match="excluded tracks"):
+        store.update_annotation(
+            first["access_key"], track_id, 0, {"human_label": "verse"}, 0
+        )
+
+    restored = store.set_track_excluded(
+        first["access_key"], track_id, excluded=False, expected_revision=1
+    )
+
+    assert restored["excluded"] is False
+    assert track["segments"] == original_segments
+    assert store.payload["annotation_review"]["audit_log"][-2]["action"] == (
+        "exclude_track"
+    )
+    assert store.payload["annotation_review"]["audit_log"][-1]["action"] == (
+        "restore_track"
+    )
 
 
 def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -> None:

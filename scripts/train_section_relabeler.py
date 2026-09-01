@@ -26,6 +26,7 @@ from app.modules.library.section_relabel_dataset import (
     DatasetValidationError,
     annotation_is_reviewed,
     annotation_is_trainable,
+    track_is_excluded,
     validate_dataset,
 )
 from app.modules.library.section_relabeler import (
@@ -54,7 +55,7 @@ def parse_args() -> argparse.Namespace:
 def review_progress(payload: dict[str, Any], split: str) -> dict[str, int]:
     total = reviewed = trainable = 0
     for track in payload.get("tracks") or []:
-        if track.get("split") != split:
+        if track.get("split") != split or track_is_excluded(track):
             continue
         for segment in track.get("segments") or []:
             total += 1
@@ -73,7 +74,7 @@ def collect_rows(
     groups: list[str] = []
     records: list[dict[str, Any]] = []
     for track in payload.get("tracks") or []:
-        if track.get("split") != split:
+        if track.get("split") != split or track_is_excluded(track):
             continue
         segments = list(track.get("segments") or [])
         track_matrix = build_track_feature_matrix(segments, duration=track.get("duration"))

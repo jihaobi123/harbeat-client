@@ -72,7 +72,34 @@ def test_pending_dataset_contract_is_valid_and_reports_progress(tmp_path) -> Non
     assert report["feature_count"] == len(feature_names()) == 52
 
 
-def test_legacy_human_silence_annotation_normalizes_to_breakdown() -> None:
+def test_structurally_chaotic_track_is_excluded_from_completion_and_training(
+    tmp_path,
+) -> None:
+    payload = _dataset(str(tmp_path / "track.mp3"))
+    payload["tracks"][0]["annotation_exclusion"] = {
+        "excluded": True,
+        "reason": "structure_too_chaotic",
+        "actor": "part-1",
+        "updated_at": "2026-09-01T00:00:00+00:00",
+        "revision": 1,
+    }
+
+    report = validate_dataset(
+        payload, require_complete_splits=("development",)
+    )
+    x, y, _, _, _ = collect_rows(
+        payload, "development", include_low_confidence=False
+    )
+
+    assert report["tracks"]["development"] == 1
+    assert report["excluded_tracks"]["development"] == 1
+    assert report["segments"]["development"] == 0
+    assert report["reviewed"]["development"] == 0
+    assert x.shape == (0, 52)
+    assert y.size == 0
+
+
+def test_human_silence_annotation_keeps_the_original_label() -> None:
     annotation = validate_annotation(
         {
             "human_label": "silence",
@@ -83,7 +110,7 @@ def test_legacy_human_silence_annotation_normalizes_to_breakdown() -> None:
         }
     )
 
-    assert annotation["human_label"] == "breakdown"
+    assert annotation["human_label"] == "silence"
 
 
 def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> None:

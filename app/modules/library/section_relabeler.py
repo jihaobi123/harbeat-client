@@ -37,24 +37,14 @@ SOURCE_STRUCTURE_LABELS = (
     "pre-chorus",
 )
 
-# Human annotations and classifier outputs use HarBeat's product vocabulary.
-# SongFormer's source ``silence`` class is interpreted as ``breakdown`` here.
-STRUCTURE_LABELS = (
-    "intro",
-    "verse",
-    "chorus",
-    "bridge",
-    "instrumental",
-    "outro",
-    "breakdown",
-    "pre-chorus",
-)
+# Human annotations and classifier outputs use the same vocabulary as the
+# normalized SongFormer evidence.
+STRUCTURE_LABELS = SOURCE_STRUCTURE_LABELS
 
 
 def canonical_target_structure_label(raw: object) -> str:
     """Normalize a label into the human/classifier target vocabulary."""
-    label = canonical_structure_label(raw)
-    return "breakdown" if label == "silence" else label
+    return canonical_structure_label(raw)
 
 
 def _probabilities(item: Mapping[str, Any]) -> dict[str, float]:
