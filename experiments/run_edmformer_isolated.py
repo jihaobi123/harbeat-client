@@ -195,6 +195,10 @@ def main() -> int:
     from edm98.inference import pipeline as pipeline_module
     from edm98.inference import postprocess as postprocess_module
     from edm98.inference.labels import LABEL_TO_ID
+    import torch
+
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
 
     original_create_muq = pipeline_module.InferencePipeline._create_muq_model
 
@@ -242,6 +246,7 @@ def main() -> int:
             if 0 < float(segment["start"]) < duration_sec
         }
     )
+    peak_cuda_bytes = int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else 0
     manifest = {
         "schema_name": "harbeat.edmformer_runtime_manifest",
         "schema_version": "0.1.0",
@@ -251,6 +256,7 @@ def main() -> int:
             "device": args.device,
             "source_revision": source_revision(edm98_root),
             "probability_capture": "upstream_postprocessor_wrapper_v1",
+            "peak_cuda_bytes": peak_cuda_bytes,
         },
         "tracks": [
             {

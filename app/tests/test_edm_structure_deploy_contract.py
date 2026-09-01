@@ -32,3 +32,12 @@ def test_service_configuration_keeps_edmformer_in_shadow_mode():
     assert 'Environment="EDM_STRUCTURE_DEPLOYMENT_STATUS=shadow"' in config
     assert "run_edmformer_isolated.py" in config
     assert "--muq-model /opt/harbeat/models/MuQ-large-msd-iter" in config
+
+
+def test_verifier_runs_a_real_track_and_keeps_eight_gib_free():
+    verifier = (PROJECT_ROOT / "deploy/edmformer/verify-runtime.sh").read_text()
+    assert "run_edmformer_isolated.py" in verifier
+    assert "edmformer_label_probabilities" not in verifier
+    assert "probabilities" in verifier
+    assert "8388608" in verifier
+    assert "deploy/songformer/verify-runtime.sh" in verifier
