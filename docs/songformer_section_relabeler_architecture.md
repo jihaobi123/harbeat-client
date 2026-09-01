@@ -7,7 +7,12 @@
 
 正式标签固定为八类：
 
-`intro`、`verse`、`chorus`、`bridge`、`instrumental`、`outro`、`silence`、`pre-chorus`。
+`intro`、`verse`、`chorus`、`bridge`、`instrumental`、`outro`、`breakdown`、`pre-chorus`。
+
+SongFormer 的原始输出词表保持不变，其中仍包含 `silence`。它只作为来源证据进入
+`prob_silence` 等特征；标注页面、人工真值、训练目标和分类器输出统一使用 `breakdown`。
+点击接受 SongFormer 的 `silence` 候选时，系统会自动保存为 `breakdown`，因此旧数据特征
+不会失效，新标签也不会混入来源概率字段。
 
 ## 2. 总体架构
 
@@ -38,7 +43,7 @@ flowchart LR
 
 | 层 | 输入 | 输出 | 关键约束 |
 |---|---|---|---|
-| SongFormer | 单首音频 | `start/end`、候选标签、八类概率 | 只负责段落边界和原始语义 |
+| SongFormer | 单首音频 | `start/end`、候选标签、八类来源概率（含 `silence`） | 只负责段落边界和原始语义 |
 | 标注数据集 | SongFormer 段落 | `annotations.json` | 数据版本 `harbeat_section_label_dataset_v1` |
 | 双人分片 | 73 首完整歌曲 | 两个互斥的可编辑视图 | 按整首歌分配，绝不拆散同一首歌 |
 | 人工标注 | 当前段音频和上下文 | 标签、信心、边界状态、不确定状态、备注 | 每次保存均做完整契约校验和原子写入 |
@@ -63,6 +68,8 @@ flowchart LR
 完整特征名称由
 `app/modules/library/section_relabeler.py::feature_names()` 唯一生成。数据校验器会实际调用
 `build_track_feature_matrix()`，确认结果严格为 `段落数 × 52` 且全部为有限数值。
+这 52 维的来源词表保持 SongFormer 原样，所以特征名仍包含 `prob_silence`，不包含
+`prob_breakdown`；`breakdown` 是监督目标而不是 SongFormer 概率通道。
 
 ## 5. 双人标注与实时汇总
 
@@ -86,7 +93,8 @@ flowchart LR
 
 两个标注页面都写入同一个 `annotations.json`，服务端用互斥锁串行化写入，并采用临时文件替换完成
 原子保存。每次保存前，旧版本自动备份为 `annotations.backup.json`。第三个随机密钥对应“全部结果
-复核”页面，显示 73 首的实时进度和人工标签，每 5 秒刷新。复核者只能修改已经完成初标的段落，
+复核”页面，显示 73 首的实时进度和人工标签，每 5 秒刷新。后台刷新只更新歌曲列表和进度，
+不会重建当前内容、改变滚动位置或中断播放器。复核者只能修改已经完成初标的段落，
 不能替两位标注者填写空白段落，因此初标工作仍然不会重复。
 
 每个段落都有独立修订号。保存时浏览器必须提交它读到的版本；若其他人已经更新，后端返回冲突并

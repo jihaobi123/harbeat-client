@@ -22,7 +22,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.section_contract import canonical_structure_label
 from app.modules.library.section_relabel_dataset import (
     DatasetValidationError,
     annotation_is_reviewed,
@@ -33,6 +32,7 @@ from app.modules.library.section_relabeler import (
     RELABELER_SCHEMA_VERSION,
     STRUCTURE_LABELS,
     build_track_feature_matrix,
+    canonical_target_structure_label,
     feature_names,
     load_relabeler_model,
 )
@@ -79,14 +79,14 @@ def collect_rows(
         track_matrix = build_track_feature_matrix(segments, duration=track.get("duration"))
         for index, segment in enumerate(segments):
             annotation = dict(segment.get("annotation") or {})
-            human_label = canonical_structure_label(annotation.get("human_label"))
+            human_label = canonical_target_structure_label(annotation.get("human_label"))
             if human_label not in STRUCTURE_LABELS:
                 continue
             if annotation.get("uncertain") or annotation.get("boundary_ok") is False:
                 continue
             if not include_low_confidence and annotation.get("human_confidence") == "low":
                 continue
-            original = canonical_structure_label(
+            original = canonical_target_structure_label(
                 segment.get("structure_label_candidate")
                 or segment.get("songformer_label")
                 or segment.get("label")
@@ -345,7 +345,9 @@ def main() -> int:
         "model_version": model_version,
         "training_dataset_sha256": dataset_hash,
         "feature_names": feature_names(),
-        "labels": [canonical_structure_label(value) for value in classifier.classes_],
+        "labels": [
+            canonical_target_structure_label(value) for value in classifier.classes_
+        ],
         "feature_mean": scaler.mean_.tolist(),
         "feature_scale": scaler.scale_.tolist(),
         "coefficients": coefficients.tolist(),

@@ -23,7 +23,10 @@ from app.modules.library.section_contract import (
 
 
 RELABELER_SCHEMA_VERSION = "harbeat_section_relabeler_v1"
-STRUCTURE_LABELS = (
+# SongFormer evidence keeps its original eight-class vocabulary.  In particular,
+# ``silence`` remains a source feature so old and newly prepared datasets share
+# the exact same feature schema.
+SOURCE_STRUCTURE_LABELS = (
     "intro",
     "verse",
     "chorus",
@@ -34,6 +37,25 @@ STRUCTURE_LABELS = (
     "pre-chorus",
 )
 
+# Human annotations and classifier outputs use HarBeat's product vocabulary.
+# SongFormer's source ``silence`` class is interpreted as ``breakdown`` here.
+STRUCTURE_LABELS = (
+    "intro",
+    "verse",
+    "chorus",
+    "bridge",
+    "instrumental",
+    "outro",
+    "breakdown",
+    "pre-chorus",
+)
+
+
+def canonical_target_structure_label(raw: object) -> str:
+    """Normalize a label into the human/classifier target vocabulary."""
+    label = canonical_structure_label(raw)
+    return "breakdown" if label == "silence" else label
+
 
 def _probabilities(item: Mapping[str, Any]) -> dict[str, float]:
     raw = item.get("structure_label_probabilities")
@@ -41,7 +63,10 @@ def _probabilities(item: Mapping[str, Any]) -> dict[str, float]:
         raw = item.get("label_probabilities")
     values = normalize_structure_probabilities(raw)
     if values:
-        return {label: float(values.get(label, 0.0)) for label in STRUCTURE_LABELS}
+        return {
+            label: float(values.get(label, 0.0))
+            for label in SOURCE_STRUCTURE_LABELS
+        }
 
     candidate = canonical_structure_label(
         item.get("structure_label_candidate")
@@ -49,14 +74,15 @@ def _probabilities(item: Mapping[str, Any]) -> dict[str, float]:
         or item.get("label")
     )
     return {
-        label: 1.0 if label == candidate else 0.0 for label in STRUCTURE_LABELS
+        label: 1.0 if label == candidate else 0.0
+        for label in SOURCE_STRUCTURE_LABELS
     }
 
 
 def feature_names() -> list[str]:
     names: list[str] = []
     for prefix in ("prob", "log_prob", "previous_prob", "next_prob", "candidate"):
-        names.extend(f"{prefix}_{label}" for label in STRUCTURE_LABELS)
+        names.extend(f"{prefix}_{label}" for label in SOURCE_STRUCTURE_LABELS)
     names.extend(
         [
             "duration_seconds",
@@ -91,7 +117,7 @@ def build_track_feature_matrix(
     probabilities = [_probabilities(item) for item in items]
     vectors: list[list[float]] = []
     count = len(items)
-    zero_probabilities = {label: 0.0 for label in STRUCTURE_LABELS}
+    zero_probabilities = {label: 0.0 for label in SOURCE_STRUCTURE_LABELS}
 
     for index, item in enumerate(items):
         current = probabilities[index]
@@ -110,14 +136,20 @@ def build_track_feature_matrix(
         margin = confidence - (ranked[1] if len(ranked) > 1 else 0.0)
         entropy = -sum(
             value * math.log(max(value, 1e-12)) for value in current.values()
-        ) / math.log(len(STRUCTURE_LABELS))
+        ) / math.log(len(SOURCE_STRUCTURE_LABELS))
 
         vector: list[float] = []
-        vector.extend(current[label] for label in STRUCTURE_LABELS)
-        vector.extend(math.log(max(current[label], 1e-6)) for label in STRUCTURE_LABELS)
-        vector.extend(previous[label] for label in STRUCTURE_LABELS)
-        vector.extend(following[label] for label in STRUCTURE_LABELS)
-        vector.extend(1.0 if candidate == label else 0.0 for label in STRUCTURE_LABELS)
+        vector.extend(current[label] for label in SOURCE_STRUCTURE_LABELS)
+        vector.extend(
+            math.log(max(current[label], 1e-6))
+            for label in SOURCE_STRUCTURE_LABELS
+        )
+        vector.extend(previous[label] for label in SOURCE_STRUCTURE_LABELS)
+        vector.extend(following[label] for label in SOURCE_STRUCTURE_LABELS)
+        vector.extend(
+            1.0 if candidate == label else 0.0
+            for label in SOURCE_STRUCTURE_LABELS
+        )
         vector.extend(
             [
                 segment_duration,
@@ -148,7 +180,9 @@ def _validate_model(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("unsupported section relabeler schema version")
     if list(model.get("feature_names") or []) != feature_names():
         raise ValueError("section relabeler feature names do not match runtime")
-    labels = [canonical_structure_label(value) for value in model.get("labels") or []]
+    labels = [
+        canonical_target_structure_label(value) for value in model.get("labels") or []
+    ]
     if not labels or len(labels) != len(set(labels)):
         raise ValueError("section relabeler labels are missing or duplicated")
     if any(label not in STRUCTURE_LABELS for label in labels):
@@ -245,18 +279,19 @@ def apply_section_relabeler(
     labels = list(validated["labels"])
     global_threshold = float(validated.get("override_threshold", 1.0))
     target_thresholds = {
-        canonical_structure_label(key): float(value)
+        canonical_target_structure_label(key): float(value)
         for key, value in dict(validated.get("target_thresholds") or {}).items()
     }
     changed_count = 0
     proposed_count = 0
 
     for index, item in enumerate(result):
-        original = canonical_structure_label(
+        source_original = canonical_structure_label(
             item.get("structure_label_candidate")
             or item.get("songformer_label")
             or item.get("label")
         )
+        original = canonical_target_structure_label(source_original)
         distribution = {
             label: float(value) for label, value in zip(labels, probabilities[index])
         }
@@ -266,17 +301,19 @@ def apply_section_relabeler(
         margin = confidence - (ranked[1][1] if len(ranked) > 1 else 0.0)
         threshold = target_thresholds.get(proposed, global_threshold)
         should_override = proposed != original and confidence >= threshold
-        final_label = proposed if should_override and not shadow_mode else original
+        final_label = (
+            proposed if should_override and not shadow_mode else source_original
+        )
         if proposed != original:
             proposed_count += 1
-        if final_label != original:
+        if final_label != source_original:
             changed_count += 1
         item.update(
             {
                 "structure_label": final_label,
                 "structure_label_source": (
                     "harbeat_section_relabeler_v1"
-                    if final_label != original
+                    if final_label != source_original
                     else "songformer_candidate"
                 ),
                 "relabeler_label_candidate": proposed,
@@ -285,7 +322,7 @@ def apply_section_relabeler(
                 "relabeler_margin": margin,
                 "relabeler_override_threshold": threshold,
                 "label_change_proposed": proposed != original,
-                "label_changed": final_label != original,
+                "label_changed": final_label != source_original,
                 "relabeler_status": "shadow" if shadow_mode else "active",
                 "relabeler_model_version": validated.get("model_version"),
                 "label": final_label,

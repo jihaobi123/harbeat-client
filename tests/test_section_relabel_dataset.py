@@ -6,9 +6,13 @@ import pytest
 from app.modules.library.section_relabel_dataset import (
     DATASET_SCHEMA_VERSION,
     DatasetValidationError,
+    validate_annotation,
     validate_dataset,
 )
-from app.modules.library.section_relabeler import STRUCTURE_LABELS, feature_names
+from app.modules.library.section_relabeler import (
+    SOURCE_STRUCTURE_LABELS,
+    feature_names,
+)
 from scripts.section_label_workbench import Store
 from scripts.train_section_relabeler import collect_rows
 
@@ -22,7 +26,7 @@ def _segment(index: int, label: str, annotation: dict | None = None) -> dict:
         "structure_label_candidate": label,
         "structure_label_probabilities": {
             candidate: 1.0 if candidate == label else 0.0
-            for candidate in STRUCTURE_LABELS
+            for candidate in SOURCE_STRUCTURE_LABELS
         },
         "songformer_confidence": 1.0,
         "songformer_margin": 1.0,
@@ -66,6 +70,20 @@ def test_pending_dataset_contract_is_valid_and_reports_progress(tmp_path) -> Non
     assert report["segments"] == {"development": 2, "test": 0}
     assert report["reviewed"]["development"] == 0
     assert report["feature_count"] == len(feature_names()) == 52
+
+
+def test_legacy_human_silence_annotation_normalizes_to_breakdown() -> None:
+    annotation = validate_annotation(
+        {
+            "human_label": "silence",
+            "human_confidence": "high",
+            "boundary_ok": True,
+            "uncertain": False,
+            "notes": "legacy value",
+        }
+    )
+
+    assert annotation["human_label"] == "breakdown"
 
 
 def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> None:

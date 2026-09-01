@@ -13,8 +13,10 @@ import numpy as np
 from app.modules.library.section_contract import canonical_structure_label
 from app.modules.library.section_annotation_partitions import partition_contract_issues
 from app.modules.library.section_relabeler import (
+    SOURCE_STRUCTURE_LABELS,
     STRUCTURE_LABELS,
     build_track_feature_matrix,
+    canonical_target_structure_label,
     feature_names,
 )
 
@@ -43,7 +45,7 @@ class DatasetValidationError(ValueError):
 
 
 def annotation_is_reviewed(annotation: Mapping[str, Any]) -> bool:
-    label = canonical_structure_label(annotation.get("human_label"))
+    label = canonical_target_structure_label(annotation.get("human_label"))
     return (
         label in STRUCTURE_LABELS
         or bool(annotation.get("uncertain"))
@@ -54,7 +56,7 @@ def annotation_is_reviewed(annotation: Mapping[str, Any]) -> bool:
 def annotation_is_trainable(
     annotation: Mapping[str, Any], *, include_low_confidence: bool = False
 ) -> bool:
-    label = canonical_structure_label(annotation.get("human_label"))
+    label = canonical_target_structure_label(annotation.get("human_label"))
     return (
         label in STRUCTURE_LABELS
         and not bool(annotation.get("uncertain"))
@@ -86,7 +88,7 @@ def validate_annotation(
             issues.append(f"{location} is missing fields: {', '.join(missing)}")
 
     human_label = str(annotation.get("human_label") or "").strip().lower()
-    if human_label and canonical_structure_label(human_label) not in STRUCTURE_LABELS:
+    if human_label and canonical_target_structure_label(human_label) not in STRUCTURE_LABELS:
         issues.append(f"{location}.human_label is unsupported: {human_label}")
     confidence = str(annotation.get("human_confidence") or "").strip().lower()
     if confidence not in HUMAN_CONFIDENCE_LEVELS:
@@ -112,7 +114,9 @@ def validate_annotation(
     if issues:
         raise DatasetValidationError(issues)
     return {
-        "human_label": canonical_structure_label(human_label) if human_label else "",
+        "human_label": (
+            canonical_target_structure_label(human_label) if human_label else ""
+        ),
         "human_confidence": confidence,
         "boundary_ok": bool(boundary_ok),
         "uncertain": uncertain,
@@ -240,7 +244,7 @@ def validate_dataset(
             candidate = canonical_structure_label(
                 segment.get("structure_label_candidate")
             )
-            if candidate not in STRUCTURE_LABELS:
+            if candidate not in SOURCE_STRUCTURE_LABELS:
                 issues.append(
                     f"{location}.structure_label_candidate is invalid: {candidate}"
                 )
@@ -254,9 +258,13 @@ def validate_dataset(
                     canonical_structure_label(label): _finite_number(value)
                     for label, value in raw_probabilities.items()
                 }
-                if set(probabilities) != set(STRUCTURE_LABELS):
-                    missing = sorted(set(STRUCTURE_LABELS) - set(probabilities))
-                    extra = sorted(set(probabilities) - set(STRUCTURE_LABELS))
+                if set(probabilities) != set(SOURCE_STRUCTURE_LABELS):
+                    missing = sorted(
+                        set(SOURCE_STRUCTURE_LABELS) - set(probabilities)
+                    )
+                    extra = sorted(
+                        set(probabilities) - set(SOURCE_STRUCTURE_LABELS)
+                    )
                     issues.append(
                         f"{location} probability labels mismatch; "
                         f"missing={missing}, extra={extra}"

@@ -5,6 +5,7 @@ import numpy as np
 
 from app.modules.library.section_relabel_dataset import DATASET_SCHEMA_VERSION
 from app.modules.library.section_relabeler import (
+    SOURCE_STRUCTURE_LABELS,
     STRUCTURE_LABELS,
     feature_names,
     load_relabeler_model,
@@ -59,14 +60,17 @@ def _annotation(label: str = "", *, uncertain: bool = False) -> dict:
 
 
 def _segment(index: int, original: str, target: str, annotation: dict) -> dict:
+    source_original = "silence" if original == "breakdown" else original
+    source_target = "silence" if target == "breakdown" else target
     return {
         "segment_index": index,
         "start": float(index * 10),
         "end": float((index + 1) * 10),
-        "songformer_label": original,
-        "structure_label_candidate": original,
+        "songformer_label": source_original,
+        "structure_label_candidate": source_original,
         "structure_label_probabilities": {
-            label: 1.0 if label == target else 0.0 for label in STRUCTURE_LABELS
+            label: 1.0 if label == source_target else 0.0
+            for label in SOURCE_STRUCTURE_LABELS
         },
         "songformer_confidence": 1.0,
         "songformer_margin": 1.0,

@@ -8,7 +8,7 @@ from app.modules.library.section_annotation_partitions import (
     partition_summary,
 )
 from app.modules.library.section_relabel_dataset import DATASET_SCHEMA_VERSION
-from app.modules.library.section_relabeler import STRUCTURE_LABELS
+from app.modules.library.section_relabeler import SOURCE_STRUCTURE_LABELS
 from scripts.section_label_workbench import HTML, Store
 
 
@@ -27,7 +27,9 @@ def _track(tmp_path, index: int, split: str, style: str, segment_count: int) -> 
     audio.write_bytes(b"audio")
     segments = []
     for segment_index in range(segment_count):
-        label = STRUCTURE_LABELS[segment_index % len(STRUCTURE_LABELS)]
+        label = SOURCE_STRUCTURE_LABELS[
+            segment_index % len(SOURCE_STRUCTURE_LABELS)
+        ]
         segments.append(
             {
                 "segment_index": segment_index,
@@ -37,7 +39,7 @@ def _track(tmp_path, index: int, split: str, style: str, segment_count: int) -> 
                 "structure_label_candidate": label,
                 "structure_label_probabilities": {
                     candidate: 1.0 if candidate == label else 0.0
-                    for candidate in STRUCTURE_LABELS
+                    for candidate in SOURCE_STRUCTURE_LABELS
                 },
                 "songformer_confidence": 1.0,
                 "songformer_margin": 1.0,
@@ -93,8 +95,16 @@ def test_two_partitions_are_stable_disjoint_and_cover_every_track(tmp_path) -> N
 def test_workbench_keeps_full_song_playing_during_background_refresh() -> None:
     assert "从头播放整首" in HTML
     assert "function cancelSegmentStop()" in HTML
-    assert "keepPlaying=background&&audio&&!audio.paused" in HTML
+    assert "if(!background)renderContent()" in HTML
+    assert "background&&visibleTrack?visibleTrack" in HTML
     assert "loadData(true,true)" in HTML
+
+
+def test_workbench_maps_songformer_silence_to_breakdown_target() -> None:
+    assert "'breakdown'" in HTML
+    assert "targetLabel=l=>l==='silence'?'breakdown':l" in HTML
+    assert "silence:'Breakdown'" in HTML
+    assert "silence:'静音'" not in HTML
 
 
 def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -> None:

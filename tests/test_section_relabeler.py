@@ -2,6 +2,7 @@ import numpy as np
 
 from app.modules.library.section_relabeler import (
     RELABELER_SCHEMA_VERSION,
+    SOURCE_STRUCTURE_LABELS,
     STRUCTURE_LABELS,
     apply_section_relabeler,
     build_track_feature_matrix,
@@ -90,3 +91,29 @@ def test_missing_model_fails_closed() -> None:
 
     assert segments == original
     assert metadata["status"] == "disabled"
+
+
+def test_songformer_silence_is_a_source_feature_but_breakdown_is_the_target() -> None:
+    source = {
+        "start": 0.0,
+        "end": 16.0,
+        "songformer_label": "silence",
+        "structure_label_candidate": "silence",
+        "structure_label_probabilities": {
+            label: 1.0 if label == "silence" else 0.0
+            for label in SOURCE_STRUCTURE_LABELS
+        },
+    }
+    model = _force_verse_model()
+    model["override_threshold"] = 1.0
+
+    segments, _ = apply_section_relabeler(
+        [source], model=model, shadow_mode=False
+    )
+
+    assert "prob_silence" in feature_names()
+    assert "prob_breakdown" not in feature_names()
+    assert "breakdown" in STRUCTURE_LABELS
+    assert "silence" not in STRUCTURE_LABELS
+    assert segments[0]["structure_label"] == "silence"
+    assert segments[0]["label_change_proposed"] is True
