@@ -186,3 +186,49 @@ export interface InstrumentAnalysisDocument {
   bars: InstrumentBarCandidate[]
   warnings: string[]
 }
+
+export type EdmStructureLabel = 'intro' | 'buildup' | 'drop' | 'breakdown' | 'outro' | 'silence'
+
+export interface EdmStructureSegmentCandidate {
+  canonical_section_id: string
+  start_bar_index: number
+  end_bar_index: number
+  start_sec: number
+  end_sec: number
+  canonical_boundary_source: 'songformer_bar_snap_v1'
+  edmformer_label_candidate: EdmStructureLabel
+  edmformer_label_probabilities: Record<EdmStructureLabel, number>
+  edmformer_label_max_probabilities: Record<EdmStructureLabel, number>
+  edmformer_boundary_candidates: number[]
+  validation_status: 'unreviewed' | 'reviewed' | 'rejected'
+}
+
+export interface ExpandedStructureHeadState {
+  enabled: false
+  model_status: 'not_installed'
+  model_version: null
+  input_contract_version: 'expanded_structure_input_v1'
+  output_contract_version: 'expanded_structure_output_v1'
+}
+
+export interface EdmStructureAnalysisDocument {
+  schema_name: 'harbeat.edm_structure_analysis'
+  schema_version: '0.1.0'
+  track_id: string
+  status: 'ready' | 'failed'
+  duration_sec: number
+  audio_sha256: string
+  timeline_fingerprint: string
+  songformer_sidecar_sha256: string
+  muq_sha256: string
+  musicfm_sha256: string
+  musicfm_stats_sha256: string
+  edmformer_sha256: string
+  deployment_status: 'shadow'
+  aggregation_version: 'edmformer_songformer_block_aggregation_v1'
+  runtime_fingerprint: Record<string, unknown>
+  segments: EdmStructureSegmentCandidate[]
+  expanded_structure_head: ExpandedStructureHeadState
+  warnings: string[]
+  error: string | null
+}

@@ -11,6 +11,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 from app.modules.bar_annotations.pilot import PilotManifest  # noqa: E402
 from app.modules.bar_annotations.router import (  # noqa: E402
     get_annotation_workspace_endpoint,
+    get_edm_structure_candidates_endpoint,
     get_instrument_candidates_endpoint,
     get_pilot_tracks_endpoint,
     resolve_pilot_media_path,
@@ -19,6 +20,9 @@ from app.modules.bar_annotations.router import (  # noqa: E402
 )
 from app.modules.instrument_analysis.schemas import InstrumentAnalysisDocument  # noqa: E402
 from app.modules.instrument_analysis.store import InstrumentAnalysisStore  # noqa: E402
+from app.modules.edm_structure.schemas import EdmStructureAnalysisDocument  # noqa: E402
+from app.modules.edm_structure.store import EdmStructureStore  # noqa: E402
+from app.tests.test_edm_structure_schema import document_payload as edm_document_payload  # noqa: E402
 from app.tests.test_instrument_analysis_schema import ready_payload  # noqa: E402
 from app.modules.bar_annotations.schemas import (  # noqa: E402
     AnnotationRecord,
@@ -98,6 +102,7 @@ def test_bar_annotation_routes_are_registered_under_distinct_paths() -> None:
     assert "/pilot/tracks" in paths
     assert "/tracks/{track_id}/workspace" in paths
     assert "/tracks/{track_id}/instrument-candidates" in paths
+    assert "/tracks/{track_id}/edm-structure-candidates" in paths
     assert "/tracks/{track_id}/audio" in paths
     assert "/tracks/{track_id}/stems/{stem_name}" in paths
 
@@ -206,6 +211,37 @@ def test_instrument_candidates_are_read_only_and_shared(tmp_path) -> None:
     assert response.data.schema_name == "harbeat.instrument_analysis"
     assert response.data.track_id == song.id
     assert list((tmp_path / "bar-annotations").rglob("*.json")) == before
+    assert human_store.load(DATASET_VERSION, 11, song.id).revision == 0
+
+
+def test_edm_structure_candidates_are_read_only_and_shared(tmp_path) -> None:
+    song = _song()
+    candidate_store = EdmStructureStore(tmp_path / "edm-structure")
+    payload = edm_document_payload()
+    payload.update({"track_id": song.id, "duration_sec": song.duration})
+    payload["segments"][0].update(
+        {
+            "canonical_section_id": "section-router-1",
+            "start_bar_index": 0,
+            "end_bar_index": 1,
+            "start_sec": 0.0,
+            "end_sec": song.duration,
+            "edmformer_boundary_candidates": [1.0],
+        }
+    )
+    candidate_store.save(EdmStructureAnalysisDocument.model_validate(payload))
+    human_store = AnnotationStore(tmp_path / "bar-annotations")
+
+    response = get_edm_structure_candidates_endpoint(
+        song.id,
+        FakeDB([song]),
+        SimpleNamespace(id=11),
+        _manifest(song.id),
+        candidate_store,
+    )
+
+    assert response.data.schema_name == "harbeat.edm_structure_analysis"
+    assert response.data.deployment_status == "shadow"
     assert human_store.load(DATASET_VERSION, 11, song.id).revision == 0
 
 

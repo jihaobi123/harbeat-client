@@ -17,6 +17,8 @@ import type {
   BarRange,
   ElementName,
   ElementState,
+  EdmStructureAnalysisDocument,
+  EdmStructureLabel,
   InstrumentAnalysisDocument,
   InstrumentClass,
   PilotTrackSummary,
@@ -58,6 +60,10 @@ const INSTRUMENT_LABELS: Record<InstrumentClass, string> = {
   electric_guitar: '电吉他', piano: '钢琴', electric_piano: '电钢琴',
   synthesizer: '合成器', strings: '弦乐', brass: '铜管', woodwind: '木管',
   organ: '风琴', sampler_fx: '采样／音效', voice: '人声',
+}
+const EDM_STRUCTURE_LABELS: Record<EdmStructureLabel, string> = {
+  intro: 'Intro', buildup: 'Buildup', drop: 'Drop', breakdown: 'Breakdown',
+  outro: 'Outro', silence: 'Silence',
 }
 
 interface Props {
@@ -187,6 +193,83 @@ export function InstrumentCandidatePanel({
 }
 
 
+interface EdmStructureCandidatePanelProps {
+  candidates: EdmStructureAnalysisDocument | null
+  selectedRange: BarRange
+  onSeek: (timeSec: number) => void
+}
+
+
+export function EdmStructureCandidatePanel({
+  candidates,
+  selectedRange,
+  onSeek,
+}: EdmStructureCandidatePanelProps) {
+  if (!candidates || candidates.status === 'failed') {
+    return (
+      <section className="annotation-edm-candidates street-sticker bg-surface-lighter p-3 sm:p-4">
+        <div className="text-xs street-subtitle">EDMFORMER · SHADOW</div>
+        <h2 className="text-xl mt-1">EDM 功能结构候选</h2>
+        <p className="text-sm mt-2">这首歌还没有 EDMFormer 候选，不影响 SongFormer 分段和人工标注。</p>
+      </section>
+    )
+  }
+  const segments = candidates.segments.filter(segment => (
+    segment.end_bar_index > selectedRange.start
+    && segment.start_bar_index < selectedRange.end
+  ))
+  return (
+    <section className="annotation-edm-candidates street-sticker bg-surface-lighter p-3 sm:p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs street-subtitle">EDMFORMER · SHADOW</div>
+          <h2 className="text-xl mt-1">EDMFormer Shadow 候选</h2>
+        </div>
+        <strong className="bg-primary border-2 border-black px-3 py-1 text-xs">
+          SongFormer 边界仍是主时间轴
+        </strong>
+      </div>
+      <div className="grid gap-3 mt-4">
+        {segments.map(segment => (
+          <article key={segment.canonical_section_id} className="border-2 border-black bg-white p-3">
+            <div className="flex flex-wrap justify-between gap-2">
+              <strong>
+                第 {segment.start_bar_index + 1}–{segment.end_bar_index} 小节 ·
+                {' '}{EDM_STRUCTURE_LABELS[segment.edmformer_label_candidate]}
+              </strong>
+              <span className="text-xs">模型候选，不是人工真值</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-1 mt-3 text-xs">
+              {(Object.keys(EDM_STRUCTURE_LABELS) as EdmStructureLabel[]).map(label => (
+                <div key={label} className="border-2 border-black p-2 flex justify-between gap-2">
+                  <span className="font-bold">{EDM_STRUCTURE_LABELS[label]}</span>
+                  <span>{(segment.edmformer_label_probabilities[label] * 100).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+            {segment.edmformer_boundary_candidates.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-3" aria-label="EDMFormer 对比边界">
+                <span className="text-xs py-1">模型自有边界，仅供比较：</span>
+                {segment.edmformer_boundary_candidates.map(boundary => (
+                  <button
+                    key={boundary}
+                    className="px-2 py-1 bg-white text-xs"
+                    onClick={() => onSeek(boundary)}
+                  >
+                    {boundary.toFixed(2)} 秒
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+      <p className="text-xs mt-3">ExpandedStructureHead：未安装。</p>
+    </section>
+  )
+}
+
+
 export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const { user } = useAuthStore()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -196,6 +279,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const [trackId, setTrackId] = useState('')
   const [workspace, setWorkspace] = useState<AnnotationWorkspace | null>(null)
   const [instrumentCandidates, setInstrumentCandidates] = useState<InstrumentAnalysisDocument | null>(null)
+  const [edmStructureCandidates, setEdmStructureCandidates] = useState<EdmStructureAnalysisDocument | null>(null)
   const [draft, setDraft] = useState<AnnotationDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -253,6 +337,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     setTrackId(nextTrackId)
     setWorkspace(null)
     setInstrumentCandidates(null)
+    setEdmStructureCandidates(null)
     setDraft(null)
     setDirty(false)
     setMessage('')
@@ -268,13 +353,15 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     if (!nextTrackId) return
     setLoading(true)
     try {
-      const [next, nextInstrumentCandidates] = await Promise.all([
+      const [next, nextInstrumentCandidates, nextEdmStructureCandidates] = await Promise.all([
         api.getBarAnnotationWorkspace(nextTrackId, DATASET_VERSION),
         api.getInstrumentCandidates(nextTrackId).catch(() => null),
+        api.getEdmStructureCandidates(nextTrackId).catch(() => null),
       ])
       const blockIndex = defaultBlockIndex(next.section_blocks, next.annotations)
       setWorkspace(next)
       setInstrumentCandidates(nextInstrumentCandidates)
+      setEdmStructureCandidates(nextEdmStructureCandidates)
       setDraft({
         datasetVersion: next.dataset_version,
         trackId: next.track_id,
@@ -693,6 +780,12 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
 
             <InstrumentCandidatePanel
               candidates={instrumentCandidates}
+              selectedRange={selectedRange}
+              onSeek={seekToCandidate}
+            />
+
+            <EdmStructureCandidatePanel
+              candidates={edmStructureCandidates}
               selectedRange={selectedRange}
               onSeek={seekToCandidate}
             />

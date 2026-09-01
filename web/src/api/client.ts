@@ -217,6 +217,27 @@ export async function getInstrumentCandidates(trackId: string) {
   return body.data
 }
 
+export async function getEdmStructureCandidates(trackId: string) {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const response = await fetch(
+    `${BASE}/api/bar-annotations/tracks/${encodeURIComponent(trackId)}/edm-structure-candidates`,
+    { headers },
+  )
+  if (response.status === 204) return null
+  let body: ApiResponse<import('../types/annotation').EdmStructureAnalysisDocument> & { detail?: string }
+  try {
+    body = await response.json()
+  } catch {
+    throw new ApiError(response.status, `HTTP ${response.status}`)
+  }
+  if (!response.ok || body.code !== 0) {
+    throw new ApiError(response.status, body.message || body.detail || `HTTP ${response.status}`)
+  }
+  return body.data
+}
+
 export async function saveBarAnnotationWorkspace(
   trackId: string,
   data: import('../types/annotation').SaveAnnotationWorkspaceRequest,

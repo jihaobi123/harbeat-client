@@ -27,6 +27,8 @@ from app.modules.bar_annotations.songformer_sections import SongFormerSectionSto
 from app.modules.users.models import User
 from app.modules.instrument_analysis.schemas import InstrumentAnalysisDocument
 from app.modules.instrument_analysis.store import InstrumentAnalysisStore
+from app.modules.edm_structure.schemas import EdmStructureAnalysisDocument
+from app.modules.edm_structure.store import EdmStructureStore
 from app.shared.config import get_settings
 from app.shared.database import get_db
 from app.shared.responses import APIResponse
@@ -61,6 +63,10 @@ def get_songformer_section_store() -> SongFormerSectionStore:
 
 def get_instrument_analysis_store() -> InstrumentAnalysisStore:
     return InstrumentAnalysisStore(get_settings().instrument_analysis_dir)
+
+
+def get_edm_structure_store() -> EdmStructureStore:
+    return EdmStructureStore(get_settings().edm_structure_dir)
 
 
 def _not_found() -> HTTPException:
@@ -201,6 +207,32 @@ def get_instrument_candidates_endpoint(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="instrument candidate sidecar is invalid",
+        ) from exc
+    if document is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return APIResponse(data=document)
+
+
+@router.get(
+    "/tracks/{track_id}/edm-structure-candidates",
+    response_model=APIResponse[EdmStructureAnalysisDocument],
+    responses={204: {"description": "No EDMFormer Shadow sidecar"}},
+)
+def get_edm_structure_candidates_endpoint(
+    track_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    manifest: PilotManifest = Depends(get_pilot_manifest),
+    store: EdmStructureStore = Depends(get_edm_structure_store),
+):
+    del current_user
+    _pilot_song(db, manifest, track_id)
+    try:
+        document = store.load(track_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="EDM structure candidate sidecar is invalid",
         ) from exc
     if document is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
