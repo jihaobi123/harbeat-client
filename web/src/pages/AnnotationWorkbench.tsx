@@ -6,6 +6,7 @@ import {
   defaultBlockIndex,
   nextBlockIndex,
 } from '../annotation/sectionBlocks'
+import { playbackAction, type PlaybackMode } from '../annotation/playback'
 import { useAuthStore } from '../store/useAuthStore'
 import type {
   AnnotationDraft,
@@ -75,6 +76,7 @@ function annotationAt(
 export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const { user } = useAuthStore()
   const audioRef = useRef<HTMLAudioElement>(null)
+  const playbackModeRef = useRef<PlaybackMode>('full')
   const [tracks, setTracks] = useState<PilotTrackSummary[]>([])
   const [tracksLoading, setTracksLoading] = useState(true)
   const [trackId, setTrackId] = useState('')
@@ -93,6 +95,10 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const [loopSelection, setLoopSelection] = useState(false)
   const [audioSource, setAudioSource] = useState('original')
   const [currentBlockIndex, setCurrentBlockIndex] = useState(-1)
+
+  const resetPlaybackMode = () => {
+    playbackModeRef.current = 'full'
+  }
 
   useEffect(() => {
     let active = true
@@ -142,6 +148,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     setLoopSelection(false)
     setAudioSource('original')
     setCurrentBlockIndex(-1)
+    resetPlaybackMode()
     if (!nextTrackId) return
     setLoading(true)
     try {
@@ -169,6 +176,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   }
 
   const selectBar = (barIndex: number) => {
+    resetPlaybackMode()
     if (!waitingForEnd) {
       setSelectionStart(barIndex)
       setSelectionEnd(barIndex)
@@ -182,6 +190,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const selectBlock = (blockIndex: number) => {
     if (!workspace || blockIndex < 0 || blockIndex >= workspace.section_blocks.length) return
     const block = workspace.section_blocks[blockIndex]
+    resetPlaybackMode()
     setCurrentBlockIndex(blockIndex)
     setSelectionStart(block.start_bar_index)
     setSelectionEnd(block.end_bar_index - 1)
@@ -270,6 +279,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const playSelection = async () => {
     if (!audioRef.current || !workspace || selectedRange.start >= selectedRange.end) return
     audioRef.current.currentTime = workspace.bars[selectedRange.start].start_sec
+    playbackModeRef.current = loopSelection ? 'range_loop' : 'range_preview'
     try {
       await audioRef.current.play()
     } catch {
@@ -279,13 +289,31 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
 
   const handleAudioTime = () => {
     if (!audioRef.current || !workspace || selectedRange.start >= selectedRange.end) return
+    const start = workspace.bars[selectedRange.start].start_sec
     const end = workspace.bars[selectedRange.end - 1].end_sec
-    if (audioRef.current.currentTime < end) return
-    if (loopSelection) {
-      audioRef.current.currentTime = workspace.bars[selectedRange.start].start_sec
+    const action = playbackAction({
+      mode: playbackModeRef.current,
+      currentTime: audioRef.current.currentTime,
+      rangeStart: start,
+      rangeEnd: end,
+    })
+    if (action === 'loop') {
+      audioRef.current.currentTime = start
       void audioRef.current.play()
-    } else {
+    } else if (action === 'pause') {
+      resetPlaybackMode()
       audioRef.current.pause()
+    }
+  }
+
+  const handleNativePlay = () => {
+    if (!audioRef.current || !workspace || selectedRange.start >= selectedRange.end) {
+      resetPlaybackMode()
+      return
+    }
+    const rangeStart = workspace.bars[selectedRange.start].start_sec
+    if (Math.abs(audioRef.current.currentTime - rangeStart) > 0.08) {
+      resetPlaybackMode()
     }
   }
 
@@ -368,11 +396,15 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                     ? api.getBarAnnotationAudioUrl(workspace.track_id)
                     : api.getBarAnnotationStemUrl(workspace.track_id, audioSource)}
                   onTimeUpdate={handleAudioTime}
+                  onPlay={handleNativePlay}
                 />
                 <div className="flex flex-wrap gap-2 mt-2" aria-label="试听音源">
                   <button
                     className={audioSource === 'original' ? 'px-3 py-1 bg-primary' : 'px-3 py-1 bg-white'}
-                    onClick={() => setAudioSource('original')}
+                    onClick={() => {
+                      resetPlaybackMode()
+                      setAudioSource('original')
+                    }}
                   >
                     原曲
                   </button>
@@ -380,7 +412,10 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                     <button
                       key={stem}
                       className={audioSource === stem ? 'px-3 py-1 bg-primary' : 'px-3 py-1 bg-white'}
-                      onClick={() => setAudioSource(stem)}
+                      onClick={() => {
+                        resetPlaybackMode()
+                        setAudioSource(stem)
+                      }}
                     >
                       {stem === 'vocals' ? '人声' : stem === 'drums' ? '鼓' : stem === 'bass' ? '贝斯' : '其他/旋律'}
                     </button>
@@ -398,7 +433,13 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                 </button>
                 <button
                   className={loopSelection ? 'px-3 py-2 bg-primary' : 'px-3 py-2 bg-white'}
-                  onClick={() => setLoopSelection(value => !value)}
+                  onClick={() => setLoopSelection(value => {
+                    const next = !value
+                    if (playbackModeRef.current !== 'full') {
+                      playbackModeRef.current = next ? 'range_loop' : 'range_preview'
+                    }
+                    return next
+                  })}
                 >
                   {loopSelection ? '↻ 正在循环' : '↻ 循环所选'}
                 </button>
@@ -470,6 +511,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                   <button
                     className="px-3 py-1 bg-white text-sm"
                     onClick={() => {
+                      resetPlaybackMode()
                       setSelectionStart(0)
                       setSelectionEnd(0)
                       setWaitingForEnd(false)
