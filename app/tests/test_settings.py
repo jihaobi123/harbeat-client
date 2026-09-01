@@ -28,3 +28,8 @@ def test_settings_accepts_deployment_only_environment_keys(tmp_path):
     assert settings.instrument_analysis_work_dir == "./data/instrument-analysis-cache"
     assert settings.instrument_analysis_command == ""
     assert settings.instrument_analysis_timeout_sec == 1800
+    assert settings.edm_structure_enabled is False
+    assert settings.edm_structure_dir == "./data/edm-structure"
+    assert settings.edm_structure_work_dir == "./data/edm-structure-cache"
+    assert settings.edm_structure_command == ""
+    assert settings.edm_structure_timeout_sec == 3600

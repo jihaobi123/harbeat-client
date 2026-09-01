@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     instrument_analysis_work_dir: str = "./data/instrument-analysis-cache"
     instrument_analysis_command: str = ""
     instrument_analysis_timeout_sec: int = 1800
+    edm_structure_enabled: bool = False
+    edm_structure_dir: str = "./data/edm-structure"
+    edm_structure_work_dir: str = "./data/edm-structure-cache"
+    edm_structure_command: str = ""
+    edm_structure_timeout_sec: int = 3600
 
     model_config = SettingsConfigDict(
         env_file=".env",
