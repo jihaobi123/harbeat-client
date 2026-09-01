@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edm_structure_analysis_v0_1.schema.json",
+  "title": "HarBeat EDM Structure Analysis 0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "track_id", "status", "duration_sec",
+    "audio_sha256", "timeline_fingerprint", "songformer_sidecar_sha256",
+    "muq_sha256", "musicfm_sha256", "musicfm_stats_sha256", "edmformer_sha256",
+    "deployment_status", "aggregation_version", "runtime_fingerprint", "segments",
+    "expanded_structure_head", "warnings", "error"
+  ],
+  "properties": {
+    "schema_name": {"const": "harbeat.edm_structure_analysis"},
+    "schema_version": {"const": "0.1.0"},
+    "track_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "status": {"enum": ["ready", "failed"]},
+    "duration_sec": {"type": "number", "exclusiveMinimum": 0},
+    "audio_sha256": {"$ref": "#/$defs/sha256"},
+    "timeline_fingerprint": {"$ref": "#/$defs/sha256"},
+    "songformer_sidecar_sha256": {"$ref": "#/$defs/sha256"},
+    "muq_sha256": {"$ref": "#/$defs/sha256"},
+    "musicfm_sha256": {"$ref": "#/$defs/sha256"},
+    "musicfm_stats_sha256": {"$ref": "#/$defs/sha256"},
+    "edmformer_sha256": {"$ref": "#/$defs/sha256"},
+    "deployment_status": {"const": "shadow"},
+    "aggregation_version": {"const": "edmformer_songformer_block_aggregation_v1"},
+    "runtime_fingerprint": {"type": "object"},
+    "segments": {"type": "array", "items": {"$ref": "#/$defs/segment"}},
+    "expanded_structure_head": {"$ref": "#/$defs/expandedHead"},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "error": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "probabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intro", "buildup", "drop", "breakdown", "outro", "silence"],
+      "properties": {
+        "intro": {"type": "number", "minimum": 0, "maximum": 1},
+        "buildup": {"type": "number", "minimum": 0, "maximum": 1},
+        "drop": {"type": "number", "minimum": 0, "maximum": 1},
+        "breakdown": {"type": "number", "minimum": 0, "maximum": 1},
+        "outro": {"type": "number", "minimum": 0, "maximum": 1},
+        "silence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_section_id", "start_bar_index", "end_bar_index", "start_sec",
+        "end_sec", "canonical_boundary_source", "edmformer_label_candidate",
+        "edmformer_label_probabilities", "edmformer_label_max_probabilities",
+        "edmformer_boundary_candidates", "validation_status"
+      ],
+      "properties": {
+        "canonical_section_id": {"type": "string"},
+        "start_bar_index": {"type": "integer", "minimum": 0},
+        "end_bar_index": {"type": "integer", "minimum": 1},
+        "start_sec": {"type": "number", "minimum": 0},
+        "end_sec": {"type": "number", "exclusiveMinimum": 0},
+        "canonical_boundary_source": {"const": "songformer_bar_snap_v1"},
+        "edmformer_label_candidate": {"enum": ["intro", "buildup", "drop", "breakdown", "outro", "silence"]},
+        "edmformer_label_probabilities": {"$ref": "#/$defs/probabilities"},
+        "edmformer_label_max_probabilities": {"$ref": "#/$defs/probabilities"},
+        "edmformer_boundary_candidates": {"type": "array", "items": {"type": "number", "minimum": 0}},
+        "validation_status": {"enum": ["unreviewed", "reviewed", "rejected"]}
+      }
+    },
+    "expandedHead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "model_status", "model_version", "input_contract_version", "output_contract_version"],
+      "properties": {
+        "enabled": {"const": false},
+        "model_status": {"const": "not_installed"},
+        "model_version": {"type": "null"},
+        "input_contract_version": {"const": "expanded_structure_input_v1"},
+        "output_contract_version": {"const": "expanded_structure_output_v1"}
+      }
+    }
+  }
+}

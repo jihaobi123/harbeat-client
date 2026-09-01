@@ -1,0 +1,39 @@
+{
+  "schema_name": "harbeat.edm_structure_analysis",
+  "schema_version": "0.1.0",
+  "track_id": "track-1",
+  "status": "ready",
+  "duration_sec": 8.0,
+  "audio_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "timeline_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "songformer_sidecar_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "muq_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "musicfm_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "musicfm_stats_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "edmformer_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "deployment_status": "shadow",
+  "aggregation_version": "edmformer_songformer_block_aggregation_v1",
+  "runtime_fingerprint": {"runner_version": "test"},
+  "segments": [{
+    "canonical_section_id": "section-001",
+    "start_bar_index": 0,
+    "end_bar_index": 4,
+    "start_sec": 0.0,
+    "end_sec": 8.0,
+    "canonical_boundary_source": "songformer_bar_snap_v1",
+    "edmformer_label_candidate": "intro",
+    "edmformer_label_probabilities": {"intro": 0.6, "buildup": 0.1, "drop": 0.1, "breakdown": 0.1, "outro": 0.05, "silence": 0.05},
+    "edmformer_label_max_probabilities": {"intro": 0.6, "buildup": 0.1, "drop": 0.1, "breakdown": 0.1, "outro": 0.05, "silence": 0.05},
+    "edmformer_boundary_candidates": [7.8],
+    "validation_status": "unreviewed"
+  }],
+  "expanded_structure_head": {
+    "enabled": false,
+    "model_status": "not_installed",
+    "model_version": null,
+    "input_contract_version": "expanded_structure_input_v1",
+    "output_contract_version": "expanded_structure_output_v1"
+  },
+  "warnings": [],
+  "error": null
+}

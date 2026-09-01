@@ -1,0 +1,2 @@
+"""EDMFormer Shadow structure candidates."""
+
