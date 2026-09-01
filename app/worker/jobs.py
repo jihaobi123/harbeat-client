@@ -39,8 +39,18 @@ def job_analyze(song_id: str) -> dict:
         apply_analysis_result(song, result)
         song.analysis_status = "ready"
         db.commit()
+        from app.modules.bar_annotations.songformer_sections import (
+            try_generate_songformer_sections,
+        )
+
+        songformer = try_generate_songformer_sections(song)
+        logger.info(
+            "[job:analyze] SongFormer sections for %s: %s",
+            song_id,
+            songformer.get("status"),
+        )
         logger.info("[job:analyze] analysis ready for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
-        return {"ok": True, "bpm": song.bpm, "key": song.key}
+        return {"ok": True, "bpm": song.bpm, "key": song.key, "songformer": songformer}
     except Exception:
         logger.exception("[job:analyze] analysis failed for %s", song_id)
         try:

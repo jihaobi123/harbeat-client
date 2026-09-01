@@ -171,6 +171,16 @@ def run_analysis_and_separation(song_id: str) -> None:
                     for i, c in enumerate(raw_cues)
                 ]
                 db.commit()
+                from app.modules.bar_annotations.songformer_sections import (
+                    try_generate_songformer_sections,
+                )
+
+                songformer = try_generate_songformer_sections(song)
+                logger.info(
+                    "[bg-analysis] SongFormer sections for %s: %s",
+                    song_id,
+                    songformer.get("status"),
+                )
                 logger.info("[bg-analysis] analysis done for %s: BPM=%s Key=%s", song_id, song.bpm, song.key)
             except Exception:
                 logger.exception("[bg-analysis] analysis failed for %s", song_id)

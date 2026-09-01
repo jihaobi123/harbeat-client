@@ -10,6 +10,8 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
+import subprocess
 import tempfile
 from typing import Any, Literal, Mapping, Optional, Sequence, Union
 
@@ -23,6 +25,10 @@ RELABELER_OUTPUT_CONTRACT = "songformer_section_relabeler_output_v1"
 
 class SongFormerSectionInvalid(ValueError):
     """A SongFormer sidecar is unsafe or violates the frozen contract."""
+
+
+class SongFormerRuntimeError(RuntimeError):
+    """The isolated SongFormer command did not produce a valid result."""
 
 
 class RelabelerState(BaseModel):
@@ -184,3 +190,205 @@ class SongFormerSectionStore:
                     temporary_path.unlink()
                 except FileNotFoundError:
                     pass
+
+
+class SongFormerRunner:
+    """Serialize and validate isolated SongFormer jobs before publishing sidecars."""
+
+    def __init__(
+        self,
+        *,
+        command_template: str,
+        work_dir: Union[str, Path],
+        timeout_sec: int,
+        store: SongFormerSectionStore,
+    ):
+        self.command_template = str(command_template).strip()
+        self.work_dir = Path(work_dir).expanduser().resolve()
+        self.timeout_sec = max(10, int(timeout_sec))
+        self.store = store
+
+    def _command(self, audio_path: Path, *, force: bool) -> list[str]:
+        if not self.command_template:
+            raise SongFormerRuntimeError("SongFormer command is not configured")
+        if "{audio}" not in self.command_template or "{output_dir}" not in self.command_template:
+            raise SongFormerRuntimeError(
+                "SongFormer command must contain {audio} and {output_dir}"
+            )
+        command = [
+            token.replace("{audio}", str(audio_path)).replace(
+                "{output_dir}", str(self.work_dir)
+            )
+            for token in shlex.split(self.command_template)
+        ]
+        if force and "--overwrite" not in command:
+            command.append("--overwrite")
+        return command
+
+    def _lock(self):
+        import fcntl
+
+        self.work_dir.mkdir(parents=True, exist_ok=True)
+        handle = (self.work_dir / ".songformer.lock").open("a+")
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        return handle
+
+    @staticmethod
+    def _audio_fingerprint(audio_path: Path) -> str:
+        if not audio_path.is_file():
+            return "unavailable"
+        from experiments.songformer_runtime_support import audio_content_key
+
+        return audio_content_key(audio_path)
+
+    def _read_result(self, audio_path: Path) -> SongFormerSectionDocument:
+        manifest_path = self.work_dir / "manifest.json"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SongFormerRuntimeError("runner manifest is missing or invalid") from exc
+        tracks = manifest.get("tracks")
+        if not isinstance(tracks, list):
+            raise SongFormerRuntimeError("runner manifest tracks are invalid")
+        requested = str(audio_path.resolve())
+        track = next(
+            (
+                item
+                for item in tracks
+                if isinstance(item, dict)
+                and str(item.get("audio_path", "")) == requested
+            ),
+            None,
+        )
+        if track is None:
+            raise SongFormerRuntimeError(
+                "runner manifest did not contain the requested audio"
+            )
+        if track.get("error"):
+            raise SongFormerRuntimeError(str(track["error"]))
+        runtime_fingerprint = manifest.get("runtime_fingerprint")
+        if not isinstance(runtime_fingerprint, dict) or not runtime_fingerprint:
+            raise SongFormerRuntimeError("runner manifest runtime fingerprint is missing")
+        raw_segments = track.get("segments")
+        if not isinstance(raw_segments, list) or not raw_segments:
+            raise SongFormerRuntimeError("runner manifest contains no segments")
+        segments = [
+            {
+                "start": item.get("start"),
+                "end": item.get("end"),
+                "label": item.get("label"),
+                "label_probabilities": item.get("label_probabilities") or {},
+                "label_confidence": item.get("label_confidence"),
+                "label_margin": item.get("label_margin"),
+            }
+            for item in raw_segments
+            if isinstance(item, dict)
+        ]
+        return songformer_document(
+            track_id="placeholder",
+            audio_fingerprint=str(
+                track.get("audio_fingerprint") or self._audio_fingerprint(audio_path)
+            ),
+            runtime_fingerprint=runtime_fingerprint,
+            cache_namespace=(
+                str(manifest["cache_namespace"])
+                if manifest.get("cache_namespace") is not None
+                else None
+            ),
+            segments=segments,
+        )
+
+    @staticmethod
+    def _error_text(exc: Exception) -> str:
+        detail = ""
+        if isinstance(exc, subprocess.CalledProcessError):
+            detail = str(exc.stderr or exc.stdout or exc)
+        else:
+            detail = str(exc)
+        return f"{type(exc).__name__}: {detail}"[:4096]
+
+    def run(
+        self,
+        *,
+        track_id: str,
+        audio_path: Union[str, Path],
+        force: bool = False,
+    ) -> SongFormerSectionDocument:
+        resolved_audio = Path(audio_path).expanduser().resolve()
+        fingerprint = self._audio_fingerprint(resolved_audio)
+        try:
+            if not resolved_audio.is_file():
+                raise SongFormerRuntimeError("audio file does not exist")
+            command = self._command(resolved_audio, force=force)
+            lock_handle = self._lock()
+            try:
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_sec,
+                    shell=False,
+                )
+                parsed = self._read_result(resolved_audio)
+            finally:
+                lock_handle.close()
+            document = parsed.model_copy(update={"track_id": track_id})
+        except Exception as exc:
+            document = songformer_document(
+                track_id=track_id,
+                status="failed",
+                audio_fingerprint=fingerprint,
+                runtime_fingerprint={"runner_status": "failed"},
+                segments=[],
+                error=self._error_text(exc),
+            )
+        self.store.save(document)
+        return document
+
+
+def songformer_runner_from_settings(settings: Any = None) -> SongFormerRunner:
+    if settings is None:
+        from app.shared.config import get_settings
+
+        settings = get_settings()
+    return SongFormerRunner(
+        command_template=settings.songformer_command,
+        work_dir=settings.songformer_work_dir,
+        timeout_sec=settings.songformer_timeout_sec,
+        store=SongFormerSectionStore(settings.songformer_section_dir),
+    )
+
+
+def try_generate_songformer_sections(
+    song: Any,
+    *,
+    settings: Any = None,
+    runner: Any = None,
+) -> dict[str, Any]:
+    """Best-effort hook for background jobs; failures never change job status."""
+
+    if settings is None:
+        from app.shared.config import get_settings
+
+        settings = get_settings()
+    if not bool(settings.songformer_enabled):
+        return {"status": "disabled"}
+    if runner is None:
+        runner = songformer_runner_from_settings(settings)
+    try:
+        document = runner.run(
+            track_id=str(song.id),
+            audio_path=str(getattr(song, "source_path", "") or ""),
+        )
+        return {
+            "status": document.status,
+            "segments": len(document.segments),
+            "error": document.error,
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "segments": 0,
+            "error": SongFormerRunner._error_text(exc),
+        }
