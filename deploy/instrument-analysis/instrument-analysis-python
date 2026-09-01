@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="$(cd "$(dirname "$0")" && pwd)"
+MODEL_ROOT="${HARBEAT_MODEL_ROOT:-/opt/harbeat/models}"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+export PYTHONPATH="$RUNTIME_ROOT/instrument-analysis-packages:$MODEL_ROOT/ADTOF-pytorch/src:$MODEL_ROOT/PANNs-source/pytorch:$MODEL_ROOT/PANNs-source/utils${PYTHONPATH:+:$PYTHONPATH}"
+exec "$CORE_PYTHON" "$@"
+

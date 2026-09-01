@@ -1,0 +1,8 @@
+[Service]
+Environment="INSTRUMENT_ANALYSIS_ENABLED=true"
+Environment="INSTRUMENT_ANALYSIS_DEPLOYMENT_STATUS=shadow"
+Environment="INSTRUMENT_ANALYSIS_COMMAND=/opt/harbeat/runtime/instrument-analysis-python __HARBEAT_RELEASE__/experiments/run_instrument_analysis_isolated.py --audio {audio} --output-dir {output_dir} --drums-stem {drums_stem} --adtof-weights /opt/harbeat/models/ADTOF-pytorch/data/adtof_frame_rnn_pytorch_weights.pth --panns-weights /opt/harbeat/models/PANNs/Cnn14_DecisionLevelMax_mAP=0.385.pth --panns-labels /opt/harbeat/models/PANNs/class_labels_indices.csv --adtof-source /opt/harbeat/models/ADTOF-pytorch --panns-source /opt/harbeat/models/PANNs-source --device cuda --precision float16"
+Environment="INSTRUMENT_ANALYSIS_DIR=/data/harbeat/instrument-analysis"
+Environment="INSTRUMENT_ANALYSIS_WORK_DIR=/mnt/nas/harbeat/cache/instrument-analysis"
+Environment="INSTRUMENT_ANALYSIS_TIMEOUT_SEC=1800"
+
