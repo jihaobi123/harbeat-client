@@ -111,6 +111,35 @@ class CandidateBar(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SectionAnnotationBlock(BaseModel):
+    block_id: str = Field(min_length=1, max_length=128, pattern=ID_PATTERN)
+    start_bar_index: int = Field(ge=0)
+    end_bar_index: int = Field(ge=1)
+    start_time: float = Field(ge=0)
+    end_time: float = Field(gt=0)
+    raw_start_time: float = Field(ge=0)
+    raw_end_time: float = Field(gt=0)
+    start_snap_error_sec: float = Field(ge=0)
+    end_snap_error_sec: float = Field(ge=0)
+    source: Literal["songformer_bar_snap_v1"] = "songformer_bar_snap_v1"
+    source_segment_indexes: list[int] = Field(default_factory=list)
+    needs_review: bool = False
+    suppressed_boundary_count: int = Field(default=0, ge=0)
+    model_runtime_fingerprint: str = Field(min_length=64, max_length=64)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_block_ranges(self) -> "SectionAnnotationBlock":
+        if self.end_bar_index <= self.start_bar_index:
+            raise ValueError("section block end_bar_index must be greater than start")
+        if self.end_time <= self.start_time:
+            raise ValueError("section block end_time must be greater than start")
+        if self.raw_end_time <= self.raw_start_time:
+            raise ValueError("section block raw_end_time must be greater than start")
+        return self
+
+
 class AnnotationWorkspace(BaseModel):
     schema_name: Literal["harbeat.annotation_workspace"] = "harbeat.annotation_workspace"
     schema_version: Literal["1.0.0"] = "1.0.0"
