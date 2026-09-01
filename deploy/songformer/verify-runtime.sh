@@ -17,16 +17,20 @@ test -d "$MUQ_ROOT"
 test -x "$RUNTIME_PYTHON"
 
 (
-  cd "$SONGFORMER_ROOT/src/SongFormer/ckpts"
-  md5sum -c md5sum.txt --ignore-missing
+  cd "$SONGFORMER_ROOT/src/SongFormer"
+  printf '%s  %s\n' \
+    "df930aceac8209818556c4a656a0714c" "ckpts/MusicFM/pretrained_msd.pt" \
+    "75ab2e47b093e07378f7f703bdb82c14" "ckpts/MusicFM/msd_stats.json" \
+    "5a24800e12ab357744f8b47e523ba3e6" "ckpts/SongFormer.safetensors" \
+    | md5sum -c -
 )
 
 "$RUNTIME_PYTHON" - "$SONGFORMER_ROOT" "$MUQ_ROOT" <<'PY'
 import json
 from pathlib import Path
-import subprocess
 import sys
 import torch
+import torchvision
 import safetensors
 import ema_pytorch
 import muq
@@ -38,14 +42,12 @@ if not torch.cuda.is_available():
     raise SystemExit("CUDA is not available")
 print(json.dumps({
     "status": "ready",
-    "songformer_revision": subprocess.check_output(
-        ["git", "-C", str(source), "rev-parse", "HEAD"], text=True
-    ).strip(),
+    "songformer_revision": (source / ".harbeat-revision").read_text().strip(),
     "muq_files": sum(path.is_file() for path in muq_root.rglob("*")),
     "torch": torch.__version__,
     "cuda": torch.version.cuda,
     "device": torch.cuda.get_device_name(0),
+    "torchvision": torchvision.__version__,
     "transformers": transformers.__version__,
 }, sort_keys=True))
 PY
-

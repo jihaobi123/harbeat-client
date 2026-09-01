@@ -47,6 +47,9 @@ def generate_pilot_sections(
     ]
 
     if song_model is None:
+        # Register every SQLAlchemy relationship target before the first lookup.
+        # Importing LibrarySong alone leaves its legacy relationship to Song unresolved.
+        from app.modules import models as _all_models  # noqa: F401
         from app.modules.library.models import LibrarySong
 
         song_model = LibrarySong
