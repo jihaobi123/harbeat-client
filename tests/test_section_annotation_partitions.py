@@ -9,7 +9,7 @@ from app.modules.library.section_annotation_partitions import (
 )
 from app.modules.library.section_relabel_dataset import DATASET_SCHEMA_VERSION
 from app.modules.library.section_relabeler import SOURCE_STRUCTURE_LABELS
-from scripts.section_label_workbench import HTML, Store
+from scripts.section_label_workbench import AnnotationConflictError, HTML, Store
 
 
 def _annotation() -> dict:
@@ -105,6 +105,82 @@ def test_workbench_maps_songformer_silence_to_breakdown_target() -> None:
     assert "targetLabel=l=>l==='silence'?'breakdown':l" in HTML
     assert "silence:'Breakdown'" in HTML
     assert "silence:'静音'" not in HTML
+
+
+def test_workbench_uses_song_drafts_without_automatic_segment_jump() -> None:
+    assert "提交本首歌曲" in HTML
+    assert "未修改段落将保存原标签" in HTML
+    assert "fetch('/api/track-submit'" in HTML
+    assert "function setDraft(" in HTML
+    assert "i+1<track.segments.length" not in HTML
+    assert "scrollIntoView" not in HTML
+
+
+def test_song_submission_saves_defaults_and_edits_atomically(tmp_path) -> None:
+    dataset_path = tmp_path / "annotations.json"
+    dataset_path.write_text(json.dumps(_payload(tmp_path)), encoding="utf-8")
+    store = Store(dataset_path, partition_count=2)
+    partition = store.payload["annotation_partition"]
+    first = partition["partitions"][0]
+    access_key = first["access_key"]
+    track_id = next(
+        track_id
+        for track_id, part_id in partition["assignments"].items()
+        if part_id == first["id"]
+    )
+    track = store.track(track_id)
+    assert track is not None
+
+    submissions = []
+    for index, segment in enumerate(track["segments"]):
+        label = "chorus" if index == 0 else segment["structure_label_candidate"]
+        if label == "silence":
+            label = "breakdown"
+        submissions.append(
+            {
+                "segment_index": index,
+                "expected_revision": 0,
+                "annotation": {
+                    "human_label": label,
+                    "human_confidence": "high",
+                    "boundary_ok": True,
+                    "uncertain": False,
+                    "notes": "",
+                },
+            }
+        )
+
+    result = store.submit_track_annotations(access_key, track_id, submissions)
+
+    assert result["changed_count"] == len(track["segments"])
+    assert track["segments"][0]["structure_label_candidate"] == "intro"
+    assert track["segments"][0]["annotation"]["human_label"] == "chorus"
+    assert all(
+        segment["annotation"]["human_label"]
+        == (
+            "breakdown"
+            if segment["structure_label_candidate"] == "silence"
+            else (
+                "chorus"
+                if index == 0
+                else segment["structure_label_candidate"]
+            )
+        )
+        for index, segment in enumerate(track["segments"])
+    )
+    assert all(
+        entry.get("action") == "submit_track"
+        for entry in store.payload["annotation_review"]["audit_log"]
+    )
+
+    conflicting = json.loads(json.dumps(submissions))
+    for item in conflicting:
+        item["expected_revision"] = 1
+    conflicting[0]["annotation"]["human_label"] = "bridge"
+    conflicting[-1]["expected_revision"] = 0
+    with pytest.raises(AnnotationConflictError):
+        store.submit_track_annotations(access_key, track_id, conflicting)
+    assert track["segments"][0]["annotation"]["human_label"] == "chorus"
 
 
 def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -> None:
