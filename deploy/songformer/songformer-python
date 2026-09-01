@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="$(cd "$(dirname "$0")" && pwd)"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+export PYTHONPATH="$RUNTIME_ROOT/songformer-packages${PYTHONPATH:+:$PYTHONPATH}"
+exec "$CORE_PYTHON" "$@"

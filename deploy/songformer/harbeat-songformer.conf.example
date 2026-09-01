@@ -1,0 +1,8 @@
+[Service]
+Environment="SONGFORMER_ENABLED=true"
+Environment="SONGFORMER_COMMAND=/opt/harbeat/runtime/songformer-python /opt/harbeat/current/experiments/run_songformer_isolated.py {audio} --out-dir {output_dir} --source-root /opt/harbeat/models/SongFormer --muq-model /opt/harbeat/models/MuQ-MuLan-large --device cuda --precision float32"
+Environment="SONGFORMER_SECTION_DIR=/data/harbeat/songformer-sections"
+Environment="SONGFORMER_WORK_DIR=/mnt/nas/harbeat/cache/songformer-analysis"
+Environment="SONGFORMER_TIMEOUT_SEC=1800"
+Environment="SECTION_RELABELER_ENABLED=false"
+Environment="SECTION_RELABELER_SHADOW_MODE=true"
