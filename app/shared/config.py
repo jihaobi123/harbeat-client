@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     presence_dataset_version: str = "bar-presence-pilot-1.0.0"
     bar_annotation_dir: str = "./data/bar-annotations"
     bar_annotation_pilot_manifest: str = "./config/public-annotation-pilot.json"
+    songformer_section_dir: str = "./data/songformer-sections"
+    songformer_work_dir: str = "./data/songformer-cache"
+    songformer_command: str = ""
+    songformer_timeout_sec: int = 1800
+    songformer_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

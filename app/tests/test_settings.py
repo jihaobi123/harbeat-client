@@ -18,3 +18,8 @@ def test_settings_accepts_deployment_only_environment_keys(tmp_path):
 
     assert settings.annotation_dir == "./data/annotations"
     assert settings.presence_dataset_version == "bar-presence-pilot-1.0.0"
+    assert settings.songformer_section_dir == "./data/songformer-sections"
+    assert settings.songformer_work_dir == "./data/songformer-cache"
+    assert settings.songformer_command == ""
+    assert settings.songformer_timeout_sec == 1800
+    assert settings.songformer_enabled is False
