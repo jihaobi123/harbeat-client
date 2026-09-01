@@ -98,6 +98,8 @@ def test_workbench_keeps_full_song_playing_during_background_refresh() -> None:
     assert "if(!background)renderContent()" in HTML
     assert "background&&visibleTrack?visibleTrack" in HTML
     assert "loadData(true,true)" in HTML
+    assert "progressChanged" in HTML
+    assert "},15000)" in HTML
 
 
 def test_workbench_keeps_songformer_silence_as_the_human_target() -> None:
