@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "instrument_analysis_v0_1.schema.json",
+  "title": "HarBeat Instrument Analysis 0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "track_id", "status", "duration_sec", "timeline_fingerprint", "taxonomy_version", "models", "bars", "warnings"],
+  "properties": {
+    "schema_name": {"const": "harbeat.instrument_analysis"},
+    "schema_version": {"const": "0.1.0"},
+    "track_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "status": {"enum": ["ready", "partial", "failed"]},
+    "duration_sec": {"type": "number", "exclusiveMinimum": 0},
+    "timeline_fingerprint": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "taxonomy_version": {"const": "instrument_taxonomy@0.1.0"},
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adtof", "panns"],
+      "properties": {
+        "adtof": {"$ref": "#/$defs/modelEvidence"},
+        "panns": {"$ref": "#/$defs/modelEvidence"}
+      }
+    },
+    "bars": {"type": "array", "items": {"$ref": "#/$defs/bar"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "modelEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "model_version", "deployment_status", "availability", "checkpoint_sha256", "source_revision", "license_status", "error"],
+      "properties": {
+        "model_id": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "deployment_status": {"const": "shadow"},
+        "availability": {"enum": ["available", "unavailable", "failed"]},
+        "checkpoint_sha256": {"type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$"},
+        "source_revision": {"type": ["string", "null"]},
+        "license_status": {"enum": ["review_required", "approved", "blocked"]},
+        "error": {"type": ["string", "null"]}
+      }
+    },
+    "drumEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["time_sec", "drum_class", "confidence", "bar_index", "beat_index_in_bar", "beat_position"],
+      "properties": {
+        "time_sec": {"type": "number", "minimum": 0},
+        "drum_class": {"enum": ["kick", "snare", "hihat", "tom", "cymbal"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "bar_index": {"type": "integer", "minimum": 0},
+        "beat_index_in_bar": {"type": "integer", "minimum": 0},
+        "beat_position": {"type": "number", "minimum": 1}
+      }
+    },
+    "drumSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_counts", "density_per_sec"],
+      "properties": {
+        "event_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kick", "snare", "hihat", "tom", "cymbal"],
+          "properties": {
+            "kick": {"type": "integer", "minimum": 0},
+            "snare": {"type": "integer", "minimum": 0},
+            "hihat": {"type": "integer", "minimum": 0},
+            "tom": {"type": "integer", "minimum": 0},
+            "cymbal": {"type": "integer", "minimum": 0}
+          }
+        },
+        "density_per_sec": {"type": "number", "minimum": 0}
+      }
+    },
+    "instrumentProbability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument_class", "mean_probability", "max_probability", "active_coverage"],
+      "properties": {
+        "instrument_class": {"enum": ["drums", "percussion", "bass", "acoustic_guitar", "electric_guitar", "piano", "electric_piano", "synthesizer", "strings", "brass", "woodwind", "organ", "sampler_fx", "voice"]},
+        "mean_probability": {"type": "number", "minimum": 0, "maximum": 1},
+        "max_probability": {"type": "number", "minimum": 0, "maximum": 1},
+        "active_coverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bar_index", "start_sec", "end_sec", "drum_events", "drum_summary", "instrument_probabilities", "validation_status"],
+      "properties": {
+        "bar_index": {"type": "integer", "minimum": 0},
+        "start_sec": {"type": "number", "minimum": 0},
+        "end_sec": {"type": "number", "exclusiveMinimum": 0},
+        "drum_events": {"type": "array", "items": {"$ref": "#/$defs/drumEvent"}},
+        "drum_summary": {"$ref": "#/$defs/drumSummary"},
+        "instrument_probabilities": {"type": "array", "items": {"$ref": "#/$defs/instrumentProbability"}},
+        "validation_status": {"enum": ["unreviewed", "reviewed", "rejected"]}
+      }
+    }
+  }
+}

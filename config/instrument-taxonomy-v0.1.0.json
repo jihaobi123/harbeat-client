@@ -1,0 +1,21 @@
+{
+  "schema_name": "harbeat.instrument_taxonomy",
+  "schema_version": "0.1.0",
+  "instrument_classes": [
+    "drums",
+    "percussion",
+    "bass",
+    "acoustic_guitar",
+    "electric_guitar",
+    "piano",
+    "electric_piano",
+    "synthesizer",
+    "strings",
+    "brass",
+    "woodwind",
+    "organ",
+    "sampler_fx",
+    "voice"
+  ],
+  "drum_classes": ["kick", "snare", "hihat", "tom", "cymbal"]
+}
