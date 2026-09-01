@@ -110,12 +110,14 @@ def test_workbench_keeps_songformer_silence_as_the_human_target() -> None:
 def test_workbench_uses_song_drafts_without_automatic_segment_jump() -> None:
     assert "提交本首歌曲" in HTML
     assert "未修改段落将保存原标签" in HTML
-    assert "fetch('/api/track-submit'" in HTML
+    assert "fetch(sameOrigin+'/api/track-submit'" in HTML
+    assert "async function fetchDataset()" in HTML
+    assert "if(!background||!data)" in HTML
     assert "function setDraft(" in HTML
     assert "i+1<track.segments.length" not in HTML
     assert "scrollIntoView" not in HTML
     assert "结构太混乱，不参与" in HTML
-    assert "fetch('/api/track-exclusion'" in HTML
+    assert "fetch(sameOrigin+'/api/track-exclusion'" in HTML
     assert "恢复参与" in HTML
 
 
