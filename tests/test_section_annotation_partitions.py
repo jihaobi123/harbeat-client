@@ -9,7 +9,7 @@ from app.modules.library.section_annotation_partitions import (
 )
 from app.modules.library.section_relabel_dataset import DATASET_SCHEMA_VERSION
 from app.modules.library.section_relabeler import STRUCTURE_LABELS
-from scripts.section_label_workbench import Store
+from scripts.section_label_workbench import HTML, Store
 
 
 def _annotation() -> dict:
@@ -88,6 +88,13 @@ def test_two_partitions_are_stable_disjoint_and_cover_every_track(tmp_path) -> N
     summary = partition_summary(payload)["partitions"]
     assert summary["part-1"]["tracks"] == 4
     assert summary["part-2"]["tracks"] == 4
+
+
+def test_workbench_keeps_full_song_playing_during_background_refresh() -> None:
+    assert "从头播放整首" in HTML
+    assert "function cancelSegmentStop()" in HTML
+    assert "keepPlaying=background&&audio&&!audio.paused" in HTML
+    assert "loadData(true,true)" in HTML
 
 
 def test_workbench_enforces_partition_writes_and_shares_live_summary(tmp_path) -> None:
