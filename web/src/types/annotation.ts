@@ -49,6 +49,40 @@ export interface CandidateBar {
   elements: Record<ElementName, ElementCandidate>
 }
 
+export interface SectionAnnotationBlock {
+  block_id: string
+  start_bar_index: number
+  end_bar_index: number
+  start_time: number
+  end_time: number
+  raw_start_time: number
+  raw_end_time: number
+  start_snap_error_sec: number
+  end_snap_error_sec: number
+  source: 'songformer_bar_snap_v1'
+  source_segment_indexes: number[]
+  needs_review: boolean
+  suppressed_boundary_count: number
+  model_runtime_fingerprint: string
+}
+
+export interface SectionModelState {
+  model: 'ASLP-lab/SongFormer'
+  status: 'ready' | 'failed'
+  cache_namespace: string | null
+  runtime_fingerprint: Record<string, unknown>
+  error: string | null
+}
+
+export interface SectionRelabelerState {
+  enabled: false
+  mode: 'disabled'
+  model_status: 'not_installed'
+  model_version: null
+  input_contract_version: 'songformer_section_relabeler_input_v1'
+  output_contract_version: 'songformer_section_relabeler_output_v1'
+}
+
 export interface AnnotationWorkspace {
   schema_name: 'harbeat.annotation_workspace'
   schema_version: '1.0.0'
@@ -62,6 +96,10 @@ export interface AnnotationWorkspace {
   revision: number
   annotations: AnnotationRecord[]
   bars: CandidateBar[]
+  section_block_status: 'ready' | 'needs_review' | 'failed' | 'not_analyzed'
+  section_blocks: SectionAnnotationBlock[]
+  section_model: SectionModelState | null
+  section_relabeler: SectionRelabelerState
   updated_at: string | null
 }
 

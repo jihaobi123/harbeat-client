@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as api from '../api/client'
 import { applyRangeLabel, candidateSourceForBar, normalizeRange } from '../annotation/state'
+import {
+  blockContainingRange,
+  defaultBlockIndex,
+  nextBlockIndex,
+} from '../annotation/sectionBlocks'
 import { useAuthStore } from '../store/useAuthStore'
 import type {
   AnnotationDraft,
@@ -87,6 +92,7 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const [activeElement, setActiveElement] = useState<ElementName>('drums')
   const [loopSelection, setLoopSelection] = useState(false)
   const [audioSource, setAudioSource] = useState('original')
+  const [currentBlockIndex, setCurrentBlockIndex] = useState(-1)
 
   useEffect(() => {
     let active = true
@@ -135,10 +141,12 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
     setSelectionEnd(0)
     setLoopSelection(false)
     setAudioSource('original')
+    setCurrentBlockIndex(-1)
     if (!nextTrackId) return
     setLoading(true)
     try {
       const next = await api.getBarAnnotationWorkspace(nextTrackId, DATASET_VERSION)
+      const blockIndex = defaultBlockIndex(next.section_blocks, next.annotations)
       setWorkspace(next)
       setDraft({
         datasetVersion: next.dataset_version,
@@ -147,6 +155,12 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
         bars: next.bars,
         annotations: next.annotations,
       })
+      setCurrentBlockIndex(blockIndex)
+      if (blockIndex >= 0) {
+        const block = next.section_blocks[blockIndex]
+        setSelectionStart(block.start_bar_index)
+        setSelectionEnd(block.end_bar_index - 1)
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '工作区加载失败')
     } finally {
@@ -163,6 +177,15 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
       setSelectionEnd(barIndex)
       setWaitingForEnd(false)
     }
+  }
+
+  const selectBlock = (blockIndex: number) => {
+    if (!workspace || blockIndex < 0 || blockIndex >= workspace.section_blocks.length) return
+    const block = workspace.section_blocks[blockIndex]
+    setCurrentBlockIndex(blockIndex)
+    setSelectionStart(block.start_bar_index)
+    setSelectionEnd(block.end_bar_index - 1)
+    setWaitingForEnd(false)
   }
 
   const applyLabel = (
@@ -272,6 +295,12 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
   const selectedLabel = selectedRange.start < selectedRange.end
     ? `第 ${selectedRange.start + 1}–${selectedRange.end} 小节`
     : '尚未选择'
+  const selectedModelBlock = workspace
+    ? blockContainingRange(workspace.section_blocks, selectedRange)
+    : undefined
+  const currentBlock = workspace && currentBlockIndex >= 0
+    ? workspace.section_blocks[currentBlockIndex]
+    : undefined
 
   return (
     <main className="annotation-workbench">
@@ -374,6 +403,56 @@ export default function AnnotationWorkbench({ onDirtyChange }: Props) {
                   {loopSelection ? '↻ 正在循环' : '↻ 循环所选'}
                 </button>
               </div>
+            </section>
+
+            <section className="annotation-block-nav street-sticker bg-surface-lighter p-3 sm:p-4">
+              <div>
+                <div className="text-xs street-subtitle">SONGFORMER · SECTION BLOCKS</div>
+                <h2 className="text-xl mt-1">按段落块标注，小节级纠错</h2>
+                {workspace.section_block_status === 'not_analyzed' && (
+                  <p className="text-sm mt-2">这首歌还没有 SongFormer 结果，可以继续手动选择小节。</p>
+                )}
+                {workspace.section_block_status === 'failed' && (
+                  <p className="text-sm mt-2 text-red-800">SongFormer 分段失败，当前保留手动小节选择。</p>
+                )}
+                {currentBlock && (
+                  <p className="text-sm mt-2">
+                    段落块 {currentBlockIndex + 1}/{workspace.section_blocks.length} ·
+                    第 {currentBlock.start_bar_index + 1}–{currentBlock.end_bar_index} 小节
+                    {currentBlock.needs_review ? ' · 边界需要复核' : ' · 边界已对齐'}
+                  </p>
+                )}
+                {currentBlock?.needs_review && (
+                  <p className="text-xs mt-1">
+                    吸附误差：起点 {currentBlock.start_snap_error_sec.toFixed(2)} 秒，
+                    终点 {currentBlock.end_snap_error_sec.toFixed(2)} 秒
+                  </p>
+                )}
+                <p className="text-xs mt-1">
+                  残差分类器：未安装，本次只使用 SongFormer 时间边界。
+                </p>
+              </div>
+              {workspace.section_blocks.length > 0 && (
+                <div className="annotation-block-nav__actions">
+                  <button
+                    className="px-3 py-2 bg-white"
+                    onClick={() => selectBlock(nextBlockIndex(workspace.section_blocks, currentBlockIndex, -1))}
+                  >
+                    ← 上一段
+                  </button>
+                  <button
+                    className="px-3 py-2 bg-primary"
+                    onClick={() => selectBlock(nextBlockIndex(workspace.section_blocks, currentBlockIndex))}
+                  >
+                    下一段 →
+                  </button>
+                  {currentBlock && selectedModelBlock?.block_id !== currentBlock.block_id && (
+                    <button className="px-3 py-2 bg-white" onClick={() => selectBlock(currentBlockIndex)}>
+                      选中整个段落块
+                    </button>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="annotation-bars street-sticker bg-surface-lighter p-3 sm:p-4">
