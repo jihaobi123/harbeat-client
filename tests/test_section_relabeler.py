@@ -93,6 +93,30 @@ def test_missing_model_fails_closed() -> None:
     assert metadata["status"] == "disabled"
 
 
+def test_context_model_fails_closed_when_songformer_context_is_missing() -> None:
+    model = _force_verse_model()
+    model["requires_structure_context"] = True
+
+    segments, metadata = apply_section_relabeler(
+        _segments(), model=model, shadow_mode=False
+    )
+
+    assert segments == _segments()
+    assert metadata == {"status": "structure_context_missing", "changed_count": 0}
+
+
+def test_non_finite_inference_fails_closed() -> None:
+    model = _force_verse_model()
+    model["feature_scale"][0] = 1e-320
+
+    segments, metadata = apply_section_relabeler(
+        _segments(), model=model, shadow_mode=False
+    )
+
+    assert segments == _segments()
+    assert metadata == {"status": "inference_failed", "changed_count": 0}
+
+
 def test_songformer_silence_remains_the_training_and_output_label() -> None:
     source = {
         "start": 0.0,

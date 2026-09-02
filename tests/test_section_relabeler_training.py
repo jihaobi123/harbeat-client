@@ -159,7 +159,7 @@ def test_complete_workbench_contract_trains_exports_and_evaluates_once(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     terminal_result = json.loads(capsys.readouterr().out)
     assert exported_model is not None
-    assert len(exported_model["feature_names"]) == 52
+    assert len(exported_model["feature_names"]) == 1100
     assert report["dataset_validation"]["trainable"]["development"] == 160
     assert report["test"]["status"] == "evaluated_once"
     assert report["test"]["reviewed_segments"] == 2

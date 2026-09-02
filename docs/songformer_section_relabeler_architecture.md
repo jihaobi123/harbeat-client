@@ -27,7 +27,7 @@ flowchart LR
     P2 --> D
 
     D --> V[数据契约校验]
-    V --> F[52 维段落特征]
+    V --> F[1100 维段落特征]
     F --> CV[歌曲级五折交叉验证]
     CV --> LR[标准化 + 多类逻辑回归]
     LR --> G[90% 修改精度门槛<br/>至少 10 次修改]
@@ -44,12 +44,12 @@ flowchart LR
 | 标注数据集 | SongFormer 段落 | `annotations.json` | 数据版本 `harbeat_section_label_dataset_v1` |
 | 双人分片 | 73 首完整歌曲 | 两个互斥的可编辑视图 | 按整首歌分配，绝不拆散同一首歌 |
 | 人工标注 | 当前歌曲音频和上下文 | 标签、信心、边界状态、不确定状态、备注 | 点击只写浏览器草稿；每首歌整批校验和原子提交 |
-| 特征层 | 单首歌的全部段落 | 每段 52 维 `float64` 向量 | 标注页和训练器调用同一个特征函数 |
+| 特征层 | 单首歌的全部段落 | 每段 1100 维 `float64` 向量 | 标注页和训练器调用同一个特征函数 |
 | 训练层 | 65 首开发集 | 标准化参数、逻辑回归权重、阈值 | 五折按歌曲分组，防止同曲泄漏 |
 | 锁定评估 | 8 首测试歌 | Accuracy、Macro F1、净收益、混淆矩阵 | 特征、模型和阈值锁定后评估 |
 | 正式推理 | SongFormer 结果 + JSON 模型 | 建议标签或保留原标签 | 默认影子模式，失败时无条件回退 |
 
-## 4. 52 维特征结构
+## 4. 1100 维特征结构
 
 特征不依赖额外的乐器分轨模型，全部来自 SongFormer 段落序列和段落位置：
 
@@ -61,10 +61,14 @@ flowchart LR
 - 时长、对数时长、相对时长、起止和中点位置、相对段落序号：7 维。
 - SongFormer 置信度、第一与第二候选的 margin、归一化熵：3 维。
 - 是否为第一段、是否为最后一段：2 维。
+- 全歌重复关系、候选标签出现次序、前后重复距离等结构摘要：24 维。
+- MusicFM/MuQ 的 global/local 段落表示：每个视图同时保留歌曲内原始向量和中心化向量，
+  通过固定种子、固定矩阵的高斯随机投影压缩为 `8 × 128 = 1024` 维。投影不读取人工标签，
+  训练和正式 SongFormer 运行器调用同一实现。
 
 完整特征名称由
 `app/modules/library/section_relabeler.py::feature_names()` 唯一生成。数据校验器会实际调用
-`build_track_feature_matrix()`，确认结果严格为 `段落数 × 52` 且全部为有限数值。
+`build_track_feature_matrix()`，确认结果严格为 `段落数 × 1100` 且全部为有限数值。
 
 ## 5. 双人标注与实时汇总
 
@@ -122,7 +126,8 @@ flowchart LR
 
 建议评审者重点检查：
 
-- `app/modules/library/section_relabeler.py`：52 维特征和纯 NumPy 推理。
+- `app/modules/library/section_relabeler.py`：1100 维特征和纯 NumPy 推理。
+- `app/modules/library/section_structure_context.py`：全歌重复关系和固定投影特征。
 - `app/modules/library/section_relabel_dataset.py`：标注与训练共用的数据契约。
 - `app/modules/library/section_annotation_partitions.py`：固定分片、访问控制和进度汇总。
 - `scripts/section_label_workbench.py`：实时标注服务、写保护、复核修正与并发版本检查。

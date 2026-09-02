@@ -69,7 +69,7 @@ def test_pending_dataset_contract_is_valid_and_reports_progress(tmp_path) -> Non
     assert report["tracks"] == {"development": 1, "test": 0}
     assert report["segments"] == {"development": 2, "test": 0}
     assert report["reviewed"]["development"] == 0
-    assert report["feature_count"] == len(feature_names()) == 52
+    assert report["feature_count"] == len(feature_names()) == 1100
 
 
 def test_structurally_chaotic_track_is_excluded_from_completion_and_training(
@@ -95,7 +95,7 @@ def test_structurally_chaotic_track_is_excluded_from_completion_and_training(
     assert report["excluded_tracks"]["development"] == 1
     assert report["segments"]["development"] == 0
     assert report["reviewed"]["development"] == 0
-    assert x.shape == (0, 52)
+    assert x.shape == (0, 1100)
     assert y.size == 0
 
 
@@ -159,7 +159,7 @@ def test_workbench_output_round_trips_directly_into_training_input(tmp_path) -> 
     assert store.backup_path.is_file()
     assert report["reviewed"]["development"] == 2
     assert report["trainable"]["development"] == 2
-    assert x.shape == (2, 52)
+    assert x.shape == (2, 1100)
     assert np.all(np.isfinite(x))
     assert y.tolist() == ["chorus", "pre-chorus"]
     assert originals.tolist() == ["chorus", "verse"]
@@ -190,7 +190,7 @@ def test_reviewed_uncertain_and_boundary_errors_are_excluded_not_invalid(tmp_pat
         "boundary_error": 1,
         "low_confidence": 0,
     }
-    assert x.shape == (0, 52)
+    assert x.shape == (0, 1100)
     assert y.size == 0
 
 

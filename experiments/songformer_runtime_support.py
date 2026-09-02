@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 
 
-RUNNER_VERSION = "songformer_isolated_v3"
+RUNNER_VERSION = "songformer_isolated_v4"
 LABEL_CONTRACT_VERSION = "songformer_label_contract_v2"
 
 _MODEL_FILE_SUFFIXES = {

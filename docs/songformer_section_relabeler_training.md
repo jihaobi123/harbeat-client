@@ -97,11 +97,23 @@ Part 2 为 36 首、533 段。分片映射和随机密钥保存在本机标注�
 
 ```bash
 /Users/xueyawen/xywfiles/harbeat/harbeat-client/.venv/bin/python \
-  scripts/train_section_relabeler.py \
+  scripts/enrich_section_structure_context.py \
   --dataset /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/annotations.json \
-  --model-output config/model_validation/songformer_section_relabeler_v1.json \
-  --report-output /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/training_report.json
+  --songformer-manifest /path/to/songformer/manifest.json \
+  --cache-dir /path/to/songformer/feature_cache/<cache-namespace> \
+  --output /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/annotations.structure-context-v2.json
+
+/Users/xueyawen/xywfiles/harbeat/harbeat-client/.venv/bin/python \
+  scripts/train_section_relabeler.py \
+  --dataset /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/annotations.structure-context-v2.json \
+  --model-output config/model_validation/songformer_section_relabeler_v2.json \
+  --report-output /Users/xueyawen/xywfiles/harbeat/section_relabel_v1/training_report.json \
+  --require-structure-context
 ```
+
+结构增强脚本直接复用 SongFormer 已生成的 MusicFM/MuQ 缓存，为每段自动计算全歌重复关系和固定随机
+投影；它不读取、推断或修改人工标签，也不需要标注者补充任何字段。正式训练必须使用
+`--require-structure-context`，避免误用只有旧 52 维输入的数据。
 
 训练脚本自动完成：
 

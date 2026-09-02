@@ -49,6 +49,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--minimum-override-count", type=int, default=10)
     parser.add_argument("--include-low-confidence", action="store_true")
     parser.add_argument("--allow-incomplete", action="store_true")
+    parser.add_argument("--require-structure-context", action="store_true")
     return parser.parse_args()
 
 
@@ -130,9 +131,10 @@ def collect_rows(
 
 def fit_classifier(x: np.ndarray, y: np.ndarray, c_value: float):
     scaler = StandardScaler().fit(x)
+    scaler.scale_ = np.where(scaler.scale_ < 1e-8, 1.0, scaler.scale_)
     classifier = LogisticRegression(
         C=c_value,
-        class_weight="balanced",
+        class_weight=None,
         max_iter=3000,
         solver="lbfgs",
         random_state=20260831,
@@ -194,7 +196,7 @@ def choose_threshold(
     minimum_precision: float,
     minimum_override_count: int,
 ) -> tuple[float, dict[str, Any]]:
-    candidates = [round(value, 2) for value in np.arange(0.50, 0.951, 0.025)] + [1.0]
+    candidates = [round(value, 2) for value in np.arange(0.50, 0.951, 0.01)] + [1.0]
     scored: list[tuple[tuple[float, ...], float, dict[str, Any]]] = []
     for threshold in candidates:
         prediction, _ = gated_predictions(probabilities, labels, originals, threshold)
@@ -206,8 +208,8 @@ def choose_threshold(
         score = (
             1.0 if acceptable else 0.0,
             float(result["net_gain"]),
-            float(result["macro_f1"]),
             float(result["override_precision"]),
+            float(result["macro_f1"]),
             threshold,
         )
         scored.append((score, threshold, result))
@@ -240,7 +242,7 @@ def cross_validate(
         np.ndarray,
         dict[str, Any],
     ] | None = None
-    for c_value in (0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0):
+    for c_value in (0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0):
         oof = np.zeros((len(y), len(labels)), dtype=np.float64)
         for train_index, validation_index in splitter.split(x, y, groups):
             scaler, classifier = fit_classifier(x[train_index], y[train_index], c_value)
@@ -318,6 +320,14 @@ def main() -> int:
     except DatasetValidationError as exc:
         raise SystemExit(f"dataset contract validation failed: {exc}") from exc
     development_progress = review_progress(payload, "development")
+    if (
+        args.require_structure_context
+        and not dataset_validation["structure_context"]["development"]["complete"]
+    ):
+        raise SystemExit(
+            "development structure context is incomplete; run "
+            "scripts/enrich_section_structure_context.py before training"
+        )
     development_complete = review_is_complete(development_progress)
     if not args.allow_incomplete and not development_complete:
         missing = development_progress["total"] - development_progress["reviewed"]
@@ -343,7 +353,8 @@ def main() -> int:
     coefficients, intercept = export_parameters(classifier)
     dataset_hash = hashlib.sha256(raw_bytes).hexdigest()
     parameter_hash = hashlib.sha256(coefficients.tobytes() + intercept.tobytes()).hexdigest()
-    model_version = f"harbeat_section_relabeler_v1_{parameter_hash[:10]}"
+    model_version = f"harbeat_section_relabeler_v2_{parameter_hash[:10]}"
+    development_context = dataset_validation["structure_context"]["development"]
     model_payload = {
         "schema_version": RELABELER_SCHEMA_VERSION,
         "model_version": model_version,
@@ -358,6 +369,7 @@ def main() -> int:
         "intercept": intercept.tolist(),
         "override_threshold": threshold,
         "target_thresholds": {},
+        "requires_structure_context": bool(development_context["complete"]),
         "training_summary": {
             "development_segments": int(len(y)),
             "development_tracks": int(len(set(groups.tolist()))),

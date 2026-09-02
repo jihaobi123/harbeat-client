@@ -18,6 +18,12 @@ from experiments.songformer_runtime_support import (
     sha256_file_cached,
     source_revision,
 )
+from app.modules.library.section_structure_context import (
+    STRUCTURE_CONTEXT_FEATURE_NAMES,
+    STRUCTURE_CONTEXT_VERSION,
+    build_segment_structure_context,
+    structure_context_is_complete,
+)
 
 
 LABELS = {
@@ -30,6 +36,62 @@ LABELS = {
     6: "silence",
     26: "pre-chorus",
 }
+
+
+def test_structure_context_detects_repeated_nonadjacent_sections() -> None:
+    segments = [
+        {"start": 0.0, "end": 1.0, "label": "intro"},
+        {"start": 1.0, "end": 2.0, "label": "verse"},
+        {"start": 2.0, "end": 3.0, "label": "chorus"},
+        {"start": 3.0, "end": 4.0, "label": "verse"},
+        {"start": 4.0, "end": 5.0, "label": "chorus"},
+    ]
+    frames = np.asarray(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    context = build_segment_structure_context(
+        segments,
+        encoder_views={
+            "musicfm_global": frames,
+            "musicfm_local": frames,
+            "muq_global": frames,
+            "muq_local": frames,
+        },
+        duration=5.0,
+    )
+
+    assert len(context) == len(segments)
+    assert context[2]["schema_version"] == STRUCTURE_CONTEXT_VERSION
+    assert set(context[2]) == {
+        "schema_version",
+        "encoder_projection",
+        *STRUCTURE_CONTEXT_FEATURE_NAMES,
+    }
+    assert len(context[2]["encoder_projection"]["values"]) == 1024
+    assert context[2]["nearest_nonadjacent_similarity"] > 0.99
+    assert context[2]["next_best_similarity"] > 0.99
+    assert structure_context_is_complete(
+        {"structure_context_features": context[2]}
+    )
+    repeated = build_segment_structure_context(
+        segments,
+        encoder_views={
+            "musicfm_global": frames,
+            "musicfm_local": frames,
+            "muq_global": frames,
+            "muq_local": frames,
+        },
+        duration=5.0,
+    )
+    assert repeated[2]["encoder_projection"]["values"] == pytest.approx(
+        context[2]["encoder_projection"]["values"]
+    )
 
 
 def test_aggregate_segment_label_evidence_keeps_all_allowed_classes() -> None:

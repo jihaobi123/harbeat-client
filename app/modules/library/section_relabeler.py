@@ -20,9 +20,14 @@ from app.modules.library.section_contract import (
     canonical_structure_label,
     normalize_structure_probabilities,
 )
+from app.modules.library.section_structure_context import (
+    STRUCTURE_ENCODER_PROJECTION_FEATURE_COUNT,
+    STRUCTURE_CONTEXT_FEATURE_NAMES,
+    structure_context_is_complete,
+)
 
 
-RELABELER_SCHEMA_VERSION = "harbeat_section_relabeler_v1"
+RELABELER_SCHEMA_VERSION = "harbeat_section_relabeler_v2"
 # SongFormer evidence keeps its original eight-class vocabulary.  In particular,
 # ``silence`` remains a source feature so old and newly prepared datasets share
 # the exact same feature schema.
@@ -88,6 +93,11 @@ def feature_names() -> list[str]:
             "is_first_segment",
             "is_last_segment",
         ]
+    )
+    names.extend(f"structure_context_{name}" for name in STRUCTURE_CONTEXT_FEATURE_NAMES)
+    names.extend(
+        f"structure_encoder_projection_{index:04d}"
+        for index in range(STRUCTURE_ENCODER_PROJECTION_FEATURE_COUNT)
     )
     return names
 
@@ -156,6 +166,15 @@ def build_track_feature_matrix(
                 1.0 if index == count - 1 else 0.0,
             ]
         )
+        raw_context = item.get("structure_context_features")
+        context = raw_context if isinstance(raw_context, Mapping) else {}
+        vector.extend(float(context.get(name, 0.0) or 0.0) for name in STRUCTURE_CONTEXT_FEATURE_NAMES)
+        raw_projection = context.get("encoder_projection")
+        projection = raw_projection if isinstance(raw_projection, Mapping) else {}
+        values = list(projection.get("values") or [])
+        if len(values) != STRUCTURE_ENCODER_PROJECTION_FEATURE_COUNT:
+            values = [0.0] * STRUCTURE_ENCODER_PROJECTION_FEATURE_COUNT
+        vector.extend(float(value) for value in values)
         vectors.append(vector)
 
     matrix = np.asarray(vectors, dtype=np.float64)
@@ -224,7 +243,7 @@ def default_relabeler_model_path() -> Path:
         Path(__file__).resolve().parents[3]
         / "config"
         / "model_validation"
-        / "songformer_section_relabeler_v1.json"
+        / "songformer_section_relabeler_v2.json"
     )
 
 
@@ -241,8 +260,11 @@ def predict_relabeler_probabilities(
 ) -> np.ndarray:
     validated = model if "_coefficients" in model else _validate_model(model)
     matrix = build_track_feature_matrix(segments)
-    standardized = (matrix - validated["_mean"]) / validated["_scale"]
-    logits = standardized @ validated["_coefficients"].T + validated["_intercept"]
+    with np.errstate(over="raise", divide="raise", invalid="raise"):
+        standardized = (matrix - validated["_mean"]) / validated["_scale"]
+        logits = standardized @ validated["_coefficients"].T + validated["_intercept"]
+    if not np.all(np.isfinite(logits)):
+        raise ValueError("section relabeler produced non-finite logits")
     logits -= np.max(logits, axis=1, keepdims=True)
     exponentials = np.exp(logits)
     return exponentials / np.sum(exponentials, axis=1, keepdims=True)
@@ -265,7 +287,14 @@ def apply_section_relabeler(
     if selected_model is None:
         return result, {"status": "model_missing", "changed_count": 0}
     validated = selected_model if "_coefficients" in selected_model else _validate_model(selected_model)
-    probabilities = predict_relabeler_probabilities(result, validated)
+    if validated.get("requires_structure_context") and not all(
+        structure_context_is_complete(item) for item in result
+    ):
+        return result, {"status": "structure_context_missing", "changed_count": 0}
+    try:
+        probabilities = predict_relabeler_probabilities(result, validated)
+    except (FloatingPointError, ValueError):
+        return result, {"status": "inference_failed", "changed_count": 0}
     labels = list(validated["labels"])
     global_threshold = float(validated.get("override_threshold", 1.0))
     target_thresholds = {
@@ -302,7 +331,7 @@ def apply_section_relabeler(
             {
                 "structure_label": final_label,
                 "structure_label_source": (
-                    "harbeat_section_relabeler_v1"
+                    "harbeat_section_relabeler_v2"
                     if final_label != source_original
                     else "songformer_candidate"
                 ),

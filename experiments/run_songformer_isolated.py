@@ -33,6 +33,14 @@ import torch
 
 scipy.inf = np.inf
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.modules.library.section_structure_context import (
+    build_segment_structure_context,
+)
+
 if __package__:
     from .songformer_runtime_support import (
         LABEL_CONTRACT_VERSION,
@@ -496,6 +504,20 @@ def run_backend(
                 allowed_label_ids=evidence_label_ids,
                 id_to_label=SONGFORMER_LABEL_BY_ID,
             )
+            structure_context = build_segment_structure_context(
+                segments,
+                encoder_views={
+                    "musicfm_global": musicfm["global"],
+                    "musicfm_local": musicfm["local"],
+                    "muq_global": muq["global"],
+                    "muq_local": muq["local"],
+                },
+                duration=float(musicfm["duration"]),
+            )
+            segments = [
+                {**segment, "structure_context_features": context}
+                for segment, context in zip(segments, structure_context)
+            ]
             for segment in segments:
                 segment["start"] = round(float(segment["start"]), 3)
                 segment["end"] = round(float(segment["end"]), 3)

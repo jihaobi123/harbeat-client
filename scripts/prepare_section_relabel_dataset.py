@@ -149,6 +149,7 @@ def build_track(
                 },
                 "songformer_confidence": raw.get("label_confidence"),
                 "songformer_margin": raw.get("label_margin"),
+                "structure_context_features": raw.get("structure_context_features"),
                 "annotation": annotation,
             }
         )

@@ -22,6 +22,9 @@ from app.modules.library.section_relabeler import (
     canonical_target_structure_label,
     feature_names,
 )
+from app.modules.library.section_structure_context import (
+    structure_context_is_complete,
+)
 
 
 DATASET_SCHEMA_VERSION = "harbeat_section_label_dataset_v1"
@@ -189,6 +192,7 @@ def validate_dataset(
     boundary_error_counts: Counter[str] = Counter()
     low_confidence_counts: Counter[str] = Counter()
     excluded_track_counts: Counter[str] = Counter()
+    structure_context_counts: Counter[str] = Counter()
     class_counts: dict[str, Counter[str]] = {
         split: Counter() for split in DATASET_SPLITS
     }
@@ -255,6 +259,11 @@ def validate_dataset(
                 issues.append(f"{location} must be an object")
                 continue
             segment = dict(raw_segment)
+            if segment.get("structure_context_features") is not None:
+                if not structure_context_is_complete(segment):
+                    issues.append(f"{location}.structure_context_features is invalid")
+                elif not excluded:
+                    structure_context_counts[split] += 1
             if segment.get("segment_index") != index:
                 issues.append(
                     f"{location}.segment_index must equal its list position {index}"
@@ -391,4 +400,12 @@ def validate_dataset(
             split: dict(class_counts[split]) for split in DATASET_SPLITS
         },
         "feature_count": len(feature_names()),
+        "structure_context": {
+            split: {
+                "available": structure_context_counts[split],
+                "total": segment_counts[split],
+                "complete": structure_context_counts[split] == segment_counts[split],
+            }
+            for split in DATASET_SPLITS
+        },
     }

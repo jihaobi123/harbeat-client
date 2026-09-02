@@ -3535,7 +3535,7 @@ def analyze_audio_file(file_path: str, *, title: str | None = None, artist: str 
                 "all_in_one_fallback_candidate"
                 if section_selection["fallback_used"]
                 else (
-                    "harbeat_section_relabeler_v1"
+                    "harbeat_section_relabeler_v2"
                     if section_relabeler_result.get("changed_count", 0) > 0
                     else "songformer_candidate"
                 )
