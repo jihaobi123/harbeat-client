@@ -1,0 +1,1907 @@
+{
+  "model_version": "c03_encoder_projection_v3_2ec272b1b92d",
+  "candidate_id": "c03_encoder_projection_v3",
+  "description": "Whole-song structure plus fixed MusicFM/MuQ encoder projections.",
+  "dimensions": 1100,
+  "selected_c": 0.001,
+  "override_threshold": 0.63,
+  "hyperparameter_trials": [
+    {
+      "c": 0.0003,
+      "selected_threshold_for_c": 1.0,
+      "metrics": {
+        "segment_count": 437,
+        "accuracy": 0.8329519450800915,
+        "macro_f1": 0.7844891486450369,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 0,
+        "fixed_errors": 0,
+        "introduced_errors": 0,
+        "net_gain": 0,
+        "override_precision": 1.0,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            131,
+            19,
+            8,
+            0,
+            2,
+            0,
+            5
+          ],
+          [
+            0,
+            5,
+            112,
+            0,
+            5,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ]
+      }
+    },
+    {
+      "c": 0.001,
+      "selected_threshold_for_c": 0.63,
+      "metrics": {
+        "segment_count": 437,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8071605178298873,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 10,
+        "fixed_errors": 9,
+        "introduced_errors": 0,
+        "net_gain": 9,
+        "override_precision": 0.9,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            18,
+            6,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            115,
+            0,
+            2,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ]
+      }
+    },
+    {
+      "c": 0.003,
+      "selected_threshold_for_c": 0.73,
+      "metrics": {
+        "segment_count": 437,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8071605178298873,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 10,
+        "fixed_errors": 9,
+        "introduced_errors": 0,
+        "net_gain": 9,
+        "override_precision": 0.9,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            18,
+            6,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            115,
+            0,
+            2,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ]
+      }
+    },
+    {
+      "c": 0.01,
+      "selected_threshold_for_c": 1.0,
+      "metrics": {
+        "segment_count": 437,
+        "accuracy": 0.8329519450800915,
+        "macro_f1": 0.7844891486450369,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 0,
+        "fixed_errors": 0,
+        "introduced_errors": 0,
+        "net_gain": 0,
+        "override_precision": 1.0,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            131,
+            19,
+            8,
+            0,
+            2,
+            0,
+            5
+          ],
+          [
+            0,
+            5,
+            112,
+            0,
+            5,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ]
+      }
+    },
+    {
+      "c": 0.03,
+      "selected_threshold_for_c": 1.0,
+      "metrics": {
+        "segment_count": 437,
+        "accuracy": 0.8329519450800915,
+        "macro_f1": 0.7844891486450369,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 0,
+        "fixed_errors": 0,
+        "introduced_errors": 0,
+        "net_gain": 0,
+        "override_precision": 1.0,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            131,
+            19,
+            8,
+            0,
+            2,
+            0,
+            5
+          ],
+          [
+            0,
+            5,
+            112,
+            0,
+            5,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ]
+      }
+    }
+  ],
+  "primary_grouped_oof": {
+    "segment_count": 437,
+    "accuracy": 0.8535469107551488,
+    "macro_f1": 0.8071605178298873,
+    "baseline_accuracy": 0.8329519450800915,
+    "baseline_macro_f1": 0.7844891486450369,
+    "changed_count": 10,
+    "fixed_errors": 9,
+    "introduced_errors": 0,
+    "net_gain": 9,
+    "override_precision": 0.9,
+    "confusion_matrix": [
+      [
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        137,
+        18,
+        6,
+        0,
+        2,
+        0,
+        2
+      ],
+      [
+        0,
+        5,
+        115,
+        0,
+        2,
+        1,
+        0,
+        1
+      ],
+      [
+        0,
+        1,
+        1,
+        7,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        2,
+        12,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        2,
+        0,
+        0,
+        29,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        24,
+        0
+      ],
+      [
+        0,
+        4,
+        11,
+        1,
+        2,
+        0,
+        0,
+        11
+      ]
+    ],
+    "labels": [
+      "intro",
+      "verse",
+      "chorus",
+      "bridge",
+      "instrumental",
+      "outro",
+      "silence",
+      "pre-chorus"
+    ],
+    "per_class": {
+      "intro": {
+        "precision": 0.9743589743589743,
+        "recall": 1.0,
+        "f1": 0.987012987012987,
+        "support": 38
+      },
+      "verse": {
+        "precision": 0.9256756756756757,
+        "recall": 0.8253012048192772,
+        "f1": 0.8726114649681529,
+        "support": 166
+      },
+      "chorus": {
+        "precision": 0.777027027027027,
+        "recall": 0.9274193548387096,
+        "f1": 0.8455882352941176,
+        "support": 124
+      },
+      "bridge": {
+        "precision": 0.4375,
+        "recall": 0.7777777777777778,
+        "f1": 0.56,
+        "support": 9
+      },
+      "instrumental": {
+        "precision": 0.75,
+        "recall": 0.8,
+        "f1": 0.7741935483870968,
+        "support": 15
+      },
+      "outro": {
+        "precision": 0.90625,
+        "recall": 0.90625,
+        "f1": 0.90625,
+        "support": 32
+      },
+      "silence": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 24
+      },
+      "pre-chorus": {
+        "precision": 0.7857142857142857,
+        "recall": 0.3793103448275862,
+        "f1": 0.5116279069767442,
+        "support": 29
+      }
+    },
+    "ungated_classifier_accuracy": 0.7848970251716247,
+    "ungated_classifier_macro_f1": 0.5988907606303564,
+    "changes": [
+      {
+        "track_id": "64f489707fddc310",
+        "segment_index": 3,
+        "start": 54.722,
+        "end": 72.603,
+        "original": "pre-chorus",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "1b0fdbbffc8d0e98",
+        "segment_index": 5,
+        "start": 84.843,
+        "end": 101.884,
+        "original": "instrumental",
+        "target": "chorus",
+        "proposed": "chorus",
+        "final": "chorus",
+        "correct": true
+      },
+      {
+        "track_id": "61f26b2414652cfe",
+        "segment_index": 2,
+        "start": 29.041,
+        "end": 47.762,
+        "original": "pre-chorus",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "61f26b2414652cfe",
+        "segment_index": 4,
+        "start": 67.443,
+        "end": 86.643,
+        "original": "instrumental",
+        "target": "chorus",
+        "proposed": "chorus",
+        "final": "chorus",
+        "correct": true
+      },
+      {
+        "track_id": "61f26b2414652cfe",
+        "segment_index": 6,
+        "start": 105.844,
+        "end": 124.565,
+        "original": "pre-chorus",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "61f26b2414652cfe",
+        "segment_index": 8,
+        "start": 144.246,
+        "end": 163.447,
+        "original": "instrumental",
+        "target": "chorus",
+        "proposed": "chorus",
+        "final": "chorus",
+        "correct": true
+      },
+      {
+        "track_id": "a51ea8ccae8992c6",
+        "segment_index": 8,
+        "start": 177.247,
+        "end": 199.928,
+        "original": "chorus",
+        "target": "bridge",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": false
+      },
+      {
+        "track_id": "af4abf1b2f376930",
+        "segment_index": 5,
+        "start": 81.363,
+        "end": 99.484,
+        "original": "bridge",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "f2c81091b622e284",
+        "segment_index": 10,
+        "start": 154.446,
+        "end": 169.687,
+        "original": "bridge",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "86facefc6cb91411",
+        "segment_index": 3,
+        "start": 40.442,
+        "end": 53.882,
+        "original": "chorus",
+        "target": "verse",
+        "proposed": "verse",
+        "final": "verse",
+        "correct": true
+      }
+    ]
+  },
+  "repeated_grouped_oof": {
+    "runs": [
+      {
+        "segment_count": 437,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8071605178298873,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 10,
+        "fixed_errors": 9,
+        "introduced_errors": 0,
+        "net_gain": 9,
+        "override_precision": 0.9,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            18,
+            6,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            115,
+            0,
+            2,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 20260831
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.851258581235698,
+        "macro_f1": 0.7983670012354125,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 15,
+        "fixed_errors": 11,
+        "introduced_errors": 3,
+        "net_gain": 8,
+        "override_precision": 0.7333333333333333,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            138,
+            17,
+            7,
+            0,
+            2,
+            0,
+            1
+          ],
+          [
+            0,
+            6,
+            115,
+            0,
+            2,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            6,
+            11,
+            1,
+            2,
+            0,
+            0,
+            9
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 1
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.8094480065626583,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 10,
+        "fixed_errors": 10,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 1.0,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            18,
+            6,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            116,
+            0,
+            2,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 7
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8443935926773455,
+        "macro_f1": 0.7966349162684514,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 15,
+        "fixed_errors": 9,
+        "introduced_errors": 4,
+        "net_gain": 5,
+        "override_precision": 0.6,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            135,
+            19,
+            5,
+            0,
+            2,
+            0,
+            4
+          ],
+          [
+            0,
+            6,
+            116,
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            7,
+            11,
+            1,
+            2,
+            0,
+            0,
+            8
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 17
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8053195698820786,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 12,
+        "fixed_errors": 10,
+        "introduced_errors": 1,
+        "net_gain": 9,
+        "override_precision": 0.8333333333333334,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            136,
+            18,
+            7,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            117,
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            5,
+            11,
+            1,
+            2,
+            0,
+            0,
+            10
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 29
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8489702517162472,
+        "macro_f1": 0.8026143983076289,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 12,
+        "fixed_errors": 9,
+        "introduced_errors": 2,
+        "net_gain": 7,
+        "override_precision": 0.75,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            135,
+            18,
+            7,
+            0,
+            2,
+            0,
+            3
+          ],
+          [
+            0,
+            6,
+            116,
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            5,
+            11,
+            1,
+            2,
+            0,
+            0,
+            10
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 43
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8421052631578947,
+        "macro_f1": 0.7925400769207536,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 11,
+        "fixed_errors": 7,
+        "introduced_errors": 3,
+        "net_gain": 4,
+        "override_precision": 0.6363636363636364,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            135,
+            19,
+            7,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            6,
+            114,
+            0,
+            2,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            6,
+            11,
+            1,
+            2,
+            0,
+            0,
+            9
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 71
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.8120161862225486,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 12,
+        "fixed_errors": 10,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 0.8333333333333334,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            19,
+            5,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            116,
+            0,
+            2,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 101
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8061389478576979,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 12,
+        "fixed_errors": 10,
+        "introduced_errors": 1,
+        "net_gain": 9,
+        "override_precision": 0.8333333333333334,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            137,
+            18,
+            6,
+            0,
+            2,
+            0,
+            2
+          ],
+          [
+            0,
+            5,
+            116,
+            0,
+            1,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            5,
+            11,
+            1,
+            2,
+            0,
+            0,
+            10
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 313
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.8466819221967964,
+        "macro_f1": 0.8002877064129224,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 11,
+        "fixed_errors": 8,
+        "introduced_errors": 2,
+        "net_gain": 6,
+        "override_precision": 0.7272727272727273,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            135,
+            18,
+            7,
+            0,
+            2,
+            0,
+            3
+          ],
+          [
+            0,
+            6,
+            115,
+            0,
+            1,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            5,
+            11,
+            1,
+            2,
+            0,
+            0,
+            10
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 997
+      }
+    ],
+    "accuracy": {
+      "minimum": 0.8421052631578947,
+      "median": 0.8524027459954233,
+      "maximum": 0.8558352402745996
+    },
+    "macro_f1": {
+      "minimum": 0.7925400769207536,
+      "median": 0.8039669840948538,
+      "maximum": 0.8120161862225486
+    },
+    "changed_count": {
+      "minimum": 10.0,
+      "median": 12.0,
+      "maximum": 15.0
+    },
+    "fixed_errors": {
+      "minimum": 7.0,
+      "median": 9.5,
+      "maximum": 11.0
+    },
+    "introduced_errors": {
+      "minimum": 0.0,
+      "median": 1.5,
+      "maximum": 4.0
+    },
+    "net_gain": {
+      "minimum": 4.0,
+      "median": 8.5,
+      "maximum": 10.0
+    },
+    "override_precision": {
+      "minimum": 0.6,
+      "median": 0.7916666666666667,
+      "maximum": 1.0
+    }
+  }
+}

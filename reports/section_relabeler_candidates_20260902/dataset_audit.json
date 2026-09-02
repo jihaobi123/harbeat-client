@@ -1,0 +1,534 @@
+{
+  "audit_schema_version": "harbeat_section_dataset_audit_v1",
+  "dataset": "/Users/xueyawen/xywfiles/harbeat/section_relabel_v1/exports/2026-09-02-final-review/annotations.structure-context-v2.json",
+  "dataset_sha256": "ef5d2db8e7857b4c9138b9ab932bfd2f0faf33e6b2df5e9f633999ba8ddd68e9",
+  "dataset_validation": {
+    "schema_version": "harbeat_section_label_dataset_v1",
+    "tracks": {
+      "development": 65,
+      "test": 8
+    },
+    "segments": {
+      "development": 457,
+      "test": 113
+    },
+    "reviewed": {
+      "development": 437,
+      "test": 113
+    },
+    "trainable": {
+      "development": 437,
+      "test": 113
+    },
+    "excluded_tracks": {
+      "development": 28,
+      "test": 0
+    },
+    "excluded": {
+      "development": {
+        "uncertain": 0,
+        "boundary_error": 0,
+        "low_confidence": 0
+      },
+      "test": {
+        "uncertain": 0,
+        "boundary_error": 0,
+        "low_confidence": 0
+      }
+    },
+    "class_counts": {
+      "development": {
+        "intro": 38,
+        "chorus": 124,
+        "verse": 166,
+        "pre-chorus": 29,
+        "outro": 32,
+        "silence": 24,
+        "instrumental": 15,
+        "bridge": 9
+      },
+      "test": {
+        "intro": 7,
+        "verse": 41,
+        "pre-chorus": 20,
+        "chorus": 29,
+        "outro": 3,
+        "silence": 8,
+        "bridge": 4,
+        "instrumental": 1
+      }
+    },
+    "feature_count": 1100,
+    "structure_context": {
+      "development": {
+        "available": 457,
+        "total": 457,
+        "complete": true
+      },
+      "test": {
+        "available": 113,
+        "total": 113,
+        "complete": true
+      }
+    }
+  },
+  "split_summary": {
+    "development": {
+      "all_tracks": 65,
+      "excluded_tracks": 28,
+      "usable_tracks": 37,
+      "all_segments": 944,
+      "usable_segments": 457,
+      "reviewed_segments": 437,
+      "trainable_segments": 437
+    },
+    "test": {
+      "all_tracks": 8,
+      "excluded_tracks": 0,
+      "usable_tracks": 8,
+      "all_segments": 113,
+      "usable_segments": 113,
+      "reviewed_segments": 113,
+      "trainable_segments": 113
+    }
+  },
+  "development": {
+    "effective_independent_samples": 36,
+    "trainable_segments": 437,
+    "songformer_baseline_correct": 364,
+    "songformer_baseline_errors": 73,
+    "songformer_baseline_accuracy": 0.8329519450800915,
+    "labels": {
+      "intro": {
+        "segments": 38,
+        "independent_tracks": 34,
+        "median_duration_seconds": 14.281,
+        "duration_p10_seconds": 7.896000000000001,
+        "duration_p90_seconds": 22.21300000000002
+      },
+      "verse": {
+        "segments": 166,
+        "independent_tracks": 36,
+        "median_duration_seconds": 17.460499999999996,
+        "duration_p10_seconds": 13.560499999999998,
+        "duration_p90_seconds": 26.28099999999999
+      },
+      "chorus": {
+        "segments": 124,
+        "independent_tracks": 35,
+        "median_duration_seconds": 17.581000000000007,
+        "duration_p10_seconds": 13.681000000000003,
+        "duration_p90_seconds": 21.048300000000005
+      },
+      "bridge": {
+        "segments": 9,
+        "independent_tracks": 6,
+        "median_duration_seconds": 19.079999999999984,
+        "duration_p10_seconds": 16.247999999999983,
+        "duration_p90_seconds": 25.104999999999993
+      },
+      "instrumental": {
+        "segments": 15,
+        "independent_tracks": 8,
+        "median_duration_seconds": 19.439999999999998,
+        "duration_p10_seconds": 15.528599999999994,
+        "duration_p90_seconds": 23.160999999999994
+      },
+      "outro": {
+        "segments": 32,
+        "independent_tracks": 25,
+        "median_duration_seconds": 17.040999999999997,
+        "duration_p10_seconds": 12.960000000000008,
+        "duration_p90_seconds": 20.44810000000001
+      },
+      "silence": {
+        "segments": 24,
+        "independent_tracks": 24,
+        "median_duration_seconds": 2.3400000000000176,
+        "duration_p10_seconds": 1.3559999999999945,
+        "duration_p90_seconds": 4.800699999999995
+      },
+      "pre-chorus": {
+        "segments": 29,
+        "independent_tracks": 11,
+        "median_duration_seconds": 17.041,
+        "duration_p10_seconds": 14.857000000000022,
+        "duration_p90_seconds": 19.969000000000012
+      }
+    },
+    "source_label_counts": {
+      "intro": 39,
+      "verse": 141,
+      "chorus": 147,
+      "outro": 32,
+      "silence": 24,
+      "pre-chorus": 17,
+      "instrumental": 19,
+      "bridge": 18
+    },
+    "source_to_human_confusion": {
+      "bridge": {
+        "verse": 8,
+        "pre-chorus": 1,
+        "bridge": 7,
+        "instrumental": 2
+      },
+      "chorus": {
+        "verse": 19,
+        "chorus": 112,
+        "pre-chorus": 11,
+        "bridge": 2,
+        "instrumental": 1,
+        "outro": 2
+      },
+      "instrumental": {
+        "instrumental": 12,
+        "chorus": 5,
+        "pre-chorus": 2
+      },
+      "intro": {
+        "intro": 38,
+        "verse": 1
+      },
+      "outro": {
+        "outro": 29,
+        "chorus": 1,
+        "verse": 2
+      },
+      "pre-chorus": {
+        "verse": 5,
+        "pre-chorus": 11,
+        "chorus": 1
+      },
+      "silence": {
+        "silence": 24
+      },
+      "verse": {
+        "chorus": 5,
+        "pre-chorus": 4,
+        "verse": 131,
+        "outro": 1
+      }
+    },
+    "styles": {
+      "afro_afrobeats": {
+        "tracks": 5,
+        "segments": 62,
+        "songformer_accuracy": 0.8548387096774194
+      },
+      "amapiano": {
+        "tracks": 2,
+        "segments": 27,
+        "songformer_accuracy": 0.7037037037037037
+      },
+      "baile_funk": {
+        "tracks": 4,
+        "segments": 43,
+        "songformer_accuracy": 0.7674418604651163
+      },
+      "boombap": {
+        "tracks": 3,
+        "segments": 41,
+        "songformer_accuracy": 0.8536585365853658
+      },
+      "dancehall": {
+        "tracks": 5,
+        "segments": 53,
+        "songformer_accuracy": 0.7358490566037735
+      },
+      "disco": {
+        "tracks": 2,
+        "segments": 31,
+        "songformer_accuracy": 0.8064516129032258
+      },
+      "funk": {
+        "tracks": 4,
+        "segments": 49,
+        "songformer_accuracy": 0.8571428571428571
+      },
+      "grime_uk_hiphop": {
+        "tracks": 1,
+        "segments": 12,
+        "songformer_accuracy": 1.0
+      },
+      "house": {
+        "tracks": 1,
+        "segments": 13,
+        "songformer_accuracy": 0.9230769230769231
+      },
+      "jazz_hiphop": {
+        "tracks": 4,
+        "segments": 55,
+        "songformer_accuracy": 0.9272727272727272
+      },
+      "jersey_club": {
+        "tracks": 3,
+        "segments": 28,
+        "songformer_accuracy": 0.7857142857142857
+      },
+      "trap": {
+        "tracks": 2,
+        "segments": 23,
+        "songformer_accuracy": 0.9130434782608695
+      }
+    },
+    "position_quartiles": {
+      "Q1": {
+        "segments": 121,
+        "errors": 14,
+        "error_rate": 0.11570247933884298
+      },
+      "Q2": {
+        "segments": 104,
+        "errors": 15,
+        "error_rate": 0.14423076923076922
+      },
+      "Q3": {
+        "segments": 114,
+        "errors": 30,
+        "error_rate": 0.2631578947368421
+      },
+      "Q4": {
+        "segments": 98,
+        "errors": 14,
+        "error_rate": 0.14285714285714285
+      }
+    },
+    "songformer_confidence_buckets": {
+      "<0.60": {
+        "segments": 102,
+        "errors": 38,
+        "error_rate": 0.37254901960784315
+      },
+      "0.60-0.79": {
+        "segments": 78,
+        "errors": 17,
+        "error_rate": 0.21794871794871795
+      },
+      "0.80-0.94": {
+        "segments": 149,
+        "errors": 13,
+        "error_rate": 0.087248322147651
+      },
+      ">=0.95": {
+        "segments": 108,
+        "errors": 5,
+        "error_rate": 0.046296296296296294
+      }
+    },
+    "most_common_transitions": [
+      [
+        "chorus -> verse",
+        56
+      ],
+      [
+        "verse -> chorus",
+        55
+      ],
+      [
+        "intro -> verse",
+        23
+      ],
+      [
+        "verse -> pre-chorus",
+        21
+      ],
+      [
+        "pre-chorus -> chorus",
+        21
+      ],
+      [
+        "chorus -> outro",
+        20
+      ],
+      [
+        "outro -> silence",
+        14
+      ],
+      [
+        "intro -> chorus",
+        11
+      ],
+      [
+        "chorus -> silence",
+        7
+      ],
+      [
+        "chorus -> instrumental",
+        6
+      ],
+      [
+        "chorus -> bridge",
+        6
+      ],
+      [
+        "instrumental -> verse",
+        5
+      ],
+      [
+        "verse -> instrumental",
+        5
+      ],
+      [
+        "bridge -> chorus",
+        4
+      ],
+      [
+        "verse -> outro",
+        3
+      ],
+      [
+        "instrumental -> outro",
+        3
+      ],
+      [
+        "instrumental -> chorus",
+        3
+      ],
+      [
+        "verse -> silence",
+        2
+      ],
+      [
+        "chorus -> pre-chorus",
+        1
+      ],
+      [
+        "pre-chorus -> verse",
+        1
+      ],
+      [
+        "outro -> chorus",
+        1
+      ],
+      [
+        "bridge -> silence",
+        1
+      ],
+      [
+        "bridge -> verse",
+        1
+      ]
+    ],
+    "most_common_compact_sequences": [
+      [
+        "intro -> chorus -> verse -> chorus -> verse -> chorus -> outro -> silence",
+        4
+      ],
+      [
+        "intro -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> outro -> silence",
+        3
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> outro -> silence",
+        2
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> verse -> chorus -> silence",
+        2
+      ],
+      [
+        "intro -> chorus -> verse -> pre-chorus -> chorus -> verse -> chorus -> pre-chorus -> verse -> outro -> chorus -> outro -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> instrumental -> outro",
+        1
+      ],
+      [
+        "intro -> verse -> pre-chorus -> chorus -> instrumental -> verse -> pre-chorus -> chorus -> outro",
+        1
+      ],
+      [
+        "intro -> verse",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> outro",
+        1
+      ],
+      [
+        "intro -> chorus -> verse -> chorus -> verse -> chorus -> instrumental -> verse -> chorus -> outro -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> verse -> chorus -> verse -> instrumental -> verse -> chorus -> verse -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> bridge -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> outro",
+        1
+      ],
+      [
+        "chorus -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> bridge -> chorus -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> verse -> chorus -> outro",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> instrumental -> verse -> instrumental -> chorus -> instrumental -> outro",
+        1
+      ],
+      [
+        "intro -> chorus -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> bridge -> chorus -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> pre-chorus -> chorus -> verse -> pre-chorus -> chorus -> bridge -> chorus -> outro",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> verse -> instrumental -> chorus -> outro -> silence",
+        1
+      ],
+      [
+        "intro -> verse -> chorus -> verse -> chorus -> verse -> chorus -> verse -> chorus -> silence",
+        1
+      ]
+    ]
+  },
+  "feature_sources": {
+    "songformer_local": {
+      "dimensions": 52,
+      "coverage": 1.0
+    },
+    "whole_song_structure": {
+      "dimensions": 24,
+      "coverage": 1.0
+    },
+    "encoder_projection": {
+      "dimensions": 1024,
+      "coverage": 1.0
+    },
+    "mixed_audio_dsp": {
+      "available": true,
+      "path": "/Users/xueyawen/xywfiles/harbeat/section_relabel_v1/exports/2026-09-02-final-review/section_audio_context_v1.npz",
+      "sha256": "e2098100f77a58dd6969a6890eb9dbdab8fdea0e841c4f28b937f4729df249e0",
+      "rows": 1057,
+      "dimensions": 312,
+      "failures": 0,
+      "development_trainable_coverage": 1.0
+    },
+    "demucs_stems": {
+      "available": true,
+      "path": "/Users/xueyawen/xywfiles/harbeat/section_relabel_v1/exports/2026-09-02-final-review/section_stem_context_v1.npz",
+      "sha256": "78c40ced9a78ab9483904a3bef230646bbabf6d0e73b09879e14a0d082ae1db6",
+      "rows": 457,
+      "dimensions": 208,
+      "failures": 0,
+      "development_trainable_coverage": 1.0
+    }
+  },
+  "warnings": [
+    "bridge only appears in 6 independent development tracks",
+    "instrumental only appears in 8 independent development tracks",
+    "Segments in one song are correlated; model selection and evaluation must group by track_id.",
+    "The current eight-song test split is historically exposed; final selection needs a new untouched blind test set."
+  ]
+}
