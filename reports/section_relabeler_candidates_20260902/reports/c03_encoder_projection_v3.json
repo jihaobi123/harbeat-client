@@ -1,10 +1,10 @@
 {
-  "model_version": "c03_encoder_projection_v3_2ec272b1b92d",
+  "model_version": "c03_encoder_projection_v3_4572af3e2eb8",
   "candidate_id": "c03_encoder_projection_v3",
   "description": "Whole-song structure plus fixed MusicFM/MuQ encoder projections.",
   "dimensions": 1100,
-  "selected_c": 0.001,
-  "override_threshold": 0.63,
+  "selected_c": 0.003,
+  "override_threshold": 0.74,
   "hyperparameter_trials": [
     {
       "c": 0.0003,
@@ -116,11 +116,11 @@
     },
     {
       "c": 0.001,
-      "selected_threshold_for_c": 0.63,
+      "selected_threshold_for_c": 0.65,
       "metrics": {
         "segment_count": 437,
         "accuracy": 0.8535469107551488,
-        "macro_f1": 0.8071605178298873,
+        "macro_f1": 0.8071907259407259,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
         "changed_count": 10,
@@ -141,21 +141,21 @@
           ],
           [
             1,
-            137,
-            18,
-            6,
+            135,
+            17,
+            7,
             0,
             2,
             0,
-            2
+            4
           ],
           [
             0,
             5,
-            115,
+            117,
             0,
-            2,
             1,
+            0,
             0,
             1
           ],
@@ -224,18 +224,18 @@
     },
     {
       "c": 0.003,
-      "selected_threshold_for_c": 0.73,
+      "selected_threshold_for_c": 0.74,
       "metrics": {
         "segment_count": 437,
-        "accuracy": 0.8535469107551488,
-        "macro_f1": 0.8071605178298873,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.807992007992008,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
         "changed_count": 10,
-        "fixed_errors": 9,
+        "fixed_errors": 10,
         "introduced_errors": 0,
-        "net_gain": 9,
-        "override_precision": 0.9,
+        "net_gain": 10,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -249,28 +249,28 @@
           ],
           [
             1,
-            137,
-            18,
-            6,
+            136,
+            16,
+            7,
             0,
             2,
             0,
-            2
+            4
           ],
           [
             0,
             5,
-            115,
+            117,
             0,
-            2,
             1,
+            0,
             0,
             1
           ],
           [
             0,
-            1,
-            1,
+            0,
+            2,
             7,
             0,
             0,
@@ -549,15 +549,15 @@
   ],
   "primary_grouped_oof": {
     "segment_count": 437,
-    "accuracy": 0.8535469107551488,
-    "macro_f1": 0.8071605178298873,
+    "accuracy": 0.8558352402745996,
+    "macro_f1": 0.807992007992008,
     "baseline_accuracy": 0.8329519450800915,
     "baseline_macro_f1": 0.7844891486450369,
     "changed_count": 10,
-    "fixed_errors": 9,
+    "fixed_errors": 10,
     "introduced_errors": 0,
-    "net_gain": 9,
-    "override_precision": 0.9,
+    "net_gain": 10,
+    "override_precision": 1.0,
     "confusion_matrix": [
       [
         38,
@@ -571,28 +571,28 @@
       ],
       [
         1,
-        137,
-        18,
-        6,
+        136,
+        16,
+        7,
         0,
         2,
         0,
-        2
+        4
       ],
       [
         0,
         5,
-        115,
+        117,
         0,
-        2,
         1,
+        0,
         0,
         1
       ],
       [
         0,
-        1,
-        1,
+        0,
+        2,
         7,
         0,
         0,
@@ -658,33 +658,33 @@
         "support": 38
       },
       "verse": {
-        "precision": 0.9256756756756757,
-        "recall": 0.8253012048192772,
-        "f1": 0.8726114649681529,
+        "precision": 0.9315068493150684,
+        "recall": 0.8192771084337349,
+        "f1": 0.8717948717948718,
         "support": 166
       },
       "chorus": {
-        "precision": 0.777027027027027,
-        "recall": 0.9274193548387096,
-        "f1": 0.8455882352941176,
+        "precision": 0.785234899328859,
+        "recall": 0.9435483870967742,
+        "f1": 0.8571428571428571,
         "support": 124
       },
       "bridge": {
-        "precision": 0.4375,
+        "precision": 0.4117647058823529,
         "recall": 0.7777777777777778,
-        "f1": 0.56,
+        "f1": 0.5384615384615384,
         "support": 9
       },
       "instrumental": {
-        "precision": 0.75,
+        "precision": 0.8,
         "recall": 0.8,
-        "f1": 0.7741935483870968,
+        "f1": 0.8,
         "support": 15
       },
       "outro": {
-        "precision": 0.90625,
+        "precision": 0.9354838709677419,
         "recall": 0.90625,
-        "f1": 0.90625,
+        "f1": 0.9206349206349206,
         "support": 32
       },
       "silence": {
@@ -694,14 +694,14 @@
         "support": 24
       },
       "pre-chorus": {
-        "precision": 0.7857142857142857,
+        "precision": 0.6875,
         "recall": 0.3793103448275862,
-        "f1": 0.5116279069767442,
+        "f1": 0.4888888888888889,
         "support": 29
       }
     },
-    "ungated_classifier_accuracy": 0.7848970251716247,
-    "ungated_classifier_macro_f1": 0.5988907606303564,
+    "ungated_classifier_accuracy": 0.7780320366132724,
+    "ungated_classifier_macro_f1": 0.6202025970134235,
     "changes": [
       {
         "track_id": "64f489707fddc310",
@@ -726,14 +726,36 @@
         "correct": true
       },
       {
-        "track_id": "61f26b2414652cfe",
-        "segment_index": 2,
-        "start": 29.041,
-        "end": 47.762,
-        "original": "pre-chorus",
+        "track_id": "9008996c0865ce47",
+        "segment_index": 3,
+        "start": 42.122,
+        "end": 57.482,
+        "original": "chorus",
         "target": "verse",
         "proposed": "verse",
         "final": "verse",
+        "correct": true
+      },
+      {
+        "track_id": "9008996c0865ce47",
+        "segment_index": 5,
+        "start": 80.523,
+        "end": 95.644,
+        "original": "instrumental",
+        "target": "chorus",
+        "proposed": "chorus",
+        "final": "chorus",
+        "correct": true
+      },
+      {
+        "track_id": "9008996c0865ce47",
+        "segment_index": 15,
+        "start": 266.891,
+        "end": 281.891,
+        "original": "outro",
+        "target": "chorus",
+        "proposed": "chorus",
+        "final": "chorus",
         "correct": true
       },
       {
@@ -749,17 +771,6 @@
       },
       {
         "track_id": "61f26b2414652cfe",
-        "segment_index": 6,
-        "start": 105.844,
-        "end": 124.565,
-        "original": "pre-chorus",
-        "target": "verse",
-        "proposed": "verse",
-        "final": "verse",
-        "correct": true
-      },
-      {
-        "track_id": "61f26b2414652cfe",
         "segment_index": 8,
         "start": 144.246,
         "end": 163.447,
@@ -768,17 +779,6 @@
         "proposed": "chorus",
         "final": "chorus",
         "correct": true
-      },
-      {
-        "track_id": "a51ea8ccae8992c6",
-        "segment_index": 8,
-        "start": 177.247,
-        "end": 199.928,
-        "original": "chorus",
-        "target": "bridge",
-        "proposed": "verse",
-        "final": "verse",
-        "correct": false
       },
       {
         "track_id": "af4abf1b2f376930",
@@ -792,11 +792,11 @@
         "correct": true
       },
       {
-        "track_id": "f2c81091b622e284",
-        "segment_index": 10,
-        "start": 154.446,
-        "end": 169.687,
-        "original": "bridge",
+        "track_id": "dcc387e31f96b0f7",
+        "segment_index": 14,
+        "start": 262.45,
+        "end": 278.051,
+        "original": "chorus",
         "target": "verse",
         "proposed": "verse",
         "final": "verse",
@@ -819,15 +819,15 @@
     "runs": [
       {
         "segment_count": 437,
-        "accuracy": 0.8535469107551488,
-        "macro_f1": 0.8071605178298873,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.807992007992008,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
         "changed_count": 10,
-        "fixed_errors": 9,
+        "fixed_errors": 10,
         "introduced_errors": 0,
-        "net_gain": 9,
-        "override_precision": 0.9,
+        "net_gain": 10,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -841,21 +841,126 @@
           ],
           [
             1,
-            137,
-            18,
-            6,
+            136,
+            16,
+            7,
             0,
             2,
             0,
-            2
+            4
           ],
           [
             0,
             5,
-            115,
+            117,
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
             0,
             2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
             1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 20260831
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.851258581235698,
+        "macro_f1": 0.8034397094050794,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 9,
+        "fixed_errors": 8,
+        "introduced_errors": 0,
+        "net_gain": 8,
+        "override_precision": 0.8888888888888888,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            135,
+            17,
+            7,
+            0,
+            2,
+            0,
+            4
+          ],
+          [
+            0,
+            5,
+            116,
+            0,
+            2,
+            0,
             0,
             1
           ],
@@ -920,123 +1025,18 @@
           "silence",
           "pre-chorus"
         ],
-        "seed": 20260831
-      },
-      {
-        "segment_count": 437,
-        "accuracy": 0.851258581235698,
-        "macro_f1": 0.7983670012354125,
-        "baseline_accuracy": 0.8329519450800915,
-        "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 15,
-        "fixed_errors": 11,
-        "introduced_errors": 3,
-        "net_gain": 8,
-        "override_precision": 0.7333333333333333,
-        "confusion_matrix": [
-          [
-            38,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          [
-            1,
-            138,
-            17,
-            7,
-            0,
-            2,
-            0,
-            1
-          ],
-          [
-            0,
-            6,
-            115,
-            0,
-            2,
-            0,
-            0,
-            1
-          ],
-          [
-            0,
-            1,
-            1,
-            7,
-            0,
-            0,
-            0,
-            0
-          ],
-          [
-            0,
-            0,
-            1,
-            2,
-            12,
-            0,
-            0,
-            0
-          ],
-          [
-            0,
-            1,
-            2,
-            0,
-            0,
-            29,
-            0,
-            0
-          ],
-          [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            24,
-            0
-          ],
-          [
-            0,
-            6,
-            11,
-            1,
-            2,
-            0,
-            0,
-            9
-          ]
-        ],
-        "labels": [
-          "intro",
-          "verse",
-          "chorus",
-          "bridge",
-          "instrumental",
-          "outro",
-          "silence",
-          "pre-chorus"
-        ],
         "seed": 1
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8558352402745996,
-        "macro_f1": 0.8094480065626583,
+        "accuracy": 0.8489702517162472,
+        "macro_f1": 0.801070300077122,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 10,
-        "fixed_errors": 10,
+        "changed_count": 7,
+        "fixed_errors": 7,
         "introduced_errors": 0,
-        "net_gain": 10,
+        "net_gain": 7,
         "override_precision": 1.0,
         "confusion_matrix": [
           [
@@ -1051,21 +1051,21 @@
           ],
           [
             1,
-            137,
-            18,
-            6,
+            135,
+            17,
+            7,
             0,
             2,
             0,
-            2
+            4
           ],
           [
             0,
             5,
-            116,
+            115,
             0,
             2,
-            0,
+            1,
             0,
             1
           ],
@@ -1134,120 +1134,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8443935926773455,
-        "macro_f1": 0.7966349162684514,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.8080377546637414,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 15,
-        "fixed_errors": 9,
-        "introduced_errors": 4,
-        "net_gain": 5,
-        "override_precision": 0.6,
-        "confusion_matrix": [
-          [
-            38,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-          ],
-          [
-            1,
-            135,
-            19,
-            5,
-            0,
-            2,
-            0,
-            4
-          ],
-          [
-            0,
-            6,
-            116,
-            0,
-            1,
-            0,
-            0,
-            1
-          ],
-          [
-            0,
-            1,
-            1,
-            7,
-            0,
-            0,
-            0,
-            0
-          ],
-          [
-            0,
-            0,
-            1,
-            2,
-            12,
-            0,
-            0,
-            0
-          ],
-          [
-            0,
-            1,
-            2,
-            0,
-            0,
-            29,
-            0,
-            0
-          ],
-          [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            24,
-            0
-          ],
-          [
-            0,
-            7,
-            11,
-            1,
-            2,
-            0,
-            0,
-            8
-          ]
-        ],
-        "labels": [
-          "intro",
-          "verse",
-          "chorus",
-          "bridge",
-          "instrumental",
-          "outro",
-          "silence",
-          "pre-chorus"
-        ],
-        "seed": 17
-      },
-      {
-        "segment_count": 437,
-        "accuracy": 0.8535469107551488,
-        "macro_f1": 0.8053195698820786,
-        "baseline_accuracy": 0.8329519450800915,
-        "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 12,
+        "changed_count": 11,
         "fixed_errors": 10,
-        "introduced_errors": 1,
-        "net_gain": 9,
-        "override_precision": 0.8333333333333334,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 0.9090909090909091,
         "confusion_matrix": [
           [
             38,
@@ -1262,12 +1157,12 @@
           [
             1,
             136,
-            18,
+            16,
             7,
             0,
             2,
             0,
-            2
+            4
           ],
           [
             0,
@@ -1321,13 +1216,118 @@
           ],
           [
             0,
-            5,
+            4,
             11,
             1,
             2,
             0,
             0,
-            10
+            11
+          ]
+        ],
+        "labels": [
+          "intro",
+          "verse",
+          "chorus",
+          "bridge",
+          "instrumental",
+          "outro",
+          "silence",
+          "pre-chorus"
+        ],
+        "seed": 17
+      },
+      {
+        "segment_count": 437,
+        "accuracy": 0.851258581235698,
+        "macro_f1": 0.8063029443674605,
+        "baseline_accuracy": 0.8329519450800915,
+        "baseline_macro_f1": 0.7844891486450369,
+        "changed_count": 8,
+        "fixed_errors": 8,
+        "introduced_errors": 0,
+        "net_gain": 8,
+        "override_precision": 1.0,
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            134,
+            18,
+            7,
+            0,
+            2,
+            0,
+            4
+          ],
+          [
+            0,
+            5,
+            117,
+            0,
+            1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            2,
+            7,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            2,
+            12,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            2,
+            0,
+            0,
+            29,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            24,
+            0
+          ],
+          [
+            0,
+            4,
+            11,
+            1,
+            2,
+            0,
+            0,
+            11
           ]
         ],
         "labels": [
@@ -1344,15 +1344,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8489702517162472,
-        "macro_f1": 0.8026143983076289,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.808989864555558,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 12,
-        "fixed_errors": 9,
-        "introduced_errors": 2,
-        "net_gain": 7,
-        "override_precision": 0.75,
+        "changed_count": 10,
+        "fixed_errors": 10,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -1366,8 +1366,8 @@
           ],
           [
             1,
-            135,
-            18,
+            136,
+            17,
             7,
             0,
             2,
@@ -1376,8 +1376,8 @@
           ],
           [
             0,
-            6,
-            116,
+            5,
+            117,
             0,
             1,
             0,
@@ -1386,8 +1386,8 @@
           ],
           [
             0,
-            1,
-            1,
+            0,
+            2,
             7,
             0,
             0,
@@ -1426,13 +1426,13 @@
           ],
           [
             0,
-            5,
+            4,
             11,
             1,
             2,
             0,
             0,
-            10
+            11
           ]
         ],
         "labels": [
@@ -1449,15 +1449,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8421052631578947,
-        "macro_f1": 0.7925400769207536,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.8060804414986869,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 11,
-        "fixed_errors": 7,
-        "introduced_errors": 3,
-        "net_gain": 4,
-        "override_precision": 0.6363636363636364,
+        "changed_count": 10,
+        "fixed_errors": 10,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -1471,28 +1471,28 @@
           ],
           [
             1,
-            135,
-            19,
+            137,
+            16,
             7,
             0,
             2,
             0,
-            2
+            3
           ],
           [
             0,
-            6,
-            114,
+            5,
+            116,
             0,
             2,
-            1,
+            0,
             0,
             1
           ],
           [
             0,
-            1,
-            1,
+            0,
+            2,
             7,
             0,
             0,
@@ -1531,13 +1531,13 @@
           ],
           [
             0,
-            6,
+            4,
             11,
             1,
             2,
             0,
             0,
-            9
+            11
           ]
         ],
         "labels": [
@@ -1554,15 +1554,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8558352402745996,
-        "macro_f1": 0.8120161862225486,
+        "accuracy": 0.8535469107551488,
+        "macro_f1": 0.8052817194539585,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 12,
-        "fixed_errors": 10,
+        "changed_count": 10,
+        "fixed_errors": 9,
         "introduced_errors": 0,
-        "net_gain": 10,
-        "override_precision": 0.8333333333333334,
+        "net_gain": 9,
+        "override_precision": 0.9,
         "confusion_matrix": [
           [
             38,
@@ -1576,13 +1576,13 @@
           ],
           [
             1,
-            137,
-            19,
-            5,
+            136,
+            17,
+            7,
             0,
             2,
             0,
-            2
+            3
           ],
           [
             0,
@@ -1659,15 +1659,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8535469107551488,
-        "macro_f1": 0.8061389478576979,
+        "accuracy": 0.8558352402745996,
+        "macro_f1": 0.8071433890390627,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
-        "changed_count": 12,
+        "changed_count": 10,
         "fixed_errors": 10,
-        "introduced_errors": 1,
-        "net_gain": 9,
-        "override_precision": 0.8333333333333334,
+        "introduced_errors": 0,
+        "net_gain": 10,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -1682,8 +1682,8 @@
           [
             1,
             137,
-            18,
-            6,
+            17,
+            7,
             0,
             2,
             0,
@@ -1694,15 +1694,15 @@
             5,
             116,
             0,
-            1,
-            1,
+            2,
+            0,
             0,
             1
           ],
           [
             0,
-            1,
-            1,
+            0,
+            2,
             7,
             0,
             0,
@@ -1741,13 +1741,13 @@
           ],
           [
             0,
-            5,
+            4,
             11,
             1,
             2,
             0,
             0,
-            10
+            11
           ]
         ],
         "labels": [
@@ -1764,15 +1764,15 @@
       },
       {
         "segment_count": 437,
-        "accuracy": 0.8466819221967964,
-        "macro_f1": 0.8002877064129224,
+        "accuracy": 0.8581235697940504,
+        "macro_f1": 0.8098314580343334,
         "baseline_accuracy": 0.8329519450800915,
         "baseline_macro_f1": 0.7844891486450369,
         "changed_count": 11,
-        "fixed_errors": 8,
-        "introduced_errors": 2,
-        "net_gain": 6,
-        "override_precision": 0.7272727272727273,
+        "fixed_errors": 11,
+        "introduced_errors": 0,
+        "net_gain": 11,
+        "override_precision": 1.0,
         "confusion_matrix": [
           [
             38,
@@ -1786,8 +1786,8 @@
           ],
           [
             1,
-            135,
-            18,
+            137,
+            16,
             7,
             0,
             2,
@@ -1796,18 +1796,18 @@
           ],
           [
             0,
-            6,
-            115,
+            5,
+            117,
             0,
             1,
-            1,
+            0,
             0,
             1
           ],
           [
             0,
-            1,
-            1,
+            0,
+            2,
             7,
             0,
             0,
@@ -1846,13 +1846,13 @@
           ],
           [
             0,
-            5,
+            4,
             11,
             1,
             2,
             0,
             0,
-            10
+            11
           ]
         ],
         "labels": [
@@ -1869,38 +1869,38 @@
       }
     ],
     "accuracy": {
-      "minimum": 0.8421052631578947,
-      "median": 0.8524027459954233,
-      "maximum": 0.8558352402745996
+      "minimum": 0.8489702517162472,
+      "median": 0.8558352402745996,
+      "maximum": 0.8581235697940504
     },
     "macro_f1": {
-      "minimum": 0.7925400769207536,
-      "median": 0.8039669840948538,
-      "maximum": 0.8120161862225486
+      "minimum": 0.801070300077122,
+      "median": 0.8067231667032616,
+      "maximum": 0.8098314580343334
     },
     "changed_count": {
-      "minimum": 10.0,
-      "median": 12.0,
-      "maximum": 15.0
+      "minimum": 7.0,
+      "median": 10.0,
+      "maximum": 11.0
     },
     "fixed_errors": {
       "minimum": 7.0,
-      "median": 9.5,
+      "median": 10.0,
       "maximum": 11.0
     },
     "introduced_errors": {
       "minimum": 0.0,
-      "median": 1.5,
-      "maximum": 4.0
+      "median": 0.0,
+      "maximum": 0.0
     },
     "net_gain": {
-      "minimum": 4.0,
-      "median": 8.5,
-      "maximum": 10.0
+      "minimum": 7.0,
+      "median": 10.0,
+      "maximum": 11.0
     },
     "override_precision": {
-      "minimum": 0.6,
-      "median": 0.7916666666666667,
+      "minimum": 0.8888888888888888,
+      "median": 1.0,
       "maximum": 1.0
     }
   }

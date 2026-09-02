@@ -1,5 +1,5 @@
 {
-  "model_version": "c01_songformer_local_v1_9efabdb1d4dd",
+  "model_version": "c01_songformer_local_v1_aec70d147c16",
   "candidate_id": "c01_songformer_local_v1",
   "description": "SongFormer probabilities, adjacent labels, duration and position only.",
   "dimensions": 52,
@@ -700,8 +700,8 @@
         "support": 29
       }
     },
-    "ungated_classifier_accuracy": 0.528604118993135,
-    "ungated_classifier_macro_f1": 0.1612179487179487,
+    "ungated_classifier_accuracy": 0.5423340961098398,
+    "ungated_classifier_macro_f1": 0.16745868534163333,
     "changes": []
   },
   "repeated_grouped_oof": {

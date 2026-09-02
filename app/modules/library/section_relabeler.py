@@ -262,7 +262,16 @@ def predict_relabeler_probabilities(
     matrix = build_track_feature_matrix(segments)
     with np.errstate(over="raise", divide="raise", invalid="raise"):
         standardized = (matrix - validated["_mean"]) / validated["_scale"]
-        logits = standardized @ validated["_coefficients"].T + validated["_intercept"]
+        # ``matmul`` in NumPy 2.0 on macOS Accelerate can emit transient
+        # overflow/invalid floating-point flags for these small, finite arrays.
+        # The non-optimized contraction is deterministic, numerically equivalent,
+        # and keeps the fail-closed guard meaningful.
+        logits = np.einsum(
+            "ij,kj->ik",
+            standardized,
+            validated["_coefficients"],
+            optimize=False,
+        ) + validated["_intercept"]
     if not np.all(np.isfinite(logits)):
         raise ValueError("section relabeler produced non-finite logits")
     logits -= np.max(logits, axis=1, keepdims=True)

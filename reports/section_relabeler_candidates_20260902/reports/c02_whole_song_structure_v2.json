@@ -1,5 +1,5 @@
 {
-  "model_version": "c02_whole_song_structure_v2_1dda82cc0605",
+  "model_version": "c02_whole_song_structure_v2_8a8098b6fbbe",
   "candidate_id": "c02_whole_song_structure_v2",
   "description": "Local evidence plus whole-song recurrence and relative occurrence features.",
   "dimensions": 76,
@@ -700,8 +700,8 @@
         "support": 29
       }
     },
-    "ungated_classifier_accuracy": 0.540045766590389,
-    "ungated_classifier_macro_f1": 0.1672565960609439,
+    "ungated_classifier_accuracy": 0.5537757437070938,
+    "ungated_classifier_macro_f1": 0.1715927825609086,
     "changes": []
   },
   "repeated_grouped_oof": {

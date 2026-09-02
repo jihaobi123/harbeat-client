@@ -55,7 +55,9 @@ def predict(model: dict[str, Any], x: np.ndarray, originals: np.ndarray) -> tupl
     if x.shape[1] != len(mean) or coefficients.shape != (len(labels), len(mean)):
         raise ValueError(f"model/input dimension mismatch for {model['candidate_id']}")
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-        logits = ((x - mean) / scale) @ coefficients.T + intercept
+        logits = np.einsum(
+            "ij,kj->ik", (x - mean) / scale, coefficients, optimize=False
+        ) + intercept
     if not np.all(np.isfinite(logits)):
         raise ValueError(f"non-finite classifier scores for {model['candidate_id']}")
     probabilities = _softmax(logits)
