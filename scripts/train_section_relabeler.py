@@ -65,6 +65,11 @@ def review_progress(payload: dict[str, Any], split: str) -> dict[str, int]:
     return {"total": total, "reviewed": reviewed, "trainable": trainable}
 
 
+def review_is_complete(progress: dict[str, int]) -> bool:
+    """Return whether a split is eligible for its one-time locked evaluation."""
+    return progress["reviewed"] == progress["total"]
+
+
 def collect_rows(
     payload: dict[str, Any], split: str, *, include_low_confidence: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[dict[str, Any]]]:
@@ -313,10 +318,8 @@ def main() -> int:
     except DatasetValidationError as exc:
         raise SystemExit(f"dataset contract validation failed: {exc}") from exc
     development_progress = review_progress(payload, "development")
-    if (
-        not args.allow_incomplete
-        and development_progress["reviewed"] < development_progress["total"]
-    ):
+    development_complete = review_is_complete(development_progress)
+    if not args.allow_incomplete and not development_complete:
         missing = development_progress["total"] - development_progress["reviewed"]
         raise SystemExit(
             f"development annotation is incomplete: {missing} segments still need review; "
@@ -376,11 +379,20 @@ def main() -> int:
         },
         "test": {"status": "not_fully_reviewed"},
     }
-    test_x, test_y, test_originals, _, test_records = collect_rows(
-        payload, "test", include_low_confidence=args.include_low_confidence
-    )
     test_progress = review_progress(payload, "test")
-    if test_progress["reviewed"] == test_progress["total"] and len(test_y) > 0:
+    if not development_complete:
+        report["test"] = {
+            "status": "skipped_incomplete_development",
+            "reviewed_segments": test_progress["reviewed"],
+            "pending_development_segments": (
+                development_progress["total"] - development_progress["reviewed"]
+            ),
+        }
+    else:
+        test_x, test_y, test_originals, _, test_records = collect_rows(
+            payload, "test", include_low_confidence=args.include_low_confidence
+        )
+    if development_complete and review_is_complete(test_progress) and len(test_y) > 0:
         probabilities = aligned_probabilities(
             classifier, scaler.transform(test_x), list(classifier.classes_)
         )
@@ -403,7 +415,7 @@ def main() -> int:
             for index, record in enumerate(test_records)
         ]
         report["test"] = test_metrics
-    elif test_progress["reviewed"] == test_progress["total"]:
+    elif development_complete and review_is_complete(test_progress):
         report["test"] = {
             "status": "no_evaluable_segments",
             "reviewed_segments": test_progress["reviewed"],
@@ -411,7 +423,7 @@ def main() -> int:
             "excluded_segments": test_progress["total"],
             "evaluation_coverage": 0.0,
         }
-    else:
+    elif development_complete:
         report["test"] = {
             "status": "not_fully_reviewed",
             "reviewed_segments": test_progress["reviewed"],

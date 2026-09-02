@@ -12,6 +12,7 @@ from app.modules.library.section_relabeler import (
 )
 from scripts import train_section_relabeler
 from scripts.train_section_relabeler import cross_validate
+from scripts.train_section_relabeler import review_is_complete
 
 
 def test_grouped_training_selects_a_safe_positive_gain_model() -> None:
@@ -47,6 +48,11 @@ def test_grouped_training_selects_a_safe_positive_gain_model() -> None:
     assert report["folds"] == 5
     assert report["gated_metrics"]["net_gain"] > 0
     assert report["gated_metrics"]["override_precision"] >= 0.8
+
+
+def test_locked_test_requires_complete_development_review() -> None:
+    assert review_is_complete({"total": 160, "reviewed": 160, "trainable": 150})
+    assert not review_is_complete({"total": 160, "reviewed": 159, "trainable": 159})
 
 
 def _annotation(label: str = "", *, uncertain: bool = False) -> dict:
