@@ -106,6 +106,20 @@ def peak_cuda_bytes(torch_module: Any) -> int:
     return 0
 
 
+def panns_compute_precision(requested_precision: str, device: str) -> str:
+    """Select the numerically safe PANNs inference precision.
+
+    Cnn14 DecisionLevelMax has produced non-finite clip probabilities under
+    CUDA FP16 autocast on Jetson. Keep this model in FP32; ADTOF may still use
+    the runtime's requested FP16 mode independently.
+    """
+    if requested_precision not in {"float16", "float32"}:
+        raise ValueError(f"unsupported precision: {requested_precision}")
+    if device not in {"cuda", "cpu"}:
+        raise ValueError(f"unsupported device: {device}")
+    return "float32"
+
+
 def release_cuda(torch_module: Any, *objects: Any) -> None:
     del objects
     if torch_module.cuda.is_available():
@@ -204,6 +218,7 @@ def run_panns(
     checkpoint = torch.load(str(weights), map_location="cpu")
     model.load_state_dict(checkpoint["model"])
     model.eval().to(device)
+    compute_precision = panns_compute_precision(precision, device)
     windows: list[dict[str, Any]] = []
     for start_sec, end_sec in iter_audio_windows(duration_sec):
         start = int(round(start_sec * sample_rate))
@@ -214,7 +229,7 @@ def run_panns(
             clip = np.pad(clip, (0, target_samples - len(clip)))
         tensor = torch.from_numpy(clip[None, :]).to(device)
         with torch.no_grad():
-            if precision == "float16" and device == "cuda":
+            if compute_precision == "float16" and device == "cuda":
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
                     output = model(tensor, None)["clipwise_output"]
             else:
