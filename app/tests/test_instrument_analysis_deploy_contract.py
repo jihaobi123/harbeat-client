@@ -16,8 +16,8 @@ def test_installer_never_resolves_or_replaces_torch():
 
 def test_installer_preserves_virtualenv_python_path():
     script = INSTALLER.read_text()
-    assert 'CORE_PYTHON="$(realpath -m "$3")"' in script
-    assert 'CORE_PYTHON="$(realpath "$3")"' not in script
+    assert 'CORE_PYTHON="$(cd "$(dirname "$3")" && pwd -P)/$(basename "$3")"' in script
+    assert 'CORE_PYTHON="$(realpath' not in script
 
 
 def test_installer_pins_sources_and_verifies_both_checkpoints():

@@ -17,8 +17,8 @@ def test_installer_pins_upstream_and_does_not_replace_jetson_torch():
 
 def test_installer_preserves_virtualenv_python_path():
     installer = (PROJECT_ROOT / "deploy/edmformer/install-jetson.sh").read_text()
-    assert 'CORE_PYTHON="$(realpath -m "$3")"' in installer
-    assert 'CORE_PYTHON="$(realpath "$3")"' not in installer
+    assert 'CORE_PYTHON="$(cd "$(dirname "$3")" && pwd -P)/$(basename "$3")"' in installer
+    assert 'CORE_PYTHON="$(realpath' not in installer
 
 
 def test_installer_reuses_songformer_feature_assets():
