@@ -14,7 +14,7 @@ fi
 
 MODEL_ROOT="$(realpath -m "$1")"
 RUNTIME_ROOT="$(realpath -m "$2")"
-CORE_PYTHON="$(realpath "$3")"
+CORE_PYTHON="$(realpath -m "$3")"
 for target in "$MODEL_ROOT" "$RUNTIME_ROOT"; do
   if [[ -z "$target" || "$target" == "/" || "$target" == "$HOME" ]]; then
     echo "refusing unsafe target: $target" >&2

@@ -14,6 +14,12 @@ def test_installer_never_resolves_or_replaces_torch():
     assert "torch==" not in script
 
 
+def test_installer_preserves_virtualenv_python_path():
+    script = INSTALLER.read_text()
+    assert 'CORE_PYTHON="$(realpath -m "$3")"' in script
+    assert 'CORE_PYTHON="$(realpath "$3")"' not in script
+
+
 def test_installer_pins_sources_and_verifies_both_checkpoints():
     script = INSTALLER.read_text()
     assert 'ADTOF_REVISION="85c192e78f716ea0b111cc8a5ee4a8f6a3a4f8a9"' in script
