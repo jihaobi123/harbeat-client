@@ -1,0 +1,9 @@
+[Unit]
+RequiresMountsFor=/mnt/nas/harbeat
+
+[Service]
+Environment="ANNOTATION_DIR=/mnt/nas/harbeat/data/annotations"
+Environment="BAR_ANNOTATION_DIR=/mnt/nas/harbeat/data/bar-annotations"
+Environment="SONGFORMER_SECTION_DIR=/mnt/nas/harbeat/data/songformer-sections"
+Environment="INSTRUMENT_ANALYSIS_DIR=/mnt/nas/harbeat/data/instrument-analysis"
+Environment="EDM_STRUCTURE_DIR=/mnt/nas/harbeat/data/edm-structure"
