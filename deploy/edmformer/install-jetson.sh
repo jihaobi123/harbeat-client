@@ -5,7 +5,11 @@ EDM98_REVISION="2dd942f2f9e71ffd826346828eeaba1dd3ece56a"
 EDMFORMER_SHA256="1412e207645e9a71adc09777714dd251ce7805cada9bf19518d2e455a977e165"
 MUSICFM_SHA256="218b483a0256ddef736267425fabb166fd97008983696bb9270def464b47bded"
 MUSICFM_STATS_SHA256="c36c61ab10ca4d2e7fdfefc3fcc15205316bec276a06a47baa3641a62c546f22"
+MUSICFM_TRANSFORMER_REPO="facebook/wav2vec2-conformer-rope-large-960h-ft"
+MUSICFM_TRANSFORMER_REVISION="6b36ef01c6443c67ae7ed0822876d091ab50e4aa"
+MUSICFM_TRANSFORMER_CONFIG_SHA256="7a63cb5706c9a37483f1973a3c226d54eb504ce15cf62cb52637019540c8a75d"
 EDMFORMER_URL="https://media.githubusercontent.com/media/25ohms/EDM-98/$EDM98_REVISION/data/checkpoints/model.pt"
+HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
 
 if [[ "$#" -ne 3 ]]; then
   echo "usage: $0 <model-root> <runtime-root> <core-python>" >&2
@@ -40,6 +44,8 @@ MUSICFM_SOURCE="$SONGFORMER_ROOT/src/third_party/musicfm"
 MUSICFM_MODEL="$SONGFORMER_ROOT/src/SongFormer/ckpts/MusicFM/pretrained_msd.pt"
 MUSICFM_STATS="$SONGFORMER_ROOT/src/SongFormer/ckpts/MusicFM/msd_stats.json"
 EDMFORMER_MODEL="$EDM98_ROOT/data/checkpoints/model.pt"
+HF_CACHE_ROOT="${HARBEAT_HF_CACHE_ROOT:-$MODEL_ROOT/../cache/huggingface}"
+SONGFORMER_WRAPPER="$RUNTIME_ROOT/songformer-python"
 OVERLAY_ROOT="$RUNTIME_ROOT/edmformer-packages"
 WRAPPER="$RUNTIME_ROOT/edmformer-python"
 TEMP_ROOT="$(mktemp -d /tmp/harbeat-edmformer-install.XXXXXX)"
@@ -57,8 +63,35 @@ for prerequisite in "$MUSICFM_MODEL" "$MUSICFM_STATS"; do
     exit 69
   fi
 done
+if [[ ! -x "$SONGFORMER_WRAPPER" ]]; then
+  echo "required SongFormer runtime wrapper is missing: $SONGFORMER_WRAPPER" >&2
+  exit 69
+fi
 printf '%s  %s\n' "$MUSICFM_SHA256" "$MUSICFM_MODEL" | sha256sum -c -
 printf '%s  %s\n' "$MUSICFM_STATS_SHA256" "$MUSICFM_STATS" | sha256sum -c -
+
+HF_ENDPOINT="$HF_ENDPOINT" HARBEAT_CORE_PYTHON="$CORE_PYTHON" \
+  "$SONGFORMER_WRAPPER" - "$HF_CACHE_ROOT" \
+  "$MUSICFM_TRANSFORMER_REPO" "$MUSICFM_TRANSFORMER_REVISION" \
+  "$MUSICFM_TRANSFORMER_CONFIG_SHA256" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+from huggingface_hub import hf_hub_download
+
+cache_root = Path(sys.argv[1]).expanduser().resolve()
+config_path = Path(hf_hub_download(
+    repo_id=sys.argv[2],
+    filename="config.json",
+    revision=sys.argv[3],
+    cache_dir=str(cache_root / "hub"),
+))
+actual = hashlib.sha256(config_path.read_bytes()).hexdigest()
+if actual != sys.argv[4]:
+    raise SystemExit(f"MusicFM transformer config checksum mismatch: {actual}")
+print(f"MusicFM transformer config: {config_path}")
+PY
 
 MARKER="$EDM98_ROOT/.harbeat-revision"
 if [[ -f "$MARKER" ]]; then
