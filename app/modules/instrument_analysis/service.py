@@ -62,8 +62,15 @@ def build_instrument_analysis_document(
         )
 
     events_by_bar: dict[int, list[Any]] = defaultdict(list)
+    ignored_unaligned_events = 0
     for raw_event in runtime.models["adtof"].events:
-        event = align_drum_event(raw_event, timeline)
+        try:
+            event = align_drum_event(raw_event, timeline)
+        except ValueError as exc:
+            if str(exc) != "drum event is outside the canonical timeline":
+                raise
+            ignored_unaligned_events += 1
+            continue
         events_by_bar[event.bar_index].append(event)
 
     raw_windows = runtime.models["panns"].windows
@@ -122,6 +129,10 @@ def build_instrument_analysis_document(
             )
         )
 
+    warnings = list(runtime.warnings) + list(timeline.warnings)
+    if ignored_unaligned_events:
+        warnings.append("UNALIGNED_DRUM_EVENTS_IGNORED")
+
     return InstrumentAnalysisDocument(
         track_id=str(song.id),
         status=runtime.status,
@@ -132,6 +143,5 @@ def build_instrument_analysis_document(
         runtime_fingerprint=runtime.runtime_fingerprint,
         models=models,
         bars=bars,
-        warnings=list(runtime.warnings) + list(timeline.warnings),
+        warnings=warnings,
     )
-

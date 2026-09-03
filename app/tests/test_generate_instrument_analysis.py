@@ -139,3 +139,24 @@ def test_generated_sidecar_aligns_events_and_probabilities(tmp_path):
     )
     assert bass.mean_probability == 0.8
     assert document.models["panns"].deployment_status == "shadow"
+
+
+def test_generated_sidecar_ignores_events_before_the_canonical_grid(tmp_path):
+    track = song(tmp_path)
+    track.beat_points = [1.0, 2.0, 3.0]
+    track.downbeats = [1.0]
+    store = InstrumentAnalysisStore(tmp_path / "instrument-analysis")
+
+    report = generate_pilot_instrument_analysis(
+        manifest=PilotManifest("dataset-v1", ("track-1",)),
+        db=FakeDB([track]),
+        runner=FakeRunner(),
+        store=store,
+        song_model=object,
+    )
+
+    document = store.load("track-1")
+    assert report["generated"] == 1
+    assert document is not None
+    assert document.bars[0].drum_events == []
+    assert "UNALIGNED_DRUM_EVENTS_IGNORED" in document.warnings
