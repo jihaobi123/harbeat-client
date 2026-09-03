@@ -85,7 +85,7 @@ config_path = Path(hf_hub_download(
     repo_id=sys.argv[2],
     filename="config.json",
     revision="main",
-    cache_dir=str(cache_root / "hub"),
+    cache_dir=str(cache_root / "transformers"),
 ))
 if config_path.parent.name != sys.argv[3]:
     raise SystemExit(
