@@ -36,6 +36,8 @@ def test_installer_seeds_pinned_musicfm_transformer_config_for_offline_inference
     assert "6b36ef01c6443c67ae7ed0822876d091ab50e4aa" in installer
     assert "7a63cb5706c9a37483f1973a3c226d54eb504ce15cf62cb52637019540c8a75d" in installer
     assert "hf_hub_download" in installer
+    assert 'revision="main"' in installer
+    assert "config_path.parent.name" in installer
 
 
 def test_service_configuration_keeps_edmformer_in_shadow_mode():

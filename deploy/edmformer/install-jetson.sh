@@ -84,9 +84,13 @@ cache_root = Path(sys.argv[1]).expanduser().resolve()
 config_path = Path(hf_hub_download(
     repo_id=sys.argv[2],
     filename="config.json",
-    revision=sys.argv[3],
+    revision="main",
     cache_dir=str(cache_root / "hub"),
 ))
+if config_path.parent.name != sys.argv[3]:
+    raise SystemExit(
+        f"MusicFM transformer config revision mismatch: {config_path.parent.name}"
+    )
 actual = hashlib.sha256(config_path.read_bytes()).hexdigest()
 if actual != sys.argv[4]:
     raise SystemExit(f"MusicFM transformer config checksum mismatch: {actual}")
