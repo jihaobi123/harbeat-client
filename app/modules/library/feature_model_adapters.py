@@ -97,7 +97,24 @@ def _run_json_command(
             text=True,
             timeout=timeout_seconds,
         )
-        payload = json.loads(completed.stdout)
+        stdout = completed.stdout.strip()
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            # Some third-party model runtimes print a startup/status line to
+            # stdout before the worker's JSON contract. Accept the final JSON
+            # object while continuing to reject output with no valid payload.
+            payload = None
+            for line in reversed(stdout.splitlines()):
+                try:
+                    candidate = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(candidate, dict):
+                    payload = candidate
+                    break
+            if payload is None:
+                raise
         if not isinstance(payload, dict):
             raise ValueError("model command must return one JSON object")
         return _route(
