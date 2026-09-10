@@ -2,11 +2,11 @@
 
 ## 目标
 
-本模块将两首已经完成鼓事件分析的歌曲转换为可解释的鼓组重合率。它对应《接歌方案》中同风格歌曲的第二层判断：先比较鼓类，再比较主要节奏落点，最后根据阈值输出候选接法。
+本模块将两首已经完成鼓事件分析的歌曲转换为可解释的鼓组重合率。调用方保证输入歌曲已经属于同一风格，本模块不接收风格字段、不运行风格分类，也不因风格改变分数；它只比较鼓组及主要节奏落点。
 
 当前版本只生成评审数据，不改变正式候选排序。70% 和 85% 仍是方案暂定阈值，必须经过人工标注歌曲对的独立测试集验证后才能启用。
 
-当前分数是全歌主鼓型的对称预筛分数，即 `score(A, B) == score(B, A)`。最终执行混音还必须比较 A 的出歌窗口与 B 的入歌窗口；窗口分数是有方向的，需要单独的 `exit_window -> entry_window` 特征和缓存，不能直接用本缓存替代。
+当前评分版本是 `drum_pair_similarity_v2`。分数是全歌主鼓型的对称预筛分数，即 `score(A, B) == score(B, A)`。最终执行混音还必须比较 A 的出歌窗口与 B 的入歌窗口；窗口分数是有方向的，需要单独的 `exit_window -> entry_window` 特征和缓存，不能直接用本缓存替代。
 
 ## 输入
 
@@ -14,24 +14,34 @@
 
 - `version`
 - `status` 与 `needs_review`
-- 五类鼓事件及数量（用于音色类别重合）
+- 五组事件及数量（用于音色类别重合）
 - `pattern.bars_analyzed`
 - `pattern.dominant` 中按 Downbeat 对齐的 16 步鼓型
 - 置信度与质量标记
 
-下一版接入 MDX23C 后，鼓事件应分别从 `kick.wav`、`snare.wav`、`hihat.wav`、`tom.wav`、`cymbal.wav` 提取，再沿用相同的 16 步表示。当前 `drum_transcription_consensus_v4` 的主鼓型实际只包含 Kick、Snare 和 Hi-hat，Tom/Cymbal 只参与类别重合；不能误写成五类都已经参与落点比较。
+正式比较维度固定为：Kick、Snare/Clap、Closed/Open Hi-hat、808/Bass、Percussion。斜杠表示同一比较组，底层仍可保留 subtype 供解释。
+
+当前兼容映射如下：
+
+- MDX23C `kick` → Kick。
+- MDX23C `snare`，未来的 `clap` → Snare/Clap。
+- MDX23C `hihat`，未来的 `closed_hihat`/`open_hihat` → Closed/Open Hi-hat。
+- Demucs Bass 与未来 808 检测 → 808/Bass。
+- MDX23C `tom`/`cymbal` 与未来其他打击乐检测 → Percussion。
+
+当前 `drum_transcription_consensus_v4` 的主鼓型实际只包含 Kick、Snare 和 Hi-hat。Tom/Cymbal 目前只能映射到 Percussion 的类别存在性，尚未进入落点；808/Bass 尚未进入该输入。缺失组会明确输出 `*_group_unavailable` 并触发人工复核，不会被当成“没有该乐器”。
 
 ## 分数
 
 ### 音色类别重合分
 
-五类鼓使用加权 Jaccard：
+五组使用加权 Jaccard：
 
 - Kick：0.30
-- Snare：0.25
-- Hi-hat：0.20
-- Tom：0.10
-- Cymbal：0.15
+- Snare/Clap：0.25
+- Closed/Open Hi-hat：0.20
+- 808/Bass：0.15
+- Percussion：0.10
 
 两首歌都不存在的鼓类不计为匹配，避免稀疏或失败分析得到虚高分数。
 
@@ -133,13 +143,12 @@ python scripts/calibrate_drum_pair_thresholds.py \
 
 ## 仍未覆盖
 
-- Snare 与 Clap 的独立分类。
-- Closed 与 Open Hi-hat 的独立分类。
-- Percussion 类别。
-- 808 与普通 Bass 的区分。
+- Snare/Clap 和 Closed/Open Hi-hat 的 subtype 检测；Pair Score 中仍按组合并。
+- 808/Bass 特征进入统一输入，其中保留 808 与普通 Bass subtype。
+- Tom/Cymbal/其他打击乐生成完整 Percussion 落点。
 - MDX23C 五轨自动接入正式后台分析。
 - 将经过验证的鼓组分数接入候选排序和 Transition Planner。
 - 在 RK3588 上验证三种阈值路由对应的真实混音听感。
-- 批量生成同风格候选 pair、抽样听审和冲突复核的工具页面。
+- 批量生成候选 pair、抽样听审和冲突复核的工具页面；输入默认已经同风格。
 - 正式服务中的 pair score 数据库表、过期清理与命中率监控。
 - A 出歌窗口到 B 入歌窗口的有向鼓型比较；歌曲级对称分只负责预筛。

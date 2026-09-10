@@ -15,14 +15,21 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-DRUM_PAIR_SCORE_VERSION = "drum_pair_similarity_v1"
-DRUM_CLASSES = ("kick", "snare", "hihat", "tom", "cymbal")
-CLASS_WEIGHTS = {
+DRUM_PAIR_SCORE_VERSION = "drum_pair_similarity_v2"
+DRUM_GROUPS = ("kick", "snare_clap", "hihat", "bass_808", "percussion")
+GROUP_ALIASES = {
+    "kick": ("kick",),
+    "snare_clap": ("snare_clap", "snare", "clap"),
+    "hihat": ("hihat", "closed_hihat", "open_hihat"),
+    "bass_808": ("bass_808", "808", "bass"),
+    "percussion": ("percussion", "tom", "cymbal"),
+}
+GROUP_WEIGHTS = {
     "kick": 0.30,
-    "snare": 0.25,
+    "snare_clap": 0.25,
     "hihat": 0.20,
-    "tom": 0.10,
-    "cymbal": 0.15,
+    "bass_808": 0.15,
+    "percussion": 0.10,
 }
 
 
@@ -74,19 +81,25 @@ def analysis_fingerprint(analysis: Mapping[str, Any] | None) -> str:
     return hashlib.sha256(_canonical_json(relevant).encode("utf-8")).hexdigest()
 
 
-def _event_count(analysis: Mapping[str, Any], name: str) -> int:
+def _group_event_count(analysis: Mapping[str, Any], name: str) -> int | None:
     counts = _mapping(analysis.get("counts"))
-    raw_count = counts.get(name)
-    if raw_count is None:
-        events = _mapping(analysis.get("events"))
-        values = events.get(name)
-        return len(values) if isinstance(values, list) else 0
-    try:
-        return max(0, int(raw_count))
-    except (TypeError, ValueError):
-        events = _mapping(analysis.get("events"))
-        values = events.get(name)
-        return len(values) if isinstance(values, list) else 0
+    events = _mapping(analysis.get("events"))
+    aliases = GROUP_ALIASES[name]
+    if name in counts:
+        aliases = (name,)
+    available = False
+    total = 0
+    for alias in aliases:
+        if alias in counts:
+            available = True
+            try:
+                total += max(0, int(counts[alias]))
+            except (TypeError, ValueError):
+                pass
+        elif alias in events and isinstance(events[alias], list):
+            available = True
+            total += len(events[alias])
+    return total if available else None
 
 
 def category_overlap_score(
@@ -101,17 +114,26 @@ def category_overlap_score(
     details: dict[str, Any] = {}
     numerator = 0.0
     denominator = 0.0
-    for name in DRUM_CLASSES:
-        count_a = _event_count(analysis_a, name)
-        count_b = _event_count(analysis_b, name)
+    for name in DRUM_GROUPS:
+        count_a = _group_event_count(analysis_a, name)
+        count_b = _group_event_count(analysis_b, name)
+        if count_a is None or count_b is None:
+            details[name] = {
+                "status": "unavailable",
+                "count_a": count_a,
+                "count_b": count_b,
+                "weight": GROUP_WEIGHTS[name],
+            }
+            continue
         present_a = count_a > 0
         present_b = count_b > 0
-        weight = CLASS_WEIGHTS[name]
+        weight = GROUP_WEIGHTS[name]
         if present_a or present_b:
             denominator += weight
             if present_a and present_b:
                 numerator += weight
         details[name] = {
+            "status": "ready",
             "present_a": present_a,
             "present_b": present_b,
             "count_a": count_a,
@@ -125,10 +147,20 @@ def category_overlap_score(
 
 def _pattern_positions(analysis: Mapping[str, Any], name: str) -> set[int] | None:
     dominant = _mapping(_mapping(analysis.get("pattern")).get("dominant"))
-    raw = dominant.get(name)
-    if not isinstance(raw, str) or len(raw) != 16:
-        return None
-    return {index for index, symbol in enumerate(raw) if symbol != "."}
+    aliases = GROUP_ALIASES[name]
+    if name in dominant:
+        aliases = (name,)
+    available = False
+    positions: set[int] = set()
+    for alias in aliases:
+        raw = dominant.get(alias)
+        if not isinstance(raw, str) or len(raw) != 16:
+            continue
+        available = True
+        positions.update(
+            index for index, symbol in enumerate(raw) if symbol != "."
+        )
+    return positions if available else None
 
 
 def _step_distance(left: int, right: int, resolution: int = 16) -> int:
@@ -175,7 +207,7 @@ def rhythm_landing_similarity_score(
     details: dict[str, Any] = {}
     weighted = 0.0
     total_weight = 0.0
-    for name in DRUM_CLASSES:
+    for name in DRUM_GROUPS:
         positions_a = _pattern_positions(analysis_a, name)
         positions_b = _pattern_positions(analysis_b, name)
         if positions_a is None or positions_b is None:
@@ -189,7 +221,7 @@ def rhythm_landing_similarity_score(
             }
             continue
         score = _pattern_f1(positions_a, positions_b, tolerance=tolerance)
-        weight = CLASS_WEIGHTS[name]
+        weight = GROUP_WEIGHTS[name]
         weighted += weight * score
         total_weight += weight
         details[name] = {
@@ -323,6 +355,12 @@ def score_drum_pair(
         flags.append("category_evidence_unavailable")
     if rhythm_score is None:
         flags.append("rhythm_pattern_unavailable")
+    for name, detail in category_details.items():
+        if detail.get("status") == "unavailable":
+            flags.append(f"category_group_unavailable:{name}")
+    for name, detail in rhythm_details.items():
+        if detail.get("status") == "unavailable":
+            flags.append(f"rhythm_group_unavailable:{name}")
     for side, analysis in (("a", first), ("b", second)):
         pattern = _mapping(analysis.get("pattern"))
         try:
@@ -363,6 +401,11 @@ def score_drum_pair(
     status = "unavailable" if combined is None else ("degraded" if flags else "ready")
     payload: dict[str, Any] = {
         "version": DRUM_PAIR_SCORE_VERSION,
+        "scope": {
+            "style_precondition": "caller_guaranteed_same_style",
+            "style_scoring_applied": False,
+            "comparison_groups": list(DRUM_GROUPS),
+        },
         "pair": {
             "song_ids": [first_id, second_id],
             "songs": [
@@ -390,7 +433,7 @@ def score_drum_pair(
         "weights": {
             "category": config.category_weight,
             "rhythm_landing": config.rhythm_weight,
-            "classes": CLASS_WEIGHTS,
+            "groups": GROUP_WEIGHTS,
         },
         "thresholds": {
             "low": config.low_threshold,
@@ -415,6 +458,8 @@ def score_drum_pair(
 __all__ = [
     "DEFAULT_CONFIG",
     "DRUM_PAIR_SCORE_VERSION",
+    "DRUM_GROUPS",
+    "GROUP_WEIGHTS",
     "DrumPairScoreCache",
     "DrumPairScoreConfig",
     "analysis_fingerprint",

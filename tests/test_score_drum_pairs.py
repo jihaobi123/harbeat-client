@@ -10,7 +10,13 @@ def _analysis() -> dict:
         "version": "drum_transcription_consensus_v4",
         "status": "ready",
         "needs_review": False,
-        "counts": {"kick": 4, "snare": 2, "hihat": 8},
+        "counts": {
+            "kick": 4,
+            "snare": 2,
+            "hihat": 8,
+            "bass_808": 4,
+            "percussion": 2,
+        },
         "pattern": {
             "resolution": 16,
             "bars_analyzed": 8,
@@ -18,6 +24,8 @@ def _analysis() -> dict:
                 "kick": "K...K...K...K...",
                 "snare": "....S.......S...",
                 "hihat": "H.H.H.H.H.H.H.H.",
+                "bass_808": "B...B...B...B...",
+                "percussion": "........P.......",
             },
         },
     }

@@ -19,11 +19,23 @@ def _analysis(
         "status": "ready",
         "needs_review": needs_review,
         "detector_mode": "dedicated_model",
-        "counts": {"kick": 32, "snare": 16, "hihat": 64, "tom": 0, "cymbal": 0},
+        "counts": {
+            "kick": 32,
+            "snare": 16,
+            "hihat": 64,
+            "bass_808": 24,
+            "percussion": 8,
+        },
         "pattern": {
             "resolution": 16,
             "bars_analyzed": 8,
-            "dominant": {"kick": kick, "snare": snare, "hihat": hihat},
+            "dominant": {
+                "kick": kick,
+                "snare": snare,
+                "hihat": hihat,
+                "bass_808": "B...B...B...B...",
+                "percussion": "........P.......",
+            },
         },
         "confidence": {"overall": 0.9},
         "quality_flags": [],
@@ -39,16 +51,30 @@ def test_identical_patterns_score_one() -> None:
     assert result["scores"]["drum_overlap_score"] == 1.0
     assert result["proposal_route"]["proposal_action"] == "continue_to_harmonic_check"
     assert result["calibration"]["selection_applied"] is False
+    assert result["scope"]["style_scoring_applied"] is False
+    assert result["scope"]["comparison_groups"] == [
+        "kick",
+        "snare_clap",
+        "hihat",
+        "bass_808",
+        "percussion",
+    ]
 
 
 def test_category_absence_is_not_counted_as_a_match() -> None:
     first = _analysis()
     second = _analysis()
-    second["counts"] = {"kick": 32, "snare": 0, "hihat": 64, "tom": 8, "cymbal": 0}
+    second["counts"] = {
+        "kick": 32,
+        "snare": 0,
+        "hihat": 64,
+        "bass_808": 0,
+        "percussion": 8,
+    }
 
     result = score_drum_pair("a", first, "b", second)
 
-    assert result["scores"]["category_overlap_score"] == 0.5882
+    assert result["scores"]["category_overlap_score"] == 0.6
 
 
 def test_empty_patterns_are_ignored_instead_of_rewarded() -> None:
@@ -106,6 +132,30 @@ def test_quality_flags_block_automatic_route_but_keep_raw_band() -> None:
     assert result["status"] == "degraded"
     assert result["proposal_route"]["proposal_action"] == "manual_review"
     assert result["raw_threshold_route"]["proposal_action"] == "continue_to_harmonic_check"
+
+
+def test_legacy_mdx_groups_are_mapped_but_missing_bass_is_explicit() -> None:
+    first = _analysis()
+    second = _analysis()
+    for analysis in (first, second):
+        analysis["counts"] = {
+            "kick": 32,
+            "snare": 16,
+            "hihat": 64,
+            "tom": 4,
+            "cymbal": 2,
+        }
+        analysis["pattern"]["dominant"] = {
+            "kick": "K...K...K...K...",
+            "snare": "....S.......S...",
+            "hihat": "H.H.H.H.H.H.H.H.",
+        }
+
+    result = score_drum_pair("a", first, "b", second)
+
+    assert result["evidence"]["category"]["percussion"]["count_a"] == 6
+    assert "category_group_unavailable:bass_808" in result["quality_flags"]
+    assert result["proposal_route"]["proposal_action"] == "manual_review"
 
 
 def test_pair_cache_is_symmetric_and_invalidates_when_analysis_changes(tmp_path) -> None:
