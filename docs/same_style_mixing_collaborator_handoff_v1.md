@@ -217,17 +217,26 @@ Pair Score 只用于已经确认同风格的两首歌曲，不判断音乐风格
 
 ## 9. 当前交付状态
 
-本仓库已经提供并冻结 v1 的 Schema、示例数据和目录规则。示例文件可立即用于开发读取层。
+Jetson 单曲预处理和 NAS Publisher 已部署，部署基线为
+`b9769422ecc090cbca2ee136baef2335cbbe3fc1`。真实音频端到端验收已经覆盖：
 
-真实 NAS 数据仍需要完成以下接入后才能正式交付：
+- SongFormer 正式段落，且验收样本 `fallback_used=false`。
+- BPM、Beat、Downbeat、Bar、拍号、Key、能量和过渡窗。
+- Demucs 的 vocals、drums、bass、other 四轨。
+- ADTOF 专用鼓事件识别。
+- MDX23C 的 kick、snare、hihat、tom、cymbal 五个子轨。
+- 五组鼓事件和 16 步落点、Schema、音频探测、SHA256、原子发布和幂等重跑。
 
-- Jetson NAS Publisher。
-- MDX23C 自动接入 Demucs 后处理。
-- 五类鼓组事件和落点的统一发布。
-- 失败重试、幂等和断电恢复。
-- 真实歌曲的 NAS 端到端发布验收。
+生产曲库尚未导入；因此当前可以用仓库 fixture 开发读取层，也可以等预处理方通知具体
+`track_id` 后读取 NAS 真实结果。不要读取 `staging`、`locks`、`failed` 或历史烟测目录。
 
-在正式通知“NAS 数据 ready”之前，请把仓库中的 fixture 当作接口样例，不要把它当作真实歌曲分析结果。
+以下能力不属于本次已完成交付：自动监听压缩包、持久任务队列和自动重试、断电后自动续跑、
+Pair Score 的批量 NAS 发布，以及 70%/85% 阈值的真实独立测试集校准。单曲命令本身已有
+排他锁、失败标记、幂等和原子发布；任务调度层仍需后续补充。
+
+`status=degraded` 不等于文件生成失败。混音方必须查看 `quality.modules` 和
+`quality_flags`：例如当前 Bass/808 频谱回退或鼓事件模型尚未匹配 held-out 校准会要求人工
+复核，但只要 `_SUCCESS.json`、资产校验和必需模块成立，数据仍可用于专家评审。
 
 ## 10. 发现问题时如何反馈
 

@@ -31,15 +31,17 @@ Track Manifest + Pair Score
 
 | 模块 | 版本/入口 | 当前状态 | 是否已形成统一 NAS 交付物 |
 | --- | --- | --- | --- |
-| BPM、Beat、Downbeat、拍号、小节、Key、能量 | `app/modules/library/analysis.py` | 已接入正式后台分析 | 否；当前主要写数据库 |
-| SongFormer 段落 | `songformer_sections_v1` | 正式段落来源；失败才回退 All-In-One | 否；当前写 `music_features.section_analysis` 等数据库字段 |
-| Demucs 四轨 | `htdemucs`，`background_tasks.py` | 已自动运行并保存 vocals/drums/bass/other 路径 | 部分；当前目录规则依赖上传目录，不是冻结的 NAS 合同 |
-| Stem 活动、人声事件、Bass 风险、鼓事件 | `stem_analysis.py`、`drum_transcription_consensus_v4` | 已接入正式后台并落库；部分鼓类别仍需复核 | 否；当前为数据库 JSON |
-| Rhythm/Bass/Percussion 特征 | `rhythm_grammar_features_v5`、`bass_features_v5`、`percussion_timbre_features_v3` | 已由 Stem 特征链生成；验证状态混合 | 否；当前嵌在 `music_features.pre_style_features` |
-| MDX23C 鼓组细分 | `music_analysis/drum_analysis/mdx23c_separator.py` | 已在五首真实 Demucs 鼓轨验证，独立可运行 | 否；尚未接入后台、数据库、API或批量回填 |
+| BPM、Beat、Downbeat、拍号、小节、Key、能量 | `app/modules/library/analysis.py` | Jetson 真实音频验收通过 | 是；发布到单曲 Manifest |
+| SongFormer 段落 | `songformer_sections_v1` | 正式段落来源；失败才回退 All-In-One；Jetson 验收 `fallback_used=false` | 是；含来源和回退状态 |
+| Demucs 四轨 | `htdemucs` | Jetson CUDA 验收通过 | 是；四轨资产均带探测信息和 SHA256 |
+| Stem 活动、Bass 风险、ADTOF 鼓事件 | `stem_analysis.py`、`drum_transcription_consensus_v4` | Jetson 验收通过；未匹配 held-out 校准时标记复核 | 是；统一进入鼓组和质量字段 |
+| Rhythm/Bass/Percussion 特征 | `rhythm_grammar_features_v5`、`bass_features_v5`、`percussion_timbre_features_v3` | 已由 Stem 特征链生成；验证状态混合 | 是；面向混音的五组摘要进入 Manifest |
+| MDX23C 鼓组细分 | `music_analysis/drum_analysis/mdx23c_separator.py` | Jetson CUDA 验收通过 | 是；五个鼓组子轨进入 Manifest |
 | 鼓组 Pair Score | `drum_pair_similarity_v2` | 类别分、落点分、权重、阈值路由、缓存已实现 | 否；尚未用真实人工 pair 完成 70%/85% 校准，也未接入正式排序 |
 
-结论：算法底座已存在，但“Jetson 一键预处理并向 NAS 发布稳定合同”仍是下一阶段工作，不能把当前 `LibrarySong` 行或旧 `/api/manifest` 直接交给混音负责人作为长期合同。
+结论：Jetson 单曲一键预处理和统一 NAS 合同已经可用。混音负责人仍不能把当前
+`LibrarySong` 行或旧 `/api/manifest` 当作长期合同；权威入口是
+`published/tracks/<track_id>/latest.json`。
 
 ## 3. NAS 目录合同
 
@@ -221,12 +223,44 @@ Pair Score 明确声明 `style_scoring_applied=false`，包括：
 7. 用人工审查 Pair 校准权重和70%/85%阈值。
 8. 混音协作者只用 fixture 开发读取层；Jetson 跑通后替换为真实 NAS 数据，不需要修改接口。
 
-## 8. 尚未完成、不能对协作者承诺的部分
+## 8. Jetson 部署基线与验收
 
-- Jetson 持久任务队列、租约、失败重试和断电恢复仍未按目标 Worker 规范落地。
-- MDX23C 尚未自动接入 `background_tasks.py`。
-- 五轨资产和 Pair Score 尚未写入统一 NAS Manifest。
-- 808/Bass、Percussion 的完整事件和落点尚未闭环。
-- 70%/85% 尚未经过真实独立测试集校准。
-- 当前旧 Manifest 默认可能不计算 SHA256，不能作为本合同的正式发布器。
-- `background_tasks.py` 当前仍包含 Style 阶段；同风格专用预处理 Profile 应跳过该阶段以节省 Jetson 资源。
+- Git SHA：`b9769422ecc090cbca2ee136baef2335cbbe3fc1`。
+- 只读版本目录：`/opt/harbeat/releases/same-style-preprocess-b976942`。
+- 当前版本指针：`/opt/harbeat/same-style-preprocess-current`。
+- 单曲命令：`/usr/local/bin/harbeat-same-style-preprocess`。
+- 生产发布根：`/mnt/nas/harbeat/preprocess`。
+- 模型缓存：`/mnt/nas/harbeat/models`；通用缓存：`/mnt/nas/harbeat/cache`。
+- 实际验收 Manifest：
+  `/mnt/nas/harbeat/preprocess-smoke-final-b976942/published/tracks/real-smoke-final-b976942-2/runs/run-real-smoke-final-b976942-2-c8cbed514bbe-b976942/manifest.json`。
+
+验收样本生成了 4 个 SongFormer 段落、94 个 Beat、23 个 Bar、Demucs 四轨、MDX23C
+五轨，以及 Kick/Snare/Hi-hat/Bass/Percussion 事件。重复提交同一输入在 1 秒内返回同一
+`analysis_run_id`，没有新增 staging。现有 `harbeat-api.service` 未切换版本或重启。
+
+验收样本的总状态为 `degraded`，但 Core、SongFormer、Demucs 和 MDX23C 均为 `ready`。
+降级来自 `bass_pitch_spectral_fallback_used` 和
+`drum_model_has_no_matching_heldout_validation`；这表示需要人工质量复核，不表示资产缺失。
+
+## 9. 尚未完成、不能对协作者承诺的部分
+
+- 自动监听/解压新曲库、持久任务队列、租约续期、自动重试和断电后自动续跑尚未落地。
+- 当前交付是独立单曲 CLI，不是 `background_tasks.py` 的自动阶段；这是为了与现有 API
+  解耦并避免影响线上服务。
+- Pair Score 尚未批量发布到 NAS，也未接入正式排序。
+- 808/Bass 当前可用但允许频谱回退；Percussion 已有事件和落点，但真实曲库仍需专家抽检。
+- 70%/85% 尚未经过真实独立测试集校准，不能用于无人值守自动混音决策。
+- 生产曲库尚未导入。收到压缩包后，需要先分配稳定 `track_id`，再逐曲运行发布命令。
+
+## 10. 单曲运行示例
+
+```bash
+sudo -u mark /usr/local/bin/harbeat-same-style-preprocess \
+  /mnt/nas/harbeat/incoming/<file>.wav \
+  --track-id <stable-track-id> \
+  --title "<title>" \
+  --artist "<artist>"
+```
+
+命令只在所有必需步骤、Schema 和 SHA256 校验完成后写 `_SUCCESS.json` 并更新
+`latest.json`。失败尝试保留 `_FAILED.json`，不会出现在混音方的权威入口中。
