@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 
 from app.modules.library.analysis import (
+    _cached_songformer_payload,
     _select_authoritative_sections,
+    _songformer_audio_fingerprint,
     _songformer_command,
     _songformer_payload_from_output,
 )
@@ -87,6 +89,51 @@ def test_manifest_adapter_selects_the_requested_audio(tmp_path: Path) -> None:
 
     assert payload["segments"] == _segments("verse", 10.0)
     assert payload["model"] == "ASLP-lab/SongFormer"
+
+
+def test_valid_official_manifest_is_reused_without_starting_a_model(
+    tmp_path: Path,
+) -> None:
+    audio = tmp_path / "song.wav"
+    audio.write_bytes(b"stable audio identity")
+    manifest = {
+        "model": "ASLP-lab/SongFormer",
+        "pipeline": "MusicFM+MuQ",
+        "device": "mps",
+        "frame_rate": 8.333,
+        "tracks": [
+            {
+                "audio_path": str(audio.resolve()),
+                "audio_fingerprint": _songformer_audio_fingerprint(audio),
+                "segments": _segments("verse", 10.0),
+            }
+        ],
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    payload = _cached_songformer_payload(tmp_path, audio)
+
+    assert payload is not None
+    assert payload["segments"] == _segments("verse", 10.0)
+    assert payload["cache_hit"] is True
+
+
+def test_stale_official_manifest_is_not_reused(tmp_path: Path) -> None:
+    audio = tmp_path / "song.wav"
+    audio.write_bytes(b"original")
+    manifest = {
+        "tracks": [
+            {
+                "audio_path": str(audio.resolve()),
+                "audio_fingerprint": _songformer_audio_fingerprint(audio),
+                "segments": _segments("verse", 10.0),
+            }
+        ]
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    audio.write_bytes(b"changed audio")
+
+    assert _cached_songformer_payload(tmp_path, audio) is None
 
 
 def test_configured_songformer_command_replaces_placeholders(

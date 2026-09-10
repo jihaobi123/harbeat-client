@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import os
+import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -141,6 +142,48 @@ def _songformer_work_dir() -> Path:
     if configured:
         return Path(configured).expanduser().resolve()
     return Path(__file__).resolve().parents[3] / ".runtime" / "songformer-analysis"
+
+
+def _songformer_audio_fingerprint(audio_path: Path) -> str:
+    """Match the official isolated runner's path/size/mtime cache key."""
+    resolved = audio_path.resolve()
+    stat = resolved.stat()
+    payload = f"{resolved}\0{stat.st_size}\0{stat.st_mtime_ns}".encode()
+    return hashlib.sha256(payload).hexdigest()[:16]
+
+
+def _cached_songformer_payload(output_dir: Path, audio_path: Path) -> dict | None:
+    """Return a valid official-runner record without loading any ML model."""
+    manifest_path = output_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    resolved_audio = str(audio_path.resolve())
+    fingerprint = _songformer_audio_fingerprint(audio_path)
+    record = next(
+        (
+            item
+            for item in reversed(list(manifest.get("tracks") or []))
+            if item.get("audio_path") == resolved_audio
+            and item.get("audio_fingerprint") == fingerprint
+            and not item.get("error")
+            and item.get("segments")
+        ),
+        None,
+    )
+    if record is None:
+        return None
+    return {
+        **record,
+        "model": manifest.get("model"),
+        "pipeline": manifest.get("pipeline"),
+        "device": manifest.get("device"),
+        "frame_rate": manifest.get("frame_rate"),
+        "cache_hit": True,
+    }
 
 
 def _songformer_command(audio_path: Path, output_dir: Path) -> list[str]:
@@ -340,21 +383,27 @@ def _analyze_sections_songformer(file_path: str | os.PathLike[str]) -> dict:
         raise FileNotFoundError(audio_path)
     output_dir = _songformer_work_dir()
     output_dir.mkdir(parents=True, exist_ok=True)
-    command = _songformer_command(audio_path, output_dir)
     with _SONGFORMER_INFERENCE_LOCK:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=_songformer_timeout_seconds(),
-            check=False,
-        )
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip()[-2000:]
-        raise RuntimeError(
-            f"SongFormer worker exited with {completed.returncode}: {detail}"
-        )
-    payload = _songformer_payload_from_output(output_dir, audio_path, completed.stdout)
+        payload = _cached_songformer_payload(output_dir, audio_path)
+        if payload is None:
+            command = _songformer_command(audio_path, output_dir)
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=_songformer_timeout_seconds(),
+                check=False,
+            )
+            if completed.returncode != 0:
+                detail = (completed.stderr or completed.stdout or "").strip()[-2000:]
+                raise RuntimeError(
+                    f"SongFormer worker exited with {completed.returncode}: {detail}"
+                )
+            payload = _songformer_payload_from_output(
+                output_dir,
+                audio_path,
+                completed.stdout,
+            )
     segments = _normalize_functional_segments(
         payload.get("segments"),
         duration=payload.get("duration"),
@@ -368,6 +417,7 @@ def _analyze_sections_songformer(file_path: str | os.PathLike[str]) -> dict:
         "pipeline": payload.get("pipeline"),
         "device": payload.get("device"),
         "frame_rate": payload.get("frame_rate"),
+        "cache_hit": bool(payload.get("cache_hit")),
         "input_mode": "original_audio_file",
         "input_path": str(audio_path),
         "sample_rate": 24_000,

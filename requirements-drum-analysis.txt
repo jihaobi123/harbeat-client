@@ -1,0 +1,3 @@
+# Optional model-backed drum analysis dependencies.
+mdxnet-infer==0.1.0
+adtof-pytorch @ https://github.com/xavriley/ADTOF-pytorch/archive/85c192e78f716ea0b111cc8a5ee4a8f6a3a4f8a9.zip

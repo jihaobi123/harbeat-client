@@ -35,5 +35,9 @@ fsspec
 soundfile==0.13.1
 demucs==4.0.1
 
+# === Drum Sub-Separation + Automatic Drum Transcription ===
+mdxnet-infer==0.1.0
+adtof-pytorch @ https://github.com/xavriley/ADTOF-pytorch/archive/85c192e78f716ea0b111cc8a5ee4a8f6a3a4f8a9.zip
+
 # === NCM Decryption ===
 pycryptodome==3.23.0
