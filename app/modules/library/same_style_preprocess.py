@@ -553,7 +553,6 @@ def _track_lock(root: Path, track_id: str, stale_seconds: int) -> Iterator[None]
         os.close(descriptor)
         yield
     finally:
-        active_attempt = staging
         try:
             lock.unlink()
         except FileNotFoundError:
@@ -652,6 +651,7 @@ def run_same_style_preprocess(
         staging = config.root / "staging" / f"{run_id}.{attempt_id}"
         staging.mkdir(parents=True, exist_ok=False)
         _atomic_json(staging / "_STATE.json", {"status": "running", "step": "copy_master", "updated_at": _utc_now()})
+        active_attempt = staging
         try:
             audio_dir = staging / "audio"
             stems_dir = audio_dir / "stems"
