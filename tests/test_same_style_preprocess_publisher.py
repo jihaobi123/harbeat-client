@@ -80,6 +80,7 @@ def test_publisher_writes_atomic_contract_and_reuses_identical_run(tmp_path: Pat
         "schema_path": schema,
         "title": "Song",
         "artist": "Artist",
+        "style_labels": ["house", "house", " disco "],
         "core_runner": _core,
         "stem_analyzer": _stem,
         "demucs_runner": lambda source, output, config: _separate(source, output, config, ("vocals", "drums", "bass", "other")),
@@ -89,9 +90,11 @@ def test_publisher_writes_atomic_contract_and_reuses_identical_run(tmp_path: Pat
     second = run_same_style_preprocess(source, "track-001", **kwargs)
 
     assert first == second
-    assert first["schema_version"] == "1.1.0"
+    assert first["schema_version"] == "1.2.0"
     assert first["source"]["original_filename"] == "song.wav"
     assert first["source"]["title"] == "Song"
+    assert first["source"]["style_labels"] == ["house", "disco"]
+    assert first["pipeline"]["drum_event_detection"] == "unavailable"
     assert first["assets"]["master"]["storage_key"].startswith("published/tracks/")
     assert "/staging/" not in first["assets"]["master"]["storage_key"]
     assert first["analysis"]["beat_grid"]["unit"] == "ms"

@@ -1,6 +1,6 @@
-# HarBeat 同风格接歌：混音协作者数据接入说明 v1.1
+# HarBeat 同风格接歌：混音协作者数据接入说明 v1.2
 
-> v1.1 在首次正式 NAS 发布前增加了歌曲原文件名、标题和艺人字段；Pair Score 格式未改变。
+> v1.2 增加人工目录风格标签和曲库级索引。本批次按要求不运行 ADTOF，MDX23C 五个鼓组子轨仍完整生成。
 
 ## 1. 这份文档解决什么问题
 
@@ -34,10 +34,11 @@ $HARBEAT_PREPROCESS_ROOT/published/tracks/<track_id>/latest.json
 批量发现歌曲可以读取：
 
 ```text
-$HARBEAT_PREPROCESS_ROOT/published/indexes/tracks.jsonl
+$HARBEAT_PREPROCESS_ROOT/published/indexes/style_library_v1.json
 ```
 
-`tracks.jsonl` 只用于发现歌曲。单曲结果始终以 `latest.json` 指向的 Manifest 为准。
+该文件包含每首歌的 `track_id`、人工 `style_labels`、状态和 `manifest_storage_key`。
+单曲结果仍以 `latest.json` 指向的 Manifest 为准；`tracks.jsonl` 只是追加式运行日志。
 
 ## 3. NAS 目录结构
 
@@ -69,6 +70,7 @@ $HARBEAT_PREPROCESS_ROOT/
         <prefix>/<cache_key>.json
     indexes/
       tracks.jsonl
+      style_library_v1.json
 
   # 以下目录由预处理 Worker 使用，混音方不读取
   staging/
@@ -85,7 +87,7 @@ $HARBEAT_PREPROCESS_ROOT/
 ```json
 {
   "schema_name": "same_style_track_pointer",
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "manifest_storage_key": "published/tracks/track-001/runs/run-track-001-001/manifest.json",
@@ -131,7 +133,9 @@ HARBEAT_PREPROCESS_ROOT / storage_key
 
 不要在程序中写死 Jetson 的 `/mnt/nas/...` 路径，也不要根据文件名猜测音频含义。
 
-Manifest 的 `source` 同时提供 `original_filename`、可空的 `title` 和可空的 `artist`，用于人工识别歌曲；程序的稳定主键仍然是 `track_id`。
+Manifest 的 `source` 同时提供 `original_filename`、可空的 `title`、可空的 `artist` 和
+`style_labels`。标签直接来自用户给定的小文件夹，不是模型猜测；程序的稳定主键仍然是
+`track_id`。
 
 ## 5. Manifest 可以提供什么
 
@@ -223,12 +227,13 @@ Jetson 单曲预处理和 NAS Publisher 已部署，部署基线为
 - SongFormer 正式段落，且验收样本 `fallback_used=false`。
 - BPM、Beat、Downbeat、Bar、拍号、Key、能量和过渡窗。
 - Demucs 的 vocals、drums、bass、other 四轨。
-- ADTOF 专用鼓事件识别。
+- 本批次不运行 ADTOF；`pipeline.drum_event_detection` 会明确记录实际回退路线。
 - MDX23C 的 kick、snare、hihat、tom、cymbal 五个子轨。
 - 五组鼓事件和 16 步落点、Schema、音频探测、SHA256、原子发布和幂等重跑。
 
-生产曲库尚未导入；因此当前可以用仓库 fixture 开发读取层，也可以等预处理方通知具体
-`track_id` 后读取 NAS 真实结果。不要读取 `staging`、`locks`、`failed` 或历史烟测目录。
+生产曲库批处理期间可以从 `style_library_v1.json` 查看 `pending/running/ready/degraded/failed`
+进度。只消费 `ready` 或经人工允许的 `degraded` 项，不要读取 `staging`、`locks`、`failed`
+或历史烟测目录。
 
 以下能力不属于本次已完成交付：自动监听压缩包、持久任务队列和自动重试、断电后自动续跑、
 Pair Score 的批量 NAS 发布，以及 70%/85% 阈值的真实独立测试集校准。单曲命令本身已有

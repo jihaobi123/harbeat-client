@@ -20,8 +20,8 @@
   ],
   "properties": {
     "schema_name": {"const": "same_style_track_preprocess"},
-    "schema_version": {"const": "1.1.0"},
-    "contract_version": {"const": "same-style-preprocess-v1.1"},
+    "schema_version": {"const": "1.2.0"},
+    "contract_version": {"const": "same-style-preprocess-v1.2"},
     "track_id": {"type": "string", "minLength": 1},
     "analysis_run_id": {"type": "string", "minLength": 1},
     "generated_at": {"type": "string", "format": "date-time"},
@@ -29,26 +29,28 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["input_sha256", "duration_ms", "original_filename", "title", "artist"],
+      "required": ["input_sha256", "duration_ms", "original_filename", "title", "artist", "style_labels"],
       "properties": {
         "input_sha256": {"$ref": "#/$defs/sha256"},
         "duration_ms": {"type": "integer", "minimum": 1},
         "original_filename": {"type": "string", "minLength": 1},
         "title": {"type": ["string", "null"]},
-        "artist": {"type": ["string", "null"]}
+        "artist": {"type": ["string", "null"]},
+        "style_labels": {"$ref": "#/$defs/stringArray"}
       }
     },
     "pipeline": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["git_sha", "core", "sections", "stem_separation", "drum_subseparation", "drum_groups"],
+      "required": ["git_sha", "core", "sections", "stem_separation", "drum_subseparation", "drum_groups", "drum_event_detection"],
       "properties": {
         "git_sha": {"type": "string", "minLength": 7},
         "core": {"const": "songformer_sections_v1"},
         "sections": {"const": "songformer"},
         "stem_separation": {"const": "htdemucs"},
         "drum_subseparation": {"type": ["string", "null"]},
-        "drum_groups": {"type": ["string", "null"]}
+        "drum_groups": {"type": ["string", "null"]},
+        "drum_event_detection": {"type": "string", "minLength": 1}
       }
     },
     "assets": {

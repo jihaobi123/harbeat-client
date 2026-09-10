@@ -1,6 +1,6 @@
-# 同风格接歌：Jetson 预处理与混音协作合同 v1.1
+# 同风格接歌：Jetson 预处理与混音协作合同 v1.2
 
-> v1.1 在首次正式 NAS 发布前补充了 `original_filename/title/artist`，并明确了 Worker 锁与失败尝试目录。Pair Score 合同未改变。
+> v1.2 增加人工目录标签 `source.style_labels`、曲库索引和可断点续跑的 ZIP 入库工具。当前曲库批次按要求禁用 ADTOF；MDX23C 鼓组分离不受影响。Pair Score 合同未改变。
 
 ## 1. 目标与边界
 
@@ -13,7 +13,7 @@
         |
         v
 Jetson 预处理 Worker
-  Core -> Demucs -> Stem features -> MDX23C -> Drum groups
+  Core -> Demucs -> Stem features（本批次不运行 ADTOF） -> MDX23C -> Drum groups
         |
         v
 NAS staging -> 校验 Schema/时长/大小/SHA256 -> 原子发布
@@ -34,7 +34,7 @@ Track Manifest + Pair Score
 | BPM、Beat、Downbeat、拍号、小节、Key、能量 | `app/modules/library/analysis.py` | Jetson 真实音频验收通过 | 是；发布到单曲 Manifest |
 | SongFormer 段落 | `songformer_sections_v1` | 正式段落来源；失败才回退 All-In-One；Jetson 验收 `fallback_used=false` | 是；含来源和回退状态 |
 | Demucs 四轨 | `htdemucs` | Jetson CUDA 验收通过 | 是；四轨资产均带探测信息和 SHA256 |
-| Stem 活动、Bass 风险、ADTOF 鼓事件 | `stem_analysis.py`、`drum_transcription_consensus_v4` | Jetson 验收通过；未匹配 held-out 校准时标记复核 | 是；统一进入鼓组和质量字段 |
+| Stem 活动、Bass 风险、鼓事件 | `stem_analysis.py`、频谱回退路线 | 本批次按要求禁用 ADTOF，并在 Manifest 记录实际引擎 | 是；统一进入鼓组和质量字段 |
 | Rhythm/Bass/Percussion 特征 | `rhythm_grammar_features_v5`、`bass_features_v5`、`percussion_timbre_features_v3` | 已由 Stem 特征链生成；验证状态混合 | 是；面向混音的五组摘要进入 Manifest |
 | MDX23C 鼓组细分 | `music_analysis/drum_analysis/mdx23c_separator.py` | Jetson CUDA 验收通过 | 是；五个鼓组子轨进入 Manifest |
 | 鼓组 Pair Score | `drum_pair_similarity_v2` | 类别分、落点分、权重、阈值路由、缓存已实现 | 否；尚未用真实人工 pair 完成 70%/85% 校准，也未接入正式排序 |
@@ -87,6 +87,7 @@ $HARBEAT_PREPROCESS_ROOT/
           <cache_key>.json
     indexes/
       tracks.jsonl
+      style_library_v1.json
 ```
 
 规则：
@@ -103,7 +104,7 @@ $HARBEAT_PREPROCESS_ROOT/
 ```json
 {
   "schema_name": "same_style_track_pointer",
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "manifest_storage_key": "published/tracks/track-001/runs/run-track-001-001/manifest.json",
@@ -135,7 +136,7 @@ Schema：`contracts/schemas/analysis/same-style-track-preprocess-v1.schema.json`
 
 关键内容：
 
-- 身份：`track_id`、`analysis_run_id`、原文件名、标题、艺人和源文件 SHA256。
+- 身份：`track_id`、`analysis_run_id`、原文件名、标题、艺人、人工风格标签和源文件 SHA256。
 - 版本：Git SHA、Core/SongFormer/Demucs/MDX23C/鼓组特征版本。
 - 音频：Master、Demucs 四轨、MDX23C 五轨的 `storage_key + sha256 + size_bytes + 音频格式`。
 - 节奏：BPM、Beat、Downbeat、Bar、拍号，统一使用整数毫秒。
@@ -182,6 +183,7 @@ Pair Score 明确声明 `style_scoring_applied=false`，包括：
 - Core、SongFormer、Demucs 四轨是单曲发布 `ready` 的必需项。
 - MDX23C 五轨和五组鼓落点是启用鼓组 Pair 自动判断的必需项。
 - Style analysis 明确不是必需项，也不进入本合同。
+- `source.style_labels` 是人工提供的目录标签，不是模型推断结果；本批次取音频所在的最内层小文件夹名。
 - 任一输入有 `needs_review` 时，Pair 仍可给出 `raw_threshold_route`，但正式 `proposal_action` 必须是 `manual_review`。
 
 ## 6. 两方职责
@@ -242,24 +244,40 @@ Pair Score 明确声明 `style_scoring_applied=false`，包括：
 降级来自 `bass_pitch_spectral_fallback_used` 和
 `drum_model_has_no_matching_heldout_validation`；这表示需要人工质量复核，不表示资产缺失。
 
-## 9. 尚未完成、不能对协作者承诺的部分
+## 9. 曲库批量入口
 
-- 自动监听/解压新曲库、持久任务队列、租约续期、自动重试和断电后自动续跑尚未落地。
+三个 ZIP 的可恢复入库状态与协作者索引分别是：
+
+```text
+/mnt/nas/harbeat/library-imports/2026-09-10/state/library.json
+/mnt/nas/harbeat/preprocess/published/indexes/style_library_v1.json
+```
+
+`style_library_v1.json` 为全量快照，包含 `track_id`、`style_labels`、状态和完成后的
+`manifest_storage_key`。Schema 为
+`contracts/schemas/analysis/same-style-library-index-v1.schema.json`。同内容音频按 SHA256 去重，
+若出现在多个目录则合并标签并保留 `duplicate_sources`。
+
+## 10. 尚未完成、不能对协作者承诺的部分
+
+- 自动监听 NAS 新文件尚未落地；本次 ZIP 工具已支持持久进度、失败保留和断点续跑，但不是常驻监听服务。
 - 当前交付是独立单曲 CLI，不是 `background_tasks.py` 的自动阶段；这是为了与现有 API
   解耦并避免影响线上服务。
 - Pair Score 尚未批量发布到 NAS，也未接入正式排序。
 - 808/Bass 当前可用但允许频谱回退；Percussion 已有事件和落点，但真实曲库仍需专家抽检。
 - 70%/85% 尚未经过真实独立测试集校准，不能用于无人值守自动混音决策。
-- 生产曲库尚未导入。收到压缩包后，需要先分配稳定 `track_id`，再逐曲运行发布命令。
+- Pair Score 仍需等单曲分析完成后单独批量生成。
 
-## 10. 单曲运行示例
+## 11. 单曲运行示例
 
 ```bash
 sudo -u mark /usr/local/bin/harbeat-same-style-preprocess \
   /mnt/nas/harbeat/incoming/<file>.wav \
   --track-id <stable-track-id> \
   --title "<title>" \
-  --artist "<artist>"
+  --artist "<artist>" \
+  --style-label "<最内层小文件夹名>" \
+  --disable-adtof
 ```
 
 命令只在所有必需步骤、Schema 和 SHA256 校验完成后写 `_SUCCESS.json` 并更新

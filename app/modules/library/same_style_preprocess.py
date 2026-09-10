@@ -25,8 +25,8 @@ import uuid
 
 
 SCHEMA_NAME = "same_style_track_preprocess"
-SCHEMA_VERSION = "1.1.0"
-CONTRACT_VERSION = "same-style-preprocess-v1.1"
+SCHEMA_VERSION = "1.2.0"
+CONTRACT_VERSION = "same-style-preprocess-v1.2"
 PIPELINE_VERSION = "same_style_preprocess_pipeline_v1"
 STEM_NAMES = ("vocals", "drums", "bass", "other")
 DRUM_STEM_NAMES = ("kick", "snare", "hihat", "tom", "cymbal")
@@ -45,6 +45,7 @@ class PreprocessConfig:
     device: str = "cuda"
     demucs_model: str = "htdemucs"
     require_mdx23c: bool = True
+    use_adtof: bool = True
     lock_stale_seconds: int = 6 * 60 * 60
 
     @classmethod
@@ -56,6 +57,7 @@ class PreprocessConfig:
         device: str = "cuda",
         demucs_model: str = "htdemucs",
         require_mdx23c: bool = True,
+        use_adtof: bool = True,
     ) -> "PreprocessConfig":
         return cls(
             root=Path(root).expanduser().resolve(),
@@ -63,6 +65,7 @@ class PreprocessConfig:
             device=str(device).strip() or "cuda",
             demucs_model=str(demucs_model).strip() or "htdemucs",
             require_mdx23c=bool(require_mdx23c),
+            use_adtof=bool(use_adtof),
         )
 
 
@@ -94,6 +97,21 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+@contextmanager
+def _drum_transcriber_setting(*, enabled: bool) -> Iterator[None]:
+    """Disable the optional ADTOF route for one isolated CLI process."""
+    if enabled:
+        yield
+        return
+    key = "FEATURE_DRUM_TRANSCRIBER_COMMAND"
+    previous = os.environ.pop(key, None)
+    try:
+        yield
+    finally:
+        if previous is not None:
+            os.environ[key] = previous
+
+
 def _validate_track_id(track_id: str) -> str:
     value = str(track_id).strip()
     if not _TRACK_ID_PATTERN.fullmatch(value):
@@ -102,6 +120,21 @@ def _validate_track_id(track_id: str) -> str:
             "letters, numbers, dot, underscore, or dash (maximum 128 characters)"
         )
     return value
+
+
+def _normalize_style_labels(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    """Return stable, human-authored style labels without inventing aliases."""
+    labels: list[str] = []
+    seen: set[str] = set()
+    for raw in values or []:
+        value = str(raw).strip()
+        if not value or value in seen:
+            continue
+        if len(value) > 128:
+            raise ValueError("style labels must be at most 128 characters")
+        labels.append(value)
+        seen.add(value)
+    return labels
 
 
 def _storage_key(root: Path, path: Path) -> str:
@@ -386,6 +419,7 @@ def _manifest(
     run_id: str,
     title: str | None,
     artist: str | None,
+    style_labels: list[str],
     master: Path,
     stems: Mapping[str, Path],
     drum_stems: Mapping[str, Path],
@@ -445,6 +479,7 @@ def _manifest(
             "original_filename": source.name,
             "title": title,
             "artist": artist,
+            "style_labels": style_labels,
         },
         "pipeline": {
             "git_sha": config.git_sha,
@@ -453,6 +488,10 @@ def _manifest(
             "stem_separation": config.demucs_model,
             "drum_subseparation": "mdx23c_drumsep_6stem" if drum_stems else None,
             "drum_groups": "same_style_drum_groups_v1",
+            "drum_event_detection": str(
+                (stem_analysis.get("drum_analysis") or {}).get("selected_engine")
+                or "unavailable"
+            ),
         },
         "assets": {
             "master": _asset(
@@ -603,6 +642,7 @@ def run_same_style_preprocess(
     schema_path: str | os.PathLike[str],
     title: str | None = None,
     artist: str | None = None,
+    style_labels: list[str] | tuple[str, ...] | None = None,
     core_runner: CoreRunner | None = None,
     stem_analyzer: StemAnalyzer | None = None,
     demucs_runner: DemucsRunner | None = None,
@@ -613,11 +653,25 @@ def run_same_style_preprocess(
     if not source.is_file():
         raise FileNotFoundError(source)
     track_id = _validate_track_id(track_id)
+    normalized_style_labels = _normalize_style_labels(style_labels)
     if len(config.git_sha) < 7:
         raise ValueError("git_sha must contain at least seven characters")
     schema = Path(schema_path).expanduser().resolve()
     source_sha = _sha256(source)
-    run_id = f"run-{track_id}-{source_sha[:12]}-{config.git_sha[:7]}"
+    metadata_fingerprint = hashlib.sha256(
+        _json_bytes(
+            {
+                "artist": artist,
+                "style_labels": normalized_style_labels,
+                "title": title,
+                "use_adtof": config.use_adtof,
+            }
+        )
+    ).hexdigest()[:8]
+    run_id = (
+        f"run-{track_id}-{source_sha[:12]}-{config.git_sha[:7]}-"
+        f"{metadata_fingerprint}"
+    )
     run_dir = config.root / "published" / "tracks" / track_id / "runs" / run_id
     manifest_path = run_dir / "manifest.json"
     success_path = run_dir / "_SUCCESS.json"
@@ -684,16 +738,17 @@ def run_same_style_preprocess(
                 from app.modules.library.stem_analysis import analyze_stem_files
 
                 stem_analyzer = analyze_stem_files
-            stem_result = dict(
-                stem_analyzer(
-                    {name: str(path) for name, path in stems.items()},
-                    original_path=str(master),
-                    bpm=float(core.get("bpm") or 0.0),
-                    beat_points=list(core.get("beat_points") or []),
-                    downbeats=list(core.get("downbeats") or []),
-                    key_profile=dict(core.get("key_profile") or {}),
+            with _drum_transcriber_setting(enabled=config.use_adtof):
+                stem_result = dict(
+                    stem_analyzer(
+                        {name: str(path) for name, path in stems.items()},
+                        original_path=str(master),
+                        bpm=float(core.get("bpm") or 0.0),
+                        beat_points=list(core.get("beat_points") or []),
+                        downbeats=list(core.get("downbeats") or []),
+                        key_profile=dict(core.get("key_profile") or {}),
+                    )
                 )
-            )
 
             _atomic_json(staging / "_STATE.json", {"status": "running", "step": "mdx23c", "updated_at": _utc_now()})
             drum_stems: dict[str, Path] = {}
@@ -717,6 +772,7 @@ def run_same_style_preprocess(
                 run_id=run_id,
                 title=title,
                 artist=artist,
+                style_labels=normalized_style_labels,
                 master=master,
                 stems=stems,
                 drum_stems=drum_stems,

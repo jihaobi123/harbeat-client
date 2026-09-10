@@ -17,6 +17,7 @@ def test_same_style_contract_schemas_and_ready_fixtures_are_valid_json() -> None
     for name in (
         "same-style-track-preprocess-v1.schema.json",
         "same-style-pair-score-v1.schema.json",
+        "same-style-library-index-v1.schema.json",
     ):
         schema = _read(name, SCHEMA_ROOT)
         assert schema["$schema"].endswith("2020-12/schema")
@@ -24,7 +25,7 @@ def test_same_style_contract_schemas_and_ready_fixtures_are_valid_json() -> None
 
     track = _read("same-style-track-preprocess-v1.ready.json", FIXTURE_ROOT)
     pair = _read("same-style-pair-score-v1.ready.json", FIXTURE_ROOT)
-    assert track["schema_version"] == "1.1.0"
+    assert track["schema_version"] == "1.2.0"
     assert pair["schema_version"] == "1.0.0"
 
 

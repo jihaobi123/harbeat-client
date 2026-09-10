@@ -48,6 +48,12 @@ def main() -> int:
     parser.add_argument("--title")
     parser.add_argument("--artist")
     parser.add_argument(
+        "--style-label",
+        action="append",
+        default=[],
+        help="human-authored style label; repeat for multiple labels",
+    )
+    parser.add_argument(
         "--root",
         type=Path,
         default=Path(os.getenv("HARBEAT_PREPROCESS_ROOT", "/mnt/nas/harbeat/preprocess")),
@@ -55,6 +61,11 @@ def main() -> int:
     parser.add_argument("--device", default=os.getenv("HARBEAT_PREPROCESS_DEVICE", "cuda"))
     parser.add_argument("--demucs-model", default="htdemucs")
     parser.add_argument("--allow-missing-mdx23c", action="store_true")
+    parser.add_argument(
+        "--disable-adtof",
+        action="store_true",
+        help="skip the optional ADTOF event route; MDX23C drum stem separation still runs",
+    )
     args = parser.parse_args()
     config = PreprocessConfig.from_values(
         root=args.root,
@@ -62,6 +73,7 @@ def main() -> int:
         device=args.device,
         demucs_model=args.demucs_model,
         require_mdx23c=not args.allow_missing_mdx23c,
+        use_adtof=not args.disable_adtof,
     )
     manifest = run_same_style_preprocess(
         args.audio,
@@ -70,6 +82,7 @@ def main() -> int:
         schema_path=ROOT / "contracts" / "schemas" / "analysis" / "same-style-track-preprocess-v1.schema.json",
         title=args.title,
         artist=args.artist,
+        style_labels=args.style_label,
     )
     print(
         json.dumps(

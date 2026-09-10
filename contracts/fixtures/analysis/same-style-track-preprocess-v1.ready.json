@@ -1,7 +1,7 @@
 {
   "schema_name": "same_style_track_preprocess",
-  "schema_version": "1.1.0",
-  "contract_version": "same-style-preprocess-v1.1",
+  "schema_version": "1.2.0",
+  "contract_version": "same-style-preprocess-v1.2",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "generated_at": "2026-09-10T08:00:00Z",
@@ -11,7 +11,8 @@
     "duration_ms": 180000,
     "original_filename": "Artist - Track.flac",
     "title": "Track",
-    "artist": "Artist"
+    "artist": "Artist",
+    "style_labels": ["house"]
   },
   "pipeline": {
     "git_sha": "482337f",
@@ -19,7 +20,8 @@
     "sections": "songformer",
     "stem_separation": "htdemucs",
     "drum_subseparation": "mdx23c_drumsep_6stem",
-    "drum_groups": "same_style_drum_groups_v1"
+    "drum_groups": "same_style_drum_groups_v1",
+    "drum_event_detection": "spectral_flux_fallback"
   },
   "assets": {
     "master": {
