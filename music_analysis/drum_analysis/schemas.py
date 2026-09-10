@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NotRequired, TypedDict
+
+try:
+    from typing import NotRequired, TypedDict
+except ImportError:  # Python 3.10; NotRequired moved into typing in Python 3.11.
+    from typing import TypedDict
+    from typing_extensions import NotRequired
 
 
 DRUM_CLASSES = ("kick", "snare", "hihat", "tom", "cymbal")
