@@ -1,14 +1,17 @@
 {
   "schema_name": "same_style_track_preprocess",
-  "schema_version": "1.0.0",
-  "contract_version": "same-style-preprocess-v1",
+  "schema_version": "1.1.0",
+  "contract_version": "same-style-preprocess-v1.1",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "generated_at": "2026-09-10T08:00:00Z",
   "status": "ready",
   "source": {
     "input_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "duration_ms": 180000
+    "duration_ms": 180000,
+    "original_filename": "Artist - Track.flac",
+    "title": "Track",
+    "artist": "Artist"
   },
   "pipeline": {
     "git_sha": "482337f",

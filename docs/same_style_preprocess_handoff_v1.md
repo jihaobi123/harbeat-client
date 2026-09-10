@@ -1,4 +1,6 @@
-# 同风格接歌：Jetson 预处理与混音协作合同 v1
+# 同风格接歌：Jetson 预处理与混音协作合同 v1.1
+
+> v1.1 在首次正式 NAS 发布前补充了 `original_filename/title/artist`，并明确了 Worker 锁与失败尝试目录。Pair Score 合同未改变。
 
 ## 1. 目标与边界
 
@@ -52,7 +54,10 @@ HARBEAT_PREPROCESS_ROOT=/mnt/nas/harbeat/preprocess
 ```text
 $HARBEAT_PREPROCESS_ROOT/
   staging/
-    <analysis_run_id>/
+    <analysis_run_id>.<attempt_id>/
+  locks/
+    <track_id>.lock
+  failed/
   published/
     tracks/
       <track_id>/
@@ -96,7 +101,7 @@ $HARBEAT_PREPROCESS_ROOT/
 ```json
 {
   "schema_name": "same_style_track_pointer",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "manifest_storage_key": "published/tracks/track-001/runs/run-track-001-001/manifest.json",
@@ -128,7 +133,7 @@ Schema：`contracts/schemas/analysis/same-style-track-preprocess-v1.schema.json`
 
 关键内容：
 
-- 身份：`track_id`、`analysis_run_id`、源文件 SHA256。
+- 身份：`track_id`、`analysis_run_id`、原文件名、标题、艺人和源文件 SHA256。
 - 版本：Git SHA、Core/SongFormer/Demucs/MDX23C/鼓组特征版本。
 - 音频：Master、Demucs 四轨、MDX23C 五轨的 `storage_key + sha256 + size_bytes + 音频格式`。
 - 节奏：BPM、Beat、Downbeat、Bar、拍号，统一使用整数毫秒。

@@ -20,8 +20,8 @@
   ],
   "properties": {
     "schema_name": {"const": "same_style_track_preprocess"},
-    "schema_version": {"const": "1.0.0"},
-    "contract_version": {"const": "same-style-preprocess-v1"},
+    "schema_version": {"const": "1.1.0"},
+    "contract_version": {"const": "same-style-preprocess-v1.1"},
     "track_id": {"type": "string", "minLength": 1},
     "analysis_run_id": {"type": "string", "minLength": 1},
     "generated_at": {"type": "string", "format": "date-time"},
@@ -29,10 +29,13 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["input_sha256", "duration_ms"],
+      "required": ["input_sha256", "duration_ms", "original_filename", "title", "artist"],
       "properties": {
         "input_sha256": {"$ref": "#/$defs/sha256"},
-        "duration_ms": {"type": "integer", "minimum": 1}
+        "duration_ms": {"type": "integer", "minimum": 1},
+        "original_filename": {"type": "string", "minLength": 1},
+        "title": {"type": ["string", "null"]},
+        "artist": {"type": ["string", "null"]}
       }
     },
     "pipeline": {

@@ -1,4 +1,6 @@
-# HarBeat 同风格接歌：混音协作者数据接入说明 v1
+# HarBeat 同风格接歌：混音协作者数据接入说明 v1.1
+
+> v1.1 在首次正式 NAS 发布前增加了歌曲原文件名、标题和艺人字段；Pair Score 格式未改变。
 
 ## 1. 这份文档解决什么问题
 
@@ -67,6 +69,11 @@ $HARBEAT_PREPROCESS_ROOT/
         <prefix>/<cache_key>.json
     indexes/
       tracks.jsonl
+
+  # 以下目录由预处理 Worker 使用，混音方不读取
+  staging/
+  locks/
+  failed/
 ```
 
 每次重新分析都会生成新的 `analysis_run_id`，不会覆盖历史结果。`latest.json` 会原子更新到最新的完整 Run。
@@ -78,7 +85,7 @@ $HARBEAT_PREPROCESS_ROOT/
 ```json
 {
   "schema_name": "same_style_track_pointer",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "track_id": "track-001",
   "analysis_run_id": "run-track-001-001",
   "manifest_storage_key": "published/tracks/track-001/runs/run-track-001-001/manifest.json",
@@ -123,6 +130,8 @@ HARBEAT_PREPROCESS_ROOT / storage_key
 ```
 
 不要在程序中写死 Jetson 的 `/mnt/nas/...` 路径，也不要根据文件名猜测音频含义。
+
+Manifest 的 `source` 同时提供 `original_filename`、可空的 `title` 和可空的 `artist`，用于人工识别歌曲；程序的稳定主键仍然是 `track_id`。
 
 ## 5. Manifest 可以提供什么
 
