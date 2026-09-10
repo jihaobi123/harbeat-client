@@ -1,0 +1,182 @@
+{
+  "schema_name": "same_style_track_preprocess",
+  "schema_version": "1.0.0",
+  "contract_version": "same-style-preprocess-v1",
+  "track_id": "track-001",
+  "analysis_run_id": "run-track-001-001",
+  "generated_at": "2026-09-10T08:00:00Z",
+  "status": "ready",
+  "source": {
+    "input_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "duration_ms": 180000
+  },
+  "pipeline": {
+    "git_sha": "482337f",
+    "core": "songformer_sections_v1",
+    "sections": "songformer",
+    "stem_separation": "htdemucs",
+    "drum_subseparation": "mdx23c_drumsep_6stem",
+    "drum_groups": "same_style_drum_groups_v1"
+  },
+  "assets": {
+    "master": {
+      "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/master.flac",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 24000000,
+      "content_type": "audio/flac",
+      "duration_ms": 180000,
+      "sample_rate_hz": 44100,
+      "channels": 2
+    },
+    "stems": {
+      "vocals": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/stems/vocals.wav",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "drums": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/stems/drums.wav",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "bass": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/stems/bass.wav",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "other": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/stems/other.wav",
+        "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      }
+    },
+    "drum_stems": {
+      "status": "ready",
+      "kick": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/drums/kick.wav",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "snare": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/drums/snare.wav",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "hihat": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/drums/hihat.wav",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "tom": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/drums/tom.wav",
+        "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      },
+      "cymbal": {
+        "storage_key": "published/tracks/track-001/runs/run-track-001-001/audio/drums/cymbal.wav",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "size_bytes": 31752044,
+        "content_type": "audio/wav",
+        "duration_ms": 180000,
+        "sample_rate_hz": 44100,
+        "channels": 2
+      }
+    }
+  },
+  "analysis": {
+    "tempo": {
+      "bpm": 128.0,
+      "confidence": 0.94,
+      "stability": 0.91,
+      "needs_review": false
+    },
+    "beat_grid": {
+      "unit": "ms",
+      "beats_ms": [4820, 5289, 5758, 6226, 6695, 7164, 7633, 8101],
+      "downbeats_ms": [4820, 6695],
+      "bars_ms": [4820, 6695],
+      "time_signature": {"numerator": 4, "denominator": 4},
+      "needs_review": false
+    },
+    "key": {
+      "name": "F# minor",
+      "camelot": "11A",
+      "confidence": 0.82,
+      "needs_review": false
+    },
+    "sections": {
+      "version": "songformer_sections_v1",
+      "source": "songformer",
+      "fallback_used": false,
+      "items": [
+        {"start_ms": 0, "end_ms": 4560, "label": "intro", "confidence": 0.95},
+        {"start_ms": 4560, "end_ms": 35000, "label": "verse", "confidence": 0.84},
+        {"start_ms": 35000, "end_ms": 61000, "label": "chorus", "confidence": 0.9}
+      ]
+    },
+    "energy": {
+      "overall": 0.76,
+      "curve": [
+        {"start_ms": 0, "end_ms": 4000, "value": 0.35},
+        {"start_ms": 4000, "end_ms": 8000, "value": 0.58}
+      ]
+    },
+    "drum_groups": {
+      "version": "same_style_drum_groups_v1",
+      "status": "ready",
+      "kick": {"status": "ready", "present": true, "event_count": 360, "subtypes": ["kick"], "pattern_16": "K...K...K...K..."},
+      "snare_clap": {"status": "ready", "present": true, "event_count": 180, "subtypes": ["snare"], "pattern_16": "....S.......S..."},
+      "hihat": {"status": "ready", "present": true, "event_count": 720, "subtypes": ["closed_hihat", "open_hihat"], "pattern_16": "H.H.H.H.H.H.H.H."},
+      "bass_808": {"status": "ready", "present": true, "event_count": 340, "subtypes": ["bass"], "pattern_16": "B...B...B...B..."},
+      "percussion": {"status": "ready", "present": true, "event_count": 42, "subtypes": ["tom", "cymbal"], "pattern_16": "........P......."},
+      "quality_flags": []
+    },
+    "transition_windows": [
+      {"start_ms": 152000, "end_ms": 168000, "role": "out", "confidence": 0.83},
+      {"start_ms": 4820, "end_ms": 19820, "role": "in", "confidence": 0.87}
+    ]
+  },
+  "quality": {
+    "needs_review": false,
+    "quality_flags": [],
+    "modules": {
+      "core": "ready",
+      "sections": "ready",
+      "stem_separation": "ready",
+      "mdx23c": "ready",
+      "drum_groups": "ready"
+    }
+  }
+}
