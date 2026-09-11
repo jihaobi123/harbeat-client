@@ -227,16 +227,17 @@ Pair Score 明确声明 `style_scoring_applied=false`，包括：
 
 ## 8. Jetson 部署基线与验收
 
-- Git SHA：`b9769422ecc090cbca2ee136baef2335cbbe3fc1`。
-- 只读版本目录：`/opt/harbeat/releases/same-style-preprocess-b976942`。
+- 曲库入库功能基线提交：`f509fdcf251e461f03014bd6e60b86a45760812e`。
+- Jetson 当前只读版本目录由 `/opt/harbeat/same-style-preprocess-current` 指向；运行时
+  `pipeline.git_sha` 与该目录的 `RELEASE_GIT_SHA` 一致。
 - 当前版本指针：`/opt/harbeat/same-style-preprocess-current`。
 - 单曲命令：`/usr/local/bin/harbeat-same-style-preprocess`。
 - 生产发布根：`/mnt/nas/harbeat/preprocess`。
 - 模型缓存：`/mnt/nas/harbeat/models`；通用缓存：`/mnt/nas/harbeat/cache`。
-- 实际验收 Manifest：
+- v1.1 部署时的实际验收 Manifest（历史烟测，仅用于说明验收方式）：
   `/mnt/nas/harbeat/preprocess-smoke-final-b976942/published/tracks/real-smoke-final-b976942-2/runs/run-real-smoke-final-b976942-2-c8cbed514bbe-b976942/manifest.json`。
 
-验收样本生成了 4 个 SongFormer 段落、94 个 Beat、23 个 Bar、Demucs 四轨、MDX23C
+该验收样本生成了 4 个 SongFormer 段落、94 个 Beat、23 个 Bar、Demucs 四轨、MDX23C
 五轨，以及 Kick/Snare/Hi-hat/Bass/Percussion 事件。重复提交同一输入在 1 秒内返回同一
 `analysis_run_id`，没有新增 staging。现有 `harbeat-api.service` 未切换版本或重启。
 

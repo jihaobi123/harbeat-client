@@ -221,8 +221,9 @@ Pair Score 只用于已经确认同风格的两首歌曲，不判断音乐风格
 
 ## 9. 当前交付状态
 
-Jetson 单曲预处理和 NAS Publisher 已部署，部署基线为
-`b9769422ecc090cbca2ee136baef2335cbbe3fc1`。真实音频端到端验收已经覆盖：
+Jetson 单曲预处理和 NAS Publisher 已部署；曲库入库功能基线提交为
+`f509fdcf251e461f03014bd6e60b86a45760812e`。每次真实运行的精确版本以 Manifest 的
+`pipeline.git_sha` 为准。真实音频端到端验收已经覆盖：
 
 - SongFormer 正式段落，且验收样本 `fallback_used=false`。
 - BPM、Beat、Downbeat、Bar、拍号、Key、能量和过渡窗。
