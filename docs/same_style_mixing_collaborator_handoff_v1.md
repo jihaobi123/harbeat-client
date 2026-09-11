@@ -40,6 +40,15 @@ $HARBEAT_PREPROCESS_ROOT/published/indexes/style_library_v1.json
 该文件包含每首歌的 `track_id`、人工 `style_labels`、状态和 `manifest_storage_key`。
 单曲结果仍以 `latest.json` 指向的 Manifest 为准；`tracks.jsonl` 只是追加式运行日志。
 
+当前首批接歌实验固定使用已经完成并冻结的 8 首 EDM：
+
+```text
+$HARBEAT_PREPROCESS_ROOT/published/indexes/edm_8_handoff_v1.json
+```
+
+协作者应先阅读 `docs/edm_preprocess_delivery_for_mixing_v1.md`。该文档只说明本批预处理结果、
+字段和资源拉取方式，不规定接歌或混音算法。
+
 ## 3. NAS 目录结构
 
 ```text
