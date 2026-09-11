@@ -262,9 +262,19 @@ def main() -> int:
         previous_by_id = {item["track_id"]: item for item in previous.get("items", [])}
         for item in inventory:
             old = previous_by_id.get(item["track_id"])
-            if old and old.get("input_sha256") == item["input_sha256"]:
+            metadata_matches = bool(
+                old
+                and old.get("input_sha256") == item["input_sha256"]
+                and old.get("style_labels") == item["style_labels"]
+                and old.get("title") == item["title"]
+                and old.get("artist") == item["artist"]
+            )
+            if metadata_matches:
                 for key in ("status", "analysis_run_id", "manifest_storage_key", "error"):
                     item[key] = old.get(key)
+                if item["status"] == "running":
+                    item["status"] = "pending"
+                    item["error"] = "previous worker stopped while this track was running"
     _write_catalog(inventory, collections, args.import_root, args.preprocess_root)
     if args.prepare_only:
         print(json.dumps(_catalog(inventory, collections), ensure_ascii=False))

@@ -259,6 +259,10 @@ Pair Score 明确声明 `style_scoring_applied=false`，包括：
 `contracts/schemas/analysis/same-style-library-index-v1.schema.json`。同内容音频按 SHA256 去重，
 若出现在多个目录则合并标签并保留 `duplicate_sources`。
 
+Jetson 的 `harbeat-same-style-library-import.service` 使用 NAS 上的持久状态断点续跑；意外中断
+时，状态为 `running` 的歌曲会在下次启动恢复为 `pending`。单曲失败不会阻塞后续歌曲，服务
+最多自动重试三轮。
+
 ## 10. 尚未完成、不能对协作者承诺的部分
 
 - 自动监听 NAS 新文件尚未落地；本次 ZIP 工具已支持持久进度、失败保留和断点续跑，但不是常驻监听服务。
