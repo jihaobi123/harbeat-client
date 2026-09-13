@@ -1,4 +1,4 @@
-from scripts.evaluate_drum_transcriber import MIDI_FAMILY, merged_event_family
+from research.evaluation.evaluate_drum_transcriber import MIDI_FAMILY, merged_event_family
 
 
 def test_reference_midi_taxonomy_matches_five_class_worker() -> None:

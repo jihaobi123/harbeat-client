@@ -211,7 +211,7 @@ def _songformer_command(audio_path: Path, output_dir: Path) -> list[str]:
         return command
 
     repository_root = Path(__file__).resolve().parents[3]
-    runner = repository_root / "experiments" / "run_songformer_isolated.py"
+    runner = repository_root / "preprocessing" / "runners" / "songformer.py"
     python_candidates = [
         repository_root / ".runtime" / "songformer-venv" / "bin" / "python",
         repository_root / ".runtime" / "songformer-venv" / "Scripts" / "python.exe",

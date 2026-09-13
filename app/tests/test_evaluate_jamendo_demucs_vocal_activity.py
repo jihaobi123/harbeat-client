@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.evaluate_jamendo_demucs_vocal_activity import (
+from research.evaluation.evaluate_jamendo_demucs_vocal_activity import (
     labels_at_times,
     legacy_activity,
 )

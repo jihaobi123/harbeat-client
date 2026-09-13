@@ -19,12 +19,12 @@ import joblib
 import numpy as np
 from sklearn.preprocessing import normalize
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.extract_style_embeddings import SAMPLE_RATE, _embedding_frames, _load_audio
-from scripts.train_style_model import _cross_validate, _predict, _read_jsonl
+from research.style.extract_style_embeddings import SAMPLE_RATE, _embedding_frames, _load_audio
+from research.style.train_style_model import _cross_validate, _predict, _read_jsonl
 
 
 SEED = 20260829

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from app.modules.library.same_style_preprocess import PreprocessConfig, run_same_style_preprocess
+from preprocessing.publisher import PreprocessConfig, run_same_style_preprocess
 
 
 def _audio(path: Path, seconds: float = 0.2) -> None:

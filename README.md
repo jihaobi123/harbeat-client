@@ -1,6 +1,7 @@
 # HarBeat — 街舞音乐曲库管理与分析平台
 
 > **第二版开发请先读 [HARBEAT_V2_START_HERE.md](HARBEAT_V2_START_HERE.md)。**
+> 代码已分区：[正式预处理 preprocessing](preprocessing/README.md) · [研究评测 research](research/README.md) · [完整仓库地图与迁移表](docs/repository/README.md)。
 > 当前在已有 Jetson/NAS 预处理和数据库基础上整理整个第二版系统：正式段落使用 SongFormer，鼓组使用 MDX23C，人声标记使用 Silero。
 > 下方旧产品功能和部署说明是历史参考，不代表第二版手机 → Jetson → RK 链路已打通。
 

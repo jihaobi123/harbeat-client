@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from scripts.prepare_public_music_benchmark import render_clips, select_candidates
+from research.evaluation.prepare_public_music_benchmark import render_clips, select_candidates
 
 
 def test_selector_preserves_multilabels_and_diversifies_artists(tmp_path: Path) -> None:

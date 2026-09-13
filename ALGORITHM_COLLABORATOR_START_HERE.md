@@ -2,6 +2,7 @@
 
 > 历史研发入口（2026-08-30）：以下 All-In-One 段落基线和未来规划不是第二版现行算法选择。
 > 当前开发请读 [第二版统一入口](HARBEAT_V2_START_HERE.md)，正式段落已使用 SongFormer。
+> 2026-09-13：下文历史命令中的评测/风格脚本已迁到 [research](research/README.md)，新旧路径见 [迁移表](docs/repository/moves-20260913.json)；历史实验结果未重新生成。
 
 这份入口只包含算法研发直接相关的内容：
 

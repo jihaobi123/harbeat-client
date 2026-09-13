@@ -1,4 +1,4 @@
-from scripts.evaluate_public_style_benchmark import evaluate
+from research.evaluation.evaluate_public_style_benchmark import evaluate
 
 
 def _track(clip_id: str, top: str, detected: list[str], feature_score: float) -> dict:

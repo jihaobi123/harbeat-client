@@ -1,4 +1,4 @@
-from scripts.evaluate_groove_percussion_timbre import _gate
+from research.evaluation.evaluate_groove_percussion_timbre import _gate
 
 
 def test_percussion_release_gate_requires_balanced_heldout_quality() -> None:

@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from app.modules.library.same_style_preprocess import _atomic_json, _sha256
-from app.modules.library.vocal_activity import publish_vocal_activity, sample_intervals, storage_path
-from scripts.backfill_vocal_activity import backfill
+from preprocessing.publisher import _atomic_json, _sha256
+from preprocessing.vocal_activity import publish_vocal_activity, sample_intervals, storage_path
+from preprocessing.cli.backfill_vocal_activity import backfill
 
 
 class Detector:
@@ -115,7 +115,7 @@ def test_model_failure_never_publishes_success(tmp_path):
 
 
 def test_export_only_bound_markers_without_audio(tmp_path):
-    from scripts.export_vocal_activity_bundle import export_bundle
+    from preprocessing.cli.export_vocal_activity_bundle import export_bundle
     from zipfile import ZipFile
     key = fixture(tmp_path)
     _atomic_json(tmp_path / "published/indexes/base.json", {"items": [
@@ -134,7 +134,7 @@ def test_export_only_bound_markers_without_audio(tmp_path):
 
 def test_parallel_workers_do_not_share_recurrent_model(tmp_path, monkeypatch):
     import threading
-    import scripts.backfill_vocal_activity as worker
+    import preprocessing.cli.backfill_vocal_activity as worker
     barrier = threading.Barrier(2)
     instances = []
 

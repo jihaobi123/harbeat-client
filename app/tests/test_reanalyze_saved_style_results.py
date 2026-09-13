@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.reanalyze_saved_style_results import _reanalyze
+from research.style.reanalyze_saved_style_results import _reanalyze
 
 
 def test_reanalyze_rejects_missing_saved_source_and_stems(tmp_path: Path):

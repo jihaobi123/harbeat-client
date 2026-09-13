@@ -27,7 +27,7 @@ if (( ${#archives[@]} == 0 )); then
 fi
 
 import_status=0
-"$CORE_PYTHON" "$RELEASE_ROOT/scripts/import_same_style_library.py" \
+"$CORE_PYTHON" "$RELEASE_ROOT/preprocessing/cli/import_same_style_library.py" \
   "${archives[@]}" \
   --import-root "$IMPORT_ROOT" \
   --preprocess-root "$PREPROCESS_ROOT" \
@@ -42,5 +42,5 @@ for argument in "$@"; do
     exit "$import_status"
   fi
 done
-"$CORE_PYTHON" "$RELEASE_ROOT/scripts/backfill_vocal_activity.py" --root "$PREPROCESS_ROOT"
+"$CORE_PYTHON" "$RELEASE_ROOT/preprocessing/cli/backfill_vocal_activity.py" --root "$PREPROCESS_ROOT"
 exit "$import_status"

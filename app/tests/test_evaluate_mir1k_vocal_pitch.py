@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.evaluate_mir1k_vocal_pitch import (
+from research.evaluation.evaluate_mir1k_vocal_pitch import (
     align_to_reference,
     song_group,
     split_for,

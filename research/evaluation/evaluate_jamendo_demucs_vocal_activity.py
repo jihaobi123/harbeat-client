@@ -18,12 +18,12 @@ import librosa
 import numpy as np
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.benchmark_evaluation import binary_metrics  # noqa: E402
-from scripts.evaluate_jamendo_vocal_activity import (  # noqa: E402
+from research.evaluation.evaluate_jamendo_vocal_activity import (  # noqa: E402
     read_annotations,
     reference_density,
 )

@@ -1,5 +1,8 @@
 # HarBeat Functional Modules
 
+> Historical extracted-module baseline, not the canonical V2 preprocessing runtime.
+> Current source ownership: [repository map](../docs/repository/README.md); production preprocessing: [preprocessing](../preprocessing/README.md).
+
 This directory is the unified source tree for the 13 independently extracted
 HarBeat functional modules.
 

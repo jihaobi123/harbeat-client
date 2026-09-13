@@ -11,13 +11,13 @@ import sys
 import time
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.high_frequency_style_classifier import classify_high_frequency_styles  # noqa: E402
 from app.modules.library.stem_analysis import analyze_stem_files  # noqa: E402
-from scripts.run_style_test_library import _render_report  # noqa: E402
+from research.style.run_style_test_library import _render_report  # noqa: E402
 
 
 REQUIRED_STEMS = ("vocals", "drums", "bass", "other")

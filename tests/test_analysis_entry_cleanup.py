@@ -30,23 +30,24 @@ def test_archived_vocal_script_still_resolves_repository_root():
 
 
 def test_production_songformer_entry_is_retained():
-    assert (ROOT / "experiments/run_songformer_isolated.py").is_file()
+    assert (ROOT / "preprocessing/runners/songformer.py").is_file()
     analysis = (ROOT / "app/modules/library/analysis.py").read_text(encoding="utf-8")
     deployment = (ROOT / "deploy/jetson/run-same-style-preprocess").read_text(encoding="utf-8")
-    assert "run_songformer_isolated.py" in analysis
-    assert "run_songformer_isolated.py" in deployment
+    assert '"preprocessing" / "runners" / "songformer.py"' in analysis
+    assert "preprocessing/runners/songformer.py" in deployment
+    assert (ROOT / "experiments/run_songformer_isolated.py").is_file()
 
 
 def test_new_vocal_entry_and_old_referenced_implementation_are_retained():
-    assert (ROOT / "scripts/backfill_vocal_activity.py").is_file()
+    assert (ROOT / "preprocessing/cli/backfill_vocal_activity.py").is_file()
     assert (ROOT / "app/modules/library/analysis_vocal_patch_gpu.py").is_file()
-    source = (ROOT / "scripts/run_same_style_preprocess.py").read_text(encoding="utf-8")
+    source = (ROOT / "preprocessing/cli/run_same_style_preprocess.py").read_text(encoding="utf-8")
     assert "publish_vocal_activity" in source
 
 
 def test_current_source_does_not_reference_archived_entrypoints():
     forbidden = ("run_allinone_isolated", "backfill_vocal_events")
-    for directory in ("app", "deploy", "scripts", "music_analysis"):
+    for directory in ("app", "deploy", "scripts", "music_analysis", "preprocessing"):
         for path in (ROOT / directory).rglob("*"):
             if not path.is_file() or path.suffix not in (".py", ".sh", ".service", ""):
                 continue

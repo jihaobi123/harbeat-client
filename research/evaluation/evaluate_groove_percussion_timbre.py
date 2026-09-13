@@ -18,7 +18,7 @@ from typing import Any
 import librosa
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -27,7 +27,7 @@ from app.modules.library.percussion_feature_analysis import (  # noqa: E402
     _descriptor,
     matches_percussion_family,
 )
-from scripts.evaluate_groove_rhythm_features import read_midi_reference  # noqa: E402
+from research.evaluation.evaluate_groove_rhythm_features import read_midi_reference  # noqa: E402
 
 
 LABELS = {

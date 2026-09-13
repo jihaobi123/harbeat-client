@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.evaluate_jamendo_vocal_activity import (
+from research.evaluation.evaluate_jamendo_vocal_activity import (
     choose_threshold,
     density_metrics,
     labels_at_centers,

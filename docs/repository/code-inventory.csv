@@ -1,0 +1,533 @@
+path,area,lines,direct_absolute_importers,first_docstring_line
+app/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/main.py,existing-backend-and-shared-analysis,134,3,
+app/modules/__init__.py,existing-backend-and-shared-analysis,1,1,
+app/modules/_template/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/_template/router.py,existing-backend-and-shared-analysis,4,0,
+app/modules/_template/schemas.py,existing-backend-and-shared-analysis,10,1,
+app/modules/_template/service.py,existing-backend-and-shared-analysis,6,0,
+app/modules/assets/router.py,existing-backend-and-shared-analysis,25,1,
+app/modules/auth/__init__.py,existing-backend-and-shared-analysis,0,0,
+app/modules/auth/dependencies.py,existing-backend-and-shared-analysis,26,5,
+app/modules/auth/router.py,existing-backend-and-shared-analysis,126,1,
+app/modules/auth/schemas.py,existing-backend-and-shared-analysis,44,1,
+app/modules/auth/service.py,existing-backend-and-shared-analysis,114,4,
+app/modules/dev_mix/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/dev_mix/router.py,existing-backend-and-shared-analysis,604,1,
+app/modules/dj_control/__init__.py,existing-backend-and-shared-analysis,1,7,"DJ Control module: dance-style recommendation, energy-based sequencing, mixing, cutting, and FX."
+app/modules/dj_control/auto_mixer/__init__.py,existing-backend-and-shared-analysis,12,0,Automatic DJ mixer strategy selection for HarBeat v3.2 plans.
+app/modules/dj_control/auto_mixer/feature_analyzer.py,existing-backend-and-shared-analysis,204,7,Feature extraction for automatic DJ mixer strategy selection.
+app/modules/dj_control/auto_mixer/mixing_strategies.py,existing-backend-and-shared-analysis,263,4,EQ-band envelope generation for the 5 automatic DJ mixer strategies.
+app/modules/dj_control/auto_mixer/strategy_selector.py,existing-backend-and-shared-analysis,99,5,Decision tree for the HarBeat automatic DJ mixer package.
+app/modules/dj_control/band_analysis.py,existing-backend-and-shared-analysis,76,4,Lightweight band-profile helpers for DJ EQ band mixing.
+app/modules/dj_control/cut_strategy.py,existing-backend-and-shared-analysis,1054,1,Live cut strategies — runtime decisions made while a track is playing.
+app/modules/dj_control/dance_style.py,existing-backend-and-shared-analysis,924,5,Dance-style scoring v3: weighted fingerprint over the rich DJ feature set.
+app/modules/dj_control/default_mix/__init__.py,existing-backend-and-shared-analysis,6,2,Default DJ mix branch.
+app/modules/dj_control/default_mix/playlist_selector.py,existing-backend-and-shared-analysis,307,1,Default playlist ordering based on pair compatibility.
+app/modules/dj_control/default_mix/reference_renderer.py,existing-backend-and-shared-analysis,256,0,Reference renderer for the default automatic DJ path.
+app/modules/dj_control/default_mix/transition_planner.py,existing-backend-and-shared-analysis,840,1,Default transition planner.
+app/modules/dj_control/energy_hiphop.py,existing-backend-and-shared-analysis,253,4,Street-dance DJ energy scoring.
+app/modules/dj_control/energy_streetdance.py,existing-backend-and-shared-analysis,303,0,"Street-dance energy v2 — fingerprint-driven, style-aware."
+app/modules/dj_control/eq_transition_presets.py,existing-backend-and-shared-analysis,68,2,Preset EQ/fader envelopes for MP3-based DJ band mixing.
+app/modules/dj_control/eq_transition_strategy.py,existing-backend-and-shared-analysis,205,2,Generate MP3-only DJ EQ band mix transition plans.
+app/modules/dj_control/fx_synth.py,existing-backend-and-shared-analysis,450,1,Programmatic synthesis of street-dance DJ FX one-shots.
+app/modules/dj_control/mix_profile.py,existing-backend-and-shared-analysis,163,1,Build mix_profile_v1 from existing LibrarySong analysis fields.
+app/modules/dj_control/mixer_rules.py,existing-backend-and-shared-analysis,1010,0,Mixing rules.
+app/modules/dj_control/router.py,existing-backend-and-shared-analysis,1038,2,"DJ Control router — exposes dance-style recommendation, energy sequencing,"
+app/modules/dj_control/schemas.py,existing-backend-and-shared-analysis,221,2,DJ Control schemas.
+app/modules/dj_control/sequencer.py,existing-backend-and-shared-analysis,256,0,Energy-curve sequencer for street-dance DJ sets.
+app/modules/dj_control/spotify_mix/__init__.py,existing-backend-and-shared-analysis,1,1,Spotify Mix feature implementation package.
+app/modules/dj_control/spotify_mix/beat_bar_points.py,existing-backend-and-shared-analysis,635,1,MP3-only beat/bar transition point selection for EQ-band mixing.
+app/modules/dj_control/spotify_mix/bpm_grouping.py,existing-backend-and-shared-analysis,51,1,BPM grouping utilities for Smart Reorder.
+app/modules/dj_control/spotify_mix/camelot_distance.py,existing-backend-and-shared-analysis,85,3,Camelot Wheel distance calculation.
+app/modules/dj_control/spotify_mix/compatibility_score.py,existing-backend-and-shared-analysis,146,1,Spotify Mix compatibility scoring algorithm.
+app/modules/dj_control/spotify_mix/eq_transitions.py,existing-backend-and-shared-analysis,199,1,Spotify Mix EQ transition curve generation.
+app/modules/dj_control/spotify_mix/filter_transitions.py,existing-backend-and-shared-analysis,170,1,Spotify Mix filter transition curve generation.
+app/modules/dj_control/spotify_mix/loudness.py,existing-backend-and-shared-analysis,135,2,LUFS loudness normalization.
+app/modules/dj_control/spotify_mix/phrase_alignment.py,existing-backend-and-shared-analysis,170,2,Phrase alignment for transition point selection.
+app/modules/dj_control/spotify_mix/presets.py,existing-backend-and-shared-analysis,102,1,Spotify Mix preset definitions.
+app/modules/dj_control/spotify_mix/section_features.py,existing-backend-and-shared-analysis,339,4,Section-level feature extraction for local Spotify-style mixing.
+app/modules/dj_control/spotify_mix/section_matcher.py,existing-backend-and-shared-analysis,613,3,Section-matching transition planner for local Spotify-style mixing.
+app/modules/dj_control/spotify_mix/section_scorer.py,existing-backend-and-shared-analysis,216,1,Score section pairs for local Spotify-style transition planning.
+app/modules/dj_control/spotify_mix/smart_reorder.py,existing-backend-and-shared-analysis,115,1,Smart Reorder: Camelot Wheel shortest-path sorting.
+app/modules/dj_control/spotify_mix/time_stretch.py,existing-backend-and-shared-analysis,103,2,Time stretching using phase vocoder for BPM matching without pitch change.
+app/modules/dj_control/spotify_mix/transition_selector.py,existing-backend-and-shared-analysis,75,1,Auto-mode transition selector.
+app/modules/dj_control/spotify_mix/volume_curves.py,existing-backend-and-shared-analysis,161,1,Spotify Mix volume curve library.
+app/modules/dj_control/style_reference_profiles.py,existing-backend-and-shared-analysis,120,1,Static street-dance reference profiles for style-pick evidence.
+app/modules/dj_control/style_taxonomy.py,existing-backend-and-shared-analysis,45,1,Dance-style tag taxonomy used by external metadata scoring.
+app/modules/dj_control/transition.py,existing-backend-and-shared-analysis,155,2,DJ Control transition integration layer for HarBeat Mix effects.
+app/modules/dj_control/transition_strategy.py,existing-backend-and-shared-analysis,529,1,Cross-style transition strategy selector.
+app/modules/dj_control/vibe_search.py,existing-backend-and-shared-analysis,181,0,Vibe Search — free-form text description → ranked songs.
+app/modules/dj_set/__init__.py,existing-backend-and-shared-analysis,89,2,DJ Set generation module.
+app/modules/dj_set/edge_analyzer.py,existing-backend-and-shared-analysis,575,5,Transition Edge Analyzer.
+app/modules/dj_set/purpose_planner.py,existing-backend-and-shared-analysis,161,3,Transition Purpose Planner.
+app/modules/dj_set/quality_gate.py,existing-backend-and-shared-analysis,163,2,Set-level Quality Gate.
+app/modules/dj_set/role_classifier.py,existing-backend-and-shared-analysis,151,5,Track Role Classifier.
+app/modules/dj_set/section_energy.py,existing-backend-and-shared-analysis,275,5,Section-aware energy.
+app/modules/dj_set/service.py,existing-backend-and-shared-analysis,157,1,DJ Set service — top-level orchestrator.
+app/modules/dj_set/set_optimizer.py,existing-backend-and-shared-analysis,479,4,Stateful Set Optimizer — graph search per template.
+app/modules/dj_set/set_templates.py,existing-backend-and-shared-analysis,176,5,Set Templates — 5 distinct DJ narratives.
+app/modules/dj_set/track_analysis_adapter.py,existing-backend-and-shared-analysis,86,2,TrackAnalysisV2 adapter for the DJ set planner.
+app/modules/dj_set/track_profiler.py,existing-backend-and-shared-analysis,280,5,Track Profiler — single-source-of-truth profile for every track.
+app/modules/dj_set/transition_plan.py,existing-backend-and-shared-analysis,137,2,Transition Plan — thin wrapper over mixer_rules.build_transition_spec.
+app/modules/fangpi/__init__.py,existing-backend-and-shared-analysis,0,0,
+app/modules/fangpi/playlist_parser.py,existing-backend-and-shared-analysis,216,1,Playlist URL parser — Python port of electron/playlistParser.ts.
+app/modules/fangpi/router.py,existing-backend-and-shared-analysis,273,1,"Music search & download API routes (Kuwo-backed, fangpi-compatible interface)."
+app/modules/fangpi/service.py,existing-backend-and-shared-analysis,303,1,Music search and download service.
+app/modules/health/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/health/router.py,existing-backend-and-shared-analysis,10,1,
+app/modules/library/__init__.py,existing-backend-and-shared-analysis,1,0,Local audio library module.
+app/modules/library/acoustic_measurement_analysis.py,existing-backend-and-shared-analysis,131,3,Objective spectral and level measurements shared by semantic feature rules.
+app/modules/library/analysis.py,existing-backend-and-shared-analysis,3586,21,
+app/modules/library/analysis_vocal_patch_gpu.py,existing-backend-and-shared-analysis,230,2,Optional GPU-backed vocal event detection for library analysis.
+app/modules/library/background_tasks.py,existing-backend-and-shared-analysis,490,9,Background tasks for automatic audio analysis and stem separation on import.
+app/modules/library/bass_feature_analysis.py,existing-backend-and-shared-analysis,1121,4,Event-level bass behaviour and low-frequency timbre candidate analysis.
+app/modules/library/bass_model_validation.py,existing-backend-and-shared-analysis,52,2,Resolve versioned held-out validation for the optional bass note worker.
+app/modules/library/beat_model_validation.py,existing-backend-and-shared-analysis,63,2,Bind beat/downbeat accuracy claims to an exact model and postprocessor.
+app/modules/library/benchmark_evaluation.py,existing-backend-and-shared-analysis,289,13,Metrics used to calibrate music features and multi-label style decisions.
+app/modules/library/dj_feature_extractor.py,existing-backend-and-shared-analysis,275,4,DJ-style feature extractor — fingerprint of an audio file usable for
+app/modules/library/drum_analysis.py,existing-backend-and-shared-analysis,728,3,Mature-model-first drum transcription for DJ-oriented metadata.
+app/modules/library/drum_model_validation.py,existing-backend-and-shared-analysis,57,2,Resolve versioned held-out validation for optional drum workers.
+app/modules/library/drum_pair_similarity.py,existing-backend-and-shared-analysis,470,2,"Explainable, cacheable drum-pattern similarity for two analyzed songs."
+app/modules/library/external_metadata/__init__.py,existing-backend-and-shared-analysis,11,3,External metadata enrichment for dance-style evidence.
+app/modules/library/external_metadata/clients.py,existing-backend-and-shared-analysis,33,1,Convenience functions for running external metadata clients.
+app/modules/library/external_metadata/discogs_client.py,existing-backend-and-shared-analysis,82,2,Discogs client for release genre/style metadata.
+app/modules/library/external_metadata/lastfm_client.py,existing-backend-and-shared-analysis,77,2,Last.fm client for track and artist top tags.
+app/modules/library/external_metadata/musicbrainz_client.py,existing-backend-and-shared-analysis,91,2,MusicBrainz client for recording identity and tag metadata.
+app/modules/library/external_metadata/normalizer.py,existing-backend-and-shared-analysis,112,4,Normalize external genre/style/tag labels into stable snake_case tokens.
+app/modules/library/external_metadata/schemas.py,existing-backend-and-shared-analysis,80,6,Data shapes for external metadata enrichment.
+app/modules/library/external_metadata/scorer.py,existing-backend-and-shared-analysis,99,3,External tag scoring and final style-score fusion.
+app/modules/library/external_metadata/service.py,existing-backend-and-shared-analysis,536,1,External metadata enrichment and style-score persistence.
+app/modules/library/feature_calibration.py,existing-backend-and-shared-analysis,151,5,Versioned calibration policy for pre-style feature decisions.
+app/modules/library/feature_model_adapters.py,existing-backend-and-shared-analysis,304,3,Optional mature-model adapters for drums and auxiliary style labels.
+app/modules/library/feature_registry.py,existing-backend-and-shared-analysis,96,1,Canonical pre-style feature definitions and release gates.
+app/modules/library/feature_review_artifacts.py,existing-backend-and-shared-analysis,155,2,Render compact audio and HTML artifacts for manual feature review.
+app/modules/library/feature_validation.py,existing-backend-and-shared-analysis,331,2,Minimize human review for pre-style audio feature validation.
+app/modules/library/high_frequency_feature_analysis.py,existing-backend-and-shared-analysis,248,2,Orchestrate style-ready music features without emitting style labels.
+app/modules/library/high_frequency_style_classifier.py,existing-backend-and-shared-analysis,637,5,Explainable scoring and review gates for the 21-style taxonomy.
+app/modules/library/high_frequency_style_taxonomy.py,existing-backend-and-shared-analysis,264,4,Executable music rules for the 21 high-frequency styles.
+app/modules/library/key_model_validation.py,existing-backend-and-shared-analysis,66,2,Resolve confidence-gated held-out validation for musical key estimates.
+app/modules/library/loudness.py,existing-backend-and-shared-analysis,57,2,Library loudness helpers for Spotify Mix normalization.
+app/modules/library/models.py,existing-backend-and-shared-analysis,92,23,
+app/modules/library/musical_context_feature_analysis.py,existing-backend-and-shared-analysis,805,3,"Vocal delivery, harmony and production features used by style analysis."
+app/modules/library/ncm_decrypt.py,existing-backend-and-shared-analysis,154,1,NCM (NetEase Cloud Music) encrypted file decryption.
+app/modules/library/percussion_feature_analysis.py,existing-backend-and-shared-analysis,398,3,Time-frequency analysis of drum and percussion timbre families.
+app/modules/library/rhythm_feature_analysis.py,existing-backend-and-shared-analysis,727,3,Bar-aligned rhythm grammar for downstream style classification.
+app/modules/library/router.py,existing-backend-and-shared-analysis,428,1,
+app/modules/library/same_style_preprocess.py,existing-backend-and-shared-analysis,5,0,Compatibility import. Implementation: preprocessing/publisher.py.
+app/modules/library/schemas.py,existing-backend-and-shared-analysis,179,3,
+app/modules/library/service.py,existing-backend-and-shared-analysis,213,2,
+app/modules/library/stem_analysis.py,existing-backend-and-shared-analysis,322,8,"DJ-oriented analysis for separated vocals, drums, bass, and other stems."
+app/modules/library/style_feature_evidence.py,existing-backend-and-shared-analysis,137,10,Versioned evidence records shared by feature and style analysis.
+app/modules/library/tempo_model_validation.py,existing-backend-and-shared-analysis,45,2,Resolve the held-out validation claim for BPM metrical-level selection.
+app/modules/library/time_stretch.py,existing-backend-and-shared-analysis,72,1,Library-facing time stretching helpers for offline BPM variants.
+app/modules/library/vocal_activity.py,existing-backend-and-shared-analysis,5,0,Compatibility import. Implementation: preprocessing/vocal_activity.py.
+app/modules/library/vocal_pitch_analysis.py,existing-backend-and-shared-analysis,178,3,Objective pitch measurements for an isolated vocal signal.
+app/modules/manifest/__init__.py,existing-backend-and-shared-analysis,251,2,Manifest generation per song / per playlist — download blueprint for RK3588.
+app/modules/manifest/router.py,existing-backend-and-shared-analysis,65,1,Manifest API endpoints — downloadable asset blueprint for RK3588 edge.
+app/modules/models.py,existing-backend-and-shared-analysis,20,0,
+app/modules/music/__init__.py,existing-backend-and-shared-analysis,1,0,Music metadata and cue management.
+app/modules/music/audio_processor.py,existing-backend-and-shared-analysis,402,2,Street-dance audio processor — professional pipeline.
+app/modules/music/dj_sequencer.py,existing-backend-and-shared-analysis,488,0,Harmonize DJ Sequencing Engine (DJ.studio-inspired)
+app/modules/music/dj_transition.py,existing-backend-and-shared-analysis,352,0,DJ Transition Engine (DJ.studio-inspired)
+app/modules/music/model_selection.py,existing-backend-and-shared-analysis,72,1,
+app/modules/music/models.py,existing-backend-and-shared-analysis,22,2,
+app/modules/music/router.py,existing-backend-and-shared-analysis,71,1,
+app/modules/music/schemas.py,existing-backend-and-shared-analysis,83,4,
+app/modules/music/service.py,existing-backend-and-shared-analysis,225,3,
+app/modules/playlists/__init__.py,existing-backend-and-shared-analysis,1,3,
+app/modules/playlists/models.py,existing-backend-and-shared-analysis,82,13,
+app/modules/playlists/offline_renderer.py,existing-backend-and-shared-analysis,346,1,
+app/modules/playlists/router.py,existing-backend-and-shared-analysis,151,1,
+app/modules/playlists/schemas.py,existing-backend-and-shared-analysis,191,4,
+app/modules/playlists/service.py,existing-backend-and-shared-analysis,1166,2,
+app/modules/playlists/stem_automix.py,existing-backend-and-shared-analysis,2153,3,"Stem-aware Automix: transition plan data structures, curve engine, and presets."
+app/modules/playlists/stem_automix_integration.py,existing-backend-and-shared-analysis,562,1,Integration bridge: Jetson LibrarySong ↔ stem_automix TrackContext + enhanced renderer.
+app/modules/playlists/transition_planner.py,existing-backend-and-shared-analysis,440,3,
+app/modules/profiles/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/profiles/router.py,existing-backend-and-shared-analysis,29,1,
+app/modules/profiles/schemas.py,existing-backend-and-shared-analysis,17,2,
+app/modules/profiles/service.py,existing-backend-and-shared-analysis,75,2,
+app/modules/recommendations/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/recommendations/_run_clap_audio.py,existing-backend-and-shared-analysis,93,0,Subprocess entry point: generate CLAP audio embedding for a song.
+app/modules/recommendations/_run_clap_text.py,existing-backend-and-shared-analysis,103,0,Subprocess entry point: generate CLAP text embedding for a query.
+app/modules/recommendations/ingest_service.py,existing-backend-and-shared-analysis,205,1,Spotify track ingestion pipeline: download → analyze → embed → index.
+app/modules/recommendations/rerank_service.py,existing-backend-and-shared-analysis,101,1,CLAP semantic reranking of Spotify candidate tracks.
+app/modules/recommendations/router.py,existing-backend-and-shared-analysis,93,1,
+app/modules/recommendations/schemas.py,existing-backend-and-shared-analysis,140,2,
+app/modules/recommendations/service.py,existing-backend-and-shared-analysis,622,1,
+app/modules/recommendations/spotify_service.py,existing-backend-and-shared-analysis,147,1,Spotify search service — ported from FinalReco (commit 1d65a9dc).
+app/modules/recommendations/vector_store.py,existing-backend-and-shared-analysis,674,3,ChromaDB vector store with CLAP cross-modal embeddings.
+app/modules/recommendations/vibe_service.py,existing-backend-and-shared-analysis,153,1,Vibe interpretation: natural language → structured search hints.
+app/modules/router.py,existing-backend-and-shared-analysis,40,1,
+app/modules/session/__init__.py,existing-backend-and-shared-analysis,53,0,C6 Session Orchestration — the system's central coordinator.
+app/modules/session/candidate_selector.py,existing-backend-and-shared-analysis,515,2,C3 Candidate Selector — rule-based track recommendation engine.
+app/modules/session/coordinator.py,existing-backend-and-shared-analysis,350,2,C6 Session Coordinator — the central nervous system of HarBeat Live DJ.
+app/modules/session/queue_manager.py,existing-backend-and-shared-analysis,162,1,C6 Queue manager — maintains the upcoming track buffer.
+app/modules/session/safety_pool.py,existing-backend-and-shared-analysis,153,1,"C6 Safety pool — guaranteed ""can't go wrong"" fallback tracks."
+app/modules/session/schemas.py,existing-backend-and-shared-analysis,151,3,C6 Session data schemas — the standardized interfaces between modules.
+app/modules/session/state_machine.py,existing-backend-and-shared-analysis,254,1,C6 Session state machine — manages the DJ set's energy arc.
+app/modules/session/undo_stack.py,existing-backend-and-shared-analysis,96,1,C6 Undo stack — reversible action history for session safety.
+app/modules/sessions/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/sessions/models.py,existing-backend-and-shared-analysis,50,2,
+app/modules/sessions/playlist_engine.py,existing-backend-and-shared-analysis,106,1,智能练舞歌单生成引擎 — Camelot 和谐混音 + BPM 兼容 + 多样性控制
+app/modules/sessions/router.py,existing-backend-and-shared-analysis,98,1,
+app/modules/sessions/schemas.py,existing-backend-and-shared-analysis,68,2,
+app/modules/sessions/service.py,existing-backend-and-shared-analysis,108,1,
+app/modules/stream/__init__.py,existing-backend-and-shared-analysis,0,0,
+app/modules/stream/router.py,existing-backend-and-shared-analysis,276,2,
+app/modules/users/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/users/models.py,existing-backend-and-shared-analysis,47,12,
+app/modules/users/router.py,existing-backend-and-shared-analysis,27,1,
+app/modules/users/schemas.py,existing-backend-and-shared-analysis,28,2,
+app/modules/users/service.py,existing-backend-and-shared-analysis,34,5,
+app/modules/voice/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/modules/voice/keyword_matcher.py,existing-backend-and-shared-analysis,108,1,Keyword-based voice command matching with priority disambiguation.
+app/modules/voice/router.py,existing-backend-and-shared-analysis,53,1,Voice command API endpoint.
+app/modules/voice/schemas.py,existing-backend-and-shared-analysis,37,1,Voice command request/response models.
+app/shared/__init__.py,existing-backend-and-shared-analysis,1,0,
+app/shared/audit.py,existing-backend-and-shared-analysis,23,0,
+app/shared/command_line.py,existing-backend-and-shared-analysis,37,4,Cross-platform parsing for configured subprocess command templates.
+app/shared/config.py,existing-backend-and-shared-analysis,46,15,
+app/shared/database.py,existing-backend-and-shared-analysis,22,30,
+app/shared/redis.py,existing-backend-and-shared-analysis,30,1,
+app/shared/responses.py,existing-backend-and-shared-analysis,12,13,
+app/shared/security.py,existing-backend-and-shared-analysis,68,0,
+app/tests/__init__.py,tests,1,0,
+app/tests/test_acoustic_measurement_analysis.py,tests,34,0,
+app/tests/test_adtof_drum_worker.py,tests,34,0,
+app/tests/test_analysis_features.py,tests,108,0,
+app/tests/test_analysis_manifest.py,tests,128,0,
+app/tests/test_analysis_pipeline_persistence.py,tests,144,0,
+app/tests/test_assets_router.py,tests,26,0,
+app/tests/test_auto_mixer_integration.py,tests,154,0,
+app/tests/test_backfill_style_evidence.py,tests,86,0,
+app/tests/test_bass_feature_analysis.py,tests,276,0,
+app/tests/test_bass_model_validation.py,tests,31,0,
+app/tests/test_beat_model_validation.py,tests,31,0,
+app/tests/test_benchmark_evaluation.py,tests,115,0,
+app/tests/test_bpm_consensus.py,tests,36,0,
+app/tests/test_c3_c6_integration.py,tests,233,0,Integration test: C3 CandidateSelector ↔ C6 SessionCoordinator.
+app/tests/test_candidate_selector.py,tests,341,0,Tests for C3 Candidate Selector (rule-based recommendation engine).
+app/tests/test_command_line.py,tests,36,0,
+app/tests/test_default_mix_alignment.py,tests,87,0,
+app/tests/test_dj_fingerprint.py,tests,50,0,
+app/tests/test_dj_fingerprint_persistence.py,tests,65,0,
+app/tests/test_dj_style_pick_multisource.py,tests,156,0,
+app/tests/test_drum_analysis.py,tests,154,0,
+app/tests/test_drum_model_validation.py,tests,34,0,
+app/tests/test_drum_pair_similarity.py,tests,176,0,
+app/tests/test_energy_bucket.py,tests,32,0,
+app/tests/test_eq_band_mix_strategy.py,tests,83,0,
+app/tests/test_eq_transitions.py,tests,69,0,EQ transitions unit tests.
+app/tests/test_essentia_vocal_activity_worker.py,tests,39,0,
+app/tests/test_evaluate_ballroom_beats.py,tests,20,0,
+app/tests/test_evaluate_bass_transcriber.py,tests,70,0,
+app/tests/test_evaluate_drum_transcriber.py,tests,20,0,
+app/tests/test_evaluate_giantsteps_key.py,tests,39,0,
+app/tests/test_evaluate_groove_percussion_timbre.py,tests,14,0,
+app/tests/test_evaluate_groove_rhythm_features.py,tests,75,0,
+app/tests/test_evaluate_gtzan_beat_this.py,tests,56,0,
+app/tests/test_evaluate_guitarset_chords.py,tests,41,0,
+app/tests/test_evaluate_guitarset_chroma_change.py,tests,11,0,
+app/tests/test_evaluate_jamendo_demucs_vocal_activity.py,tests,25,0,
+app/tests/test_evaluate_jamendo_vocal_activity.py,tests,53,0,
+app/tests/test_evaluate_mir1k_vocal_pitch.py,tests,73,0,
+app/tests/test_evaluate_open_drums_808.py,tests,43,0,
+app/tests/test_evaluate_public_style_benchmark.py,tests,37,0,
+app/tests/test_extended_analysis.py,tests,371,0,"Tests for extended analysis: time signature, section intensity, groove,"
+app/tests/test_external_metadata_live.py,tests,54,0,
+app/tests/test_external_metadata_normalizer.py,tests,12,0,
+app/tests/test_external_metadata_scorer.py,tests,22,0,
+app/tests/test_feature_calibration.py,tests,163,0,
+app/tests/test_feature_model_adapters.py,tests,183,0,
+app/tests/test_feature_validation.py,tests,200,0,
+app/tests/test_filter_transitions.py,tests,61,0,Filter transitions unit tests.
+app/tests/test_high_frequency_feature_analysis.py,tests,68,0,
+app/tests/test_high_frequency_style_classifier.py,tests,385,0,
+app/tests/test_high_frequency_style_taxonomy.py,tests,70,0,
+app/tests/test_key_analysis.py,tests,173,0,Tests for comprehensive key/tonal analysis.
+app/tests/test_key_model_validation.py,tests,27,0,
+app/tests/test_live_pool_prepare.py,tests,57,0,
+app/tests/test_loudness.py,tests,78,0,LUFS loudness unit tests.
+app/tests/test_loudness_analysis.py,tests,39,0,
+app/tests/test_madmom_chord_worker.py,tests,6,0,
+app/tests/test_musical_context_feature_analysis.py,tests,259,0,
+app/tests/test_percussion_feature_analysis.py,tests,106,0,
+app/tests/test_phrase_alignment.py,tests,81,0,Phrase alignment unit tests.
+app/tests/test_pre_style_feature_persistence.py,tests,72,0,
+app/tests/test_prepare_public_music_benchmark.py,tests,53,0,
+app/tests/test_reanalyze_feature_test_library.py,tests,60,0,
+app/tests/test_reanalyze_saved_style_results.py,tests,19,0,
+app/tests/test_rhythm_feature_analysis.py,tests,249,0,
+app/tests/test_section_matching.py,tests,329,0,
+app/tests/test_session.py,tests,398,0,Tests for C6 Session Orchestration module.
+app/tests/test_smart_reorder.py,tests,68,0,Smart Reorder unit tests.
+app/tests/test_spotify_mix_decision.py,tests,111,0,Spotify Mix decision engine tests.
+app/tests/test_spotify_mix_integration.py,tests,69,0,Spotify Mix integration surface tests.
+app/tests/test_stem_analysis.py,tests,114,0,
+app/tests/test_stem_automix_bridge.py,tests,42,0,
+app/tests/test_style_enrichment_pipeline.py,tests,100,0,
+app/tests/test_style_feature_evidence.py,tests,95,0,
+app/tests/test_style_score_fusion.py,tests,26,0,
+app/tests/test_target_energy_cut_strategy.py,tests,203,0,
+app/tests/test_target_style_cut_strategy.py,tests,109,0,
+app/tests/test_tempo_model_validation.py,tests,27,0,
+app/tests/test_time_stretch.py,tests,58,0,Time stretching unit tests.
+app/tests/test_transition_planner.py,tests,86,0,
+app/tests/test_transition_strategy.py,tests,56,0,
+app/tests/test_volume_curves.py,tests,86,0,Volume curves unit tests.
+archive/analysis-v1/backfill_vocal_events.py,archived,122,0,"Legacy DB backfill (Demucs/RMS), NOT the V2 Silero/NAS publisher."
+archive/analysis-v1/run_allinone_isolated.py,archived,96,0,Historical standalone benchmark; not the V2 section-analysis entry point.
+cypher-integration/rk3588-edge/audio-engine/audio_analysis.py,other-existing-code,722,0,"Audio Analysis: BPM detection, beat grid tracking, downbeat detection,"
+cypher-integration/rk3588-edge/audio-engine/config.py,other-existing-code,79,0,
+cypher-integration/rk3588-edge/audio-engine/dj_transition_engine.py,other-existing-code,194,0,DJ Transition Engine - 移植自 harbeat-client
+cypher-integration/rk3588-edge/audio-engine/dsp.py,other-existing-code,168,0,轻量 DSP 工具：纯 numpy/Python 实现的双声道 biquad 滤波器（DF-II Transposed）。
+cypher-integration/rk3588-edge/audio-engine/engine.py,other-existing-code,2738,0,音频引擎：双 deck + MixPlan 自动 crossfade + 9 键加花。
+cypher-integration/rk3588-edge/audio-engine/envelope_runner.py,other-existing-code,131,0,Envelope helpers for MP3-only EQ band mix transitions.
+cypher-integration/rk3588-edge/audio-engine/envelopes.py,other-existing-code,102,0,Phase 3.2 — Stem envelope curves.
+cypher-integration/rk3588-edge/audio-engine/filter_node.py,other-existing-code,97,0,Reusable filter node for Spotify Mix transitions on RK audio-engine.
+cypher-integration/rk3588-edge/audio-engine/gen_dj_sfx.py,other-existing-code,128,0,生成 5 个常见 DJ 加花音效占位 wav，落到 ~/cypher/samples/。
+cypher-integration/rk3588-edge/audio-engine/loudness_normalizer.py,other-existing-code,48,0,Loudness normalization helpers for RK audio-engine playback.
+cypher-integration/rk3588-edge/audio-engine/main.py,other-existing-code,62,0,audio-engine MVP 入口。
+cypher-integration/rk3588-edge/audio-engine/mix_plan.py,other-existing-code,191,0,解析 MixPlan（P2 + Jetson DjMixPlanResult）为统一结构。
+cypher-integration/rk3588-edge/audio-engine/scripts/batch_library_mix.py,other-existing-code,168,0,Build a multi-song automix batch report from the Jetson music library.
+cypher-integration/rk3588-edge/audio-engine/scripts/gen_dj_sfx.py,other-existing-code,128,0,生成 5 个常见 DJ 加花音效占位 wav，落到 ~/cypher/samples/。
+cypher-integration/rk3588-edge/audio-engine/scripts/make_samples.py,other-existing-code,112,0,生成 9 键 sample（44100 stereo）；2/4/5 加大音量、更易听清。
+cypher-integration/rk3588-edge/audio-engine/scripts/make_test_wav.py,other-existing-code,28,0,生成测试用 cache/101/original.wav（440Hz 音调，5 秒）。
+cypher-integration/rk3588-edge/audio-engine/scripts/render_mix_quality.py,other-existing-code,376,0,Offline render + metrics for HarBeat automix preset tuning.
+cypher-integration/rk3588-edge/audio-engine/socket_server.py,other-existing-code,245,0,Unix socket 服务：4 字节 big-endian 长度 + JSON。
+cypher-integration/rk3588-edge/audio-engine/stem_curve_player.py,other-existing-code,332,0,RK3588 real-time TransitionPlan curve executor.
+cypher-integration/rk3588-edge/audio-engine/strategy_selector.py,other-existing-code,586,0,"Strategy Selector: pick a transition preset from phrase, stem activity, key,"
+cypher-integration/rk3588-edge/audio-engine/transition_planner.py,other-existing-code,688,0,Transition Planner: 输入 N 首歌的分析数据 → 逐对候选窗口评分 → 生成完整 DJ Mix Plan。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/__init__.py,other-existing-code,1,0,Cypher RK3588 edge-agent package.
+cypher-integration/rk3588-edge/edge-agent/edge_agent/app_compat.py,other-existing-code,130,0,HarBeat App API 兼容：响应格式、状态映射、鉴权。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/audio_client.py,other-existing-code,74,0,通过 Unix socket 向 audio-engine 转发命令。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/config.py,other-existing-code,54,0,
+cypher-integration/rk3588-edge/edge-agent/edge_agent/models.py,other-existing-code,172,0,协议 P4/P5/P8 的 Pydantic 模型（骨架版）。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/pairing.py,other-existing-code,58,0,App 配对与 device_token 管理（HarBeat RK3588_API_SPEC）。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/state.py,other-existing-code,306,0,edge-agent 与 WS 共享的运行时状态。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/transition_api.py,other-existing-code,167,0,Transition Plan API — 注册到 edge-agent。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/ws_broadcast.py,other-existing-code,90,0,WebSocket 广播循环（App :9000/ws/control 与兼容 :9001/ws）。
+cypher-integration/rk3588-edge/edge-agent/edge_agent/ws_server.py,other-existing-code,80,0,WebSocket 服务 :9001 — 推送 P5 playback_state / P8 device_info。
+cypher-integration/rk3588-edge/edge-agent/main.py,other-existing-code,598,0,edge-agent REST API — FastAPI :9000（协议 P4）。
+cypher-integration/rk3588-edge/edge-agent/run.py,other-existing-code,37,0,同时启动 REST (:9000) 与 WebSocket (:9001)。
+cypher-integration/rk3588-edge/input-daemon/audio_socket.py,other-existing-code,37,0,向 audio-engine 发送 trigger（fire-and-forget，低延迟）。
+cypher-integration/rk3588-edge/input-daemon/config.py,other-existing-code,22,0,
+cypher-integration/rk3588-edge/input-daemon/main.py,other-existing-code,271,0,input-daemon：MYKB E9s 九键 → audio-engine trigger + edge-agent key_event。
+cypher-integration/rk3588-edge/input-daemon/scripts/sniff_keys.py,other-existing-code,19,0,调试：按下九键时打印原始键码（运行 30 秒后自动退出）。
+cypher-integration/rk3588-edge/sync-worker/main.py,other-existing-code,534,0,sync-worker: download Jetson manifest assets into local RK cache.
+cypher-integration/rk3588-edge/tests/test_batch_library_mix.py,other-existing-code,46,0,
+cypher-integration/rk3588-edge/tests/test_edge_audio_forward.py,other-existing-code,94,0,
+cypher-integration/rk3588-edge/tests/test_edge_state.py,other-existing-code,28,0,
+cypher-integration/rk3588-edge/tests/test_engine_envelopes.py,other-existing-code,156,0,
+cypher-integration/rk3588-edge/tests/test_eq_band_mix_envelope.py,other-existing-code,38,0,
+cypher-integration/rk3588-edge/tests/test_filter_node.py,other-existing-code,35,0,
+cypher-integration/rk3588-edge/tests/test_loudness_normalizer.py,other-existing-code,27,0,
+cypher-integration/rk3588-edge/tests/test_render_mix_quality_batch.py,other-existing-code,58,0,
+cypher-integration/rk3588-edge/tests/test_strategy_selector.py,other-existing-code,77,0,
+cypher-integration/rk3588-edge/tests/test_sync_worker.py,other-existing-code,151,0,
+cypher-integration/rk3588-edge/tests/test_transition_api.py,other-existing-code,52,0,
+cypher-integration/rk3588-edge/tests/test_transition_planner.py,other-existing-code,133,0,
+deploy/cloud_gateway/app/__init__.py,other-existing-code,1,0,
+deploy/cloud_gateway/app/main.py,other-existing-code,112,0,
+experiments/extract_mert_vector_dataset.py,preserved-experiments,664,1,"Extract a reusable, frozen MERT-v1-95M vector dataset."
+experiments/publish_mert_vector_artifacts.py,preserved-experiments,143,0,"Create a path-sanitized, checksummed MERT artifact snapshot for Git."
+experiments/run_songformer_isolated.py,preserved-experiments,15,0,Compatibility entry. Implementation: preprocessing/runners/songformer.py.
+experiments/traditional_vs_ml_20260829/evaluate_traditional_vs_ml.py,preserved-experiments,694,0,Paired evaluation of the 69-feature rule route against existing ML predictions.
+experiments/verify_mert_official_compatibility.py,preserved-experiments,267,0,Verify that the local MERT runtime reproduces the published HF checkpoint.
+jetson/app/modules/dj_control/dance_style.py,other-existing-code,352,0,Dance-style scoring v3: weighted fingerprint over the rich DJ feature set.
+jetson/app/modules/dj_control/dance_style_v3_only_patch.py,other-existing-code,82,0,Patch: v3-only scoring + per-call hit-distribution logging.
+jetson/app/modules/dj_control/energy_streetdance.py,other-existing-code,303,0,"Street-dance energy v2 — fingerprint-driven, style-aware."
+jetson/app/modules/dj_control/router_energy_v2_patch.py,other-existing-code,80,0,"Patch jetson router: add ?style= param to energy endpoint, prefer v2."
+jetson/app/modules/library/background_tasks.py,other-existing-code,469,0,Background tasks for automatic audio analysis and stem separation on import.
+jetson/app/modules/library/dj_feature_extractor.py,other-existing-code,255,0,DJ-style feature extractor — fingerprint of an audio file usable for
+jetson/scripts/backfill_dj_features.py,other-existing-code,78,0,Backfill: run dj_feature_extractor on every analyzed LibrarySong that
+modules/asset-sync/src/harbeat_asset_sync/__init__.py,extracted-module-baseline,5,0,Standalone RK asset synchronization worker.
+modules/asset-sync/src/harbeat_asset_sync/sync_worker.py,extracted-module-baseline,826,0,sync-worker: download Jetson manifest assets into local RK cache.
+modules/asset-sync/tests/test_asset_sync.py,extracted-module-baseline,151,0,
+modules/audio-preprocess/src/harbeat_audio_preprocess/__init__.py,extracted-module-baseline,15,0,Versioned HarBeat offline audio preprocessing.
+modules/audio-preprocess/src/harbeat_audio_preprocess/coverage.py,extracted-module-baseline,38,0,Pure coverage accounting for full-library analysis snapshots.
+modules/audio-preprocess/src/harbeat_audio_preprocess/dj_structure_v2.py,extracted-module-baseline,498,0,Planner-ready DJ structure analysis for library songs.
+modules/audio-preprocess/src/harbeat_audio_preprocess/version_gate.py,extracted-module-baseline,37,0,Strict gate between preprocessing and runtime planners.
+modules/audio-preprocess/tests/test_coverage.py,extracted-module-baseline,17,0,
+modules/audio-preprocess/tests/test_structure.py,extracted-module-baseline,21,0,
+modules/audio-preprocess/tests/test_version_gate.py,extracted-module-baseline,19,0,
+modules/audio-runtime/src/harbeat_audio_runtime/__init__.py,extracted-module-baseline,5,0,RK dual-deck audio playback runtime.
+modules/audio-runtime/src/harbeat_audio_runtime/config.py,extracted-module-baseline,79,0,
+modules/audio-runtime/src/harbeat_audio_runtime/dsp.py,extracted-module-baseline,168,0,轻量 DSP 工具：纯 numpy/Python 实现的双声道 biquad 滤波器（DF-II Transposed）。
+modules/audio-runtime/src/harbeat_audio_runtime/engine.py,extracted-module-baseline,3427,0,音频引擎：双 deck + MixPlan 自动 crossfade + 9 键加花。
+modules/audio-runtime/src/harbeat_audio_runtime/envelope_runner.py,extracted-module-baseline,131,0,Envelope helpers for MP3-only EQ band mix transitions.
+modules/audio-runtime/src/harbeat_audio_runtime/filter_node.py,extracted-module-baseline,97,0,Reusable filter node for Spotify Mix transitions on RK audio-engine.
+modules/audio-runtime/src/harbeat_audio_runtime/loudness_normalizer.py,extracted-module-baseline,48,0,Loudness normalization helpers for RK audio-engine playback.
+modules/audio-runtime/src/harbeat_audio_runtime/main.py,extracted-module-baseline,62,0,audio-engine MVP 入口。
+modules/audio-runtime/src/harbeat_audio_runtime/mix_plan.py,extracted-module-baseline,191,0,解析 MixPlan（P2 + Jetson DjMixPlanResult）为统一结构。
+modules/audio-runtime/src/harbeat_audio_runtime/socket_server.py,extracted-module-baseline,264,0,Unix socket 服务：4 字节 big-endian 长度 + JSON。
+modules/audio-runtime/tests/test_engine_envelopes.py,extracted-module-baseline,330,0,
+modules/audio-runtime/tests/test_eq_band_mix_envelope.py,extracted-module-baseline,32,0,
+modules/audio-runtime/tests/test_filter_node.py,extracted-module-baseline,29,0,
+modules/audio-runtime/tests/test_loudness_normalizer.py,extracted-module-baseline,21,0,
+modules/audio-runtime/tests/test_socket_contract.py,extracted-module-baseline,47,0,
+modules/device-runtime/src/harbeat_device_runtime/__init__.py,extracted-module-baseline,39,0,Independent device connection and runtime contracts.
+modules/device-runtime/src/harbeat_device_runtime/cli.py,extracted-module-baseline,33,0,Command line entry point for device-runtime verification.
+modules/device-runtime/src/harbeat_device_runtime/connection.py,extracted-module-baseline,182,0,Connection lifecycle independent from Flutter widget state.
+modules/device-runtime/src/harbeat_device_runtime/endpoint.py,extracted-module-baseline,58,0,Safe RK endpoint normalization.
+modules/device-runtime/src/harbeat_device_runtime/operation.py,extracted-module-baseline,67,0,"Compact, short-lived references for mobile operations."
+modules/device-runtime/src/harbeat_device_runtime/probe.py,extracted-module-baseline,69,0,Read-only compatibility probe for a deployed RK edge agent.
+modules/device-runtime/src/harbeat_device_runtime/state.py,extracted-module-baseline,113,0,Bounded DTOs for RK health and playback responses.
+modules/device-runtime/tests/test_connection.py,extracted-module-baseline,70,0,
+modules/device-runtime/tests/test_endpoint.py,extracted-module-baseline,21,0,
+modules/device-runtime/tests/test_operation.py,extracted-module-baseline,21,0,
+modules/device-runtime/tests/test_probe.py,extracted-module-baseline,32,0,
+modules/device-runtime/tests/test_reconnect.py,extracted-module-baseline,21,0,
+modules/device-runtime/tests/test_state.py,extracted-module-baseline,59,0,
+modules/library-catalog/src/harbeat_library_catalog/__init__.py,extracted-module-baseline,18,0,"Library, playlist, and manifest contracts."
+modules/library-catalog/src/harbeat_library_catalog/catalog.py,extracted-module-baseline,50,0,Deterministic catalog indexes and playlist resolution.
+modules/library-catalog/src/harbeat_library_catalog/identity.py,extracted-module-baseline,21,0,"Explicit identifiers used by Jetson, mobile, and RK."
+modules/library-catalog/src/harbeat_library_catalog/manifest.py,extracted-module-baseline,64,0,Validated subset of the deployed per-song asset manifest.
+modules/library-catalog/src/harbeat_library_catalog/models.py,extracted-module-baseline,87,0,Small catalog DTOs independent from SQLAlchemy and Flutter.
+modules/library-catalog/tests/test_catalog.py,extracted-module-baseline,34,0,
+modules/library-catalog/tests/test_identity.py,extracted-module-baseline,15,0,
+modules/library-catalog/tests/test_manifest.py,extracted-module-baseline,24,0,
+modules/observability-e2e/src/harbeat_observability/__init__.py,extracted-module-baseline,17,0,Safe inventory and cross-device acceptance tracing for HarBeat.
+modules/observability-e2e/src/harbeat_observability/android.py,extracted-module-baseline,69,0,Small ADB adapter that always acts on a freshly captured semantic frame.
+modules/observability-e2e/src/harbeat_observability/cli.py,extracted-module-baseline,133,0,Command line interface for safe inventory and semantic UI inspection.
+modules/observability-e2e/src/harbeat_observability/inventory.py,extracted-module-baseline,191,0,Read-only source inventory with conservative private-data exclusions.
+modules/observability-e2e/src/harbeat_observability/journal.py,extracted-module-baseline,43,0,Normalize common FastAPI/uvicorn HTTP access events from device journals.
+modules/observability-e2e/src/harbeat_observability/trace.py,extracted-module-baseline,85,0,Cross-device operation timeline and conservative secret redaction.
+modules/observability-e2e/src/harbeat_observability/ui_semantics.py,extracted-module-baseline,91,0,UTF-8 UIAutomator semantics with fresh-frame-safe control coordinates.
+modules/observability-e2e/tests/test_android.py,extracted-module-baseline,39,0,
+modules/observability-e2e/tests/test_inventory.py,extracted-module-baseline,35,0,
+modules/observability-e2e/tests/test_journal.py,extracted-module-baseline,31,0,
+modules/observability-e2e/tests/test_trace.py,extracted-module-baseline,43,0,
+modules/observability-e2e/tests/test_ui_semantics.py,extracted-module-baseline,37,0,
+modules/physical-input/src/harbeat_physical_input/__init__.py,extracted-module-baseline,5,0,Pure logical routing for RK physical controls.
+modules/physical-input/src/harbeat_physical_input/routing.py,extracted-module-baseline,58,0,Map normalized physical keys to side-effect-free action descriptions.
+modules/physical-input/tests/test_physical_input.py,extracted-module-baseline,49,0,
+modules/sequence-planner/src/harbeat_sequence_planner/__init__.py,extracted-module-baseline,12,0,Independent song ordering and energy-curve sequencing.
+modules/sequence-planner/src/harbeat_sequence_planner/band_analysis.py,extracted-module-baseline,76,0,Lightweight band-profile helpers for DJ EQ band mixing.
+modules/sequence-planner/src/harbeat_sequence_planner/default_mix/__init__.py,extracted-module-baseline,5,0,Default BPM/key/energy compatible playlist ordering.
+modules/sequence-planner/src/harbeat_sequence_planner/default_mix/playlist_selector.py,extracted-module-baseline,307,0,Default playlist ordering based on pair compatibility.
+modules/sequence-planner/src/harbeat_sequence_planner/energy_hiphop.py,extracted-module-baseline,253,0,Street-dance DJ energy scoring.
+modules/sequence-planner/src/harbeat_sequence_planner/sequencer.py,extracted-module-baseline,256,0,Energy-curve sequencer for street-dance DJ sets.
+modules/sequence-planner/tests/test_default_sequence.py,extracted-module-baseline,23,0,
+modules/sequence-planner/tests/test_energy_curves.py,extracted-module-baseline,23,0,
+modules/stem-separation/src/harbeat_stem_separation/__init__.py,extracted-module-baseline,15,0,Offline four-stem separation and quality analysis.
+modules/stem-separation/src/harbeat_stem_separation/analysis.py,extracted-module-baseline,100,0,"DJ-oriented analysis for separated vocals, drums, bass, and other stems."
+modules/stem-separation/src/harbeat_stem_separation/drum_analysis.py,extracted-module-baseline,464,0,Mature-model-first drum transcription for DJ-oriented metadata.
+modules/stem-separation/src/harbeat_stem_separation/separator.py,extracted-module-baseline,78,0,Behavior-compatible htdemucs runner with strict output validation.
+modules/stem-separation/tests/test_analysis.py,extracted-module-baseline,32,0,
+modules/stem-separation/tests/test_separator.py,extracted-module-baseline,25,0,
+modules/transition-orchestrator/src/harbeat_transition_orchestrator/__init__.py,extracted-module-baseline,21,0,Device-neutral manual transition orchestration protocol.
+modules/transition-orchestrator/src/harbeat_transition_orchestrator/orchestrator.py,extracted-module-baseline,204,0,Pure protocol helpers for manual transition orchestration.
+modules/transition-orchestrator/tests/test_orchestrator.py,extracted-module-baseline,123,0,
+modules/transition-planner/src/harbeat_transition_planner/__init__.py,extracted-module-baseline,24,0,Standalone transition planning for the deployed HarBeat DJ paths.
+modules/transition-planner/src/harbeat_transition_planner/band_analysis.py,extracted-module-baseline,76,0,Lightweight band-profile helpers for DJ EQ band mixing.
+modules/transition-planner/src/harbeat_transition_planner/eq_transition_presets.py,extracted-module-baseline,68,0,Preset EQ/fader envelopes for MP3-based DJ band mixing.
+modules/transition-planner/src/harbeat_transition_planner/eq_transition_strategy.py,extracted-module-baseline,205,0,Generate MP3-only DJ EQ band mix transition plans.
+modules/transition-planner/src/harbeat_transition_planner/feature_analyzer.py,extracted-module-baseline,204,0,Feature extraction for automatic DJ mixer strategy selection.
+modules/transition-planner/src/harbeat_transition_planner/mix_profile.py,extracted-module-baseline,163,0,Build mix_profile_v1 from existing LibrarySong analysis fields.
+modules/transition-planner/src/harbeat_transition_planner/mixer_rules.py,extracted-module-baseline,1010,0,Mixing rules.
+modules/transition-planner/src/harbeat_transition_planner/mixing_strategies.py,extracted-module-baseline,263,0,EQ-band envelope generation for the 5 automatic DJ mixer strategies.
+modules/transition-planner/src/harbeat_transition_planner/phrase_transition.py,extracted-module-baseline,440,0,
+modules/transition-planner/src/harbeat_transition_planner/section_energy.py,extracted-module-baseline,275,0,Section-aware energy.
+modules/transition-planner/src/harbeat_transition_planner/section_features.py,extracted-module-baseline,339,0,Section-level feature extraction for local Spotify-style mixing.
+modules/transition-planner/src/harbeat_transition_planner/strategy_selector.py,extracted-module-baseline,99,0,Decision tree for the HarBeat automatic DJ mixer package.
+modules/transition-planner/src/harbeat_transition_planner/transition_planner.py,extracted-module-baseline,2601,0,Default transition planner.
+modules/transition-planner/src/harbeat_transition_planner/transition_strategy.py,extracted-module-baseline,529,0,Cross-style transition strategy selector.
+modules/transition-planner/tests/test_transition_planner.py,extracted-module-baseline,102,0,
+modules/transition-renderer/src/harbeat_transition_renderer/__init__.py,extracted-module-baseline,19,0,Standalone local-window transition renderer.
+modules/transition-renderer/src/harbeat_transition_renderer/reference_renderer.py,extracted-module-baseline,1055,0,Reference renderer for the default automatic DJ path.
+modules/transition-renderer/tests/test_reference_renderer.py,extracted-module-baseline,101,0,
+music_analysis/__init__.py,shared-audio-algorithms,1,0,Standalone model-backed music analysis pipelines.
+music_analysis/drum_analysis/__init__.py,shared-audio-algorithms,13,1,MDX23C drum separation and ADTOF drum transcription.
+music_analysis/drum_analysis/adtof_detector.py,shared-audio-algorithms,167,1,"ADTOF-pytorch adapter exposing MIDI, timestamps, and activation confidence."
+music_analysis/drum_analysis/mdx23c_separator.py,shared-audio-algorithms,217,2,Reusable MDX23C DrumSep adapter with normalized five-stem output.
+music_analysis/drum_analysis/pipeline.py,shared-audio-algorithms,129,0,Unified two-branch drum analysis entry point and CLI.
+music_analysis/drum_analysis/schemas.py,shared-audio-algorithms,34,1,Shared public types for the five-class drum analysis contract.
+preprocessing/__init__.py,production-preprocess,1,0,HarBeat preprocessing; imports do not load inference models.
+preprocessing/cli/__init__.py,production-preprocess,1,0,HarBeat preprocessing; imports do not load inference models.
+preprocessing/cli/backfill_vocal_activity.py,production-preprocess,79,1,Resume Silero-only backfill from a frozen or live published library index.
+preprocessing/cli/export_vocal_activity_bundle.py,production-preprocess,57,2,Export small vocal JSON overlays; never duplicate or modify the audio bundle.
+preprocessing/cli/finalize_vocal_activity.py,production-preprocess,35,0,Validate a completed vocal batch and export a timestamped JSON-only bundle.
+preprocessing/cli/import_same_style_library.py,production-preprocess,306,1,Safely import labelled ZIP libraries and publish resumable track analyses.
+preprocessing/cli/run_same_style_preprocess.py,production-preprocess,111,0,Run the Jetson same-style preprocessing pipeline for one audio file.
+preprocessing/cli/validate_vocal_activity.py,production-preprocess,83,1,Validate marker delivery contracts and binding; this is not an accuracy test.
+preprocessing/publisher.py,production-preprocess,836,7,Jetson same-style preprocessing and immutable NAS publication.
+preprocessing/runners/__init__.py,production-preprocess,1,0,HarBeat preprocessing; imports do not load inference models.
+preprocessing/runners/songformer.py,production-preprocess,471,0,Run the official SongFormer pipeline in a memory-bounded isolated runtime.
+preprocessing/vocal_activity.py,production-preprocess,163,5,Versioned Silero markers on published Demucs vocals; never mutate base runs.
+research/__init__.py,offline-research,1,0,Offline research; not a production pipeline.
+research/evaluation/__init__.py,offline-research,1,0,Offline research; not a production pipeline.
+research/evaluation/evaluate_acoustic_measurements.py,offline-research,124,0,Analytical validation for objective acoustic measurements.
+research/evaluation/evaluate_ballroom_beats.py,offline-research,267,0,Evaluate production beat/downbeat selection on Ballroom annotations.
+research/evaluation/evaluate_bass_transcriber.py,offline-research,555,0,Evaluate the optional Basic Pitch route on isolated BabySlakh bass stems.
+research/evaluation/evaluate_drum_transcriber.py,offline-research,192,2,Evaluate a JSON drum worker on an annotated MIDI/audio dataset.
+research/evaluation/evaluate_giantsteps_key.py,offline-research,217,0,Evaluate Harbeat's available key routes on GiantSteps Key annotations.
+research/evaluation/evaluate_giantsteps_tempo.py,offline-research,135,0,Evaluate Harbeat BPM consensus on a local GiantSteps Tempo checkout.
+research/evaluation/evaluate_groove_percussion_timbre.py,offline-research,179,1,Audit fixed percussion-timbre rules on held-out GMD drum audio.
+research/evaluation/evaluate_groove_rhythm_features.py,offline-research,341,2,Validate rhythm-feature decisions on the official Groove MIDI Dataset.
+research/evaluation/evaluate_gtzan_beat_this.py,offline-research,374,0,"Evaluate Beat This final0 on its official, unseen GTZAN test set."
+research/evaluation/evaluate_guitarset_chords.py,offline-research,296,2,"Evaluate madmom chord labels, boundaries and derived change activity."
+research/evaluation/evaluate_guitarset_chroma_change.py,offline-research,101,1,Evaluate the production beat-synchronous chroma change fallback.
+research/evaluation/evaluate_jamendo_demucs_vocal_activity.py,offline-research,146,1,Audit the legacy Demucs-vocal-stem RMS gate on Jamendo annotations.
+research/evaluation/evaluate_jamendo_vocal_activity.py,offline-research,247,2,Held-out validation of vocal activity and whole-song vocal density.
+research/evaluation/evaluate_mir1k_vocal_pitch.py,offline-research,383,1,Validate the production pYIN vocal-pitch chain on MIR-1K.
+research/evaluation/evaluate_open_drums_808.py,offline-research,162,1,Audit the current 808 identity rule on canonical drum-machine samples.
+research/evaluation/evaluate_public_style_benchmark.py,offline-research,173,1,Evaluate saved production analysis against public weak style labels.
+research/evaluation/prepare_public_music_benchmark.py,offline-research,212,1,"Select and optionally download a small, artist-diverse MTG-Jamendo benchmark."
+research/style/__init__.py,offline-research,1,0,Offline research; not a production pipeline.
+research/style/audit_style_reference_labels.py,offline-research,195,0,Audit reference identities/tags against MusicBrainz without model leakage.
+research/style/build_style_reference_dataset.py,offline-research,356,0,Build a leakage-safe manifest from a folder-labelled reference ZIP.
+research/style/evaluate_style_model.py,offline-research,523,1,"Run leakage, shuffle and audio-perturbation checks for style_reference_v0."
+research/style/extract_style_embeddings.py,offline-research,506,2,Build beat-aligned segments and extract Discogs-EffNet embeddings.
+research/style/reanalyze_saved_style_results.py,offline-research,98,1,Recompute stem features and styles while reusing saved core analysis and stems.
+research/style/run_style_test_library.py,offline-research,273,1,Run the production analysis stack against a local test music directory.
+research/style/train_style_model.py,offline-research,756,2,Train and cross-validate 13-class reference style prototypes.
+rk_deploy/live_api.py,other-existing-code,286,0,Live DJ Control API router — /live/override and /live/intent.
+rk_deploy/live_models.py,other-existing-code,52,0,Live DJ Control models — Pydantic schemas for /live/override and /live/intent.
+scripts/adtof_drum_worker.py,operations-and-compatibility,163,1,Optional ADTOF-PyTorch worker for Harbeat's JSON model contract.
+scripts/auto_mix_e2e.py,operations-and-compatibility,319,0,End-to-end auto-mix smoke test.
+scripts/backfill_complete_analysis.py,operations-and-compatibility,241,0,Backfill complete Jetson analysis for LibrarySong rows.
+scripts/backfill_mp3_band_features.py,operations-and-compatibility,84,0,Backfill MP3 low/mid/high band ratios into LibrarySong.music_features['dj'].
+scripts/backfill_style_evidence.py,operations-and-compatibility,67,1,Backfill external style evidence for library songs.
+scripts/backfill_vocal_activity.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/backfill_vocal_activity.py.
+scripts/basic_pitch_bass_worker.py,operations-and-compatibility,71,0,Optional Basic Pitch worker implementing Harbeat's JSON model contract.
+scripts/calibrate_drum_pair_thresholds.py,operations-and-compatibility,258,1,Calibrate two drum-overlap thresholds from human-labelled JSONL pairs.
+scripts/cleanup_library_duplicates.py,operations-and-compatibility,202,0,Clean duplicate rows in library_songs and install dedupe indexes.
+scripts/dj_set_smoke.py,operations-and-compatibility,102,0,"End-to-end smoke for the dj_set pipeline (no DB, no FastAPI)."
+scripts/essentia_vocal_activity_worker.py,operations-and-compatibility,188,2,JSON worker for time-local voice activity and calibrated vocal density.
+scripts/export_vocal_activity_bundle.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/export_vocal_activity_bundle.py.
+scripts/finalize_vocal_activity.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/finalize_vocal_activity.py.
+scripts/gen_fx_for_rk.py,operations-and-compatibility,20,0,Render the 6 DJ FX as 44.1kHz stereo WAVs under /tmp/fx_out/ for RK upload.
+scripts/import_same_style_library.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/import_same_style_library.py.
+scripts/jetson_stem_activity.py,operations-and-compatibility,137,0,Generate stem_activity_windows from full mix using spectral analysis.
+scripts/jetson_stem_scoring.py,operations-and-compatibility,344,0,"Jetson → stem_automix: Score all track pairs, select optimal presets,"
+scripts/madmom_chord_worker.py,operations-and-compatibility,94,2,Isolated JSON worker for madmom CNN+CRF chord recognition.
+scripts/madmom_key_cli.py,operations-and-compatibility,68,0,Small JSON adapter for madmom's CNN key recognizer.
+scripts/migrate_library_analysis_fields.py,operations-and-compatibility,154,0,Add DJ analysis columns to an existing library_songs table.
+scripts/patch_rk_engine_fx.py,operations-and-compatibility,61,0,Patch /home/cat/cypher/audio-engine/engine.py to use the new 6-slot DJ FX
+scripts/reanalyze_feature_test_library.py,operations-and-compatibility,218,1,Reanalyse saved test-library songs from existing Demucs stems.
+scripts/run_same_style_preprocess.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/run_same_style_preprocess.py.
+scripts/score_drum_pairs.py,operations-and-compatibility,123,1,Generate auditable drum pair scores from song-level analysis JSONL.
+scripts/style_process_demo.py,operations-and-compatibility,35,0,
+scripts/validate_downbeats.py,operations-and-compatibility,171,0,Run isolated downbeat inference routes and build an auditable report.
+scripts/validate_pre_style_features.py,operations-and-compatibility,169,0,Build automatic validation and a minimal human-review queue for audio features.
+scripts/validate_vocal_activity.py,operations-and-compatibility,15,0,Compatibility entry. Implementation: preprocessing/cli/validate_vocal_activity.py.
+tests/test_all_in_one_sections.py,tests,91,0,
+tests/test_analysis_entry_cleanup.py,tests,56,0,Guard the small entry-point archive without importing heavyweight models.
+tests/test_bpm_consensus.py,tests,135,0,
+tests/test_downbeat_consensus.py,tests,174,0,
+tests/test_drum_pair_threshold_calibration.py,tests,82,0,
+tests/test_feature_model_adapters.py,tests,56,0,
+tests/test_import_same_style_library.py,tests,57,0,
+tests/test_mert_vector_dataset.py,tests,59,0,
+tests/test_model_drum_analysis_pipeline.py,tests,183,0,
+tests/test_repository_layout.py,tests,117,0,"Source-layout contracts; no database, network or inference is required."
+tests/test_same_style_preprocess_contracts.py,tests,55,0,
+tests/test_same_style_preprocess_publisher.py,tests,120,0,
+tests/test_score_drum_pairs.py,tests,50,0,
+tests/test_songformer_sections_integration.py,tests,159,0,
+tests/test_stem_automix.py,tests,400,0,"Automated tests for stem-aware Automix: presets, scoring, fallbacks, edge cases."
+tests/test_style_reference_pipeline.py,tests,121,0,
+tests/test_vocal_activity.py,tests,159,0,

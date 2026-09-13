@@ -1,4 +1,4 @@
-from scripts.evaluate_groove_rhythm_features import (
+from research.evaluation.evaluate_groove_rhythm_features import (
     GMD_MIDI_FAMILY,
     _feature_gate,
     summarize_feature_rows,

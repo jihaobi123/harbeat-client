@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from scripts.evaluate_open_drums_808 import discover_samples, repeated_sample, summarize
+from research.evaluation.evaluate_open_drums_808 import discover_samples, repeated_sample, summarize
 
 
 def _write(path: Path) -> None:

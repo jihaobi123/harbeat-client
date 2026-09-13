@@ -113,7 +113,7 @@ harbeat-vocal-activity-backfill \
 底层基础发布函数仍只处理基础合同。直接调用它的其他入口必须显式调用
 `publish_vocal_activity`，不能把基础 manifest 的 ready/degraded 当成人声完成。
 
-批量完成后可执行 `scripts/finalize_vocal_activity.py --root /mnt/nas/harbeat/preprocess`。
+批量完成后可执行 `preprocessing/cli/finalize_vocal_activity.py --root /mnt/nas/harbeat/preprocess`。
 它会验证全部报告的 Schema、SHA256、基础 run 关联、时间顺序和时长统计，
 再生成 JSON-only 增补 ZIP。结果回执：
 `/mnt/nas/harbeat/preprocess/reports/vocal_activity/latest_delivery.json`，

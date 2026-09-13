@@ -6,7 +6,7 @@ from zipfile import ZipFile, ZipInfo
 
 import jsonschema
 
-from scripts.import_same_style_library import _decoded_name, build_inventory
+from preprocessing.cli.import_same_style_library import _decoded_name, build_inventory
 
 
 def _encoded_utf8_name(name: str) -> str:

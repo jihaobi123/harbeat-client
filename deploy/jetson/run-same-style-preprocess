@@ -23,7 +23,7 @@ export HF_HUB_DOWNLOAD_TIMEOUT="${HF_HUB_DOWNLOAD_TIMEOUT:-120}"
 export HF_HUB_ETAG_TIMEOUT="${HF_HUB_ETAG_TIMEOUT:-30}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/mnt/nas/harbeat/cache/xdg}"
 if [[ -z "${SECTION_SONGFORMER_COMMAND:-}" ]]; then
-  export SECTION_SONGFORMER_COMMAND="$RUNTIME_ROOT/songformer-python $RELEASE_ROOT/experiments/run_songformer_isolated.py {audio} --out-dir {output_dir} --source-root $MODEL_ROOT/SongFormer --muq-model $MODEL_ROOT/MuQ-large-msd-iter --device cuda --precision float16"
+  export SECTION_SONGFORMER_COMMAND="$RUNTIME_ROOT/songformer-python $RELEASE_ROOT/preprocessing/runners/songformer.py {audio} --out-dir {output_dir} --source-root $MODEL_ROOT/SongFormer --muq-model $MODEL_ROOT/MuQ-large-msd-iter --device cuda --precision float16"
 fi
 export SECTION_SONGFORMER_WORK_DIR="${SECTION_SONGFORMER_WORK_DIR:-/mnt/nas/harbeat/cache/songformer-analysis}"
 # Keep the lightweight ADTOF worker on CPU so it cannot contend with the
@@ -41,4 +41,4 @@ export BPM_ALL_IN_ONE_DEVICE="${BPM_ALL_IN_ONE_DEVICE:-cuda}"
 
 export PYTHONPATH="$RELEASE_ROOT/vendor:$RUNTIME_ROOT/preprocess-packages:$RELEASE_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 install -d "$HARBEAT_PREPROCESS_ROOT" "$HARBEAT_MDX23C_CACHE_DIR" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME"
-exec "$CORE_PYTHON" "$RELEASE_ROOT/scripts/run_same_style_preprocess.py" "$@"
+exec "$CORE_PYTHON" "$RELEASE_ROOT/preprocessing/cli/run_same_style_preprocess.py" "$@"

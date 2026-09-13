@@ -20,7 +20,7 @@ import numpy as np
 import yaml
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 WORKER = ROOT / "scripts" / "basic_pitch_bass_worker.py"

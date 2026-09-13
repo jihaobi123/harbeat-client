@@ -1,4 +1,4 @@
-from scripts.evaluate_guitarset_chroma_change import summarize
+from research.evaluation.evaluate_guitarset_chroma_change import summarize
 
 
 def test_chroma_change_summary_keeps_continuous_error_and_binary_scores_separate() -> None:

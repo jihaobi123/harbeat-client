@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.evaluate_style_model import _leakage_checks
-from scripts.extract_style_embeddings import _downbeat_windows, _fixed_windows
-from scripts.train_style_model import _aggregate_track_probabilities, _cross_validate, _sample_weights
+from research.style.evaluate_style_model import _leakage_checks
+from research.style.extract_style_embeddings import _downbeat_windows, _fixed_windows
+from research.style.train_style_model import _aggregate_track_probabilities, _cross_validate, _sample_weights
 
 
 def test_downbeat_windows_use_16_bars_with_8_bar_hop():

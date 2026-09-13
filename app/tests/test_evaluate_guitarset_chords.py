@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.evaluate_guitarset_chords import (
+from research.evaluation.evaluate_guitarset_chords import (
     activity_score,
     boundary_metrics,
     change_boundaries,

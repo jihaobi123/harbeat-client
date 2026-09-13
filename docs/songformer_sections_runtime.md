@@ -15,7 +15,7 @@
 .runtime/songformer-venv/bin/python
 .runtime/songformer-src/
 .runtime/songformer-muq/
-experiments/run_songformer_isolated.py
+preprocessing/runners/songformer.py
 ```
 
 特征缓存和推理清单默认写入：
@@ -32,7 +32,7 @@ experiments/run_songformer_isolated.py
 
 ```bash
 SECTION_ENABLE_SONGFORMER=true
-SECTION_SONGFORMER_COMMAND='python /opt/harbeat/scripts/run_songformer_isolated.py {audio} --out-dir {output_dir}'
+SECTION_SONGFORMER_COMMAND='python /opt/harbeat/same-style-preprocess-current/preprocessing/runners/songformer.py {audio} --out-dir {output_dir}'
 SECTION_SONGFORMER_WORK_DIR=/opt/harbeat/cache/songformer-analysis
 SECTION_SONGFORMER_SOURCE_ROOT=/opt/harbeat/models/SongFormer
 SECTION_SONGFORMER_MUQ_MODEL=/opt/harbeat/models/MuQ-MuLan-large

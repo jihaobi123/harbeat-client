@@ -1,35 +1,15 @@
 #!/usr/bin/env python3
-"""Validate a completed vocal batch and export a timestamped JSON-only bundle."""
-from __future__ import annotations
-
-import argparse
-from datetime import datetime, timezone
-import json
+"""Compatibility entry. Implementation: preprocessing/cli/finalize_vocal_activity.py."""
 from pathlib import Path
+import runpy
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-from scripts.validate_vocal_activity import validate
-from scripts.export_vocal_activity_bundle import export_bundle
-from app.modules.library.same_style_preprocess import _atomic_json
-
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path("/mnt/nas/harbeat/preprocess"))
-    parser.add_argument("--index", default="published/indexes/style_library_vocal_activity_v1.json")
-    args = parser.parse_args()
-    root = args.root.resolve()
-    report = validate(root, args.index)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    report_path = root / "reports" / "vocal_activity" / f"validation_{stamp}.json"
-    _atomic_json(report_path, report)
-    destination = root.parent / "exports" / f"{Path(args.index).stem}_{stamp}.zip"
-    bundle = export_bundle(root, args.index, destination)
-    receipt = {"status": "ready", "validated_tracks": report["validated_tracks"],
-               "interval_count": report["interval_count"], "accuracy_evaluated": False,
-               "validation_report": str(report_path), "bundle": bundle}
-    # Operational receipt, separate from immutable marker and audio assets.
-    _atomic_json(root / "reports/vocal_activity/latest_delivery.json", receipt)
-    print(json.dumps(receipt, ensure_ascii=False))
+    runpy.run_module("preprocessing.cli.finalize_vocal_activity", run_name="__main__")
+else:
+    from importlib import import_module
+    sys.modules[__name__] = import_module("preprocessing.cli.finalize_vocal_activity")

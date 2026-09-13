@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.0.0",
+  "date": "2026-09-13",
+  "source_commit": "9d59ff9ad5eb2a53f74fb3fcc27be4a9c1bea7bb",
+  "scope": "Source organization only; no model, dataset, published output or live deployment changes.",
+  "moves": [
+    {
+      "old_path": "app/modules/library/same_style_preprocess.py",
+      "new_path": "preprocessing/publisher.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/vocal_activity.py",
+      "new_path": "preprocessing/vocal_activity.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "experiments/run_songformer_isolated.py",
+      "new_path": "preprocessing/runners/songformer.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/run_same_style_preprocess.py",
+      "new_path": "preprocessing/cli/run_same_style_preprocess.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/import_same_style_library.py",
+      "new_path": "preprocessing/cli/import_same_style_library.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/backfill_vocal_activity.py",
+      "new_path": "preprocessing/cli/backfill_vocal_activity.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/validate_vocal_activity.py",
+      "new_path": "preprocessing/cli/validate_vocal_activity.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/export_vocal_activity_bundle.py",
+      "new_path": "preprocessing/cli/export_vocal_activity_bundle.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/finalize_vocal_activity.py",
+      "new_path": "preprocessing/cli/finalize_vocal_activity.py",
+      "category": "production",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "scripts/evaluate_acoustic_measurements.py",
+      "new_path": "research/evaluation/evaluate_acoustic_measurements.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_ballroom_beats.py",
+      "new_path": "research/evaluation/evaluate_ballroom_beats.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_bass_transcriber.py",
+      "new_path": "research/evaluation/evaluate_bass_transcriber.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_drum_transcriber.py",
+      "new_path": "research/evaluation/evaluate_drum_transcriber.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_giantsteps_key.py",
+      "new_path": "research/evaluation/evaluate_giantsteps_key.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_giantsteps_tempo.py",
+      "new_path": "research/evaluation/evaluate_giantsteps_tempo.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_groove_percussion_timbre.py",
+      "new_path": "research/evaluation/evaluate_groove_percussion_timbre.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_groove_rhythm_features.py",
+      "new_path": "research/evaluation/evaluate_groove_rhythm_features.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_gtzan_beat_this.py",
+      "new_path": "research/evaluation/evaluate_gtzan_beat_this.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_guitarset_chords.py",
+      "new_path": "research/evaluation/evaluate_guitarset_chords.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_guitarset_chroma_change.py",
+      "new_path": "research/evaluation/evaluate_guitarset_chroma_change.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_jamendo_demucs_vocal_activity.py",
+      "new_path": "research/evaluation/evaluate_jamendo_demucs_vocal_activity.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_jamendo_vocal_activity.py",
+      "new_path": "research/evaluation/evaluate_jamendo_vocal_activity.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_mir1k_vocal_pitch.py",
+      "new_path": "research/evaluation/evaluate_mir1k_vocal_pitch.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_open_drums_808.py",
+      "new_path": "research/evaluation/evaluate_open_drums_808.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_public_style_benchmark.py",
+      "new_path": "research/evaluation/evaluate_public_style_benchmark.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/prepare_public_music_benchmark.py",
+      "new_path": "research/evaluation/prepare_public_music_benchmark.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/evaluate_style_model.py",
+      "new_path": "research/style/evaluate_style_model.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/build_style_reference_dataset.py",
+      "new_path": "research/style/build_style_reference_dataset.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/train_style_model.py",
+      "new_path": "research/style/train_style_model.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/extract_style_embeddings.py",
+      "new_path": "research/style/extract_style_embeddings.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/audit_style_reference_labels.py",
+      "new_path": "research/style/audit_style_reference_labels.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/run_style_test_library.py",
+      "new_path": "research/style/run_style_test_library.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    },
+    {
+      "old_path": "scripts/reanalyze_saved_style_results.py",
+      "new_path": "research/style/reanalyze_saved_style_results.py",
+      "category": "research",
+      "old_entry": "removed_after_reference_update"
+    }
+  ]
+}
