@@ -1,7 +1,8 @@
 # Observability E2E
 
-> 本目录已同步远端后续实现；不等于已接入当前第二版。部署职责与采用状态以 [当前模块清单](../REGISTRY.md) 为准。
-> 本模块的旧手机/预渲染合同不是新 APK 接口要求。
+> **第一版实现（含后续维护版本），仅保留供评估。第二版不一定需要，是否复用必须由对应负责人确认。**
+> **第二版采用状态：待确认。** 未确认前，不列为必做功能，不默认接入或部署，不以其旧接口约束新 APK。
+> 这里的“第一版”指产品代际，不是把包版本改为 1.0；版本来源及职责见 [当前模块清单](../REGISTRY.md)。
 
 Version `0.2.0` defines canonical cross-device sources and operation stages.
 Reports automatically calculate planning, rendering, sync, scheduling,

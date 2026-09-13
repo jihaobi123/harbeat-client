@@ -7,66 +7,99 @@
   "modules": [
     {
       "id": "asset-sync",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "audio-runtime",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "device-runtime",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "library-catalog",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "mobile-dj-control",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.2.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "observability-e2e",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "physical-input",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "sequence-planner",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "transition-orchestrator",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.3.0",
       "package_version": "0.4.1",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "transition-planner",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"
     },
     {
       "id": "transition-renderer",
+      "product_generation": "v1",
+      "v2_adoption": "pending_confirmation",
+      "v2_required": null,
       "module_version": "0.2.0",
       "package_version": "0.3.0",
       "status": "retained_latest_compared_source_not_v2_integrated"

@@ -49,6 +49,19 @@ def test_test_runner_covers_retained_modules_and_canonical_preprocessing():
         assert command_for(group)
 
 
+def test_retained_v1_modules_are_explicitly_pending_v2_decision():
+    registry = (ROOT / "modules/REGISTRY.md").read_text()
+    assert registry.count("待确认（不一定需要）") == len(CURRENT["modules"])
+    for module in CURRENT["modules"]:
+        assert module["product_generation"] == "v1"
+        assert module["v2_adoption"] == "pending_confirmation"
+        assert module["v2_required"] is None
+        notice = (ROOT / "modules" / module["id"] / "README.md").read_text().split("\n\n", 2)[1]
+        assert "第一版实现" in notice
+        assert "第二版不一定需要" in notice
+        assert "待确认" in notice
+
+
 def test_test_runner_can_list_commands_from_another_directory(tmp_path):
     result = subprocess.run([sys.executable, str(ROOT / "scripts/test_current_modules.py"), "--list"],
                             cwd=tmp_path, capture_output=True, text=True, timeout=15)

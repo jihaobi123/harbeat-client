@@ -14,7 +14,7 @@
 | 评测和风格训练 | [research](../../research/README.md) | 24 个研究脚本已从常用 scripts 目录移走 |
 | 原实验数据和模型 | [experiments](../../experiments/README.md) | 保留模型、数据集、固定报告、MERT 复现入口 |
 | 运维和旧命令兼容 | [scripts](../../scripts/README.md) | 标明哪些会写数据库、哪些是转发入口 |
-| 独立模块 | [modules 当前清单](../../modules/REGISTRY.md) | 两个重复分析包已退役；其余 11 个模块采用已核对远端后续实现，尚未接入新 APK/RK |
+| 独立模块 | [modules 当前清单](../../modules/REGISTRY.md) | 两个重复分析包已退役；其余 11 个为第一版实现，第二版不一定需要，全部待确认，不作必做要求 |
 | 原客户端 / RK | `mobile/`、`web/`、`rk_deploy/`、`jetson/`、`cypher-integration/` | 保留给原维护者；不属于本次分析清理的删除范围 |
 | 已退役入口 | `archive/analysis-v1/` | 原 All-In-One 对比脚本和旧 RMS 补分析入口，保留可追溯副本 |
 | 测试 | `tests/`、`app/tests/` | 导入路径已同步；新增目录/兼容性回归测试 |

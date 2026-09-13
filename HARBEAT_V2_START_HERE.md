@@ -11,7 +11,7 @@
 - 业务后端留在 [`app/`](app/README.md)，共享分析引擎已迁出；MDX23C 继续在 `music_analysis/drum_analysis/`，没有复制第二份模型实现。
 - **[代码地图](docs/repository/README.md)** 包含两批逐文件迁移表；原静态清单是第一批整理时的快照，不是实时部署清单。
 - **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码。
-- **[当前 modules 清单](modules/REGISTRY.md)**：旧预处理/分轨包已移除，其余 11 个模块同步已核对的远端后续实现；具体采用边界见 [处置表](docs/repository/module-decisions.md)。不是完整新 APK/RK 集成版本。
+- **[当前 modules 清单](modules/REGISTRY.md)**：旧预处理/分轨包已移除，其余 11 个模块为第一版实现（含后续维护版本），第二版不一定需要，全部待负责人确认是否采用；未确认前不作为必做功能或部署要求。具体边界见 [处置表](docs/repository/module-decisions.md)。
 
 本次只整理仓库源码，未切换 Jetson 线上部署，也没有继续设计 APK 接口。
 新后端按新 APK 和当前预处理合同重构，不要求兼容旧手机 API；新 APK 源码待用户上传，旧 mobile 不作为新 App 的依据。
