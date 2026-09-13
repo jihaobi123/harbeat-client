@@ -4,6 +4,7 @@
 
 | 文档区域 | 怎样使用 |
 |---|---|
+| [backend-v2](backend-v2/README.md) | 本轮后端开工参考：已核对 Jetson/NAS/数据库和新 APK 真机主要页面；含待实施接口/数据库设计、只读 reader、验收清单。不是已上线 API |
 | [repository](repository/README.md) | 当前源码分区、迁移记录、部署位置与参考区说明 |
 | [基础预处理合同](same_style_preprocess_handoff_v1.md)、[人声增补合同](jetson_vocal_activity_handoff_v1.md) | 当前已发布数据仍使用的格式；供数据消费者读取，不因产品第二版而废弃 |
 | [backend-handoff-v1](backend-handoff-v1/README.md)、[team-development-v1](team-development-v1/README.md) | 第一版开工任务、API、数据库和跨端协议资料；后续重构，预计不直接使用 |

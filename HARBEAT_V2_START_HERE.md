@@ -13,8 +13,8 @@
 - **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码。
 - **[当前 modules 清单](modules/REGISTRY.md)**：旧预处理/分轨包已移除，其余 11 个模块为第一版实现（含后续维护版本），第二版不一定需要，全部待负责人确认是否采用；未确认前不作为必做功能或部署要求。具体边界见 [处置表](docs/repository/module-decisions.md)。
 
-本次只整理仓库源码，未切换 Jetson 线上部署，也没有继续设计 APK 接口。
-新后端按新 APK 和当前预处理合同重构，不要求兼容旧手机 API；新 APK 源码待用户上传，旧 mobile 不作为新 App 的依据。
+本次未切换 Jetson 线上部署。已补充 [后端实施手册](docs/backend-v2/README.md)：重新核对 Jetson/NAS/数据库、实看新 APK 主要页面，提供初步接口、表结构、实现顺序及只读参考程序；不是宣称第二版业务服务已经上线。
+新后端按新 APK 和当前预处理合同重构，不要求兼容旧手机 API；新 APK 源码待用户上传，真机准备完成仍是 Mock，旧 mobile 不作为新 App 的依据。
 
 当前代码所在远端分支：`archive/music-analysis-history-20260830`。
 这个名字有历史原因，但本分支包含现行预处理；不要因 `archive` 字样删除它，也不要从旧 `main` 判断最新能力。
@@ -30,9 +30,9 @@ cd harbeat-v2
 
 | 负责人 | 从哪里开始 | 边界 |
 |---|---|---|
-| 后端负责人 | [参考代码与重构边界](docs/repository/reference-code.md)、[部署位置](docs/repository/deployment-map.md) | 后续负责手机业务接口、Jetson/数据库、资源授权/任务；旧任务书不是新接口合同 |
+| 后端负责人 | [第二版后端实施手册](docs/backend-v2/README.md) | 手机服务端、Jetson/数据库、资源授权和交付；明确已有、待开发与待确认项 |
 | 混音 / RK 负责人 | [基础预处理合同](docs/same_style_preprocess_handoff_v1.md)、[人声增补](docs/jetson_vocal_activity_handoff_v1.md) | 获取版本化资源；旧 RK 代码仅参考，混音算法和 RK 重构由用户负责 |
-| 前端负责人 | [手机代码定位](mobile/README.md) | 等新 APK 源码核对真实页面，不以旧 mobile API 或旧交接草案为约束 |
+| 前端负责人 | [真机页面对应](docs/backend-v2/06-phone-page-mapping.md)、[手机代码定位](mobile/README.md) | 已核对主要页面；源码和接口联调待完成，不以旧 mobile API 为约束 |
 | 分析模块维护者 | [代码分层与清理记录](docs/repository/README.md) | 只从当前入口运行；研究实验不自动替代正式模型 |
 
 ## 系统分工
