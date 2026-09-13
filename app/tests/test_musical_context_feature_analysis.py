@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.feature_calibration import apply_feature_calibration
-from app.modules.library.musical_context_feature_analysis import (
+from preprocessing.engines.feature_calibration import apply_feature_calibration
+from preprocessing.engines.musical_context_feature_analysis import (
     _harmony_features,
     _production_features,
     _vocal_features,

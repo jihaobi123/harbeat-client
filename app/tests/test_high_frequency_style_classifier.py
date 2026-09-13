@@ -5,7 +5,7 @@ from app.modules.library.high_frequency_style_classifier import (
     classify_high_frequency_styles,
 )
 from app.modules.library.high_frequency_style_taxonomy import STYLE_DEFINITIONS
-from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
+from preprocessing.engines.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
 def _feature(score: float, confidence: float = 0.9) -> dict:

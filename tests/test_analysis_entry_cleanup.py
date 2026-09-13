@@ -31,7 +31,7 @@ def test_archived_vocal_script_still_resolves_repository_root():
 
 def test_production_songformer_entry_is_retained():
     assert (ROOT / "preprocessing/runners/songformer.py").is_file()
-    analysis = (ROOT / "app/modules/library/analysis.py").read_text(encoding="utf-8")
+    analysis = (ROOT / "preprocessing/engines/analysis.py").read_text(encoding="utf-8")
     deployment = (ROOT / "deploy/jetson/run-same-style-preprocess").read_text(encoding="utf-8")
     assert '"preprocessing" / "runners" / "songformer.py"' in analysis
     assert "preprocessing/runners/songformer.py" in deployment

@@ -1,0 +1,80 @@
+{
+  "scope": "shared-engine extraction, no deployment or model retraining",
+  "source_commit": "bca4f94f475dc5ddf8df679f4c7db22849b6a19d",
+  "pytest": {
+    "executable": ".venv/bin/python",
+    "args": [
+      "-m",
+      "pytest",
+      "-q",
+      "app/tests/test_acoustic_measurement_analysis.py",
+      "app/tests/test_analysis_features.py",
+      "app/tests/test_bass_feature_analysis.py",
+      "app/tests/test_bass_model_validation.py",
+      "app/tests/test_beat_model_validation.py",
+      "app/tests/test_bpm_consensus.py",
+      "app/tests/test_command_line.py",
+      "app/tests/test_drum_analysis.py",
+      "app/tests/test_drum_model_validation.py",
+      "app/tests/test_drum_pair_similarity.py",
+      "app/tests/test_evaluate_mir1k_vocal_pitch.py",
+      "app/tests/test_extended_analysis.py",
+      "app/tests/test_feature_calibration.py",
+      "app/tests/test_feature_model_adapters.py",
+      "app/tests/test_feature_validation.py",
+      "app/tests/test_high_frequency_feature_analysis.py",
+      "app/tests/test_high_frequency_style_classifier.py",
+      "app/tests/test_key_analysis.py",
+      "app/tests/test_key_model_validation.py",
+      "app/tests/test_loudness_analysis.py",
+      "app/tests/test_musical_context_feature_analysis.py",
+      "app/tests/test_percussion_feature_analysis.py",
+      "app/tests/test_pre_style_feature_persistence.py",
+      "app/tests/test_rhythm_feature_analysis.py",
+      "app/tests/test_stem_analysis.py",
+      "app/tests/test_style_feature_evidence.py",
+      "app/tests/test_tempo_model_validation.py",
+      "tests/test_all_in_one_sections.py",
+      "tests/test_bpm_consensus.py",
+      "tests/test_downbeat_consensus.py",
+      "tests/test_feature_model_adapters.py",
+      "tests/test_songformer_sections_integration.py",
+      "tests/test_repository_layout.py",
+      "tests/test_analysis_entry_cleanup.py",
+      "tests/test_analysis_engine_layout.py",
+      "tests/test_same_style_preprocess_publisher.py",
+      "tests/test_vocal_activity.py"
+    ],
+    "passed": 351,
+    "warnings": 4
+  },
+  "historical_module_tests": [
+    {
+      "module": "audio-preprocess",
+      "passed": 7
+    },
+    {
+      "module": "stem-separation",
+      "passed": 5
+    },
+    {
+      "module": "library-catalog",
+      "passed": 8
+    }
+  ],
+  "parity": {
+    "implementations": 21,
+    "allowed_changes": [
+      "import path",
+      "repository root parents index"
+    ],
+    "status": "verified"
+  },
+  "not_run": [
+    "full repository suite",
+    "Jetson GPU inference",
+    "production deployment",
+    "APK or RK integration",
+    "database migrations"
+  ]
+}

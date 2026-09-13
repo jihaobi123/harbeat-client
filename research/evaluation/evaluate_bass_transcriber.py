@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 WORKER = ROOT / "scripts" / "basic_pitch_bass_worker.py"
 
-from app.modules.library.bass_feature_analysis import (  # noqa: E402
+from preprocessing.engines.bass_feature_analysis import (  # noqa: E402
     _bass_groove_descriptors,
     _collapse_simultaneous_bass_notes,
 )

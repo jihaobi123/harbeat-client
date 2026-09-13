@@ -37,7 +37,7 @@ def test_stem_analysis_persists_pre_style_features_without_overwriting_dj_featur
     )
 
     with (
-        patch("app.modules.library.stem_analysis.analyze_stem_files", return_value=result),
+        patch("preprocessing.engines.stem_analysis.analyze_stem_files", return_value=result),
         patch(
             "app.modules.library.high_frequency_style_classifier.classify_high_frequency_styles",
             return_value={"version": "high_frequency_style_analysis_v1", "top_styles": []},

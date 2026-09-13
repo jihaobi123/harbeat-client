@@ -1,5 +1,8 @@
 # Stem Separation
 
+> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
+> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+
 This module owns offline Demucs separation and validation of the four stem
 files. It is intentionally separate from RK real-time `stem_solo` and
 `stem_curves`, which belong to `stem-runtime`.

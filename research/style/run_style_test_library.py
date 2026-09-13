@@ -21,9 +21,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.analysis import analyze_audio_file
+from preprocessing.engines.analysis import analyze_audio_file
 from app.modules.library.high_frequency_style_classifier import classify_high_frequency_styles
-from app.modules.library.stem_analysis import analyze_stem_files
+from preprocessing.engines.stem_analysis import analyze_stem_files
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".wav", ".ogg", ".aac", ".m4a", ".opus", ".wma"}
 STEM_NAMES = ("vocals", "drums", "bass", "other")

@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from app.modules.library.drum_pair_similarity import score_drum_pair
+from preprocessing.engines.drum_pair_similarity import score_drum_pair
 
 
 def load_songs(path: Path) -> dict[str, dict[str, Any]]:

@@ -1,4 +1,4 @@
-from app.modules.library.beat_model_validation import resolve_beat_model_validation
+from preprocessing.engines.beat_model_validation import resolve_beat_model_validation
 
 
 def _route(confidence: float, *, engine: str = "beat_this:final0") -> dict:

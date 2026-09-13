@@ -28,7 +28,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.benchmark_evaluation import binary_metrics  # noqa: E402
-from app.modules.library.vocal_pitch_analysis import (  # noqa: E402
+from preprocessing.engines.vocal_pitch_analysis import (  # noqa: E402
     HOP_LENGTH,
     analyze_vocal_pitch,
     vocal_pitch_descriptors,

@@ -3,8 +3,10 @@
 > Historical extracted-module baseline, not the canonical V2 preprocessing runtime.
 > Current source ownership: [repository map](../docs/repository/README.md); production preprocessing: [preprocessing](../preprocessing/README.md).
 
-This directory is the unified source tree for the 13 independently extracted
-HarBeat functional modules.
+V2 开发请先看 [逐模块处置表](../docs/repository/module-decisions.md) 和 [当前部署说明](../docs/repository/deployment-map.md)。下文是 2026-08-13 历史基线记录，尤其 Jetson 选歌/预渲染的旧职责不能直接当作 V2 要求。
+
+This directory preserves the source tree for the 13 independently extracted
+historical HarBeat functional modules; it is not the canonical V2 runtime.
 
 ## Version status
 

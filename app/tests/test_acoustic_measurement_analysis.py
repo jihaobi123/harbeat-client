@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.acoustic_measurement_analysis import analyze_acoustic_measurements
+from preprocessing.engines.acoustic_measurement_analysis import analyze_acoustic_measurements
 
 
 def test_silence_is_unavailable_instead_of_fictitious_midband_centroid() -> None:

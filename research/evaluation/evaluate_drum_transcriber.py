@@ -16,7 +16,7 @@ from app.modules.library.benchmark_evaluation import (
     event_release_gate,
     onset_event_metrics,
 )
-from app.shared.command_line import split_command_line
+from music_analysis.command_line import split_command_line
 
 
 MIDI_FAMILY = {

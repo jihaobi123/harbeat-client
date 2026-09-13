@@ -28,7 +28,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.benchmark_evaluation import binary_metrics  # noqa: E402
-from app.modules.library.rhythm_feature_analysis import analyze_rhythm_features  # noqa: E402
+from preprocessing.engines.rhythm_feature_analysis import analyze_rhythm_features  # noqa: E402
 from research.evaluation.evaluate_drum_transcriber import run_worker  # noqa: E402
 
 

@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.analysis import (  # noqa: E402
+from preprocessing.engines.analysis import (  # noqa: E402
     _bpm_from_beat_times,
     _detect_time_signature,
     _downbeat_match_metrics,

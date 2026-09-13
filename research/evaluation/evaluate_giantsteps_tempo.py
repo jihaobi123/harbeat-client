@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.analysis import _analyze_rhythm_parallel, _choose_bpm_consensus  # noqa: E402
+from preprocessing.engines.analysis import _analyze_rhythm_parallel, _choose_bpm_consensus  # noqa: E402
 from app.modules.library.benchmark_evaluation import tempo_metrics  # noqa: E402
 
 

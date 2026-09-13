@@ -2,8 +2,8 @@ import threading
 
 import numpy as np
 
-import app.modules.library.analysis as analysis
-from app.modules.library.analysis import _choose_bpm_consensus
+import preprocessing.engines.analysis as analysis
+from preprocessing.engines.analysis import _choose_bpm_consensus
 
 
 def _result(bpm: float) -> dict:

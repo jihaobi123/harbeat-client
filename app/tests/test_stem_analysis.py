@@ -6,7 +6,7 @@ from unittest.mock import patch
 import numpy as np
 import soundfile as sf
 
-from app.modules.library.stem_analysis import analyze_stem_files
+from preprocessing.engines.stem_analysis import analyze_stem_files
 
 
 class StemAnalysisTests(unittest.TestCase):

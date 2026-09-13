@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _build_bpm_curve,
     _build_energy_curve,
     _build_transition_windows,

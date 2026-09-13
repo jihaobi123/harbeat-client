@@ -1,4 +1,4 @@
-from app.modules.library.bass_model_validation import (
+from preprocessing.engines.bass_model_validation import (
     capability_is_validated,
     resolve_bass_model_validation,
 )

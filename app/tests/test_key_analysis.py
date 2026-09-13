@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _analyze_key,
     _analyze_key_libkeyfinder,
     _choose_key_consensus,
@@ -99,7 +99,7 @@ class KeyConsensusTests(unittest.TestCase):
     def test_libkeyfinder_uses_segment_majority(self):
         audio = np.zeros(22050 * 61, dtype=np.float32)
         with patch.dict(os.environ, {"KEYFINDER_ENABLE_SEGMENTS": "true"}), patch(
-            "app.modules.library.analysis._run_keyfinder_cli",
+            "preprocessing.engines.analysis._run_keyfinder_cli",
             side_effect=["2A", "8A", "8A"],
         ):
             result = _analyze_key_libkeyfinder("song.mp3", audio, 22050)

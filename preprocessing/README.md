@@ -1,12 +1,13 @@
 # 正式预处理：从这里开发和调用
 
-此目录保存正式预处理的编排、发布、人声检测和运行入口，不是另写一套模型。
-2026-09-13 从散落的 app/scripts/experiments 中迁入 9 个实现，参数、结果格式和分析算法不变。
+此目录保存正式预处理的编排、发布、人声检测、共享引擎和运行入口，不是另写一套模型。
+2026-09-13 第一批迁入 9 个实现，第二批又从 app 迁入 20 个共享引擎/特征/校准实现；参数、结果格式和分析算法不变。
 
 ## 目录
 
 ```text
 preprocessing/
+  engines/                     核心分析、轨道特征、鼓相似度及验证/校准
   publisher.py                 单曲编排、Demucs调用、MDX调用、NAS发布
   vocal_activity.py            已有vocals → Silero人声时间标记
   runners/
@@ -44,22 +45,24 @@ from preprocessing.vocal_activity import publish_vocal_activity
 底层 `run_same_style_preprocess` 发布基础结果；单曲 CLI 随后显式调用人声发布器。
 不要把基础结果成功当成人声阶段一定成功。当前曲库禁用 ADTOF 时继续显式传 `--disable-adtof`，本次不改默认配置或缓存版本。
 
-## 哪些实现仍是共享依赖
+## 引擎与外部依赖
 
-| 能力 | 目前实际实现 | 为什么这次不一起搬 |
+| 能力 | 目前实际实现 | 边界 |
 |---|---|---|
-| BPM、Beat、小节、段落结果整合 | `app/modules/library/analysis.py` | 旧业务后台和其他评测也在用；本次只将正式 SongFormer 运行器拆出 |
-| 轨道特征分析 | `app/modules/library/stem_analysis.py` 及关联特征模块 | 多个业务调用，需单独做后续模块拆分验证 |
+| BPM、Beat、小节、段落结果整合 | `preprocessing/engines/analysis.py` | 已迁入；旧 app 文件只转发 |
+| 轨道特征分析 | `preprocessing/engines/stem_analysis.py` 及关联特征模块 | 已迁入；不初始化 Web API 或数据库 |
+| 通用子进程命令解析 | `music_analysis/command_line.py` | app.shared 旧入口仅转发，避免引擎反向依赖业务包 |
 | MDX23C | `music_analysis/drum_analysis/mdx23c_separator.py` | 已是独立模块，不为换目录而复制一份 |
 | 发布数据格式 | `contracts/schemas/analysis/` | 保持已有消费者兼容，不改 schema 版本 |
 
 因此这不是可以只拷贝单个目录就安装的独立发行包。部署仍需要上述共享模块、现有模型环境和 schemas。
-本目录不直接使用数据库；歌曲目录与业务数据库的衔接不属于这次代码搬迁。
+本目录不直接使用数据库；歌曲目录与业务数据库的衔接不属于这次代码搬迁。详见 [引擎说明](engines/README.md) 和 [部署位置](../docs/repository/deployment-map.md)。
 
 ## 旧路径的处理
 
 旧 `scripts/run_same_style_preprocess.py` 等 6 个 CLI、旧 app 中 2 个模块、旧 SongFormer 路径仍可调用，但只转发到本目录。
 新代码不要继续从旧路径导入。转发保留模块身份，旧调用方和新调用方不会各加载一份业务实现。
 完整对应表见 [迁移清单](../docs/repository/moves-20260913.json)。
+第二批的 20 个 app 分析模块及 1 个命令工具也只保留转发，见 [引擎迁移表](../docs/repository/moves-engines-20260913.json)。
 
 研究和比较模型请去 [research](../research/README.md)，不要从正式入口自动加载它们。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.shared.command_line import split_command_line
+from music_analysis.command_line import split_command_line
 
 
 def test_windows_command_preserves_backslashes_and_unquotes_paths() -> None:

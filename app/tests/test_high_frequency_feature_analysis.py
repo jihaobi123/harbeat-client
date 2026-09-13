@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.high_frequency_feature_analysis import analyze_high_frequency_features
+from preprocessing.engines.high_frequency_feature_analysis import analyze_high_frequency_features
 
 
 def test_pipeline_combines_existing_music_context_and_time_frequency_modules() -> None:

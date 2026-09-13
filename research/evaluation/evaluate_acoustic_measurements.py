@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.acoustic_measurement_analysis import (  # noqa: E402
+from preprocessing.engines.acoustic_measurement_analysis import (  # noqa: E402
     analyze_acoustic_measurements,
 )
 

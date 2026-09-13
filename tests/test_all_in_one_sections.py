@@ -1,4 +1,4 @@
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _functional_intro_end,
     _functional_segments_to_phrase_map,
     _generate_dj_hot_cues,

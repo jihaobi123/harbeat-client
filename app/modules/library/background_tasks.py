@@ -90,7 +90,7 @@ def _int_bool(value: object) -> int:
 
 def apply_dancefloor_profile(song) -> None:
     """Refresh danceability and mood metadata from the best available features."""
-    from app.modules.library.analysis import _analyze_dancefloor_profile
+    from preprocessing.engines.analysis import _analyze_dancefloor_profile
 
     features = (getattr(song, "music_features", {}) or {}).get("dj", {})
     profile = _analyze_dancefloor_profile(
@@ -111,12 +111,12 @@ def apply_stem_analysis(song, *, classify_styles: bool = True) -> None:
     Includes: stem activity windows, vocal events, bass risk windows,
     and stem-aware transition window enhancement.
     """
-    from app.modules.library.analysis import (
+    from preprocessing.engines.analysis import (
         _compute_bass_risk_windows,
         _detect_vocal_events,
         _enhance_transition_windows,
     )
-    from app.modules.library.stem_analysis import analyze_stem_files
+    from preprocessing.engines.stem_analysis import analyze_stem_files
 
     existing_vocal_events = list(getattr(song, "vocal_events", None) or [])
     result = analyze_stem_files(
@@ -247,7 +247,7 @@ def run_analysis_and_separation(song_id: str) -> None:
             set_analysis_pipeline_status(song, "core_analyzing")
             _commit_stage(db, song)
             try:
-                from app.modules.library.analysis import analyze_audio_file
+                from preprocessing.engines.analysis import analyze_audio_file
 
                 result = analyze_audio_file(song.source_path)
                 if os.getenv("ENABLE_GPU_VOCAL_DETECTION", "false").lower() == "true":

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from app.modules.library.feature_calibration import (
+from preprocessing.engines.feature_calibration import (
     apply_feature_calibration,
     calibration_passes_release_gate,
     load_feature_calibration,
 )
-from app.modules.library.style_feature_evidence import make_feature_evidence, unavailable_feature
+from preprocessing.engines.style_feature_evidence import make_feature_evidence, unavailable_feature
 
 
 def _legacy(score: float = 0.8) -> dict:

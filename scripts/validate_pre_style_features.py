@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 from app.modules.library.feature_review_artifacts import render_review_clips, render_review_html  # noqa: E402
 from app.modules.library.feature_validation import ReviewPolicy, minimize_review_queue, triage_track_features  # noqa: E402
-from app.modules.library.stem_analysis import analyze_stem_files  # noqa: E402
+from preprocessing.engines.stem_analysis import analyze_stem_files  # noqa: E402
 
 
 AUDIO_SUFFIXES = {".mp3", ".wav", ".flac", ".m4a", ".aac"}

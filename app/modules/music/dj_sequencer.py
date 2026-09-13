@@ -25,7 +25,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
-from app.modules.library.analysis import camelot_distance, camelot_score
+from preprocessing.engines.analysis import camelot_distance, camelot_score
 
 log = logging.getLogger(__name__)
 

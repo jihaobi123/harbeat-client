@@ -8,7 +8,7 @@ from research.evaluation.evaluate_mir1k_vocal_pitch import (
     split_for,
     summarize,
 )
-from app.modules.library.vocal_pitch_analysis import vocal_pitch_descriptors
+from preprocessing.engines.vocal_pitch_analysis import vocal_pitch_descriptors
 
 
 def test_split_keeps_clips_from_one_song_together() -> None:

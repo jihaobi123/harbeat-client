@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.bass_feature_analysis import (
+from preprocessing.engines.bass_feature_analysis import (
     _collapse_simultaneous_bass_notes,
     _ordered_pattern_similarity,
     _bass_groove_descriptors,

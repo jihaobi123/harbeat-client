@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _cached_songformer_payload,
     _select_authoritative_sections,
     _songformer_audio_fingerprint,

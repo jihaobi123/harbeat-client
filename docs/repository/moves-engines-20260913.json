@@ -1,0 +1,111 @@
+{
+  "source_commit": "bca4f94f475dc5ddf8df679f4c7db22849b6a19d",
+  "scope": "Step 2: shared analysis engines, not Web API or database migration",
+  "moves": [
+    {
+      "old_path": "app/modules/library/acoustic_measurement_analysis.py",
+      "new_path": "preprocessing/engines/acoustic_measurement_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/analysis.py",
+      "new_path": "preprocessing/engines/analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/bass_feature_analysis.py",
+      "new_path": "preprocessing/engines/bass_feature_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/bass_model_validation.py",
+      "new_path": "preprocessing/engines/bass_model_validation.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/beat_model_validation.py",
+      "new_path": "preprocessing/engines/beat_model_validation.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/drum_analysis.py",
+      "new_path": "preprocessing/engines/drum_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/drum_model_validation.py",
+      "new_path": "preprocessing/engines/drum_model_validation.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/drum_pair_similarity.py",
+      "new_path": "preprocessing/engines/drum_pair_similarity.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/feature_calibration.py",
+      "new_path": "preprocessing/engines/feature_calibration.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/feature_model_adapters.py",
+      "new_path": "preprocessing/engines/feature_model_adapters.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/feature_registry.py",
+      "new_path": "preprocessing/engines/feature_registry.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/high_frequency_feature_analysis.py",
+      "new_path": "preprocessing/engines/high_frequency_feature_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/key_model_validation.py",
+      "new_path": "preprocessing/engines/key_model_validation.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/musical_context_feature_analysis.py",
+      "new_path": "preprocessing/engines/musical_context_feature_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/percussion_feature_analysis.py",
+      "new_path": "preprocessing/engines/percussion_feature_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/rhythm_feature_analysis.py",
+      "new_path": "preprocessing/engines/rhythm_feature_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/stem_analysis.py",
+      "new_path": "preprocessing/engines/stem_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/style_feature_evidence.py",
+      "new_path": "preprocessing/engines/style_feature_evidence.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/tempo_model_validation.py",
+      "new_path": "preprocessing/engines/tempo_model_validation.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/modules/library/vocal_pitch_analysis.py",
+      "new_path": "preprocessing/engines/vocal_pitch_analysis.py",
+      "old_entry": "forwarding_only"
+    },
+    {
+      "old_path": "app/shared/command_line.py",
+      "new_path": "music_analysis/command_line.py",
+      "old_entry": "forwarding_only"
+    }
+  ]
+}

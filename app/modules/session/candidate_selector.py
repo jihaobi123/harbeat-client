@@ -310,7 +310,7 @@ class CandidateSelector:
         key_b = str(track.get("camelot_key", ""))
         if key_a and key_b:
             try:
-                from app.modules.library.analysis import camelot_distance
+                from preprocessing.engines.analysis import camelot_distance
                 dist = camelot_distance(key_a, key_b)
                 if dist == 0:
                     score += 0.15
@@ -472,7 +472,7 @@ class CandidateSelector:
         key_b = str(track.get("camelot_key", ""))
         if key_a and key_b:
             try:
-                from app.modules.library.analysis import camelot_distance
+                from preprocessing.engines.analysis import camelot_distance
                 if camelot_distance(key_a, key_b) >= 4:
                     warnings.append(f"key_clash: {key_a}→{key_b}")
             except Exception:

@@ -1,5 +1,8 @@
 # Physical Input
 
+> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
+> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+
 This module records the real MYKB E9s button semantics without requiring a
 keyboard, RK, Unix socket, or mixer during tests.
 

@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _analyze_dancefloor_profile,
     _compute_bass_risk_windows,
     _compute_groove_score,

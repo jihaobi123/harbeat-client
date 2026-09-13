@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from app.modules.library.analysis import _analyze_loudness
+from preprocessing.engines.analysis import _analyze_loudness
 
 
 class LoudnessAnalysisTests(unittest.TestCase):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.drum_analysis import (
+from preprocessing.engines.drum_analysis import (
     _metrical_alignment,
     analyze_drum_stem,
     empty_drum_analysis,

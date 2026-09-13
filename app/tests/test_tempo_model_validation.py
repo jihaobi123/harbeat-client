@@ -1,4 +1,4 @@
-from app.modules.library.tempo_model_validation import resolve_tempo_model_validation
+from preprocessing.engines.tempo_model_validation import resolve_tempo_model_validation
 
 
 def test_exact_strategy_and_reference_model_resolve() -> None:

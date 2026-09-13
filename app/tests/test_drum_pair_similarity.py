@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.modules.library.drum_pair_similarity import (
+from preprocessing.engines.drum_pair_similarity import (
     DrumPairScoreConfig,
     route_overlap_score,
     score_drum_pair,

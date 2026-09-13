@@ -1,5 +1,8 @@
 # Observability E2E
 
+> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
+> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+
 This module provides the evidence layer required before HarBeat runtime code is
 extracted or deleted. It does not plan transitions, render audio, synchronize
 assets, or control playback by itself.

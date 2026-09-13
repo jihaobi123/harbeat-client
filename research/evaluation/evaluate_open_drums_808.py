@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.bass_feature_analysis import analyze_bass_features  # noqa: E402
+from preprocessing.engines.bass_feature_analysis import analyze_bass_features  # noqa: E402
 from app.modules.library.benchmark_evaluation import binary_metrics  # noqa: E402
 
 

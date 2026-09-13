@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.rhythm_feature_analysis import (
+from preprocessing.engines.rhythm_feature_analysis import (
     _rhythm_boundary_descriptors,
     analyze_rhythm_features,
 )

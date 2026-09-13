@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.modules.library.stem_analysis import analyze_stem_files  # noqa: E402
-from app.modules.library.feature_calibration import load_feature_calibration  # noqa: E402
+from preprocessing.engines.stem_analysis import analyze_stem_files  # noqa: E402
+from preprocessing.engines.feature_calibration import load_feature_calibration  # noqa: E402
 
 
 STEM_NAMES = ("vocals", "drums", "bass", "other")

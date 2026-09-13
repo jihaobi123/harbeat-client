@@ -7,8 +7,8 @@ import tempfile
 import numpy as np
 import soundfile as sf
 
-from app.modules.library.drum_analysis import analyze_drum_stem
-from app.modules.library.feature_model_adapters import (
+from preprocessing.engines.drum_analysis import analyze_drum_stem
+from preprocessing.engines.feature_model_adapters import (
     FeatureModelConfig,
     collect_mature_model_evidence,
 )

@@ -9,7 +9,7 @@ import soundfile as sf
 
 from app.modules.library.feature_review_artifacts import render_review_clips, render_review_html
 from app.modules.library.feature_validation import ReviewPolicy, minimize_review_queue, triage_track_features
-from app.modules.library.style_feature_evidence import unavailable_feature
+from preprocessing.engines.style_feature_evidence import unavailable_feature
 
 
 def _feature(

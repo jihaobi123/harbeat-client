@@ -1,4 +1,4 @@
-from app.modules.library.analysis import _choose_bpm_consensus
+from preprocessing.engines.analysis import _choose_bpm_consensus
 
 
 def test_metrical_reference_is_not_outvoted_by_two_half_tempo_routes() -> None:

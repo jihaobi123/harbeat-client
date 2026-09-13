@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from app.modules.library.percussion_feature_analysis import analyze_percussion_features
+from preprocessing.engines.percussion_feature_analysis import analyze_percussion_features
 
 
 def _burst(audio: np.ndarray, sr: int, time_sec: float, signal: np.ndarray) -> None:

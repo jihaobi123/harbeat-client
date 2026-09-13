@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from app.modules.library.style_feature_evidence import (
+from preprocessing.engines.style_feature_evidence import (
     STYLE_FEATURE_EVIDENCE_VERSION,
     make_feature_evidence,
     unavailable_feature,

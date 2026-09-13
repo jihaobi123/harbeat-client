@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 
-from app.modules.library.feature_model_adapters import _run_json_command
+from preprocessing.engines.feature_model_adapters import _run_json_command
 
 
 def test_model_adapter_accepts_status_line_before_json(tmp_path, monkeypatch) -> None:

@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.modules.library.benchmark_evaluation import binary_metrics  # noqa: E402
-from app.modules.library.percussion_feature_analysis import (  # noqa: E402
+from preprocessing.engines.percussion_feature_analysis import (  # noqa: E402
     _descriptor,
     matches_percussion_family,
 )

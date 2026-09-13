@@ -720,7 +720,7 @@ def run_same_style_preprocess(
 
             _atomic_json(staging / "_STATE.json", {"status": "running", "step": "core", "updated_at": _utc_now()})
             if core_runner is None:
-                from app.modules.library.analysis import analyze_audio_file
+                from preprocessing.engines.analysis import analyze_audio_file
 
                 core_runner = analyze_audio_file
             core = dict(core_runner(str(master)))
@@ -735,7 +735,7 @@ def run_same_style_preprocess(
 
             _atomic_json(staging / "_STATE.json", {"status": "running", "step": "stem_features", "updated_at": _utc_now()})
             if stem_analyzer is None:
-                from app.modules.library.stem_analysis import analyze_stem_files
+                from preprocessing.engines.stem_analysis import analyze_stem_files
 
                 stem_analyzer = analyze_stem_files
             with _drum_transcriber_setting(enabled=config.use_adtof):

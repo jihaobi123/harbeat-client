@@ -6,10 +6,11 @@
 
 ## 当前代码已经怎样分区
 
-- **正式预处理：[`preprocessing/`](preprocessing/README.md)**。9 个实现已迁入；部署入口改用新位置。
+- **正式预处理：[`preprocessing/`](preprocessing/README.md)**。第一批 9 个入口/发布实现，加第二批 20 个共享引擎实现；部署脚本已改，线上未切换。
 - **离线评测和风格训练：[`research/`](research/README.md)**。24 个研究脚本已从 scripts 移走。
-- 后端与共享分析引擎继续在 `app/`，MDX23C 继续在 `music_analysis/drum_analysis/`；没有复制第二份模型实现。
-- **[完整代码地图](docs/repository/README.md)** 包含逐文件迁移表、532 个 Python 文件静态清单和未清理部分的边界。
+- 业务后端留在 [`app/`](app/README.md)，共享分析引擎已迁出；MDX23C 继续在 `music_analysis/drum_analysis/`，没有复制第二份模型实现。
+- **[代码地图](docs/repository/README.md)** 包含两批逐文件迁移表；原静态清单是第一批整理时的快照，不是实时部署清单。
+- **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码；**[历史模块处置表](docs/repository/module-decisions.md)** 说明为什么不直接合并同名实现。
 
 本次只整理仓库源码，未切换 Jetson 线上部署，也没有继续设计 APK 接口。
 
@@ -58,6 +59,6 @@ RK 经手机热点主动领取任务 → 经公网入口下载获准资源 → �
 
 ## 本轮清理范围
 
-此前归档两个旧分析入口；本轮进一步迁移 33 个实现，更新调用/部署/测试。
+此前归档两个旧分析入口；第一批迁移 33 个实现，第二批迁移 21 个共享实现（20 个分析实现和 1 个命令工具），更新调用与测试。
 没有清空实验数据目录、删除模型/训练数据、重跑歌曲或改动线上服务。
 完整远端盘点见 [审计记录](docs/repository-audit-20260913/README.md)。

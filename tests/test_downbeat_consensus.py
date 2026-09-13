@@ -1,6 +1,6 @@
 import numpy as np
 
-from app.modules.library.analysis import (
+from preprocessing.engines.analysis import (
     _choose_downbeat_consensus,
     _downbeat_match_metrics,
 )

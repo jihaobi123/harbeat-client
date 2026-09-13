@@ -1,4 +1,4 @@
-from app.modules.library.drum_model_validation import (
+from preprocessing.engines.drum_model_validation import (
     class_is_validated,
     resolve_drum_model_validation,
 )

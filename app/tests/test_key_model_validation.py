@@ -1,4 +1,4 @@
-from app.modules.library.key_model_validation import resolve_key_model_validation
+from preprocessing.engines.key_model_validation import resolve_key_model_validation
 
 
 def _route(confidence: float, *, version: str = "0.16.1") -> dict:
