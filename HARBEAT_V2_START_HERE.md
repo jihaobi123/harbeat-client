@@ -1,14 +1,14 @@
 # HarBeat 第二版：开发统一入口
 
 更新：2026-09-13。**第二版指整个系统，不只是手机，也不是重写已有预处理。**
-已有 BPM、分轨、鼓组、段落、人声模块及部分数据库代码继续复用。
+已有 BPM、分轨、鼓组、段落、人声模块继续使用。旧数据库代码保留参考，不默认沿用旧表设计。
 第二版业务连接层仍需补齐，不能把“预处理完成”等同于“手机选歌到 RK 已全部打通”。
 
 ## 当前代码已经怎样分区
 
 - **正式预处理：[`preprocessing/`](preprocessing/README.md)**。第一批 9 个入口/发布实现，加第二批 20 个共享引擎实现；部署脚本已改，线上未切换。
 - **离线评测和风格训练：[`research/`](research/README.md)**。24 个研究脚本已从 scripts 移走。
-- 业务后端留在 [`app/`](app/README.md)，共享分析引擎已迁出；MDX23C 继续在 `music_analysis/drum_analysis/`，没有复制第二份模型实现。
+- **[第一版参考区与重构边界](docs/repository/reference-code.md)**：旧 `app/`、手机、网页、RK 和操作控制代码保留参考，第二版后续重构，预计不直接使用。共享分析引擎已迁出；MDX23C 继续在 `music_analysis/drum_analysis/`。
 - **[代码地图](docs/repository/README.md)** 包含两批逐文件迁移表；原静态清单是第一批整理时的快照，不是实时部署清单。
 - **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码。
 - **[当前 modules 清单](modules/REGISTRY.md)**：旧预处理/分轨包已移除，其余 11 个模块为第一版实现（含后续维护版本），第二版不一定需要，全部待负责人确认是否采用；未确认前不作为必做功能或部署要求。具体边界见 [处置表](docs/repository/module-decisions.md)。
@@ -30,9 +30,9 @@ cd harbeat-v2
 
 | 负责人 | 从哪里开始 | 边界 |
 |---|---|---|
-| 后端负责人 | [第二版后端交接与实施顺序](docs/v2/backend-owner-handoff.md) | 手机业务接口、Jetson/数据库、服务端资产授权/同步任务；不写 RK 音频引擎 |
-| 混音 / RK 负责人 | [预处理数据消费入口](docs/v2/preprocess-consumer.md) | 获取完整版本化资源；混音算法与 RK 实现由用户负责 |
-| 前端负责人 | 后端交接中的接口草案与联调验收 | 新 APK 是仓库外独立提供的前端产物，不以旧 `mobile/` API 为约束 |
+| 后端负责人 | [参考代码与重构边界](docs/repository/reference-code.md)、[部署位置](docs/repository/deployment-map.md) | 后续负责手机业务接口、Jetson/数据库、资源授权/任务；旧任务书不是新接口合同 |
+| 混音 / RK 负责人 | [基础预处理合同](docs/same_style_preprocess_handoff_v1.md)、[人声增补](docs/jetson_vocal_activity_handoff_v1.md) | 获取版本化资源；旧 RK 代码仅参考，混音算法和 RK 重构由用户负责 |
+| 前端负责人 | [手机代码定位](mobile/README.md) | 等新 APK 源码核对真实页面，不以旧 mobile API 或旧交接草案为约束 |
 | 分析模块维护者 | [代码分层与清理记录](docs/repository/README.md) | 只从当前入口运行；研究实验不自动替代正式模型 |
 
 ## 系统分工

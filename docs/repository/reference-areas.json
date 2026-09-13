@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "updated": "2026-09-13",
+  "purpose": "第一版代码保留参考；第二版后续重构，预计不直接使用。此清单不表示线上部署状态。",
+  "reference_entrypoints": [
+    "app/README.md",
+    "app/modules/README.md",
+    "app/shared/README.md",
+    "mobile/README.md",
+    "web/README.md",
+    "cypher-integration/README.md",
+    "cypher-integration/flutter-app/README.md",
+    "rk_deploy/README.md",
+    "jetson/README.md",
+    "_april_dist/README.md"
+  ],
+  "active_paths": [
+    "preprocessing",
+    "music_analysis/drum_analysis",
+    "contracts/schemas/analysis",
+    "deploy/jetson"
+  ],
+  "mixed_paths": [
+    "app",
+    "modules",
+    "scripts",
+    "deploy",
+    "contracts",
+    "docs"
+  ],
+  "mixed_path_rule": "按 README 指定的文件用途判断；app 旧导入转发仍保护现有调用，modules 正式预处理导航例外；不因父目录有旧代码就删除整个目录。",
+  "research_paths": [
+    "research",
+    "experiments",
+    "reports"
+  ],
+  "v2_default_reuse_of_reference_code": false,
+  "new_apk_source_verified": false,
+  "online_changed": false,
+  "preserved_document_notices": [
+    {
+      "path": "cypher-integration/rk3588-edge/HANDOFF.md",
+      "original_sha256": "52299eba69307e2c997629b115d046043343f20a057539ae4156813a61cbf9e3",
+      "guide_link": "../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "cypher-integration/rk3588-edge/README.md",
+      "original_sha256": "2d51c8869b0803566e751262d0d38b0eca91f0f2beef531cebfd6031b8a816b6",
+      "guide_link": "../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "cypher-integration/rk3588-edge/TASK-STATUS.md",
+      "original_sha256": "6d118bc759f484882132adf57b80949b0bc673aad82b29337e655863d8a8c202",
+      "guide_link": "../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "cypher-integration/rk3588-edge/audio-engine/README.md",
+      "original_sha256": "92fe8f251c64c76bba54123b363bc06945606a1cec37a0895b343b43b2085cd4",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "cypher-integration/rk3588-edge/deploy/README.md",
+      "original_sha256": "8ce54f472aa432bab255637246c86a51329bfd44fc0d61df87055cd778585913",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "cypher-integration/rk3588-edge/edge-agent/README.md",
+      "original_sha256": "99cfe614346d1cbc0f118914a2419961be34826bf5da13ca6af3d0bf1ebbc2c5",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/01_系统架构与职责边界.md",
+      "original_sha256": "5d0611a547abf2e1a20225870a59dfbf3d0b9055a0a1db8c9da592255ac3ab8a",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/03_领域模型与数据库设计.md",
+      "original_sha256": "b076709dcd7d493be61c737bfecc7e01cf7376427d77782c449049d4e4f5cc23",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/04_音乐分析输入输出合同.md",
+      "original_sha256": "0f6c34c5e5b9f8b6db7b552c98f12ef11511a783fbde406e99735945549d26fa",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/05_分析任务状态机与Worker规范.md",
+      "original_sha256": "c995d0e8d48a7ee4bd97fcc7fa030480cca2ae38b0467a1134cac227d51d2623",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/07_前端页面与API字段映射.md",
+      "original_sha256": "719cf1aa69c4432c821ce731252d27d1e9d53155e7cea15c03cbca84a0a9ad62",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/08_RK设备能力与控制协议.md",
+      "original_sha256": "503b7cc29856a40b113fe0dfe5f3f0d2eaac3658c558f58cd46e0a222e24defd",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/09_资源Manifest与同步协议.md",
+      "original_sha256": "f0f2addfefd9998bfd7901f56c356b63b5a0775a9e26d9b966e16382dcf1bd31",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/10_错误码幂等与离线恢复.md",
+      "original_sha256": "d8dfe4992e7856234cd44f308aa68d487c0fd508a1ea59449e8afac833571b20",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/12_联调测试与验收用例.md",
+      "original_sha256": "38276f1ba16270315d77471b4e1db7d45616d29188bffe2a136833507632048c",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/README.md",
+      "original_sha256": "2df77f79f78c588e390dd4c61fd73944a5bba681f35971e4813bff7cba8e2554",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/role-handoff/HarBeat_RK开发负责人开工任务书.md",
+      "original_sha256": "36949b393ace0adae8cfbe2e270b34501a083ed2ce05eb71b8b9efc62a51f784",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/role-handoff/HarBeat_手机前端开发负责人联调任务书.md",
+      "original_sha256": "83072ab2de880208105635ca371fdb62ddbf9237633772f9c69344f7ea367bba",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/backend-handoff-v1/role-handoff/HarBeat_服务端音乐算法负责人交付任务书.md",
+      "original_sha256": "a8a6628e596635eb8f0dbd6f1fd57fbfa229fc2ef6474e59567ef4ef5be79f02",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/functional_modules_clean_final_execution_plan_20260813.md",
+      "original_sha256": "6e3260fee4da3903973b799ca309c7463b4c3b9be3701bf889b42ae2c36e0a92",
+      "guide_link": "repository/reference-code.md"
+    },
+    {
+      "path": "docs/functional_modules_v0_1_developer_handover_20260813.md",
+      "original_sha256": "8596b62ab7f17706e379eb371997a97d378a67edd4194c3e19a6ec9648ab15ee",
+      "guide_link": "repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/00_HarBeat_四方协作开发总则.md",
+      "original_sha256": "b58e5df5e1bfdcaa7c3e9eb9f24c6cfd57b69c4829c2066a189e2641b597c1a8",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/01_代码归属与跨端依赖清单.md",
+      "original_sha256": "02f1fe64f1d586564c0a6d58ce2dbf061a1b4726422d0640fc0e79ef19becb98",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/05_任务状态评审与变更模板.md",
+      "original_sha256": "9d429d2a2821016a4f3bd2eb665c0b97f44689d602c48d2eefdad900554ae60a",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/README.md",
+      "original_sha256": "3b95c6aff26fc9857e6c74b350945cfa0350b1809f0339140c5ca2375df2674c",
+      "guide_link": "../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/role-handoff/HarBeat_RK负责人开工与协作说明.md",
+      "original_sha256": "fec06f25363ed493da051cf541dc260fde0d901192e345f2b2ad894ad38f6aec",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/role-handoff/HarBeat_后端负责人开工与协作说明.md",
+      "original_sha256": "25445b52c43b395ad0d740fed26c6d7a5bbccd947ba0f26c289c51949bcad9e3",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/role-handoff/HarBeat_手机前端负责人开工与协作说明.md",
+      "original_sha256": "6b5d5417b4a1acd8ebe2e2d4e1c35a5e48d6445e272384d240d9d24f1f4273cf",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "docs/team-development-v1/role-handoff/HarBeat_服务端音乐算法负责人开工与协作说明.md",
+      "original_sha256": "2a41294dfea1f2ecfbead39f8733fa0ebe8e41af801334c886e2ea058b3ded68",
+      "guide_link": "../../repository/reference-code.md"
+    },
+    {
+      "path": "PROJECT_PLAN.md",
+      "original_sha256": "a0c9cf74ca7064ca598769447dc5f6521eef2df74b59f963dc6105853810853b",
+      "guide_link": "docs/repository/reference-code.md"
+    },
+    {
+      "path": "DJ_AUTOMIX_INTEGRATION_EXECUTION_SPEC.md",
+      "original_sha256": "d8c9226a7bb7dfaa677970c0983201a0cc9fa89e9823a511c82eb93c3c797bd8",
+      "guide_link": "docs/repository/reference-code.md"
+    },
+    {
+      "path": "deploy/JETSON_SETUP.md",
+      "original_sha256": "7a790c04060d1e8a4af306c06fee93336896394a670dac46d0ccf4b8f7f3095f",
+      "guide_link": "../docs/repository/reference-code.md"
+    },
+    {
+      "path": "contracts/schemas/rk/README.md",
+      "original_sha256": "ecb40e41bccfe9ab88a279ad7c59d1b0b0c940f26dda2bc9b5a6ed993fd378ab",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "contracts/schemas/manifest/README.md",
+      "original_sha256": "6ec6e2afc68f797f72c2b8f279292b5127e1c12b2176ce20233edd20da4ee035",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "contracts/fixtures/mobile-api/README.md",
+      "original_sha256": "58f2da514d2da57086f0cafaa5bd0ca9836e8b277524642bea04d944f4fb83f8",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "contracts/fixtures/rk/README.md",
+      "original_sha256": "384300a14f18b00e7a8cba5e334960ddb55352ba783033d4e1f022f8ba1c777c",
+      "guide_link": "../../../docs/repository/reference-code.md"
+    },
+    {
+      "path": "docs/roadmap/README.md",
+      "original_sha256": "d0d2dc5c8f1fac115b9ffd98a73588f38b36bd7de353492a24acbc4bb01708a3",
+      "guide_link": "../repository/reference-code.md"
+    }
+  ]
+}

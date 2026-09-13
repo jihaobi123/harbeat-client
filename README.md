@@ -4,6 +4,7 @@
 > 代码已分区：[正式预处理 preprocessing](preprocessing/README.md) · [研究评测 research](research/README.md) · [完整仓库地图与迁移表](docs/repository/README.md)。
 > 当前在已有 Jetson/NAS 预处理和数据库基础上整理整个第二版系统：正式段落使用 SongFormer，鼓组使用 MDX23C，人声标记使用 Silero。
 > 下方旧产品功能和部署说明是历史参考，不代表第二版手机 → Jetson → RK 链路已打通。
+> **旧 app 后端、手机操作、网页和 RK 代码仅保留参考；第二版后续重构，预计不直接使用。** 具体目录与例外见 [参考代码与重构边界](docs/repository/reference-code.md)。正式预处理及已发布数据格式继续使用，旧数据库设计不默认沿用。
 
 > FastAPI + React + TypeScript Web 前端 + Docker 部署
 
