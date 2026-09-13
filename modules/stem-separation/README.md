@@ -1,72 +1,11 @@
-# Stem Separation
+# 正式分轨已经统一，不在这里维护第二份源码
 
-> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
-> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+唯一正式实现：[preprocessing](../../preprocessing/README.md)。
 
-This module owns offline Demucs separation and validation of the four stem
-files. It is intentionally separate from RK real-time `stem_solo` and
-`stem_curves`, which belong to `stem-runtime`.
+- Demucs 四轨：`preprocessing/publisher.py:_run_demucs`，模型 `htdemucs`。
+- 四轨特征：`preprocessing/engines/stem_analysis.py`。
+- MDX23C 鼓子轨：`music_analysis/drum_analysis/mdx23c_separator.py`。
+- 分轨后的人声时间：`preprocessing/vocal_activity.py`（Silero VAD）。
 
-## Output contract
-
-The only complete result is a mapping containing all four names:
-
-```text
-vocals -> vocals.wav
-drums  -> drums.wav
-bass   -> bass.wav
-other  -> other.wav
-```
-
-Partial output is a failure for stem-aware playback. The caller may decide to
-use a non-stem render, but this module never silently claims that a partial
-separation is complete.
-
-## Drum analysis
-
-When `drums.wav` is available, `analyze_stem_files` also returns
-`drum_analysis` with:
-
-- model-derived Kick, Snare, Hi-hat, Tom, and Cymbal event candidates when a
-  dedicated worker is configured;
-- confidence-gated Kick, Snare, and Hi-hat spectral candidates as an explicit
-  fallback when the model worker is unavailable;
-- a 2-second density curve;
-- a downbeat-aligned 16-step dominant pattern and stability score;
-- fill candidates, per-class confidence, and quality flags.
-
-Pass `bpm`, `beat_points`, and `downbeats` from the rhythm pipeline. Without a
-beat grid, event detection remains available but pattern output is explicitly
-marked for review. The result reports `selected_engine`, `detector_mode`, and
-`engine_routes`, so callers can distinguish mature-model output from spectral
-fallback. Neither route may be advertised as a real-song accuracy figure
-before annotated-set validation.
-
-The application pipeline persists v4 facts in
-`music_features.pre_style_features` and the separate 21-style result in
-`music_features.high_frequency_styles`. See
-`docs/pre_style_feature_analysis_backend_deployment.md` for model-worker
-contracts, licensing constraints, feature semantics, and acceptance commands.
-
-## Runtime behavior preserved from Jetson
-
-- Reuse existing `htdemucs/<source-stem-name>/*.wav` files.
-- Invoke the deployment interpreter with `python -m demucs -n htdemucs`.
-- Use an ASCII-safe temporary input when a source path is not safe for the
-  model runner, then copy verified outputs to the canonical stem directory.
-- Validate all four files after the process exits.
-
-The model cache and audio files are deployment assets. They are not committed
-to Git.
-
-## Tests
-
-```powershell
-py -m unittest discover modules/stem-separation/tests -v
-```
-
-The application-level regression tests are:
-
-```bash
-PYTHONPATH=. pytest -q app/tests/test_drum_analysis.py app/tests/test_stem_analysis.py
-```
+本目录原有 `harbeat_stem_separation` 的源码、测试和旧合同已退役；不再作为可安装包。正式代码仍使用的 `pre-style-features-v5.schema.json` 已迁到 `contracts/schemas/analysis/`，内容不变。
+旧源码可从提交 `3482daf` 的同路径恢复。没有删除音轨、模型或 NAS 结果，也没有改动线上服务。

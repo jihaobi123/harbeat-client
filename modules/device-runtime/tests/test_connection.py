@@ -30,6 +30,7 @@ class ConnectionTests(unittest.TestCase):
     tracker = ConnectionTracker("192.168.93.209:9000", "rk3588-01")
     tracker.record_identity(DeviceIdentity("rk3588-01"), session_id="s1", now_ms=1000)
     tracker.use_endpoint("192.168.211.177:9000", now_ms=2000)
+    self.assertIsNone(tracker.snapshot.session_id)
     state = tracker.record_identity(DeviceIdentity("rk3588-01"), session_id="s2", now_ms=2200)
     self.assertTrue(state.verified)
     self.assertEqual(state.endpoint, "http://192.168.211.177:9000")

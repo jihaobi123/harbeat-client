@@ -83,7 +83,7 @@ def test_unavailable_is_unknown_instead_of_negative() -> None:
 def test_v5_schema_describes_quality_calibration_and_unavailable_features() -> None:
     schema_path = (
         Path(__file__).parents[2]
-        / "modules/stem-separation/contracts/pre-style-features-v5.schema.json"
+        / "contracts/schemas/analysis/pre-style-features-v5.schema.json"
     )
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["properties"]["version"]["const"] == STYLE_FEATURE_EVIDENCE_VERSION

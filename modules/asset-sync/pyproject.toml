@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harbeat-asset-sync"
+version = "0.3.0"
+description = "HarBeat asset cache and publication core"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.116,<1", "httpx>=0.28,<1"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

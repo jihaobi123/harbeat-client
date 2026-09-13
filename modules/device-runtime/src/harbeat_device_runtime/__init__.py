@@ -9,6 +9,8 @@ from .connection import (
   classify_connection_error,
 )
 from .operation import OperationRef, OperationStatus
+from .migration import LegacyEndpointCandidate
+from .session import SessionBinding
 from .state import (
   ConnectionHealth,
   ConnectionProfile,
@@ -28,11 +30,13 @@ __all__ = [
   "DeviceIdentity",
   "EndpointError",
   "FailureKind",
+  "LegacyEndpointCandidate",
   "OperationRef",
   "OperationStatus",
   "PlaybackState",
   "RkEndpoint",
   "RuntimeSession",
+  "SessionBinding",
   "classify_connection_error",
   "parse_health",
   "parse_playback",

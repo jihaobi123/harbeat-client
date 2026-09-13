@@ -1,5 +1,5 @@
 id: library-catalog
-version: 0.1.0
+version: 0.2.0
 owners:
   - mobile
   - jetson
@@ -42,5 +42,11 @@ tests:
   - modules/library-catalog/tests/test_catalog.py
   - modules/library-catalog/tests/test_identity.py
   - modules/library-catalog/tests/test_manifest.py
-artifact_sha256: 016f33004f5fff5e131f00ba62564d37234d3c36669f2ef769d861f6f265365d
+  - modules/library-catalog/tests/test_service.py
+clean_architecture:
+  - models and identity are pure domain values
+  - CatalogRepository is the only catalog data port
+  - CatalogService owns playlist resolution use cases
+  - HTTP, SQLAlchemy and Flutter remain adapters
+artifact_sha256: 15fcd9ac5b55d2a273723b5e05fdb359a6e81fa77b390ea103384f869a60f4b8
 rollback_artifact: git tag module/library-catalog/v0.1.0

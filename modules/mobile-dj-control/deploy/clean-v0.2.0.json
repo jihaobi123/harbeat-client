@@ -1,0 +1,15 @@
+{
+  "module": "mobile-dj-control",
+  "version": "0.2.0",
+  "baseline": "module/mobile-dj-control/v0.1.0",
+  "source_sha256": "96f94d9bdd5986a84dcdc47e177a5c84bad72bbb8d9ab47a6de0c522159ba473",
+  "changes": [
+    "introduced explicit pending-operation TTL",
+    "introduced legal manual-transition state changes",
+    "prevented another transition or pair from overwriting current state",
+    "kept fast, energy and style on one shared execution request"
+  ],
+  "tests": {"passed": 11, "failed": 0},
+  "flutter_adapter_integration_required": true,
+  "production_integration_applied": false
+}

@@ -1,5 +1,5 @@
 id: mobile-dj-control
-version: 0.1.0
+version: 0.2.0
 owners:
   - mobile
 purpose: Keep mobile preview/confirm intent, manual transition request, task parsing, recovery, and playback confirmation independent from Flutter UI.
@@ -28,6 +28,7 @@ public_types:
   - ManualCutIntent
   - ManualTransitionTask
   - PendingManualTransition
+  - ManualTransitionLifecycle
 health_check: dart run modules/mobile-dj-control/tests/mobile_dj_control_test.dart
 tests:
   - modules/mobile-dj-control/tests/mobile_dj_control_test.dart
@@ -35,5 +36,9 @@ deployment_boundary:
   - This module does not render, sync, prepare, or schedule audio itself.
   - Energy and style preview select only a target; confirmation uses the shared manual-cut request.
   - This module does not contain Flutter widgets, timers, networking, or persistence adapters.
-artifact_sha256: 48264445d45d0ed2c3847aaea041d801e1993bf70f9141b450db38d377dce585
+clean_architecture:
+  - request builder owns the shared fast, energy and style wire request
+  - ManualTransitionLifecycle owns task identity, legal state and TTL
+  - Flutter UI, HTTP, timers and persistence remain adapters
+artifact_sha256: 96f94d9bdd5986a84dcdc47e177a5c84bad72bbb8d9ab47a6de0c522159ba473
 rollback_artifact: git tag module/mobile-dj-control/v0.1.0

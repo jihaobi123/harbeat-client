@@ -1,5 +1,5 @@
 id: audio-runtime
-version: 0.1.0
+version: 0.2.0
 owners:
   - rk3588
 purpose: Execute cached default-render transitions on RK with dual decks, local sample-clock scheduling, and gapless target resume.
@@ -45,9 +45,15 @@ tests:
   - modules/audio-runtime/tests/test_filter_node.py
   - modules/audio-runtime/tests/test_loudness_normalizer.py
   - modules/audio-runtime/tests/test_socket_contract.py
+  - modules/audio-runtime/tests/test_default_render_contract.py
 deployment_boundary:
   - This module does not select songs or transition points.
   - This module does not render or download transition assets.
   - This module does not expose mobile HTTP or physical key mapping.
-artifact_sha256: a548cff1f488192267e553bbb806e52d39600f468b15f3c27a6ccb8fa425fa11
+clean_architecture:
+  - default_render_contract.py owns pure command validation
+  - socket_server.py is the wire adapter
+  - engine.py remains the single runtime state and audio execution owner
+  - real-time engine decomposition requires physical RK parity in v0.3
+artifact_sha256: f6810b43d5ca552c6dd73b2d06256300437f7c23e272db2961c6bfbb3fd34ef1
 rollback_artifact: git tag module/audio-runtime/v0.1.0

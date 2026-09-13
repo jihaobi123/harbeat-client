@@ -84,7 +84,11 @@ def get_song_file_path(song_id: str, song_data: dict[str, Any] | Any | None = No
         if path and os.path.isfile(path):
             return path
 
-    base_path = os.environ.get("HARBEAT_SONGS_PATH") or "/home/mark/harbeat/media/songs"
+    base_path = os.environ.get("HARBEAT_SONGS_PATH")
+    if not base_path:
+        raise RuntimeError(
+            "HARBEAT_SONGS_PATH is required when song_data does not provide an audio path"
+        )
     for ext in ("mp3", "wav", "flac", "m4a", "ogg", "opus", "aac"):
         candidate = os.path.join(base_path, str(song_id), f"original.{ext}")
         if os.path.isfile(candidate):

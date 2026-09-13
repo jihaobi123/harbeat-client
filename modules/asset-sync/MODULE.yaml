@@ -1,5 +1,5 @@
 id: asset-sync
-version: 0.1.0
+version: 0.2.0
 owners:
   - rk3588
 purpose: Download, verify, atomically publish, and cache song/render assets on RK.
@@ -32,9 +32,14 @@ public_endpoints:
 health_check: python -m pytest -q modules/asset-sync/tests
 tests:
   - modules/asset-sync/tests/test_asset_sync.py
+  - modules/asset-sync/tests/test_core.py
 deployment_boundary:
   - This module does not choose songs or transition points.
   - This module does not render audio.
   - This module does not prepare or schedule RK playback.
-artifact_sha256: 04e1f8b9786078a05c2509534da09e0d6bf844d661751235ef00e5bcf826f673
+clean_architecture:
+  - core.py owns asset specifications, cache validation and atomic publication
+  - sync_worker.py remains the FastAPI, transport and retry adapter
+  - transport selection must become explicit before v1.0
+artifact_sha256: 98092b33e6a58021ecc5fd402ebc8d55dd580a7a856c39e425e42f7150dfd9f1
 rollback_artifact: git tag module/asset-sync/v0.1.0

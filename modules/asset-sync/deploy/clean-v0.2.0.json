@@ -1,0 +1,15 @@
+{
+  "module": "asset-sync",
+  "version": "0.2.0",
+  "baseline": "module/asset-sync/v0.1.0",
+  "source_sha256": "98092b33e6a58021ecc5fd402ebc8d55dd580a7a856c39e425e42f7150dfd9f1",
+  "changes": [
+    "extracted typed asset specifications and cache validation",
+    "extracted verified atomic publication",
+    "wired the deployed worker cache checks to the pure core",
+    "kept weak-network transport retry behavior unchanged"
+  ],
+  "tests": {"passed": 9, "failed": 0},
+  "explicit_transport_policy_required_before_v1": true,
+  "production_integration_applied": false
+}

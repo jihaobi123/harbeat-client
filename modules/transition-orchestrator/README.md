@@ -1,7 +1,12 @@
 # Transition Orchestrator
 
-> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
-> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+> 本目录已同步远端后续实现；不等于已接入当前第二版。部署职责与采用状态以 [当前模块清单](../REGISTRY.md) 为准。
+> 本模块的旧手机/预渲染合同不是新 APK 接口要求。
+
+Version `0.3.0` adds the clean control-plane operation contract on top of the
+typed task states introduced in `0.2.0`. Repeating the same request returns
+the existing operation; reusing the same request ID for different content is
+a structured conflict and never overwrites state.
 
 This module is the protocol boundary for a manual transition. It validates a
 plan and its pair manifest, creates the priority sync request, accepts one
@@ -19,6 +24,18 @@ accepted -> syncing -> cache_ready -> prepared -> scheduled
 accepted -> prewarmed
 accepted -> failed | expired | cancelled
 ```
+
+The clean operation lifecycle is separate from the compatibility task contract:
+
+```text
+accepted -> source_snapshot -> planned -> rendered_or_reused
+         -> target_audio_ready -> pair_synced -> prepared -> scheduled
+         -> executing -> resumed
+```
+
+`auto`, `fast`, `energy`, and `style` share this lifecycle. Energy and style
+require an already confirmed target song; fast and auto may defer target
+selection to the server executor. Persistence and HTTP remain adapters.
 
 ## Test
 

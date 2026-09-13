@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
+STEM_NAMES = ("vocals", "drums", "bass", "other")
+
 
 class ManifestError(ValueError):
   pass
@@ -39,7 +41,10 @@ class AssetManifest:
     raw_stems = files.get("stems")
     stems = {}
     if isinstance(raw_stems, Mapping):
-      for name in ("vocals", "drums", "bass", "other"):
+      unknown = set(raw_stems) - set(STEM_NAMES)
+      if unknown:
+        raise ManifestError(f"manifest contains unknown stems: {sorted(unknown)}")
+      for name in STEM_NAMES:
         if isinstance(raw_stems.get(name), Mapping):
           stems[name] = _asset_file(raw_stems[name])
     return cls(
@@ -59,6 +64,10 @@ def _asset_file(raw: Mapping[str, Any]) -> AssetFile:
   if size is not None and (not isinstance(size, int) or size < 0):
     raise ManifestError("asset size must be a non-negative integer")
   sha = raw.get("sha256")
-  if sha is not None and (not isinstance(sha, str) or len(sha) != 64):
-    raise ManifestError("asset sha256 must contain 64 characters")
+  if sha is not None and (
+    not isinstance(sha, str)
+    or len(sha) != 64
+    or any(char not in "0123456789abcdefABCDEF" for char in sha)
+  ):
+    raise ManifestError("asset sha256 must contain 64 hexadecimal characters")
   return AssetFile(url=url, size=size, sha256=sha, format=str(raw.get("format") or ""))

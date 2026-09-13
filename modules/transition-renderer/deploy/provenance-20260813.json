@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "captured_at": "2026-08-13",
   "jetson_service": "harbeat-api.service",
-  "jetson_working_directory": "/home/mark/harbeat",
+  "jetson_working_directory": "legacy-device-recorded-only",
   "production_changes_applied": false,
   "renderer_versions": {
     "normal": "three_band_default_v9_fast_phase_window",
@@ -23,7 +23,7 @@
   },
   "read_only_probe": {
     "service_active": true,
-    "working_directory": "/home/mark/harbeat"
+    "working_directory": "legacy-device-recorded-only"
   },
   "parity": {
     "source_file_matches_jetson": true,

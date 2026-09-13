@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -19,6 +18,8 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from fastapi import FastAPI
+
+from .core import AssetSpec, sha256_file, sidecar_path, validate_cached_asset
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("sync-worker")
@@ -212,69 +213,19 @@ def _final_url(url: str) -> str:
 
 
 def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return sha256_file(path)
 
 
 def _sidecar(path: Path) -> Path:
-    return path.with_suffix(path.suffix + ".sha256")
+    return sidecar_path(path)
 
 
 def _already_valid(path: Path, expected_sha: str | None, expected_size: int | None) -> bool:
-    if not path.is_file():
+    try:
+        spec = AssetSpec(sha256=expected_sha, size=expected_size)
+    except ValueError:
         return False
-    stat = path.stat()
-    if VERIFY_FULL_CACHE and expected_sha:
-        return _sha256(path) == expected_sha
-    if expected_sha and _sidecar(path).is_file():
-        raw = _sidecar(path).read_text(encoding="utf-8").strip()
-        try:
-            meta = json.loads(raw)
-        except json.JSONDecodeError:
-            meta = {"sha256": raw}
-        if meta.get("converted_from_sha256") == expected_sha:
-            source_size = meta.get("converted_from_size")
-            if expected_size is not None and source_size is not None and int(source_size) != expected_size:
-                return False
-            sidecar_size = meta.get("size")
-            sidecar_mtime = meta.get("mtime_ns")
-            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
-                return False
-            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
-                return False
-            return True
-        if meta.get("sha256") == expected_sha:
-            sidecar_size = meta.get("size")
-            sidecar_mtime = meta.get("mtime_ns")
-            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
-                return False
-            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
-                return False
-            return True
-    if _sidecar(path).is_file():
-        try:
-            meta = json.loads(_sidecar(path).read_text(encoding="utf-8").strip())
-        except (json.JSONDecodeError, OSError):
-            meta = {}
-        source_size = meta.get("converted_from_size")
-        if expected_size is not None and source_size is not None:
-            if int(source_size) != expected_size:
-                return False
-            sidecar_size = meta.get("size")
-            sidecar_mtime = meta.get("mtime_ns")
-            if sidecar_size is not None and int(sidecar_size) != stat.st_size:
-                return False
-            if sidecar_mtime is not None and int(sidecar_mtime) != stat.st_mtime_ns:
-                return False
-            return True
-    if expected_size is not None and stat.st_size != expected_size:
-        return False
-    if expected_sha:
-        return _sha256(path) == expected_sha
-    return True
+    return validate_cached_asset(path, spec, verify_full=VERIFY_FULL_CACHE)
 
 
 def _pair_meta_matches_manifest(out_dir: Path, pair_meta: dict[str, Any] | None) -> bool:

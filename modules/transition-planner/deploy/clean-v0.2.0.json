@@ -1,0 +1,16 @@
+{
+  "module": "transition-planner",
+  "version": "0.2.0",
+  "baseline": "module/transition-planner/v0.1.0",
+  "source_sha256": "8ff95a8c9acf9d1a87348955b6000263866030926261dcd68492298495698a95",
+  "changes": [
+    "introduced typed planning modes and requests",
+    "placed all four planning engines behind one service",
+    "validated a shared renderer-neutral output contract",
+    "forbade degraded, fallback and non-v2 output for manual transitions"
+  ],
+  "tests": {"passed": 7, "failed": 0},
+  "candidate_scoring_decomposition_required_for_v0_3": true,
+  "real_library_listening_regression_required": true,
+  "production_integration_applied": false
+}

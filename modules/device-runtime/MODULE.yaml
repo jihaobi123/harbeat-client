@@ -1,5 +1,5 @@
 id: device-runtime
-version: 0.1.0
+version: 0.2.0
 owners:
   - mobile
   - rk
@@ -34,5 +34,11 @@ tests:
   - modules/device-runtime/tests/test_operation.py
   - modules/device-runtime/tests/test_probe.py
   - modules/device-runtime/tests/test_reconnect.py
-artifact_sha256: 356f9b2055f79f11086271c2d72fec9ee01cadf9b052aa7fcb0cd5ab8f0ee66d
+  - modules/device-runtime/tests/test_session.py
+clean_architecture:
+  - connection.py owns endpoint lifecycle without network I/O
+  - migration.py is the only legacy endpoint import adapter
+  - session.py owns device/session operation binding
+  - Flutter persistence and HTTP remain adapters
+artifact_sha256: f83e900f39f0275c3d9dd3e8df9df506c2dbb5d32064d1ed95429488c7b9c4af
 rollback_artifact: git tag module/device-runtime/v0.1.0

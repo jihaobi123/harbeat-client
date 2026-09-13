@@ -1,0 +1,14 @@
+{
+  "module": "transition-orchestrator",
+  "version": "0.2.0",
+  "baseline": "module/transition-orchestrator/v0.1.0",
+  "source_sha256": "c756e70f2174cfedc750b44510b216ad22f22cead055c01ee89e6befc2a93eaa",
+  "changes": [
+    "introduced typed task states and legal transitions",
+    "introduced idempotent accept-or-reuse semantics",
+    "rejected same-ID different-content conflicts without overwriting state"
+  ],
+  "tests": {"passed": 7, "failed": 0},
+  "edge_agent_adapter_integration_required": true,
+  "production_integration_applied": false
+}

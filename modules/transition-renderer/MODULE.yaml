@@ -1,5 +1,5 @@
 id: transition-renderer
-version: 0.1.0
+version: 0.2.0
 owners:
   - jetson
 purpose: Render the deployed default and fast-cut transition WAV/meta pair from two analyzed local audio sources.
@@ -30,6 +30,7 @@ public_functions:
 health_check: python -m pytest -q modules/transition-renderer/tests
 tests:
   - modules/transition-renderer/tests/test_reference_renderer.py
+  - modules/transition-renderer/tests/test_policy.py
 deployment_boundary:
   - This module does not select songs or transition points.
   - This module does not sync assets or call RK.
@@ -37,5 +38,9 @@ deployment_boundary:
 renderer_versions:
   - three_band_default_v9_fast_phase_window
   - three_band_default_v7_standalone_curve_no_energy_floor
-artifact_sha256: 83c16b982d7a40ce09e50fe859f6f7375ce53066a2c1c8d83b0898835d5c919e
+clean_architecture:
+  - policy.py owns explicit renderer version selection
+  - reference_renderer.py owns the behavior-compatible v7 and v9 DSP paths
+  - cache publication and DSP pipeline extraction remain v0.3 work
+artifact_sha256: dbedb424040bcb437fcbee0be716864ec7a880f4ee9908159b5faa57977ac5ed
 rollback_artifact: git tag module/transition-renderer/v0.1.0

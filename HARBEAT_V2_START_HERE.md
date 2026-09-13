@@ -10,9 +10,11 @@
 - **离线评测和风格训练：[`research/`](research/README.md)**。24 个研究脚本已从 scripts 移走。
 - 业务后端留在 [`app/`](app/README.md)，共享分析引擎已迁出；MDX23C 继续在 `music_analysis/drum_analysis/`，没有复制第二份模型实现。
 - **[代码地图](docs/repository/README.md)** 包含两批逐文件迁移表；原静态清单是第一批整理时的快照，不是实时部署清单。
-- **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码；**[历史模块处置表](docs/repository/module-decisions.md)** 说明为什么不直接合并同名实现。
+- **[部署位置](docs/repository/deployment-map.md)** 区分设备职责、上次核对的线上位置与尚未部署的新源码。
+- **[当前 modules 清单](modules/REGISTRY.md)**：旧预处理/分轨包已移除，其余 11 个模块同步已核对的远端后续实现；具体采用边界见 [处置表](docs/repository/module-decisions.md)。不是完整新 APK/RK 集成版本。
 
 本次只整理仓库源码，未切换 Jetson 线上部署，也没有继续设计 APK 接口。
+新后端按新 APK 和当前预处理合同重构，不要求兼容旧手机 API；新 APK 源码待用户上传，旧 mobile 不作为新 App 的依据。
 
 当前代码所在远端分支：`archive/music-analysis-history-20260830`。
 这个名字有历史原因，但本分支包含现行预处理；不要因 `archive` 字样删除它，也不要从旧 `main` 判断最新能力。
@@ -60,5 +62,6 @@ RK 经手机热点主动领取任务 → 经公网入口下载获准资源 → �
 ## 本轮清理范围
 
 此前归档两个旧分析入口；第一批迁移 33 个实现，第二批迁移 21 个共享实现（20 个分析实现和 1 个命令工具），更新调用与测试。
+第三批去掉 modules 的两套重复旧分析包，保留唯一正式预处理，其他 11 个模块采用已核对的后续实现。旧源码仍可从 Git 历史恢复，不再在当前目录保留第二份。
 没有清空实验数据目录、删除模型/训练数据、重跑歌曲或改动线上服务。
 完整远端盘点见 [审计记录](docs/repository-audit-20260913/README.md)。

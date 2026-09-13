@@ -21,7 +21,14 @@ class FakeEngine:
 def test_default_render_socket_commands_map_without_mutating_plan(monkeypatch):
     fake = FakeEngine()
     monkeypatch.setattr(socket_server, "engine", fake)
-    plan = {"pair_id": "pair-a-b", "from_at_sec": 14.5}
+    plan = {
+        "pair_id": "pair-a-b",
+        "from_song_id": "a",
+        "to_song_id": "b",
+        "from_at_sec": 14.5,
+        "to_at_sec": 8.0,
+        "duration_sec": 6.0,
+    }
 
     prepared = socket_server._handle_command({
         "cmd": "prepare_default_render",
@@ -45,3 +52,13 @@ def test_default_render_socket_commands_map_without_mutating_plan(monkeypatch):
     assert played["action"] == "default_render_playback"
     assert fake.calls[1][2]["min_lead_sec"] == 1.75
     assert all(call[1] is plan for call in fake.calls)
+
+
+def test_default_render_socket_rejects_target_mismatch_before_engine(monkeypatch):
+    fake = FakeEngine()
+    monkeypatch.setattr(socket_server, "engine", fake)
+    plan = {"pair_id":"pair-a-b","from_song_id":"a","to_song_id":"b","from_at_sec":14.5,"to_at_sec":8.0,"duration_sec":6.0}
+    import pytest
+    with pytest.raises(ValueError,match="conflicting to_song_id"):
+        socket_server._handle_command({"cmd":"schedule_default_render","transition_plan":plan,"to_song_id":"c"})
+    assert fake.calls == []

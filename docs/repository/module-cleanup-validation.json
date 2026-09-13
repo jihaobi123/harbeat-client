@@ -1,0 +1,78 @@
+{
+  "source_commit": "15b8663683a94aa8aff19ccfba0152fdf9069f1d",
+  "rollback_commit": "3482daf2a214aea7486cfbd3821db4df18820ff6",
+  "retired_packages": [
+    "harbeat_audio_preprocess",
+    "harbeat_stem_separation"
+  ],
+  "deleted_tracked_files": 24,
+  "relocated_contract": {
+    "from": "modules/stem-separation/contracts/pre-style-features-v5.schema.json",
+    "to": "contracts/schemas/analysis/pre-style-features-v5.schema.json",
+    "byte_identical": true
+  },
+  "module_runner": {
+    "command": "python scripts/test_current_modules.py",
+    "groups_passed": 12,
+    "python_module_tests": 124,
+    "dart_module_tests": 11,
+    "preprocessing_and_layout_tests": 85
+  },
+  "expanded_regression": {
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "app/tests/test_acoustic_measurement_analysis.py",
+      "app/tests/test_analysis_features.py",
+      "app/tests/test_bass_feature_analysis.py",
+      "app/tests/test_bass_model_validation.py",
+      "app/tests/test_beat_model_validation.py",
+      "app/tests/test_bpm_consensus.py",
+      "app/tests/test_command_line.py",
+      "app/tests/test_drum_analysis.py",
+      "app/tests/test_drum_model_validation.py",
+      "app/tests/test_drum_pair_similarity.py",
+      "app/tests/test_evaluate_mir1k_vocal_pitch.py",
+      "app/tests/test_extended_analysis.py",
+      "app/tests/test_feature_calibration.py",
+      "app/tests/test_feature_model_adapters.py",
+      "app/tests/test_feature_validation.py",
+      "app/tests/test_high_frequency_feature_analysis.py",
+      "app/tests/test_high_frequency_style_classifier.py",
+      "app/tests/test_key_analysis.py",
+      "app/tests/test_key_model_validation.py",
+      "app/tests/test_loudness_analysis.py",
+      "app/tests/test_musical_context_feature_analysis.py",
+      "app/tests/test_percussion_feature_analysis.py",
+      "app/tests/test_pre_style_feature_persistence.py",
+      "app/tests/test_rhythm_feature_analysis.py",
+      "app/tests/test_stem_analysis.py",
+      "app/tests/test_style_feature_evidence.py",
+      "app/tests/test_tempo_model_validation.py",
+      "tests/test_all_in_one_sections.py",
+      "tests/test_bpm_consensus.py",
+      "tests/test_downbeat_consensus.py",
+      "tests/test_feature_model_adapters.py",
+      "tests/test_songformer_sections_integration.py",
+      "tests/test_repository_layout.py",
+      "tests/test_analysis_entry_cleanup.py",
+      "tests/test_analysis_engine_layout.py",
+      "tests/test_same_style_preprocess_publisher.py",
+      "tests/test_vocal_activity.py",
+      "tests/test_current_modules.py"
+    ],
+    "passed": 358,
+    "warnings": 4,
+    "overlap_note": "Contains the 85 preprocessing/layout tests; counts must not be added as disjoint suites."
+  },
+  "source_parity": "All retained non-README module files verified against selected remote commit with documented text normalization; raw source hashes are also recorded.",
+  "not_performed": [
+    "production deployment",
+    "new APK integration",
+    "RK hardware integration",
+    "database migration",
+    "remote branch/tag deletion"
+  ]
+}

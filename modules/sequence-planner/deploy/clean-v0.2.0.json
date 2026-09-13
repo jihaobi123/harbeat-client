@@ -1,0 +1,13 @@
+{
+  "module": "sequence-planner",
+  "version": "0.2.0",
+  "baseline": "module/sequence-planner/v0.1.0",
+  "source_sha256": "ca0916259973deea5f9a34f8a3f809a4e5fd6ee7977f1ad6ee8c589117fdce1b",
+  "changes": [
+    "moved preset resolution into a versioned component",
+    "made legacy and unknown preset normalization observable",
+    "kept ordering and energy-curve behavior compatible"
+  ],
+  "tests": {"passed": 7, "failed": 0},
+  "production_integration_applied": false
+}

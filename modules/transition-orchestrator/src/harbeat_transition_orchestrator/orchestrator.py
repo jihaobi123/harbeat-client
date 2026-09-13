@@ -12,24 +12,10 @@ import hashlib
 import json
 from typing import Any, Mapping
 
+from .state import ACTIVE_STATES, ALLOWED_TRANSITIONS, TERMINAL_STATES, TaskState, parse_state
+
 VERIFIED_RENDERER = "three_band_default_v7_standalone_curve_no_energy_floor"
 VERIFIED_FEATURE_SOURCE = "dj_structure_precomputed_window_v2"
-TERMINAL_STATES = frozenset({"prewarmed", "scheduled", "executed", "expired", "failed", "cancelled"})
-ACTIVE_STATES = frozenset({"accepted", "syncing", "cache_ready", "prepared"})
-ALLOWED_TRANSITIONS = {
-    "accepted": {"syncing", "cache_ready", "prewarmed", "failed", "expired", "cancelled"},
-    "syncing": {"cache_ready", "failed", "expired", "cancelled"},
-    "cache_ready": {"prepared", "prewarmed", "failed", "expired", "cancelled"},
-    "prepared": {"scheduled", "failed", "expired", "cancelled"},
-    "scheduled": {"executed"},
-    "prewarmed": set(),
-    "executed": set(),
-    "failed": set(),
-    "expired": set(),
-    "cancelled": set(),
-}
-
-
 class OrchestrationValidationError(ValueError):
     """Raised when a plan/manifest pair is unsafe to execute."""
 
@@ -185,13 +171,34 @@ def accept_task(request: Mapping[str, Any], *, now: str, deadline_epoch_sec: flo
 
 def transition_task(task: Mapping[str, Any], state: str, **changes: Any) -> dict[str, Any]:
     """Apply one legal task-state transition and return a copy."""
-    current = str(task.get("state") or "")
-    if state not in ALLOWED_TRANSITIONS.get(current, set()):
-        raise OrchestrationValidationError("invalid_state_transition", {"from": current, "to": state})
+    try:
+        current = parse_state(task.get("state"))
+        target = parse_state(state)
+    except ValueError as exc:
+        raise OrchestrationValidationError("invalid_state", str(exc)) from exc
+    if target not in ALLOWED_TRANSITIONS[current]:
+        raise OrchestrationValidationError("invalid_state_transition", {"from": current.value, "to": target.value})
     out = copy.deepcopy(dict(task))
     out.update(copy.deepcopy(changes))
-    out["state"] = state
+    out["state"] = target.value
     return out
+
+
+def accept_or_reuse(
+    request: Mapping[str, Any],
+    existing: Mapping[str, Any] | None,
+    *,
+    now: str,
+    deadline_epoch_sec: float,
+) -> tuple[dict[str, Any], bool]:
+    """Return an idempotent existing task or create exactly one accepted task."""
+    if existing is None:
+        return accept_task(request, now=now, deadline_epoch_sec=deadline_epoch_sec), False
+    if str(existing.get("transition_id")) != str(request.get("transition_id")):
+        raise OrchestrationValidationError("transition_id_mismatch")
+    if str(existing.get("request_hash")) != request_hash(request):
+        raise OrchestrationValidationError("transition_id_conflict")
+    return copy.deepcopy(dict(existing)), True
 
 
 def public_task(task: Mapping[str, Any], *, now_epoch_sec: float | None = None) -> dict[str, Any]:

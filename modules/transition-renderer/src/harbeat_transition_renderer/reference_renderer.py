@@ -17,11 +17,12 @@ from typing import Any
 
 import numpy as np
 
+from .policy import AUTOMATIC_RENDERER_VERSION, FAST_CUT_RENDERER_VERSION, resolve_renderer_policy
+
 
 NAS_DEFAULT_ROOT = Path("/mnt/nas/harbeat/dj-control/default-mix/pair-cache")
 LOCAL_DEFAULT_ROOT = Path("data/default-mix/pair-cache")
-RENDERER_VERSION = "three_band_default_v9_fast_phase_window"
-FAST_CUT_RENDERER_VERSION = "three_band_default_v7_standalone_curve_no_energy_floor"
+RENDERER_VERSION = AUTOMATIC_RENDERER_VERSION
 
 
 class DefaultRenderError(RuntimeError):
@@ -53,7 +54,10 @@ def ensure_reference_render(prev_song: Any, next_song: Any, plan: dict[str, Any]
     default_meta = plan.get("default_mix")
     if not isinstance(default_meta, dict):
         default_meta = plan
-    renderer_version = _renderer_version_for(default_meta, plan)
+    try:
+        renderer_version = _renderer_version_for(default_meta, plan)
+    except ValueError as exc:
+        raise DefaultRenderError(str(exc)) from exc
     pair_id = str(plan.get("pair_id") or default_meta.get("pair_id") or "").strip()
     if not pair_id:
         raise DefaultRenderError("transition plan missing pair_id")
@@ -274,15 +278,8 @@ def ensure_reference_render(prev_song: Any, next_song: Any, plan: dict[str, Any]
 
 
 def _renderer_version_for(default_meta: dict[str, Any], plan: dict[str, Any]) -> str:
-    requested = (
-        default_meta.get("required_renderer_version")
-        or default_meta.get("renderer_version")
-        or plan.get("required_renderer_version")
-        or plan.get("renderer_version")
-    )
-    if requested == FAST_CUT_RENDERER_VERSION:
-        return FAST_CUT_RENDERER_VERSION
-    return RENDERER_VERSION
+    """Compatibility helper retained for callers that imported the v0.1 name."""
+    return resolve_renderer_policy(default_meta, plan).version
 
 
 def _ensure_fast_cut_v7_render(

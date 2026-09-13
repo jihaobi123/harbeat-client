@@ -1,94 +1,34 @@
-# HarBeat Functional Modules
+# 当前模块入口：不再保留两套预处理源码
 
-> Historical extracted-module baseline, not the canonical V2 preprocessing runtime.
-> Current source ownership: [repository map](../docs/repository/README.md); production preprocessing: [preprocessing](../preprocessing/README.md).
+2026-09-13 按“保留最新、去掉旧版”整理。本目录现在有 **11 个保留的模块包 + 2 个正式预处理导航目录**。
 
-V2 开发请先看 [逐模块处置表](../docs/repository/module-decisions.md) 和 [当前部署说明](../docs/repository/deployment-map.md)。下文是 2026-08-13 历史基线记录，尤其 Jetson 选歌/预渲染的旧职责不能直接当作 V2 要求。
+## 预处理只维护这一套
 
-This directory preserves the source tree for the 13 independently extracted
-historical HarBeat functional modules; it is not the canonical V2 runtime.
+- BPM / Beat / 小节 / SongFormer 段落：[preprocessing/engines](../preprocessing/engines/README.md)。
+- Demucs、发布、批量入库：[preprocessing](../preprocessing/README.md)。
+- MDX23C：[music_analysis/drum_analysis](../music_analysis/drum_analysis/README.md)。
+- Silero：`preprocessing/vocal_activity.py`。
 
-## Version status
+`audio-preprocess/`、`stem-separation/` 只保留 README 导航，原有旧源码、测试、打包合同已经移除。正式代码使用的特征 v5 schema 移到 contracts，内容未改。
 
-- Baseline version: `functional-modules/v0.1.0`
-- Unified branch: `delivery/functional-module-extraction-20260813`
-- Per-module branches: `module/<module-name>`
-- Per-module immutable tags: `module/<module-name>/v0.1.0`
-- Production status: extracted and independently tested; not yet wired in as
-  the production runtime
+## 其余 11 个模块
 
-Version `0.1.0` is a behavior-preserving baseline. It intentionally keeps the
-currently verified behavior, including documented compatibility code. Clean
-implementations must be released as later versions and must not rewrite this
-baseline tag.
+逐项版本与职责见 [当前清单](REGISTRY.md)，机器记录见 [CURRENT.json](CURRENT.json)。
 
-## Product function map
+已核对远端 v0.2、部署 v0.3、clean-core 后续版本，选择 `rewrite/clean-core-operation-v0.4` 提交 `15b8663` 的相应模块实现替换本目录旧版本。没有合并该分支的其他目录，也没有让旧基础分析覆盖当前 SongFormer 流程。
 
-| Module | Product function | Runtime owner |
-|---|---|---|
-| `observability-e2e` | Cross-device tests, trace collection and diagnostics | Development/QA |
-| `device-runtime` | Mobile-to-RK connection, identity and playback state | Mobile + RK |
-| `library-catalog` | Library, playlist, song identity and asset manifests | Jetson + mobile |
-| `audio-preprocess` | Beat, phrase, energy and transition-candidate analysis | Jetson |
-| `stem-separation` | Demucs vocals/drums/bass/other separation | Jetson |
-| `sequence-planner` | Automatic song ordering and energy curves | Jetson |
-| `transition-planner` | Exit/entry selection and alignment for all transitions | Jetson |
-| `transition-renderer` | Generate transition WAV and metadata | Jetson |
-| `asset-sync` | Download and verify songs and transition packages | RK |
-| `transition-orchestrator` | Sync/prepare/schedule task state machine | RK |
-| `audio-runtime` | Real playback, dual decks and scheduled transition execution | RK |
-| `mobile-dj-control` | Fast/energy/style cut intent and task recovery | Mobile |
-| `physical-input` | Hardware keys, SFX and volume routing | RK |
+这里的“保留”表示只保留已核对的较新源码，**不是已经完成新 APK / 新 RK 算法适配或线上部署**。新 APK 的接口不受这些模块原有的手机 API 限制。旧服务端预渲染假设也不作为 V2 后端要求。
 
-## Start here
+## 测试
 
-1. Read `modules/REGISTRY.md` for the accepted commit of every module.
-2. Read the module's `MODULE.yaml` for inputs, outputs, dependencies and
-   deployment boundary.
-3. Read the module's `README.md` before changing its implementation.
-4. Run the module health check before and after each change.
-5. Run all module tests with:
+在已安装测试依赖的 Python 环境、仓库根目录运行：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/test_functional_modules.ps1
+```bash
+python scripts/test_current_modules.py
+python scripts/test_current_modules.py --module library-catalog
+python scripts/test_current_modules.py --module preprocessing
 ```
 
-Full developer handover:
-`docs/functional_modules_v0_1_developer_handover_20260813.md`.
+每个 Python 模块在独立进程中用 pytest 收集 unittest 和 pytest 两类测试，避免漏测新增函数或同名测试冲突。Dart 控制模块需要本机 Dart；它不是新 APK 的源码或页面验收。
 
-Clean-version execution rules:
-`docs/functional_modules_clean_final_execution_plan_20260813.md`.
-
-## Clone patterns
-
-Clone the complete baseline:
-
-```powershell
-git clone https://github.com/jihaobi123/harbeat-client.git
-cd harbeat-client
-git checkout functional-modules/v0.1.0
-```
-
-Work on one module only:
-
-```powershell
-git clone --branch module/stem-separation `
-  https://github.com/jihaobi123/harbeat-client.git harbeat-stem-separation
-cd harbeat-stem-separation
-git checkout module/stem-separation/v0.1.0
-```
-
-The repository remains a monorepo. A module branch limits the supported change
-surface; it is not a separate repository or a production microservice image.
-
-## Non-negotiable rules
-
-- Never commit songs, stems, render WAV files, databases, model weights,
-  credentials, device backups or production caches.
-- Do not delete deployed source files merely because equivalent code exists in
-  `modules/`.
-- Do not silently fall back when a required versioned contract is missing.
-- Keep planning, rendering, synchronization, orchestration and playback as
-  separate responsibilities.
-- Any clean rewrite must prove behavior parity against `v0.1.0` before it can
-  replace production code.
+旧 PowerShell 测试入口现在转发到这个统一入口。历史版本不另留一套源码，可从 Git 提交 `3482daf` 或原不可变标签恢复。远端分支和标签没有删除。

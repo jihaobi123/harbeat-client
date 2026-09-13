@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "captured_at": "2026-08-13",
   "jetson_service": "harbeat-api.service",
-  "jetson_working_directory": "/home/mark/harbeat",
+  "jetson_working_directory": "legacy-device-recorded-only",
   "production_changes_applied": false,
   "public_functions": [
     "plan_default_transition",
@@ -50,7 +50,7 @@
   },
   "read_only_probe": {
     "service_active": true,
-    "working_directory": "/home/mark/harbeat",
+    "working_directory": "legacy-device-recorded-only",
     "database_catalog_probe": "blocked by existing ORM model registration when queried outside full app startup"
   },
   "artifact_sha256": "d6a4ae35e5ef764a8d50e64e4ce12e00da9441ec5cea35f58b72b37a7369d0af",

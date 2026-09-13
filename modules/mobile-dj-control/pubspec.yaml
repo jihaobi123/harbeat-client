@@ -1,5 +1,5 @@
 name: harbeat_mobile_dj_control
 description: Pure Dart manual DJ control contracts extracted from HarBeat mobile.
-version: 0.1.0
+version: 0.2.0
 environment:
   sdk: ^3.7.0

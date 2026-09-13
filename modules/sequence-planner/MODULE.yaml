@@ -1,5 +1,5 @@
 id: sequence-planner
-version: 0.1.0
+version: 0.2.0
 owners:
   - jetson
 purpose: Default pair-compatible ordering and street-dance target-energy sequencing.
@@ -27,5 +27,9 @@ health_check: python -m unittest discover modules/sequence-planner/tests
 tests:
   - modules/sequence-planner/tests/test_default_sequence.py
   - modules/sequence-planner/tests/test_energy_curves.py
-artifact_sha256: c63d38b05db9aa7a38b395ccdbaa37968b087002c18b09b11f83c27a726d62c1
+clean_architecture:
+  - presets.py owns current and compatibility preset resolution
+  - sequencer.py owns deterministic assignment to resolved curves
+  - default_mix owns pair-compatible default ordering
+artifact_sha256: ca0916259973deea5f9a34f8a3f809a4e5fd6ee7977f1ad6ee8c589117fdce1b
 rollback_artifact: git tag module/sequence-planner/v0.1.0

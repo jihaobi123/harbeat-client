@@ -1,7 +1,11 @@
 # Transition Renderer
 
-> 历史抽取基线（2026-08-13），不是当前 V2 的已部署模块。下文的部署位置、合同和验收记录属于历史版本。
-> 新开发先看 [V2 模块处置表](../../docs/repository/module-decisions.md) 与 [部署位置](../../docs/repository/deployment-map.md)，不要直接据此替换正式实现。
+> 本目录已同步远端后续实现；不等于已接入当前第二版。部署职责与采用状态以 [当前模块清单](../REGISTRY.md) 为准。
+> 本模块的旧手机/预渲染合同不是新 APK 接口要求。
+
+Version `0.2.0` adds an explicit renderer policy registry. Declared unknown
+renderer versions are rejected instead of silently becoming v9. The v7 and v9
+DSP implementations and generated-audio behavior are intentionally unchanged.
 
 This module is the standalone local-window renderer extracted from the
 deployed Jetson path. It reads only the required regions of the two source

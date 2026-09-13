@@ -90,5 +90,56 @@ void main() {
     pending['trigger'] == 'energy_cut',
     'pending context uses wire intent',
   );
-  print('mobile-dj-control: 7 passed');
+
+  final context = PendingManualTransition(
+    transitionId: 'manual-life',
+    intent: ManualCutIntent.style,
+    fromSongId: 'a',
+    targetSongId: 'b',
+    createdAtMs: 1000,
+  );
+  final lifecycle = ManualTransitionLifecycle(context);
+  lifecycle.accept(
+    ManualTransitionTask.fromJson({
+      'transition_id': 'manual-life',
+      'pair_id': 'pair-a-b',
+      'state': 'accepted',
+    }),
+    nowMs: 1100,
+  );
+  lifecycle.accept(
+    ManualTransitionTask.fromJson({
+      'transition_id': 'manual-life',
+      'pair_id': 'pair-a-b',
+      'state': 'syncing',
+    }),
+    nowMs: 1200,
+  );
+  expect(
+    lifecycle.task?.state == ManualTransitionState.syncing,
+    'valid lifecycle',
+  );
+
+  var rejectedOtherTask = false;
+  try {
+    lifecycle.accept(
+      ManualTransitionTask.fromJson({
+        'transition_id': 'other-task',
+        'pair_id': 'pair-a-b',
+        'state': 'cache_ready',
+      }),
+      nowMs: 1300,
+    );
+  } on StateError {
+    rejectedOtherTask = true;
+  }
+  expect(rejectedOtherTask, 'another transition must not overwrite state');
+  expect(context.isExpired(121000), 'pending TTL is explicit');
+  expect(
+    lifecycle.confirmsPlayback(
+      const PlaybackSnapshot(playing: true, currentSongId: 'b'),
+    ),
+    'lifecycle confirms target playback',
+  );
+  print('mobile-dj-control: 11 passed');
 }

@@ -1,38 +1,34 @@
-# Functional module registry
+# 当前保留版本与使用边界
 
-This registry tracks independently extracted modules. `accepted` means the
-module passed a fresh-clone test and immutable tag check. It does not mean the
-module has replaced production code.
+本表替代旧 v0.1 清单。来源：远端 `rewrite/clean-core-operation-v0.4` 的 `15b8663683a94aa8aff19ccfba0152fdf9069f1d`。这里按安装包声明列版本；原 MODULE.yaml 的模块合同版本另存 CURRENT.json，不随整理伪造升级。
 
-| Module | 对应产品功能 | 调用时机 | Version | Fresh-clone implementation | Tests | Status | Production integration |
-|---|---|---|---|---|---:|---|---|
-| `observability-e2e` | 三端测试、日志采集、故障定位 | 部署验收和复现问题时 | `0.1.0` | `53e8736961a0cd8251a6c3f8c7ad5f016e8b2b02` | 7 | tested, pushed, accepted | Read-only tools; no runtime replacement |
-| `device-runtime` | 手机连接 RK、重连、读取播放状态 | App 连接设备及播放状态刷新时 | `0.1.0` | `523d0053c145a9e70541505308f44a555bcd742e` | 20 | tested, pushed, accepted | Adapter and dual-read migration still required |
-| `library-catalog` | 曲库、歌单、歌曲 ID 和资源清单 | 导入曲库、选歌和准备同步资源时 | `0.1.0` | `56d92b37a61bb9ed606d94f9f254ca575ba567db` | 8 | tested, pushed, accepted | Authenticated mobile replay still required |
-| `audio-preprocess` | 歌曲预处理、鼓点/段落/能量和候选切点 | 歌曲进入曲库后的离线处理阶段 | `0.1.0` | `237ee91b7336613ff1fae54c0567c78261c8f19a` | 7 | tested, pushed, accepted | 43/43 real Jetson payloads pass gate; production replacement not applied |
-| `stem-separation` | 人声、鼓、贝斯、其他四轨分离 | 歌曲离线预处理和 stem 分析时 | `0.1.0` | `e9e3f515ea80dbb6a78ba92a995c66ba3bae281a` | 5 | tested, pushed, accepted | 42/43 songs have four stems; one remains unprocessed |
-| `sequence-planner` | 自动排歌和整套能量走势 | 用户生成播放顺序、开始自动播放前 | `0.1.0` | `f54e38dfaad09e586d8d52fe3d95cdaa0f3650ae` | 5 | tested, pushed, accepted | 43 input, 30 default-compatible output in 168ms; production replacement not applied |
-| `transition-planner` | 自动接歌、快切、能量切歌、风格切歌的选点和对齐 | 已确定上下两首歌后、渲染转场前 | `0.1.0` | `b276cff9193cd13b46e304a28232958c51f9f1d4` | 4 | tested, pushed, accepted | Four plan entry points match current production planner; Jetson production replacement not applied |
-| `transition-renderer` | 生成两首歌之间实际听到的混音衔接 WAV/meta | 选点完成后、资源发送到 RK 前 | `0.1.0` | `f903c5b22bb9d79f5f911b831558809fcd3253ca` | 3 | tested, pushed, accepted | v7 fast-cut and v9 normal WAV/meta paths pass; Jetson replacement not applied |
-| `asset-sync` | 将歌曲和混音衔接包下载、校验并缓存到 RK | 播放或切歌所需资源尚未在 RK 时 | `0.1.0` | `d8a8c5a3aeca3154e14466c459573a0e562d6e5d` | 6 | tested, pushed, accepted | Manifest, cache, atomic download, cancellation and priority sync paths pass; RK SSH probe blocked by legacy KEX |
-| `transition-orchestrator` | 串联同步、准备、定时切换并记录任务状态 | 用户确认切歌后到 RK 接受 schedule 之间 | `0.1.0` | `423a65e9b620ba4b54741edfb2a481bf9ee566ac` | 5 | tested, pushed, accepted | Pure plan/manifest validation, priority sync request and task state machine; production replacement not applied |
-| `audio-runtime` | RK 实际播放、双 deck 混音、到点切换和接续目标歌曲 | 整个播放过程及转场真正发声时 | `0.1.0` | `6223dddb8dfc01493a393b046c787e202a5177ed` | 22 | tested, pushed, accepted | Real RK dual-deck engine, render prepare/schedule/sample-clock trigger/resume and socket contract; systemd replacement not applied |
-| `mobile-dj-control` | 手机快切、能量/风格预览确认、任务恢复和状态显示 | 用户点击三个切歌功能及等待执行结果时 | `0.1.0` | `16dadc03834d385012637b0c8978668d6b54e61e` | 7 | tested, pushed, accepted | Pure Dart shared fast/energy/style confirm request and task recovery contract; Flutter integration not applied |
-| `physical-input` | 三个实体模块、九键 SFX、暂停和旋钮输入 | 用户操作实体按键或旋钮时 | `0.1.0` | `bfd94afdd0af3774f77f5c6fb6953222974d005e` | 7 | tested, pushed, accepted | MYKB key/SFX/volume routing fixed as pure contract; keys 7-9 lack a deployed mobile DJ action consumer |
+| 模块 | 保留的包版本 | 职责 / 第二版状态 |
+|---|---|---|
+| observability-e2e | 0.3.0 | 调试、观测、验收工具；需对新链路重做验收 |
+| device-runtime | 0.3.0 | 设备身份与连接；新 APK/RK 对接未验证 |
+| library-catalog | 0.3.0 | 曲库 ID、仓储接口、旧资源 DTO；仍需适配 NAS 发布合同 |
+| sequence-planner | 0.3.0 | 排歌参考实现；交接歌算法负责人，不规定由 Jetson 执行 |
+| transition-planner | 0.3.0 | 接歌选点参考实现；不等于已对接当前算法 |
+| transition-renderer | 0.3.0 | 旧预渲染实现保留供算法方取舍；V2 实时混音仍由 RK 负责 |
+| asset-sync | 0.3.0 | 资源下载与校验；V2 授权及完整音轨合同待适配 |
+| transition-orchestrator | 0.4.1 | 操作状态机及执行器，包含后续终态/并发修复；不直接接入生产 |
+| audio-runtime | 0.3.0 | RK 播放引擎参考实现；未部署本次同步的版本 |
+| mobile-dj-control | 0.2.0 | 独立 Dart 控制逻辑；不是新 APK 源码，不约束新 API |
+| physical-input | 0.3.0 | 按键/SFX 控制逻辑；不是戒指/手环姿态识别实现 |
 
-Module branches remain `module/<module-name>`, and immutable rollback tags are
-`module/<module-name>/v0.1.0`.
+以上模块各只保留一份实现，没有再建 v0.1/v0.2 并列源目录。附带 deploy/provenance 文件是来源证据，不表示当前设备已部署。
 
-The complete 13-module baseline is available from branch
-`delivery/functional-module-extraction-20260813` and immutable tag
-`functional-modules/v0.1.0`. Its machine-readable inventory is
-`modules/BASELINE-v0.1.0.json`.
+## 已去掉的重复实现
 
-## Acceptance rules
+| 原目录 | 现在唯一维护位置 |
+|---|---|
+| modules/audio-preprocess | preprocessing/engines/analysis.py + preprocessing/publisher.py |
+| modules/stem-separation | preprocessing/publisher.py + preprocessing/engines/stem_analysis.py |
 
-- Every accepted commit must be reachable from its module branch and tag.
-- Tests must pass from a fresh clone of the remote branch.
-- Deployment probes must be read-only until a module-specific integration gate
-  is approved.
-- Existing production files and environments remain protected until all core
-  modules pass a fresh-environment end-to-end replay.
+两目录仅留导航，不再提供原 Python 包。ADTOF 继续不在当前曲库批次中启用；模型、算法版本和 NAS 数据不因这次代码清理而改变。
+
+## 后端与 RK 的边界
+
+新手机后端按新 APK 和现有预处理合同重构，不以旧 API 兼容为目标。Jetson 负责预处理及业务/数据服务，阿里云提供公网入口，RK 获取资源并实时混音。将旧 renderer 或 operation executor 保留下来，不等于授权把混音重新放回 Jetson。
+
+当前实现来源、原始文件 SHA256、文本等价校验和退役映射均在 [CURRENT.json](CURRENT.json)。恢复整理前文件可查看 Git 提交 `3482daf`；不要整分支强行回退线上环境。
