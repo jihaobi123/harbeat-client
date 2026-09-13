@@ -1,5 +1,7 @@
 # HarBeat 四方协作开发开工包
 
+> **历史分工草案。** 现在整个系统按第二版整理，当前入口为 [HARBEAT_V2_START_HERE](../../HARBEAT_V2_START_HERE.md)。不要按下文旧分支直接认定已有最新预处理或完整业务链路。
+
 版本：`v1.1-draft`
 日期：`2026-08-28`
 协作分支：`integration/harbeat-contract-first-v1`

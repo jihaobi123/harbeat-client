@@ -1,4 +1,8 @@
-"""Backfill LibrarySong.vocal_events using the optional GPU vocal detector."""
+"""Legacy DB backfill (Demucs/RMS), NOT the V2 Silero/NAS publisher.
+
+This historical tool can write LibrarySong and rerun separation. For current
+published audio use scripts/backfill_vocal_activity.py instead.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

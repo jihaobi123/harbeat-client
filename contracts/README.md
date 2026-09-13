@@ -1,7 +1,14 @@
 # HarBeat 共享合同目录
 
-状态：`SCaffold / 尚未冻结`
+状态：**按合同区分，不能一概视为脚手架或全部已冻结。**
 目标：成为后端、算法、手机和 RK 之间机器可读合同的唯一来源。
+
+第二版已发布数据使用 `schemas/analysis/same-style-track-preprocess-v1.schema.json`
+（基础 1.2.0）和 `schemas/analysis/vocal-activity-v1.schema.json`（人声 1.0.0），以及曲库索引。
+这些已有生产者、数据和测试，不因产品第二版而重命名为 2.0。
+鼓组 Pair Score 有实现/schema，但实际阈值校准未完成。
+下文旧手机/RK业务合同仍是历史草案，不是现行 NAS 合同，也不是已实现的第二版接口。
+新业务设计见 [第二版后端交接](../docs/v2/backend-owner-handoff.md)，待双方评审后补 OpenAPI/传输 Schema。
 
 ## 目录责任
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Run the official All-In-One inference path directly on original audio files.
+"""Historical standalone benchmark; not the V2 section-analysis entry point.
+
+Run the official All-In-One inference path directly on original audio files.
 
 This script intentionally imports no HarBeat analysis code and performs no
 resampling, mono conversion, boundary snapping, label remapping, or consensus.

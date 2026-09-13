@@ -1,0 +1,405 @@
+{
+  "observed_on": "2026-09-13",
+  "repository": "https://github.com/jihaobi123/harbeat-client",
+  "default_branch": "main",
+  "branch_count": 66,
+  "scope": "Remote refs fetched; classification is pending owner review. No branches deleted or merged.",
+  "branches": [
+    {
+      "branch": "app/flutter-app",
+      "sha": "25bca703c618aa9c7ac977ac14905d44dd938f7a",
+      "committed_at": "2026-05-22T22:23:22+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "archive/music-analysis-history-20260830",
+      "sha": "1baf3013d3d36858a4e8da7e3e66085489677133",
+      "committed_at": "2026-09-11T16:35:18+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "archive/stage-e-prototype-20260814",
+      "sha": "22085d80c57d3ef12c7a15824632bf95780fac98",
+      "committed_at": "2026-08-14T13:33:16+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "backup-jetson",
+      "sha": "f15a6630fb492c9fb6692eeb7911e9328cc8c308",
+      "committed_at": "2026-04-29T11:48:07+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/bar-understanding-v1",
+      "sha": "9765c7df32d0b593ff0d4ff64df64a01baa4884f",
+      "committed_at": "2026-08-30T18:53:18+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/dev-dj-mix-strategy-v1",
+      "sha": "272854c1271a51a9d91894f3432963ef2f9e1195",
+      "committed_at": "2026-04-05T20:16:37+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/dev-flutter-native-mobile",
+      "sha": "24513bc925bf41ce5a49514980652bbd8b04bfd0",
+      "committed_at": "2026-05-31T19:09:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/dj-automix-remediation",
+      "sha": "8278fdea46b64523e9a4b469e847d855809eaf0b",
+      "committed_at": "2026-07-08T22:44:04+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/dj-set-pipeline-deploy",
+      "sha": "83f98b7a0f9e368244348fdd3d1b174d294ef644",
+      "committed_at": "2026-05-31T19:30:34+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/functional-module-extraction-plan",
+      "sha": "3e56ef308afb44ee8ef6f155a88f592574250ee4",
+      "committed_at": "2026-08-13T14:41:37+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/integrate-analysis-session",
+      "sha": "7e7b57fc2143eaff0cfb318978675183bdc58410",
+      "committed_at": "2026-06-02T01:43:09+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/mix-quality-next",
+      "sha": "16923d6bd0064f500fd5fb08124dda92c909c137",
+      "committed_at": "2026-05-24T23:32:49+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/mobile-on-dev-clean",
+      "sha": "0978c3c163630e96c740e26ad9c7d659b70f0ac4",
+      "committed_at": "2026-04-04T14:54:26+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/rk3588-edge-prefetch-and-stem-fixes",
+      "sha": "5508a73f84e241fa71eff38d164b242ff53289e3",
+      "committed_at": "2026-05-31T19:32:31+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/section-relabeler-v1",
+      "sha": "555704024da0f30dc59462ac6bacfe168dc0c6d4",
+      "committed_at": "2026-09-02T18:54:29+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/songformer-label-contract-v1",
+      "sha": "2657b988544141531d5424cf706362498290dba9",
+      "committed_at": "2026-08-31T16:45:54+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/transition-engine-and-fade-fix",
+      "sha": "3e217f5efe9afb5358f7874f5b7a04dedbe8d514",
+      "committed_at": "2026-05-11T20:50:55+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "codex/unify-fastapi-ui-api",
+      "sha": "d873a831ead7ad4c8ac19f21bf62ca4e5b870f66",
+      "committed_at": "2026-03-24T20:04:51+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "delivery/clean-environment-deployment-v0.3",
+      "sha": "d737e3ea279e293c21b07824fd92bb7fc3ee5822",
+      "committed_at": "2026-08-14T02:22:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "delivery/functional-module-extraction-20260813",
+      "sha": "13fa2b14bbc309537244ace8ba65f850df0d068e",
+      "committed_at": "2026-08-13T22:11:47+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "delivery/functional-modules-clean-v0.2",
+      "sha": "3e50e546bb6ab2c4f775435ef8ad1b6d88e177b5",
+      "committed_at": "2026-08-13T23:18:47+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "dev",
+      "sha": "651a0e7af517abbbf6b7fb4597f146537fea5c6f",
+      "committed_at": "2026-05-12T23:13:21+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feat/backend-p0-p1",
+      "sha": "859fe27ef9921e109515246ff39fc2a7bbf927ee",
+      "committed_at": "2026-03-24T15:49:26+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feat/mvp-all",
+      "sha": "795d951601d43b35fa791f94caf13535fa510284",
+      "committed_at": "2026-03-25T13:21:15+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/bpm-three-engine-consensus",
+      "sha": "128ac220c10f32dbec10e9cf5d08c2e10cc11977",
+      "committed_at": "2026-08-27T01:38:02+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/db-init-backend",
+      "sha": "1b12d70a82a197843b53d03911f31d7cc1d5c68f",
+      "committed_at": "2026-03-24T15:14:12+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/grooveengine-current-sync",
+      "sha": "455ee4755859bed9373804226041dd9922aa9c93",
+      "committed_at": "2026-04-13T18:58:00+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/grooveengine-multitrack-mvp",
+      "sha": "e2bc9ef99f38c4446243e7de1ef62fd8284ced77",
+      "committed_at": "2026-04-10T23:41:32+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/harbeat-full-project",
+      "sha": "8d1d8f7c368e0c0b8005b38ada12cdac0e99a3d5",
+      "committed_at": "2026-05-23T18:41:01+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/import_music-clean",
+      "sha": "d6234c455511bee2c18c6e96ee8408891ed48393",
+      "committed_at": "2026-03-24T15:29:24+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/import_music-clean-db",
+      "sha": "9d8e8c1c275100abe703bfe7af1a52b32323889f",
+      "committed_at": "2026-03-24T17:45:46+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/interaction-logs",
+      "sha": "29713ebb088057e020f088084ae86d816fbaef0f",
+      "committed_at": "2026-03-30T20:26:07+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/mobile-responsive",
+      "sha": "010d112055a88d24982e7afd4aa744801513271b",
+      "committed_at": "2026-04-09T11:27:17+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/music-dance-style-classifier-v1",
+      "sha": "8ab95e9046abe05cf328a69c5954b0d07fc45315",
+      "committed_at": "2026-04-29T10:40:59+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/music_import",
+      "sha": "2a474f39f2d5d019c8b4d8412d34d4806e582dd4",
+      "committed_at": "2026-03-24T18:58:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/recommend-engine",
+      "sha": "d2b147cef2be9139b02c8772bae03ff986073809",
+      "committed_at": "2026-03-24T18:03:36+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "feature/superpowered-player",
+      "sha": "062a8e934fbef5c89cc0390c9a5aaa3764178c3c",
+      "committed_at": "2026-04-27T16:48:33+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "main",
+      "sha": "1a5c239c3a20478afd4dc77cc68fce1eb42033d8",
+      "committed_at": "2026-04-29T11:35:06+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/asset-sync",
+      "sha": "22159e77a87665b693f54a7b9d414d2b362dba17",
+      "committed_at": "2026-08-13T18:18:36+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/asset-sync-clean-v0.2",
+      "sha": "99e524f49bac3bfc8807eb938f9e79e6a7838bae",
+      "committed_at": "2026-08-13T22:48:11+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/audio-preprocess",
+      "sha": "2e1d50acabacca70327a1065523afad51023d677",
+      "committed_at": "2026-08-13T16:27:36+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/audio-preprocess-clean-v0.2",
+      "sha": "79c88d3f92b783b6216b9ddef6647b9d1774a5dc",
+      "committed_at": "2026-08-13T22:35:49+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/audio-runtime",
+      "sha": "25ceb454461e18e3d9c2d9a2619f02e5d7f8a489",
+      "committed_at": "2026-08-13T18:38:03+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/audio-runtime-clean-v0.2",
+      "sha": "d5f91ef765c925e07d07e218b0659c06bddbb85e",
+      "committed_at": "2026-08-13T23:00:59+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/device-runtime",
+      "sha": "c1fcbe9253356220f4affc6b467ffade13fa7a88",
+      "committed_at": "2026-08-13T15:51:02+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/device-runtime-clean-v0.2",
+      "sha": "291d102c19a0dc8ee6182605eaa4ce560267c249",
+      "committed_at": "2026-08-13T22:32:30+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/library-catalog",
+      "sha": "f9af2ba758ed5a2032e2c4c53e8ebac001cb4767",
+      "committed_at": "2026-08-13T16:15:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/library-catalog-clean-v0.2",
+      "sha": "98e89dd02a726510279e14f14ee815b4ac838f7a",
+      "committed_at": "2026-08-13T22:28:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/mobile-dj-control",
+      "sha": "16c90f8c8cf571ec053124ef946d3eaccdd88a68",
+      "committed_at": "2026-08-13T18:44:01+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/mobile-dj-control-clean-v0.2",
+      "sha": "2473f6677c7cacfc22bc9574ed6aa94e8da3046c",
+      "committed_at": "2026-08-13T23:04:25+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/observability-e2e",
+      "sha": "53e8736961a0cd8251a6c3f8c7ad5f016e8b2b02",
+      "committed_at": "2026-08-13T15:17:12+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/observability-e2e-clean-v0.2",
+      "sha": "886532d2dc1fc6afc5d43d3d800bbef90a343708",
+      "committed_at": "2026-08-13T23:07:19+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/physical-input",
+      "sha": "b22a344ec840ab8201407e931a209774c095967f",
+      "committed_at": "2026-08-13T18:47:31+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/physical-input-clean-v0.2",
+      "sha": "c0334daff3f87006d149e91d921ece9635fe7abe",
+      "committed_at": "2026-08-13T22:17:14+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/sequence-planner",
+      "sha": "3c32a7b826c8f3e8463a790c1c5b35cfaa259a5d",
+      "committed_at": "2026-08-13T17:03:29+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/sequence-planner-clean-v0.2",
+      "sha": "e380156bf22fef784960bdecbf9ff9fe62d90ad0",
+      "committed_at": "2026-08-13T22:39:54+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/stem-separation",
+      "sha": "9aa9e28c7ad94cc57391feb50dbd47caa3a3fba6",
+      "committed_at": "2026-08-13T16:43:29+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/stem-separation-clean-v0.2",
+      "sha": "e6b25eb96e831b94ca5be45f67e38cd2fa9edff6",
+      "committed_at": "2026-08-13T22:23:25+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-orchestrator",
+      "sha": "9c34e902ee2b4219258d7385e60f73cbcc472547",
+      "committed_at": "2026-08-13T18:29:25+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-orchestrator-clean-v0.2",
+      "sha": "1331b5b4594767ea20ea16b29b7b035913691d56",
+      "committed_at": "2026-08-13T22:43:49+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-planner",
+      "sha": "99232a4155ad18da00bb32627b4bf6f4c0d1331a",
+      "committed_at": "2026-08-13T17:54:56+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-planner-clean-v0.2",
+      "sha": "94c7fb6464b943daaf1bdebc7fd434e0df064b36",
+      "committed_at": "2026-08-13T22:55:28+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-renderer",
+      "sha": "c8afb074aa2814114f84647ac517f4ecd37618f3",
+      "committed_at": "2026-08-13T18:07:43+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "module/transition-renderer-clean-v0.2",
+      "sha": "bb2d676a1ca4996a28b6f8fb05ad6387b7b23d79",
+      "committed_at": "2026-08-13T22:52:13+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "rewrite/clean-core-operation-v0.4",
+      "sha": "15b8663683a94aa8aff19ccfba0152fdf9069f1d",
+      "committed_at": "2026-08-15T03:27:28+08:00",
+      "disposition": "pending_review_do_not_delete"
+    },
+    {
+      "branch": "rk3588/edge-agent",
+      "sha": "6035b6392920f7d3d99bd5a421ba7fcc283d6cd2",
+      "committed_at": "2026-05-29T01:33:23+08:00",
+      "disposition": "pending_review_do_not_delete"
+    }
+  ]
+}

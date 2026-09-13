@@ -1,5 +1,7 @@
 # HarBeat 音乐分析历史工作入口
 
+> 本文保留历史复现信息。第二版后端、预处理与混音协作请从 [当前入口](HARBEAT_V2_START_HERE.md) 开始，不以历史规划替代现行合同。
+
 算法同事第一次进入仓库，请直接阅读 [ALGORITHM_COLLABORATOR_START_HERE.md](ALGORITHM_COLLABORATOR_START_HERE.md)，无需浏览整个仓库。
 
 本文件是 2026-08-30 冻结的团队协作入口，覆盖三条已经开展的工作：
