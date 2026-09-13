@@ -84,6 +84,14 @@ def main() -> int:
         artist=args.artist,
         style_labels=args.style_label,
     )
+    # Additive contract: do not change the immutable base manifest or its hash.
+    # Reusing an existing base run still completes/retries this independent stage.
+    from app.modules.library.vocal_activity import publish_vocal_activity
+    manifest_key = (
+        f"published/tracks/{manifest['track_id']}/runs/"
+        f"{manifest['analysis_run_id']}/manifest.json"
+    )
+    vocal_pointer = publish_vocal_activity(config.root, manifest_key)
     print(
         json.dumps(
             {
@@ -91,6 +99,7 @@ def main() -> int:
                 "analysis_run_id": manifest["analysis_run_id"],
                 "status": manifest["status"],
                 "root": str(config.root),
+                "vocal_activity": vocal_pointer,
             },
             ensure_ascii=False,
         )

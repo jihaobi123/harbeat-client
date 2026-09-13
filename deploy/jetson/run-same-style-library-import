@@ -26,10 +26,21 @@ if (( ${#archives[@]} == 0 )); then
   exit 1
 fi
 
-exec "$CORE_PYTHON" "$RELEASE_ROOT/scripts/import_same_style_library.py" \
+import_status=0
+"$CORE_PYTHON" "$RELEASE_ROOT/scripts/import_same_style_library.py" \
   "${archives[@]}" \
   --import-root "$IMPORT_ROOT" \
   --preprocess-root "$PREPROCESS_ROOT" \
   --command /usr/local/bin/harbeat-same-style-preprocess \
   --retry-failed \
-  "$@"
+  "$@" || import_status=$?
+
+# Refresh the separately versioned vocal index, including already published songs.
+# Preserve import failure status; the backfill itself also returns nonzero on failure.
+for argument in "$@"; do
+  if [[ "$argument" == "--prepare-only" ]]; then
+    exit "$import_status"
+  fi
+done
+"$CORE_PYTHON" "$RELEASE_ROOT/scripts/backfill_vocal_activity.py" --root "$PREPROCESS_ROOT"
+exit "$import_status"

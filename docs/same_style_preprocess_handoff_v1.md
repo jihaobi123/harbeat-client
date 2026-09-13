@@ -1,5 +1,9 @@
 # 同风格接歌：Jetson 预处理与混音协作合同 v1.2
 
+> 2026-09-13 增补：全曲库增加 Demucs vocals → Silero VAD 人声时间标记。
+> 基础 v1.2 manifest 不变，新增独立版本化报告和索引；部署、补分析、字段格式见
+> [Jetson 人声标记补充合同](jetson_vocal_activity_handoff_v1.md)。
+
 > v1.2 增加人工目录标签 `source.style_labels`、曲库索引和可断点续跑的 ZIP 入库工具。当前曲库批次按要求禁用 ADTOF；MDX23C 鼓组分离不受影响。Pair Score 合同未改变。
 
 ## 1. 目标与边界

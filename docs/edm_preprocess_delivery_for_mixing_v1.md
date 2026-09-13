@@ -1,5 +1,9 @@
 # HarBeat EDM 预处理结果交付与读取说明 v1
 
+> 2026-09-13 人声标记增补：原 EDM 8 首音频包不改动。额外读取
+> `published/indexes/edm_8_vocal_activity_v1.json` 获得 Silero 人声起止时间。
+> 需另取增补数据；格式与使用方法见 [人声标记补充合同](jetson_vocal_activity_handoff_v1.md)。
+
 > 面向接歌与混音算法协作者。本文只定义 HarBeat 已经生成的数据、音频资产及其读取方式，不规定接歌排序、转场选择、效果器或混音算法。
 
 ## 1. 本次交付范围

@@ -1,5 +1,9 @@
 # HarBeat 同风格接歌：混音协作者数据接入说明 v1.2
 
+> 人声时间标记新增读取入口：`published/indexes/style_library_vocal_activity_v1.json`。
+> 不包含在旧音频 ZIP 中；基础 v1.2 合同不变。见
+> [Silero 人声标记补充合同](jetson_vocal_activity_handoff_v1.md)。
+
 > v1.2 增加人工目录风格标签和曲库级索引。本批次按要求不运行 ADTOF，MDX23C 五个鼓组子轨仍完整生成。
 
 ## 1. 这份文档解决什么问题
