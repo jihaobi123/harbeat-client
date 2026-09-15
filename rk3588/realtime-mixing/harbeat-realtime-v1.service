@@ -1,0 +1,15 @@
+[Unit]
+Description=HarBeat EDM realtime control prototype (no autoplay on startup)
+
+[Service]
+Type=simple
+WorkingDirectory=/home/cat/harbeat-mixing-v1
+ExecStart=/home/cat/harbeat-mixing-v1/venv/bin/python -u /home/cat/harbeat-mixing-v1/realtime.py serve --tempo
+Restart=on-failure
+RestartSec=3
+UMask=0077
+StandardOutput=append:/home/cat/harbeat-mixing-v1/reports/realtime_service.log
+StandardError=append:/home/cat/harbeat-mixing-v1/reports/realtime_service.log
+
+[Install]
+WantedBy=default.target

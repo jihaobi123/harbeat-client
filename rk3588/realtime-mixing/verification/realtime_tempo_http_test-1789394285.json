@@ -1,0 +1,851 @@
+{
+  "started_at": 1789394285.7732673,
+  "checks": [
+    {
+      "name": "not_interrupting_other_playback",
+      "passed": true
+    },
+    {
+      "name": "start_advances_audio",
+      "passed": true
+    },
+    {
+      "name": "pause_freezes_position",
+      "passed": true
+    },
+    {
+      "name": "paused_gesture_command_rejected",
+      "passed": true
+    },
+    {
+      "name": "resume_continues",
+      "passed": true
+    },
+    {
+      "name": "software_gesture_punch_forward",
+      "passed": true,
+      "result": {
+        "ok": true,
+        "effect": "snare_impact",
+        "action": "one_shot",
+        "input_source": "software_command",
+        "physical_gesture_verified": false,
+        "request_id": "device-c11f4592fabe1439c214515878940ea4e313586a64ce624956e005708c2250c7",
+        "schema_version": "harbeat.control.v1",
+        "command_round_trip_ms": 3.409
+      },
+      "observed_within_seconds": 10
+    },
+    {
+      "name": "software_gesture_flick_up",
+      "passed": true,
+      "result": {
+        "ok": true,
+        "effect": "air_horn",
+        "action": "one_shot",
+        "input_source": "software_command",
+        "physical_gesture_verified": false,
+        "request_id": "device-506c2ecf1fe0f796059ca203ddd44ad2bc59b4e06accd2986e58c325b8b032f5",
+        "schema_version": "harbeat.control.v1",
+        "command_round_trip_ms": 4.534
+      },
+      "observed_within_seconds": 10
+    },
+    {
+      "name": "software_gesture_swipe_side",
+      "passed": true,
+      "result": {
+        "ok": true,
+        "effect": "beat_stutter",
+        "action": "one_shot",
+        "input_source": "software_command",
+        "physical_gesture_verified": false,
+        "request_id": "device-b924e61275c5fc8af71b0e8c921f3fcb22dd4c8b9ed357cd8e25f486bc060330",
+        "schema_version": "harbeat.control.v1",
+        "command_round_trip_ms": 5.498
+      },
+      "observed_within_seconds": 10
+    },
+    {
+      "name": "software_gesture_wrist_roll",
+      "passed": true,
+      "result": {
+        "ok": true,
+        "effect": "bass_drop",
+        "action": "one_shot",
+        "input_source": "software_command",
+        "physical_gesture_verified": false,
+        "request_id": "device-56f6752ce062cb2c93b8b67e6c246ca08e65fa601f711681e73916dc1ed65815",
+        "schema_version": "harbeat.control.v1",
+        "command_round_trip_ms": 4.509
+      },
+      "observed_within_seconds": 10
+    },
+    {
+      "name": "future_candidate_0",
+      "passed": true,
+      "current": "track-0a1c8c54ff45b04f1568"
+    },
+    {
+      "name": "nearest_candidate_0",
+      "passed": true,
+      "pending": {
+        "request_id": "device-042028902af60b884a60cda1886de461ee90be928dda730cbf6cc01b350469a3",
+        "from_track_id": "track-0a1c8c54ff45b04f1568",
+        "to_track_id": "track-f4219339062cac4ce823",
+        "from_at_sec": 157.66,
+        "to_at_sec": 22.02,
+        "fade_sec": 12.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 153.172,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 157.66,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 1.0,
+        "method": "fx_direct_cut",
+        "tempo_relation": "unmatched",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 0.0,
+        "incoming_asset_sha256": "8f9594806a1446156a4b794ac1220ca3815478e7096828c0b6847dff448d695c",
+        "incoming_song_id": "rtv2-daacb384f9399273bd7b9259"
+      }
+    },
+    {
+      "name": "v4_entry_rate_0",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_0",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_0",
+      "passed": true
+    },
+    {
+      "name": "paused_countdown_frozen",
+      "passed": true
+    },
+    {
+      "name": "pause_during_fade",
+      "passed": true
+    },
+    {
+      "name": "next_during_fade_rejected",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_0",
+      "passed": true,
+      "first_observed_at": 157.711
+    },
+    {
+      "name": "trigger_timing_0",
+      "passed": true,
+      "observed_error_ms": 51.00000000001614
+    },
+    {
+      "name": "future_candidate_1",
+      "passed": true,
+      "current": "track-f4219339062cac4ce823"
+    },
+    {
+      "name": "nearest_candidate_1",
+      "passed": true,
+      "pending": {
+        "request_id": "device-15b75b2d766ad08775475e03b60a3b0445950a7fe1b3ea3407bc271980c87672",
+        "from_track_id": "track-f4219339062cac4ce823",
+        "to_track_id": "track-aab34351ca8529caf4f2",
+        "from_at_sec": 66.54,
+        "to_at_sec": 0.0,
+        "fade_sec": 16.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 62.05199999999999,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 44.52000000000001,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 0.96,
+        "method": "mix_blend",
+        "tempo_relation": "direct",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 15.994149659863945,
+        "incoming_asset_sha256": "14079a87d959289e7f0ebc660e5a141f4677a84be57e94da6fb9c79958949f8e",
+        "incoming_song_id": "rtv2-029b1080d7f0959046a3373d"
+      }
+    },
+    {
+      "name": "v4_entry_rate_1",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_1",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_1",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_1",
+      "passed": true,
+      "first_observed_at": 44.525
+    },
+    {
+      "name": "trigger_timing_1",
+      "passed": true,
+      "observed_error_ms": 4.999999999988347
+    },
+    {
+      "name": "future_candidate_2",
+      "passed": true,
+      "current": "track-aab34351ca8529caf4f2"
+    },
+    {
+      "name": "nearest_candidate_2",
+      "passed": true,
+      "pending": {
+        "request_id": "device-d029f33911668492f72139755a175567e3190608a1742fe80e16c1a2e0428f24",
+        "from_track_id": "track-aab34351ca8529caf4f2",
+        "to_track_id": "track-b36fb933dcd2d9cff436",
+        "from_at_sec": 48.42,
+        "to_at_sec": 0.0,
+        "fade_sec": 16.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 43.93185034013606,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 49.054149659863945,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 0.9585889570552146,
+        "method": "mix_blend",
+        "tempo_relation": "direct",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 15.983106575963719,
+        "incoming_asset_sha256": "da44688f4925a214065bafa32796944dbffbe7f4e9378a10bc2b5390bc9b93fa",
+        "incoming_song_id": "rtv2-b6843f13471555d6277b58e8"
+      }
+    },
+    {
+      "name": "v4_entry_rate_2",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_2",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_2",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_2",
+      "passed": true,
+      "first_observed_at": 49.07
+    },
+    {
+      "name": "trigger_timing_2",
+      "passed": true,
+      "observed_error_ms": 15.850340136054797
+    },
+    {
+      "name": "future_candidate_3",
+      "passed": true,
+      "current": "track-b36fb933dcd2d9cff436"
+    },
+    {
+      "name": "nearest_candidate_3",
+      "passed": true,
+      "pending": {
+        "request_id": "device-cdd8b013b05e883d7a2b34f3e6c42c698e98aa94a76c924d1f0f4bfdedeff4d1",
+        "from_track_id": "track-b36fb933dcd2d9cff436",
+        "to_track_id": "track-8c616fddb7ca97986acc",
+        "from_at_sec": 69.38,
+        "to_at_sec": 0.0,
+        "fade_sec": 12.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 64.87989342403628,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 70.02610657596371,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 1.0,
+        "method": "fx_direct_cut",
+        "tempo_relation": "unmatched",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 0.0,
+        "incoming_asset_sha256": "07c7699504a8e5b832cc35487d2964ab8c871a7b7e70034fae7c8bd29d1bfc61",
+        "incoming_song_id": "rtv2-bbbf0610b2113c6caa425889"
+      }
+    },
+    {
+      "name": "v4_entry_rate_3",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_3",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_3",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_3",
+      "passed": true,
+      "first_observed_at": 70.042
+    },
+    {
+      "name": "trigger_timing_3",
+      "passed": true,
+      "observed_error_ms": 15.893424036292458
+    },
+    {
+      "name": "future_candidate_4",
+      "passed": true,
+      "current": "track-8c616fddb7ca97986acc"
+    },
+    {
+      "name": "nearest_candidate_4",
+      "passed": true,
+      "pending": {
+        "request_id": "device-23983b24ea8e98d29839ffa7174389e385eab9a6639c2cb8d393d6a0b8b0ce0e",
+        "from_track_id": "track-8c616fddb7ca97986acc",
+        "to_track_id": "track-8d55cb314b5aff07d3ac",
+        "from_at_sec": 52.22,
+        "to_at_sec": 0.0,
+        "fade_sec": 16.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 47.732,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 52.22,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 0.999300209937019,
+        "method": "mix_blend",
+        "tempo_relation": "b_is_double_a",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 0.0,
+        "incoming_asset_sha256": "c39f0f8c0ad0727ef7004e82013564bbad375e725842adf7ec94cc2f84528770",
+        "incoming_song_id": "rtv2-5de0c4a483b7a6186714e50b"
+      }
+    },
+    {
+      "name": "v4_entry_rate_4",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_4",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_4",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_4",
+      "passed": true,
+      "first_observed_at": 52.26
+    },
+    {
+      "name": "trigger_timing_4",
+      "passed": true,
+      "observed_error_ms": 39.99999999999915
+    },
+    {
+      "name": "future_candidate_5",
+      "passed": true,
+      "current": "track-8d55cb314b5aff07d3ac"
+    },
+    {
+      "name": "nearest_candidate_5",
+      "passed": true,
+      "pending": {
+        "request_id": "device-2c4d301c9fbbf4ee674b2ee2968eab5da51c9e9c05bf1fd7161cf91d67c7eafe",
+        "from_track_id": "track-8d55cb314b5aff07d3ac",
+        "to_track_id": "track-274577b1e51f104f4658",
+        "from_at_sec": 40.58,
+        "to_at_sec": 0.0,
+        "fade_sec": 12.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 36.08,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 40.58,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 1.0,
+        "method": "fx_direct_cut",
+        "tempo_relation": "unmatched",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 0.0,
+        "incoming_asset_sha256": "29c0297d234ad27a295f853ce49ece085fcc999aa8c39b04a4a887995a69e122",
+        "incoming_song_id": "rtv2-15225fd12df5d953a310f20b"
+      }
+    },
+    {
+      "name": "v4_entry_rate_5",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_5",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_5",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_5",
+      "passed": true,
+      "first_observed_at": 40.631
+    },
+    {
+      "name": "trigger_timing_5",
+      "passed": true,
+      "observed_error_ms": 51.00000000000193
+    },
+    {
+      "name": "future_candidate_6",
+      "passed": true,
+      "current": "track-274577b1e51f104f4658"
+    },
+    {
+      "name": "nearest_candidate_6",
+      "passed": true,
+      "pending": {
+        "request_id": "device-8283d516eff75c9438dd4287596baa1d8b560258fc868d251dccb45e43ced19c",
+        "from_track_id": "track-274577b1e51f104f4658",
+        "to_track_id": "track-f83cf73c441f8e96e0d5",
+        "from_at_sec": 130.14,
+        "to_at_sec": 0.0,
+        "fade_sec": 12.0,
+        "candidate_reason": "out_window",
+        "requested_at_position": 125.64,
+        "auto": false,
+        "status": "scheduled",
+        "from_playback_at_sec": 130.14,
+        "to_playback_at_sec": 0.0,
+        "entry_rate": 1.0,
+        "method": "fx_direct_cut",
+        "tempo_relation": "unmatched",
+        "restore_mode": "v4_head_then_original_tail",
+        "head_output_seconds": 0.0,
+        "incoming_asset_sha256": "2ceb201bac2daef3e5f3b932f24a0015bbb9f1a4053e6c0f65b93b7da87a9ff7",
+        "incoming_song_id": "rtv2-43537f5669632e206fc38389"
+      }
+    },
+    {
+      "name": "v4_entry_rate_6",
+      "passed": true
+    },
+    {
+      "name": "v4_overlap_6",
+      "passed": true
+    },
+    {
+      "name": "duplicate_next_not_rescheduled_6",
+      "passed": true
+    },
+    {
+      "name": "live_crossfade_completed_6",
+      "passed": true,
+      "first_observed_at": 130.168
+    },
+    {
+      "name": "trigger_timing_6",
+      "passed": true,
+      "observed_error_ms": 28.00000000002001
+    },
+    {
+      "name": "stop_is_pause",
+      "passed": true
+    }
+  ],
+  "transitions": [
+    {
+      "request_id": "device-042028902af60b884a60cda1886de461ee90be928dda730cbf6cc01b350469a3",
+      "from_track_id": "track-0a1c8c54ff45b04f1568",
+      "to_track_id": "track-f4219339062cac4ce823",
+      "from_at_sec": 157.66,
+      "to_at_sec": 22.02,
+      "fade_sec": 12.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 153.172,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 157.66,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 1.0,
+      "method": "fx_direct_cut",
+      "tempo_relation": "unmatched",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 0.0,
+      "incoming_asset_sha256": "8f9594806a1446156a4b794ac1220ca3815478e7096828c0b6847dff448d695c",
+      "incoming_song_id": "rtv2-daacb384f9399273bd7b9259",
+      "first_observed_position": 157.711,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-daacb384f9399273bd7b9259",
+        "position_sec": 12.009,
+        "duration_sec": 161.743,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-15b75b2d766ad08775475e03b60a3b0445950a7fe1b3ea3407bc271980c87672",
+      "from_track_id": "track-f4219339062cac4ce823",
+      "to_track_id": "track-aab34351ca8529caf4f2",
+      "from_at_sec": 66.54,
+      "to_at_sec": 0.0,
+      "fade_sec": 16.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 62.05199999999999,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 44.52000000000001,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 0.96,
+      "method": "mix_blend",
+      "tempo_relation": "direct",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 15.994149659863945,
+      "incoming_asset_sha256": "14079a87d959289e7f0ebc660e5a141f4677a84be57e94da6fb9c79958949f8e",
+      "incoming_song_id": "rtv2-029b1080d7f0959046a3373d",
+      "first_observed_position": 44.525,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-029b1080d7f0959046a3373d",
+        "position_sec": 16.026,
+        "duration_sec": 208.946,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-d029f33911668492f72139755a175567e3190608a1742fe80e16c1a2e0428f24",
+      "from_track_id": "track-aab34351ca8529caf4f2",
+      "to_track_id": "track-b36fb933dcd2d9cff436",
+      "from_at_sec": 48.42,
+      "to_at_sec": 0.0,
+      "fade_sec": 16.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 43.93185034013606,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 49.054149659863945,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 0.9585889570552146,
+      "method": "mix_blend",
+      "tempo_relation": "direct",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 15.983106575963719,
+      "incoming_asset_sha256": "da44688f4925a214065bafa32796944dbffbe7f4e9378a10bc2b5390bc9b93fa",
+      "incoming_song_id": "rtv2-b6843f13471555d6277b58e8",
+      "first_observed_position": 49.07,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-b6843f13471555d6277b58e8",
+        "position_sec": 16.003,
+        "duration_sec": 194.184,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-cdd8b013b05e883d7a2b34f3e6c42c698e98aa94a76c924d1f0f4bfdedeff4d1",
+      "from_track_id": "track-b36fb933dcd2d9cff436",
+      "to_track_id": "track-8c616fddb7ca97986acc",
+      "from_at_sec": 69.38,
+      "to_at_sec": 0.0,
+      "fade_sec": 12.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 64.87989342403628,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 70.02610657596371,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 1.0,
+      "method": "fx_direct_cut",
+      "tempo_relation": "unmatched",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 0.0,
+      "incoming_asset_sha256": "07c7699504a8e5b832cc35487d2964ab8c871a7b7e70034fae7c8bd29d1bfc61",
+      "incoming_song_id": "rtv2-bbbf0610b2113c6caa425889",
+      "first_observed_position": 70.042,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-bbbf0610b2113c6caa425889",
+        "position_sec": 12.044,
+        "duration_sec": 195.99,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-23983b24ea8e98d29839ffa7174389e385eab9a6639c2cb8d393d6a0b8b0ce0e",
+      "from_track_id": "track-8c616fddb7ca97986acc",
+      "to_track_id": "track-8d55cb314b5aff07d3ac",
+      "from_at_sec": 52.22,
+      "to_at_sec": 0.0,
+      "fade_sec": 16.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 47.732,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 52.22,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 0.999300209937019,
+      "method": "mix_blend",
+      "tempo_relation": "b_is_double_a",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 0.0,
+      "incoming_asset_sha256": "c39f0f8c0ad0727ef7004e82013564bbad375e725842adf7ec94cc2f84528770",
+      "incoming_song_id": "rtv2-5de0c4a483b7a6186714e50b",
+      "first_observed_position": 52.26,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-5de0c4a483b7a6186714e50b",
+        "position_sec": 16.038,
+        "duration_sec": 273.553,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-2c4d301c9fbbf4ee674b2ee2968eab5da51c9e9c05bf1fd7161cf91d67c7eafe",
+      "from_track_id": "track-8d55cb314b5aff07d3ac",
+      "to_track_id": "track-274577b1e51f104f4658",
+      "from_at_sec": 40.58,
+      "to_at_sec": 0.0,
+      "fade_sec": 12.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 36.08,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 40.58,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 1.0,
+      "method": "fx_direct_cut",
+      "tempo_relation": "unmatched",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 0.0,
+      "incoming_asset_sha256": "29c0297d234ad27a295f853ce49ece085fcc999aa8c39b04a4a887995a69e122",
+      "incoming_song_id": "rtv2-15225fd12df5d953a310f20b",
+      "first_observed_position": 40.631,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-15225fd12df5d953a310f20b",
+        "position_sec": 12.033,
+        "duration_sec": 208.102,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    },
+    {
+      "request_id": "device-8283d516eff75c9438dd4287596baa1d8b560258fc868d251dccb45e43ced19c",
+      "from_track_id": "track-274577b1e51f104f4658",
+      "to_track_id": "track-f83cf73c441f8e96e0d5",
+      "from_at_sec": 130.14,
+      "to_at_sec": 0.0,
+      "fade_sec": 12.0,
+      "candidate_reason": "out_window",
+      "requested_at_position": 125.64,
+      "auto": false,
+      "status": "scheduled",
+      "from_playback_at_sec": 130.14,
+      "to_playback_at_sec": 0.0,
+      "entry_rate": 1.0,
+      "method": "fx_direct_cut",
+      "tempo_relation": "unmatched",
+      "restore_mode": "v4_head_then_original_tail",
+      "head_output_seconds": 0.0,
+      "incoming_asset_sha256": "2ceb201bac2daef3e5f3b932f24a0015bbb9f1a4053e6c0f65b93b7da87a9ff7",
+      "incoming_song_id": "rtv2-43537f5669632e206fc38389",
+      "first_observed_position": 130.168,
+      "after": {
+        "ok": true,
+        "playing": true,
+        "paused": false,
+        "current_song_id": "rtv2-43537f5669632e206fc38389",
+        "position_sec": 12.021,
+        "duration_sec": 202.203,
+        "next_song_id": null,
+        "next_transition_in_sec": null,
+        "in_transition": false,
+        "active_loops": [],
+        "active_stem_fx": null,
+        "active_stem_solo": null,
+        "audio_xrun_count": 0,
+        "realtime_pinned_masters": 0,
+        "realtime_pinned_bytes": 0,
+        "tempo_cached_variants": 9,
+        "tempo_cached_bytes": 666189496,
+        "playback_tier": "non_stem",
+        "last_transition": {},
+        "scheduled_default_render": null
+      }
+    }
+  ],
+  "physical_gesture_verified": false,
+  "acoustic_listening_verified": false,
+  "diagnostic_seeks_used": true,
+  "mode": "live_dual_deck_vocal_v4_tempo",
+  "command_transport": "HTTP simulated device events",
+  "before": {
+    "ok": true,
+    "playing": false,
+    "paused": true,
+    "current_song_id": "rtv2-9eae6f905bfd631d1425a09a",
+    "position_sec": 12.033,
+    "duration_sec": 244.71,
+    "next_song_id": null,
+    "next_transition_in_sec": null,
+    "in_transition": false,
+    "active_loops": [],
+    "active_stem_fx": null,
+    "active_stem_solo": null,
+    "audio_xrun_count": 0,
+    "realtime_pinned_masters": 0,
+    "realtime_pinned_bytes": 0,
+    "tempo_cached_variants": 8,
+    "tempo_cached_bytes": 594852280,
+    "playback_tier": "non_stem",
+    "last_transition": {},
+    "scheduled_default_render": null
+  },
+  "after_start": {
+    "ok": true,
+    "playing": true,
+    "paused": false,
+    "current_song_id": "rtv2-29ecb07cd16dd75ba91daeb0",
+    "position_sec": 1.01,
+    "duration_sec": 198.861,
+    "next_song_id": "rtv2-daacb384f9399273bd7b9259",
+    "next_transition_in_sec": 156.64993197278912,
+    "in_transition": false,
+    "active_loops": [],
+    "active_stem_fx": null,
+    "active_stem_solo": null,
+    "audio_xrun_count": 0,
+    "realtime_pinned_masters": 0,
+    "realtime_pinned_bytes": 0,
+    "tempo_cached_variants": 9,
+    "tempo_cached_bytes": 666189496,
+    "playback_tier": "non_stem",
+    "last_transition": {},
+    "scheduled_default_render": null
+  },
+  "after": {
+    "ok": true,
+    "playing": false,
+    "paused": true,
+    "current_song_id": "rtv2-43537f5669632e206fc38389",
+    "position_sec": 12.033,
+    "duration_sec": 202.203,
+    "next_song_id": null,
+    "next_transition_in_sec": null,
+    "in_transition": false,
+    "active_loops": [],
+    "active_stem_fx": null,
+    "active_stem_solo": null,
+    "audio_xrun_count": 0,
+    "realtime_pinned_masters": 0,
+    "realtime_pinned_bytes": 0,
+    "tempo_cached_variants": 9,
+    "tempo_cached_bytes": 666189496,
+    "playback_tier": "non_stem",
+    "last_transition": {},
+    "scheduled_default_render": null
+  },
+  "xrun_delta": 0,
+  "control_status": "passed",
+  "audio_stability_status": "passed",
+  "status": "passed",
+  "finished_at": 1789394425.149333
+}

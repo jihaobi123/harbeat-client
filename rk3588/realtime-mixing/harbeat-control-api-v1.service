@@ -1,0 +1,16 @@
+[Unit]
+Description=HarBeat local-only simulated wearable control API v1
+After=harbeat-realtime-v1.service
+Requires=harbeat-realtime-v1.service
+
+[Service]
+WorkingDirectory=/home/cat/harbeat-mixing-v1
+ExecStart=/home/cat/harbeat-mixing-v1/venv/bin/python -u /home/cat/harbeat-mixing-v1/control_api.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+StandardOutput=append:/home/cat/harbeat-mixing-v1/reports/control_api.log
+StandardError=append:/home/cat/harbeat-mixing-v1/reports/control_api.log
+
+[Install]
+WantedBy=default.target

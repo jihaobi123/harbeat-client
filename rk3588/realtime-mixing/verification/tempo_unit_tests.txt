@@ -1,0 +1,22 @@
+......{"at": 1789394269.625566, "event": "command", "cmd": "pause", "request_id": "1"}
+.{"at": 1789394269.6258123, "event": "command", "cmd": "gesture", "request_id": "1"}
+....{"at": 1789394269.6266735, "event": "command", "cmd": "pause", "request_id": "1"}
+.{"at": 1789394269.6269543, "event": "command", "cmd": "start", "request_id": "1"}
+.{"at": 1789394269.6271102, "event": "command", "cmd": "stop", "request_id": "1"}
+.......................{"at": 1789394269.6305544, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "b", "from_at_sec": 80.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": true, "status": "scheduled", "from_playback_at_sec": 70.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ab"}
+..{"at": 1789394269.6312106, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "b", "from_at_sec": 44.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 34.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ab"}
+..{"at": 1789394269.6322389, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "b", "from_at_sec": 26.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 10.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 16.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ab"}
+.{"at": 1789394269.6326318, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "c", "from_at_sec": 44.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 34.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ac"}
+.{"at": 1789394269.6330757, "event": "scheduled", "request_id": "last", "from_track_id": "a", "to_track_id": "c", "from_at_sec": 44.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 34.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ac-final"}
+.{"at": 1789394269.6335478, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "b", "from_at_sec": 44.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 34.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ab"}
+.{"at": 1789394269.6340008, "event": "scheduled", "request_id": "one", "from_track_id": "a", "to_track_id": "b", "from_at_sec": 44.0, "to_at_sec": 10, "fade_sec": 16, "candidate_reason": "out_window", "requested_at_position": 40.0, "auto": false, "status": "scheduled", "from_playback_at_sec": 34.0, "to_playback_at_sec": 0.0, "entry_rate": 0.96, "method": "mix_blend", "tempo_relation": "direct", "restore_mode": "v4_head_then_original_tail", "head_output_seconds": 16.0, "incoming_asset_sha256": "verified", "incoming_song_id": "rtv2-ab"}
+..
+----------------------------------------------------------------------
+Ran 46 tests in 0.010s
+
+OK
+............
+----------------------------------------------------------------------
+Ran 12 tests in 0.006s
+
+OK
