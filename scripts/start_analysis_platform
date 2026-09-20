@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+runtime="${ANALYSIS_LAB_PYTHON:-.venv-lab/bin/python}"
+if [[ ! -x "$runtime" ]]; then
+  if [[ -x /tmp/harbeat-analysis-runtime/bin/python ]]; then
+    runtime=/tmp/harbeat-analysis-runtime/bin/python
+  else
+    echo 'Install the independent runtime described in analysis_platform/README.md first.' >&2
+    exit 1
+  fi
+fi
+exec "$runtime" -m analysis_platform.server

@@ -25,6 +25,22 @@ from app.shared.responses import APIResponse
 
 router = APIRouter()
 
+
+@router.get("/songs/{song_id}/analysis-report")
+def export_analysis_report(
+    song_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.modules.library.models import LibrarySong
+    from analysis_platform.library_export import song_report
+    song = db.get(LibrarySong, song_id)
+    if song is None:
+        raise HTTPException(status_code=404, detail="song not found")
+    if song.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="not your song")
+    return song_report(song)
+
 ALLOWED_FORMATS = {"mp3", "flac", "wav", "ogg", "aac", "m4a", "opus", "wma", "ncm"}
 MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 

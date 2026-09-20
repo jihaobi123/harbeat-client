@@ -1,0 +1,12 @@
+# Separate environment; never install over the existing HarBeat model environment.
+fastapi==0.116.1
+uvicorn==0.35.0
+python-multipart==0.0.20
+numpy==2.2.6
+scipy==1.15.3
+librosa==0.11.0
+soundfile==0.13.1
+pytest==8.4.2
+httpx==0.28.1
+
+pyloudnorm==0.1.1

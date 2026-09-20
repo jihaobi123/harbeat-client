@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""Python-compatible entry point for the optional isolated model container."""
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
+from analysis_platform.container_runtime import main
+raise SystemExit(main())

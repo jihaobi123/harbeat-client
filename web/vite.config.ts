@@ -7,6 +7,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5180,
     proxy: {
+      '/api/analysis-lab': 'http://127.0.0.1:8765',
       '/api': 'http://127.0.0.1:8000',
     },
   },

@@ -1,0 +1,26 @@
+{
+  "organization_date": "2026-09-20",
+  "base_checkout_commit": "4081da2",
+  "preprocessing": {
+    "source": "Jetson active same-style-preprocess release",
+    "release": "same-style-preprocess-a268a5c-vocal-20260913",
+    "inventory": "services/preprocessing/SOURCE_INVENTORY.json",
+    "models_and_audio_included": false
+  },
+  "analysis_platform": {
+    "source": "current local implementation used for the analysis platform",
+    "directory": "analysis_platform",
+    "code_path_changes_only_for_v3_loading": true
+  },
+  "online_mixing": {
+    "source": "existing repository plus current local session source changes",
+    "device_installed_revision_verified": false,
+    "v3_realtime_integration": false
+  },
+  "v3": {
+    "source": "colleague confirmed renderer",
+    "renderer_sha256": "8cf342e72a688ccde658cf402866f63f3cc7fe8eafd7fc70857cc32d6185069a",
+    "post_reorganization_mp3_identical": true
+  },
+  "production_services_modified": false
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harbeat.local/schemas/same-style-library-index-v1.schema.json",
+  "title": "HarBeat same-style library index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "generated_at", "source_collections", "total_tracks", "status_summary", "items"],
+  "properties": {
+    "schema_name": {"const": "same_style_library_index"},
+    "schema_version": {"const": "1.0.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_collections": {"$ref": "#/$defs/stringArray"},
+    "total_tracks": {"type": "integer", "minimum": 0},
+    "status_summary": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "items": {"type": "array", "items": {"$ref": "#/$defs/item"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stringArray": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "nullableString": {"type": ["string", "null"]},
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["track_id", "input_sha256", "original_filename", "source_storage_key", "source_collection", "collection_labels", "style_labels", "duplicate_sources", "title", "artist", "status", "analysis_run_id", "manifest_storage_key", "error"],
+      "properties": {
+        "track_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "input_sha256": {"$ref": "#/$defs/sha256"},
+        "original_filename": {"type": "string", "minLength": 1},
+        "source_storage_key": {"type": "string", "minLength": 1},
+        "source_collection": {"type": "string", "minLength": 1},
+        "collection_labels": {"$ref": "#/$defs/stringArray"},
+        "style_labels": {"$ref": "#/$defs/stringArray"},
+        "duplicate_sources": {"$ref": "#/$defs/stringArray"},
+        "title": {"type": "string", "minLength": 1},
+        "artist": {"$ref": "#/$defs/nullableString"},
+        "status": {"enum": ["pending", "running", "ready", "degraded", "unavailable", "failed"]},
+        "analysis_run_id": {"$ref": "#/$defs/nullableString"},
+        "manifest_storage_key": {"$ref": "#/$defs/nullableString"},
+        "error": {"$ref": "#/$defs/nullableString"}
+      }
+    }
+  }
+}

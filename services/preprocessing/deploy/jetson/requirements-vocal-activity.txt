@@ -1,0 +1,3 @@
+# Install with --no-deps in the existing NVIDIA PyTorch environment.
+# The bundled TorchScript weight runs offline on CPU; no ONNX Runtime required.
+silero-vad==6.2.1

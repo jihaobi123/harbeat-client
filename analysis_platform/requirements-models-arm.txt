@@ -1,0 +1,6 @@
+# Independent Python 3.10 ARM environment; does not change the main Jetson venv.
+tensorflow==2.16.1
+numpy==1.26.4
+soundfile==0.13.1
+# Essentia preprocessing is copied from the existing Jetson build. It must expose
+# TensorflowInputMusiCNN, FrameCutter, VectorRealToTensor and Resample.

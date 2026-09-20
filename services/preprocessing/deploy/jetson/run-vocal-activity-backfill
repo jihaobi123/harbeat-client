@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ENV_FILE="${HARBEAT_PREPROCESS_ENV_FILE:-/etc/harbeat/same-style-preprocess.env}"
+if [[ -r "$ENV_FILE" ]]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+RELEASE_ROOT="${HARBEAT_PREPROCESS_RELEASE:-/opt/harbeat/same-style-preprocess-current}"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+RUNTIME_ROOT="${HARBEAT_RUNTIME_ROOT:-/opt/harbeat/runtime}"
+export PYTHONPATH="$RELEASE_ROOT/vendor:$RUNTIME_ROOT/preprocess-packages:$RELEASE_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$CORE_PYTHON" "$RELEASE_ROOT/scripts/backfill_vocal_activity.py" \
+  --root "${HARBEAT_PREPROCESS_ROOT:-/mnt/nas/harbeat/preprocess}" "$@"

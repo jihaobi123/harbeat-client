@@ -1,5 +1,9 @@
 # HarBeat — 街舞音乐曲库管理与分析平台
 
+**2026-09-20：预处理、在线混音与 V3 的最新交接入口：[AUDIO_STACK.md](AUDIO_STACK.md)。**
+
+下文保留原应用说明；完整 Jetson 预处理以新交接入口为准。
+
 > FastAPI + React + TypeScript Web 前端 + Docker 部署
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116-009688?logo=fastapi&logoColor=white)

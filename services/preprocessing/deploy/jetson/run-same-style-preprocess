@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV_FILE="${HARBEAT_PREPROCESS_ENV_FILE:-/etc/harbeat/same-style-preprocess.env}"
+if [[ -r "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+RELEASE_ROOT="${HARBEAT_PREPROCESS_RELEASE:-/opt/harbeat/same-style-preprocess-current}"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+RUNTIME_ROOT="${HARBEAT_RUNTIME_ROOT:-/opt/harbeat/runtime}"
+MODEL_ROOT="${HARBEAT_MODEL_ROOT:-/opt/harbeat/models}"
+
+export HARBEAT_PREPROCESS_ROOT="${HARBEAT_PREPROCESS_ROOT:-/mnt/nas/harbeat/preprocess}"
+export HARBEAT_MDX23C_CACHE_DIR="${HARBEAT_MDX23C_CACHE_DIR:-/mnt/nas/harbeat/models/mdx23c}"
+export TORCH_HOME="${TORCH_HOME:-/mnt/nas/harbeat/models/torch}"
+export HF_HOME="${HF_HOME:-/mnt/nas/harbeat/models/huggingface}"
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+export HF_HUB_DOWNLOAD_TIMEOUT="${HF_HUB_DOWNLOAD_TIMEOUT:-120}"
+export HF_HUB_ETAG_TIMEOUT="${HF_HUB_ETAG_TIMEOUT:-30}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/mnt/nas/harbeat/cache/xdg}"
+if [[ -z "${SECTION_SONGFORMER_COMMAND:-}" ]]; then
+  export SECTION_SONGFORMER_COMMAND="$RUNTIME_ROOT/songformer-python $RELEASE_ROOT/experiments/run_songformer_isolated.py {audio} --out-dir {output_dir} --source-root $MODEL_ROOT/SongFormer --muq-model $MODEL_ROOT/MuQ-large-msd-iter --device cuda --precision float16"
+fi
+export SECTION_SONGFORMER_WORK_DIR="${SECTION_SONGFORMER_WORK_DIR:-/mnt/nas/harbeat/cache/songformer-analysis}"
+# Keep the lightweight ADTOF worker on CPU so it cannot contend with the
+# SongFormer, All-In-One, Demucs, and MDX23C CUDA workloads in the same job.
+if [[ -z "${FEATURE_DRUM_TRANSCRIBER_COMMAND:-}" ]]; then
+  export FEATURE_DRUM_TRANSCRIBER_COMMAND="$RUNTIME_ROOT/instrument-analysis-python $RELEASE_ROOT/scripts/adtof_drum_worker.py --audio {audio} --device cpu"
+fi
+export FEATURE_MODEL_TIMEOUT_SECONDS="${FEATURE_MODEL_TIMEOUT_SECONDS:-1800}"
+export BPM_ENABLE_BEAT_THIS="${BPM_ENABLE_BEAT_THIS:-true}"
+export BPM_ENABLE_ALL_IN_ONE="${BPM_ENABLE_ALL_IN_ONE:-true}"
+export BPM_ENABLE_ESSENTIA="${BPM_ENABLE_ESSENTIA:-true}"
+export DOWNBEAT_ENABLE_MADMOM="${DOWNBEAT_ENABLE_MADMOM:-true}"
+export BPM_BEAT_THIS_DEVICE="${BPM_BEAT_THIS_DEVICE:-cpu}"
+export BPM_ALL_IN_ONE_DEVICE="${BPM_ALL_IN_ONE_DEVICE:-cuda}"
+
+export PYTHONPATH="$RELEASE_ROOT/vendor:$RUNTIME_ROOT/preprocess-packages:$RELEASE_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+install -d "$HARBEAT_PREPROCESS_ROOT" "$HARBEAT_MDX23C_CACHE_DIR" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME"
+exec "$CORE_PYTHON" "$RELEASE_ROOT/scripts/run_same_style_preprocess.py" "$@"

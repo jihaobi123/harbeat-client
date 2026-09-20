@@ -4,8 +4,14 @@ import LoginPage from './pages/LoginPage'
 import MainLayout from './pages/MainLayout'
 import AnnotationPortal from './pages/AnnotationPortal'
 import { isAnnotationRoute } from './routing'
+import AnalysisLab from './analysis/AnalysisLab'
 
 export default function App() {
+  if (window.location.pathname === '/analysis-lab' || window.location.pathname === '/analysis-lab/') return <AnalysisLab />
+  return <AuthenticatedApp />
+}
+
+function AuthenticatedApp() {
   const { user, loading, checkAuth } = useAuthStore()
 
   useEffect(() => {

@@ -1,0 +1,6 @@
+# Separate Python 3.10 venv: install these first, then madmom with --no-build-isolation.
+numpy==1.23.5
+scipy==1.10.1
+Cython==0.29.37
+soundfile==0.13.1
+madmom==0.16.1

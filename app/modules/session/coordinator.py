@@ -38,6 +38,40 @@ from .undo_stack import UndoStack
 logger = logging.getLogger(__name__)
 
 
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _build_track_context(analysis: dict, track_id: str = "") -> "TrackContext":
+    """Build a TrackContext from C1 analysis data for stem_automix compatibility."""
+    try:
+        from app.modules.playlists.stem_automix import TrackContext
+    except ImportError:
+        return None
+
+    has_stems = bool(analysis.get("stem_activity", {}).get("vocals", 0) > 0)
+    energy_val = float(analysis.get("energy", 0.5))
+    energy_label = "low" if energy_val < 0.35 else ("high" if energy_val > 0.65 else "medium")
+
+    return TrackContext(
+        song_id=track_id,
+        bpm=float(analysis.get("bpm", 120)),
+        camelot_key=str(analysis.get("camelot_key", "")),
+        key_name=str(analysis.get("key", "")),
+        energy=energy_label,
+        duration_sec=float(analysis.get("duration", 180)),
+        beat_points=list(analysis.get("beat_points", [])),
+        downbeats=list(analysis.get("downbeats", [])),
+        phrase_map=list(analysis.get("phrase_map", [])),
+        cue_points=list(analysis.get("cue_points", [])),
+        has_stems=has_stems,
+        stem_quality_score=float(analysis.get("stem_quality_score", 0)),
+        vocal_density=float((analysis.get("stem_activity", {}) or {}).get("vocals", 0.5)),
+        bass_energy=float((analysis.get("stem_activity", {}) or {}).get("bass", 0.5)),
+        intro_is_clean=bool(analysis.get("intro_is_clean", False)),
+        outro_is_clean=bool(analysis.get("outro_is_clean", False)),
+        has_drum_loop=bool(analysis.get("has_drum_loop", False)),
+    )
+
+
 # ── Protocol for C3 recommendation (dependency injection) ────────────────────
 
 
@@ -236,6 +270,75 @@ class SessionCoordinator:
             execute_at="next_phrase",
             quantize=True,
         )
+
+    def _build_transition_command(
+        self,
+        to_track_id: str,
+        intent: str | None = None,
+        user_preset: str = "auto",
+    ) -> ControlCommand:
+        """Build a ControlCommand with actual automation curves from stem_automix.
+
+        Uses select_transition() to pick the best preset and generate curves,
+        then embeds them in the ControlCommand for C4 execution.
+        """
+        try:
+            from app.modules.playlists.stem_automix import (
+                TrackContext,
+                select_transition,
+            )
+
+            # Build TrackContext for current and next track from C1 analysis
+            current_analysis = {}
+            next_analysis = {}
+            if self._candidate_selector and hasattr(self._candidate_selector, '_tracks'):
+                registry = self._candidate_selector._tracks
+                current_analysis = registry.get(self._queue.current_track_id, {})
+                next_analysis = registry.get(to_track_id, {})
+
+            from_ctx = _build_track_context(current_analysis, self._queue.current_track_id)
+            to_ctx = _build_track_context(next_analysis, to_track_id)
+
+            preset, curves, meta = select_transition(
+                from_ctx, to_ctx,
+                user_preset=user_preset,
+                intent=intent,
+            )
+
+            return ControlCommand(
+                action="xfade",
+                params={
+                    "to_track_id": to_track_id,
+                    "preset": preset.value,
+                    "style": preset.value,
+                    "curves": [
+                        {
+                            "target": c.target.value,
+                            "param": c.param.value,
+                            "points": c.points,
+                            "shape": c.shape.value,
+                        }
+                        for c in curves
+                    ],
+                    "fade_sec": meta.get("duration_bars", 8) * 60.0 / max(from_ctx.bpm or 120, 1.0) * 4,
+                    "tempo_strategy": meta.get("tempo_strategy", "none"),
+                    "mode": meta.get("mode", "non_stem"),
+                },
+                execute_at="next_phrase",
+                quantize=True,
+            )
+        except Exception as e:
+            logger.warning("[coordinator] select_transition failed: %s, falling back to string template", e)
+            return ControlCommand(
+                action="xfade",
+                params={
+                    "to_track_id": to_track_id,
+                    "style": "fade",
+                    "fade_sec": 8.0,
+                },
+                execute_at="next_phrase",
+                quantize=True,
+            )
 
     def _handle_emergency_next(self) -> ControlCommand:
         """Emergency: get safest track immediately."""

@@ -1,0 +1,19 @@
+[Unit]
+Description=Read original HarBeat catalogs and measure registered stems
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/mark/harbeat-analysis-platform
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+ExecStartPre=/usr/bin/mountpoint -q /mnt/nas/harbeat
+ExecStart=/home/mark/harbeat-analysis-venv/bin/python -m analysis_platform.catalog --nas-root /mnt/nas/harbeat --output /mnt/nas/harbeat/data/analysis-platform --library-snapshot /mnt/nas/harbeat/data/analysis-platform/catalog-library.json --measure-stems
+Nice=15
+CPUQuota=100%
+MemoryMax=1G
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=infinity
+StandardOutput=append:/home/mark/harbeat-analysis-platform/catalog-import.log
+StandardError=append:/home/mark/harbeat-analysis-platform/catalog-import.log

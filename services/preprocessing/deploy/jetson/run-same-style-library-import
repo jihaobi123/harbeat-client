@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PREPROCESS_ENV_FILE="${HARBEAT_PREPROCESS_ENV_FILE:-/etc/harbeat/same-style-preprocess.env}"
+LIBRARY_ENV_FILE="${HARBEAT_LIBRARY_ENV_FILE:-/etc/harbeat/same-style-library-import.env}"
+for env_file in "$PREPROCESS_ENV_FILE" "$LIBRARY_ENV_FILE"; do
+  if [[ -r "$env_file" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
+  fi
+done
+
+RELEASE_ROOT="${HARBEAT_PREPROCESS_RELEASE:-/opt/harbeat/same-style-preprocess-current}"
+CORE_PYTHON="${HARBEAT_CORE_PYTHON:-/opt/harbeat/current/venv/bin/python}"
+RUNTIME_ROOT="${HARBEAT_RUNTIME_ROOT:-/opt/harbeat/runtime}"
+IMPORT_ROOT="${HARBEAT_LIBRARY_IMPORT_ROOT:?set HARBEAT_LIBRARY_IMPORT_ROOT}"
+PREPROCESS_ROOT="${HARBEAT_PREPROCESS_ROOT:-/mnt/nas/harbeat/preprocess}"
+
+export PYTHONPATH="$RELEASE_ROOT/vendor:$RUNTIME_ROOT/preprocess-packages:$RELEASE_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+shopt -s nullglob
+archives=("$IMPORT_ROOT"/raw/*.zip)
+if (( ${#archives[@]} == 0 )); then
+  echo "no ZIP archives found under $IMPORT_ROOT/raw" >&2
+  exit 1
+fi
+
+import_status=0
+"$CORE_PYTHON" "$RELEASE_ROOT/scripts/import_same_style_library.py" \
+  "${archives[@]}" \
+  --import-root "$IMPORT_ROOT" \
+  --preprocess-root "$PREPROCESS_ROOT" \
+  --command /usr/local/bin/harbeat-same-style-preprocess \
+  --retry-failed \
+  "$@" || import_status=$?
+
+# Refresh the separately versioned vocal index, including already published songs.
+# Preserve import failure status; the backfill itself also returns nonzero on failure.
+for argument in "$@"; do
+  if [[ "$argument" == "--prepare-only" ]]; then
+    exit "$import_status"
+  fi
+done
+"$CORE_PYTHON" "$RELEASE_ROOT/scripts/backfill_vocal_activity.py" --root "$PREPROCESS_ROOT"
+exit "$import_status"

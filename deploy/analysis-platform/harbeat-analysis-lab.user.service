@@ -1,0 +1,24 @@
+[Unit]
+Description=HarBeat independent analysis and monitoring
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mark/harbeat-analysis-platform
+EnvironmentFile=/home/mark/.config/harbeat-analysis.env
+ExecStartPre=/usr/bin/mountpoint -q /mnt/nas/harbeat
+ExecStart=/home/mark/harbeat-analysis-venv/bin/python -m analysis_platform.server
+Restart=on-failure
+RestartSec=10
+Nice=10
+CPUQuota=200%
+MemoryMax=6G
+UMask=0077
+NoNewPrivileges=true
+KillMode=control-group
+TimeoutStopSec=15
+StandardOutput=append:/home/mark/harbeat-analysis-platform/service.log
+StandardError=append:/home/mark/harbeat-analysis-platform/service.log
+
+[Install]
+WantedBy=default.target

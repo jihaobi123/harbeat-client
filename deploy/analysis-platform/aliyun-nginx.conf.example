@@ -1,0 +1,24 @@
+# Separate owner-only analysis subdomain; does not replace existing HarBeat routes.
+# Replace YOUR_DOMAIN and certificate paths before nginx -t.
+server {
+    listen 443 ssl;
+    server_name analysis.YOUR_DOMAIN;
+    ssl_certificate /etc/letsencrypt/live/analysis.YOUR_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/analysis.YOUR_DOMAIN/privkey.pem;
+    auth_basic "HarBeat Analysis";
+    auth_basic_user_file /etc/nginx/harbeat-analysis.htpasswd;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass http://100.87.142.21:8765;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        # File content: proxy_set_header X-Analysis-Relay-Token "<random token>";
+        include /etc/nginx/snippets/harbeat-analysis-token.conf;
+        proxy_set_header Authorization "";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        add_header Cache-Control "no-store" always;
+    }
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=HarBeat independent music analysis lab
+After=network-online.target tailscaled.service
+Wants=network-online.target
+RequiresMountsFor=/mnt/nas/harbeat
+
+[Service]
+Type=simple
+User=mark
+Group=mark
+WorkingDirectory=/home/mark/harbeat-analysis-platform
+EnvironmentFile=/etc/harbeat-analysis-lab.env
+ExecStart=/home/mark/harbeat-analysis-platform/.venv-lab/bin/python -m analysis_platform.server
+Restart=on-failure
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=30
+Nice=10
+CPUQuota=200%
+MemoryMax=6G
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

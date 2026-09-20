@@ -1,0 +1,431 @@
+{
+  "schema_name": "harbeat_offline_mixtape_plan",
+  "schema_version": "0.5.0",
+  "generated_at": "2026-09-16T09:18:48Z",
+  "input": {
+    "root": "/Users/pineapple/Desktop/future_bass_6_bundle_20260916_v1",
+    "index_storage_key": "published/indexes/future_bass_demo_6_v1.json",
+    "vocal_activity_index": "published/indexes/future_bass_demo_6_vocal_activity_v1.json",
+    "total_tracks": 6
+  },
+  "policy": {
+    "version": "future_bass_demo_transition_logic_1_0",
+    "allow_degraded": true,
+    "route_strategy": "exhaustive 6-track search using demo transition costs, vocal conflict cost, BPM adjustment cost, harmonic compatibility, and drum overlap",
+    "segment_strategy": "each track renders from selected intro entry to first contiguous chorus block end",
+    "out_point_strategy": "B intro end / B verse first beat is aligned to A first chorus end",
+    "tempo_strategy": "incoming B intro is rendered at A_bpm / B_bpm; body returns to original tempo after the intro boundary",
+    "mix_strategy": "linear master EQ crossfade with B mid duck when both sides contain vocal activity",
+    "render_gain": 0.76,
+    "vocal_detection_note": "Silero VAD on separated vocals is used as needs_review guidance, not human-verified lyric timing"
+  },
+  "route_score": 5.231186783618981,
+  "warnings": [
+    "What Lovers Do (Slushii Remix): degraded; flags=bass_pitch_spectral_fallback_used, dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback",
+    "Bring Back The Summer (Not Your Dope Remix): degraded; flags=bass_pitch_spectral_fallback_used, dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback",
+    "Clear (Shawn Wasabi Remix): degraded; flags=bass_pitch_spectral_fallback_used, dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback",
+    "Paris: degraded; flags=bass_pitch_spectral_fallback_used, dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback",
+    "Don't Say: degraded; flags=dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback",
+    "Closer: degraded; flags=bass_pitch_spectral_fallback_used, dedicated_drum_model_unavailable, percussion_uses_spectral_drum_proxy, spectral_proxy_fallback"
+  ],
+  "tracks": [
+    {
+      "position": 1,
+      "track_id": "track-ca16f9377fdaea5a2a21",
+      "title": "Closer",
+      "artist": "The Chainsmokers,Halsey",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "bass_pitch_spectral_fallback_used",
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 94.9,
+      "key": "4B",
+      "intro_start_ms": 0,
+      "intro_end_ms": 10310,
+      "intro_bars": 4,
+      "first_chorus_start_ms": 50736,
+      "first_chorus_end_ms": 91138,
+      "first_chorus_bars": 16,
+      "render_entry_ms": 0,
+      "render_exit_ms": 91138,
+      "incoming_rate": 1.0,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/01_track-ca16f9377fdaea5a2a21.wav",
+      "master_storage_key": "published/tracks/track-ca16f9377fdaea5a2a21/runs/run-track-ca16f9377fdaea5a2a21-ca16f9377fda-a268a5c-e2ece60a/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.6980404964075767,
+        "active_duration_ms": 170992,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    },
+    {
+      "position": 2,
+      "track_id": "track-9eb9bee8f4baad430854",
+      "title": "Bring Back The Summer (Not Your Dope Remix)",
+      "artist": "Not Your Dope,Rain Man,Oly",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "bass_pitch_spectral_fallback_used",
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 98.0,
+      "key": "10A",
+      "intro_start_ms": 0,
+      "intro_end_ms": 14768,
+      "intro_bars": 6,
+      "first_chorus_start_ms": 34366,
+      "first_chorus_end_ms": 107845,
+      "first_chorus_bars": 30,
+      "render_entry_ms": 0,
+      "render_exit_ms": 107845,
+      "incoming_rate": 0.9683673469387756,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/02_track-9eb9bee8f4baad430854.wav",
+      "master_storage_key": "published/tracks/track-9eb9bee8f4baad430854/runs/run-track-9eb9bee8f4baad430854-9eb9bee8f4ba-a268a5c-e663ebb3/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.33959713887868354,
+        "active_duration_ms": 74872,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    },
+    {
+      "position": 3,
+      "track_id": "track-2f2ef893f9a9f4cde4f1",
+      "title": "Paris",
+      "artist": "The Chainsmokers",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "bass_pitch_spectral_fallback_used",
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 100.0,
+      "key": "10B",
+      "intro_start_ms": 0,
+      "intro_end_ms": 9880,
+      "intro_bars": 4,
+      "first_chorus_start_ms": 29080,
+      "first_chorus_end_ms": 57880,
+      "first_chorus_bars": 12,
+      "render_entry_ms": 0,
+      "render_exit_ms": 57880,
+      "incoming_rate": 0.98,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/03_track-2f2ef893f9a9f4cde4f1.wav",
+      "master_storage_key": "published/tracks/track-2f2ef893f9a9f4cde4f1/runs/run-track-2f2ef893f9a9f4cde4f1-2f2ef893f9a9-a268a5c-8378df02/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.7195721345880441,
+        "active_duration_ms": 159432,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    },
+    {
+      "position": 4,
+      "track_id": "track-080bca25199811cdd57d",
+      "title": "Clear (Shawn Wasabi Remix)",
+      "artist": "Shawn Wasabi,Pusher,Mothica",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "bass_pitch_spectral_fallback_used",
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 102.2,
+      "key": "11A",
+      "intro_start_ms": 0,
+      "intro_end_ms": 9404,
+      "intro_bars": 4,
+      "first_chorus_start_ms": 44698,
+      "first_chorus_end_ms": 70658,
+      "first_chorus_bars": 11,
+      "render_entry_ms": 0,
+      "render_exit_ms": 70658,
+      "incoming_rate": 0.9784735812133072,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/04_track-080bca25199811cdd57d.wav",
+      "master_storage_key": "published/tracks/track-080bca25199811cdd57d/runs/run-track-080bca25199811cdd57d-080bca251998-a268a5c-cb2cc3e0/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.47240859920580586,
+        "active_duration_ms": 82800,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    },
+    {
+      "position": 5,
+      "track_id": "track-2b618c3206ab9558a95f",
+      "title": "What Lovers Do (Slushii Remix)",
+      "artist": "Maroon 5,SZA,Slushii",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "bass_pitch_spectral_fallback_used",
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 96.8,
+      "key": "6B",
+      "intro_start_ms": 0,
+      "intro_end_ms": 10040,
+      "intro_bars": 4,
+      "first_chorus_start_ms": 30040,
+      "first_chorus_end_ms": 70020,
+      "first_chorus_bars": 16,
+      "render_entry_ms": 0,
+      "render_exit_ms": 70020,
+      "incoming_rate": 1.0557851239669422,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/05_track-2b618c3206ab9558a95f.wav",
+      "master_storage_key": "published/tracks/track-2b618c3206ab9558a95f/runs/run-track-2b618c3206ab9558a95f-2b618c3206ab-a268a5c-26fb1cc6/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.6320577164366374,
+        "active_duration_ms": 161200,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    },
+    {
+      "position": 6,
+      "track_id": "track-5145697dcb1be472f27c",
+      "title": "Don't Say",
+      "artist": "The Chainsmokers,Emily Warren",
+      "status": "degraded",
+      "quality_modules": {
+        "core": "ready",
+        "drum_groups": "degraded",
+        "mdx23c": "ready",
+        "sections": "ready",
+        "stem_separation": "ready"
+      },
+      "quality_flags": [
+        "dedicated_drum_model_unavailable",
+        "percussion_uses_spectral_drum_proxy",
+        "spectral_proxy_fallback"
+      ],
+      "bpm": 100.0,
+      "key": "7B",
+      "intro_start_ms": 0,
+      "intro_end_ms": 9820,
+      "intro_bars": 4,
+      "first_chorus_start_ms": 48230,
+      "first_chorus_end_ms": 86620,
+      "first_chorus_bars": 16,
+      "render_entry_ms": 0,
+      "render_exit_ms": 86620,
+      "incoming_rate": 0.968,
+      "incoming_mid_duck": false,
+      "rendered_segment": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments/06_track-5145697dcb1be472f27c.wav",
+      "master_storage_key": "published/tracks/track-5145697dcb1be472f27c/runs/run-track-5145697dcb1be472f27c-5145697dcb1b-a268a5c-dfec9772/audio/master.mp3",
+      "vocal_activity": {
+        "coverage_ratio": 0.5919642857142857,
+        "active_duration_ms": 135252,
+        "needs_review": true,
+        "quality_flags": [
+          "speech_vad_on_separated_singing_not_accuracy_certified"
+        ]
+      }
+    }
+  ],
+  "transitions": [
+    {
+      "position": 1,
+      "from": "The Chainsmokers,Halsey - Closer",
+      "to": "Not Your Dope,Rain Man,Oly - Bring Back The Summer (Not Your Dope Remix)",
+      "case": "case_2_a_chorus_longer_than_b_intro",
+      "entry_rate": 0.968367,
+      "overlap_seconds": 15.2504,
+      "transition_time_seconds": 75.8875940410959,
+      "snippet_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets/transition_01.wav",
+      "a_first_chorus_start_ms": 50736,
+      "a_out_point_first_chorus_end_ms": 91138,
+      "a_chorus_bars": 16,
+      "a_transition_start_ms": 75976,
+      "b_intro_start_ms": 0,
+      "b_intro_end_ms": 14768,
+      "b_intro_bars": 6,
+      "b_entry_ms": 0,
+      "incoming_source_overlap_ms": 14768,
+      "both_vocal_detected": false,
+      "a_transition_vocal_ratio": 0.875,
+      "b_intro_vocal_ratio": 0.013,
+      "mid_duck_policy": "no vocal-conflict mid duck",
+      "score": 0.9497,
+      "reason": "A first chorus is longer than B intro; B intro first beat is the entry point"
+    },
+    {
+      "position": 2,
+      "from": "Not Your Dope,Rain Man,Oly - Bring Back The Summer (Not Your Dope Remix)",
+      "to": "The Chainsmokers - Paris",
+      "case": "case_2_a_chorus_longer_than_b_intro",
+      "entry_rate": 0.98,
+      "overlap_seconds": 10.0816,
+      "transition_time_seconds": 174.10743538803465,
+      "snippet_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets/transition_02.wav",
+      "a_first_chorus_start_ms": 34366,
+      "a_out_point_first_chorus_end_ms": 107845,
+      "a_chorus_bars": 30,
+      "a_transition_start_ms": 98023,
+      "b_intro_start_ms": 0,
+      "b_intro_end_ms": 9880,
+      "b_intro_bars": 4,
+      "b_entry_ms": 0,
+      "incoming_source_overlap_ms": 9880,
+      "both_vocal_detected": false,
+      "a_transition_vocal_ratio": 0.0,
+      "b_intro_vocal_ratio": 0.1498,
+      "mid_duck_policy": "no vocal-conflict mid duck",
+      "score": 1.1407,
+      "reason": "A first chorus is longer than B intro; B intro first beat is the entry point"
+    },
+    {
+      "position": 3,
+      "from": "The Chainsmokers - Paris",
+      "to": "Shawn Wasabi,Pusher,Mothica - Clear (Shawn Wasabi Remix)",
+      "case": "case_2_a_chorus_longer_than_b_intro",
+      "entry_rate": 0.978474,
+      "overlap_seconds": 9.6109,
+      "transition_time_seconds": 222.55872438803465,
+      "snippet_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets/transition_03.wav",
+      "a_first_chorus_start_ms": 29080,
+      "a_out_point_first_chorus_end_ms": 57880,
+      "a_chorus_bars": 12,
+      "a_transition_start_ms": 48280,
+      "b_intro_start_ms": 0,
+      "b_intro_end_ms": 9404,
+      "b_intro_bars": 4,
+      "b_entry_ms": 0,
+      "incoming_source_overlap_ms": 9404,
+      "both_vocal_detected": false,
+      "a_transition_vocal_ratio": 0.8367,
+      "b_intro_vocal_ratio": 0.0013,
+      "mid_duck_policy": "no vocal-conflict mid duck",
+      "score": 0.9931,
+      "reason": "A first chorus is longer than B intro; B intro first beat is the entry point"
+    },
+    {
+      "position": 4,
+      "from": "Shawn Wasabi,Pusher,Mothica - Clear (Shawn Wasabi Remix)",
+      "to": "Maroon 5,SZA,Slushii - What Lovers Do (Slushii Remix)",
+      "case": "case_2_a_chorus_longer_than_b_intro",
+      "entry_rate": 1.055785,
+      "overlap_seconds": 9.5095,
+      "transition_time_seconds": 283.88519962482525,
+      "snippet_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets/transition_04.wav",
+      "a_first_chorus_start_ms": 44698,
+      "a_out_point_first_chorus_end_ms": 70658,
+      "a_chorus_bars": 11,
+      "a_transition_start_ms": 61161,
+      "b_intro_start_ms": 0,
+      "b_intro_end_ms": 10040,
+      "b_intro_bars": 4,
+      "b_entry_ms": 0,
+      "incoming_source_overlap_ms": 10040,
+      "both_vocal_detected": false,
+      "a_transition_vocal_ratio": 0.0,
+      "b_intro_vocal_ratio": 0.2175,
+      "mid_duck_policy": "no vocal-conflict mid duck",
+      "score": 0.891,
+      "reason": "A first chorus is longer than B intro; B intro first beat is the entry point"
+    },
+    {
+      "position": 5,
+      "from": "Maroon 5,SZA,Slushii - What Lovers Do (Slushii Remix)",
+      "to": "The Chainsmokers,Emily Warren - Don't Say",
+      "case": "case_2_a_chorus_longer_than_b_intro",
+      "entry_rate": 0.968,
+      "overlap_seconds": 10.1446,
+      "transition_time_seconds": 343.27769152565173,
+      "snippet_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets/transition_05.wav",
+      "a_first_chorus_start_ms": 30040,
+      "a_out_point_first_chorus_end_ms": 70020,
+      "a_chorus_bars": 16,
+      "a_transition_start_ms": 60020,
+      "b_intro_start_ms": 0,
+      "b_intro_end_ms": 9820,
+      "b_intro_bars": 4,
+      "b_entry_ms": 0,
+      "incoming_source_overlap_ms": 9820,
+      "both_vocal_detected": false,
+      "a_transition_vocal_ratio": 1.0,
+      "b_intro_vocal_ratio": 0.0,
+      "mid_duck_policy": "no vocal-conflict mid duck",
+      "score": 1.1259,
+      "reason": "A first chorus is longer than B intro; B intro first beat is the entry point"
+    }
+  ],
+  "outputs": {
+    "output_dir": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846",
+    "mixtape_wav": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/mixtape_demo_logic_1_0.wav",
+    "segments_dir": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/segments",
+    "transition_snippets_dir": "/Users/pineapple/Documents/harbeat/outputs/future_bass_6_demo_logic_1_0_20260916_171846/transition_snippets",
+    "duration_seconds": 430.196531,
+    "ffprobe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "sample_rate": "44100",
+          "channels": 2
+        }
+      ],
+      "format": {
+        "duration": "430.196531"
+      }
+    }
+  }
+}

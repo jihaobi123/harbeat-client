@@ -1,0 +1,54 @@
+{
+  "schema_name": "same_style_pair_score",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-09-10T08:05:00Z",
+  "scope": {
+    "style_precondition": "caller_guaranteed_same_style",
+    "style_scoring_applied": false,
+    "comparison_groups": ["kick", "snare_clap", "hihat", "bass_808", "percussion"]
+  },
+  "pair": {
+    "symmetric": true,
+    "tracks": [
+      {
+        "track_id": "track-001",
+        "analysis_run_id": "run-track-001-001",
+        "analysis_fingerprint": "6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      {
+        "track_id": "track-002",
+        "analysis_run_id": "run-track-002-001",
+        "analysis_fingerprint": "7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ]
+  },
+  "status": "ready",
+  "scores": {
+    "drum_overlap_score": 0.816,
+    "category_overlap_score": 0.75,
+    "rhythm_landing_similarity_score": 0.86
+  },
+  "weights": {
+    "category": 0.4,
+    "rhythm_landing": 0.6
+  },
+  "thresholds": {
+    "low": 0.7,
+    "high": 0.85,
+    "boundary_rule": "score < low; low <= score <= high; score > high"
+  },
+  "calibration": {
+    "status": "provisional_unvalidated",
+    "selection_applied": false
+  },
+  "proposal_route": {
+    "band": "between_thresholds_inclusive",
+    "proposal_action": "standard_mix"
+  },
+  "raw_threshold_route": {
+    "band": "between_thresholds_inclusive",
+    "proposal_action": "standard_mix"
+  },
+  "quality_flags": [],
+  "cache_key": "8888888888888888888888888888888888888888888888888888888888888888"
+}

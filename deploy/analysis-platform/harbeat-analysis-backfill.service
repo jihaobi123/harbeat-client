@@ -1,0 +1,18 @@
+[Unit]
+Description=HarBeat missing-feature library backfill
+After=harbeat-analysis-lab.service
+Requires=harbeat-analysis-lab.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mark/harbeat-analysis-platform
+EnvironmentFile=/home/mark/.config/harbeat-analysis.env
+ExecStart=/home/mark/harbeat-analysis-venv/bin/python -m analysis_platform.backfill
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=50%
+MemoryMax=1G
+
+[Install]
+WantedBy=default.target

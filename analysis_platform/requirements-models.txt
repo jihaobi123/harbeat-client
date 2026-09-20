@@ -1,0 +1,3 @@
+# Linux x86_64 worker only; see MODEL_SETUP.md for the separate deployment boundary.
+essentia-tensorflow==2.1b6.dev1389
+numpy<2

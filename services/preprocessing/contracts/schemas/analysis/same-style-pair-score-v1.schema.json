@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harbeat.local/schemas/same-style-pair-score-v1.schema.json",
+  "title": "HarBeat same-style drum pair score",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "generated_at", "scope", "pair", "status", "scores", "weights", "thresholds", "calibration", "proposal_route", "raw_threshold_route", "quality_flags", "cache_key"],
+  "properties": {
+    "schema_name": {"const": "same_style_pair_score"},
+    "schema_version": {"const": "1.0.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["style_precondition", "style_scoring_applied", "comparison_groups"],
+      "properties": {
+        "style_precondition": {"const": "caller_guaranteed_same_style"},
+        "style_scoring_applied": {"const": false},
+        "comparison_groups": {
+          "const": ["kick", "snare_clap", "hihat", "bass_808", "percussion"]
+        }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symmetric", "tracks"],
+      "properties": {
+        "symmetric": {"const": true},
+        "tracks": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["track_id", "analysis_run_id", "analysis_fingerprint"],
+            "properties": {
+              "track_id": {"type": "string", "minLength": 1},
+              "analysis_run_id": {"type": "string", "minLength": 1},
+              "analysis_fingerprint": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        }
+      }
+    },
+    "status": {"enum": ["ready", "degraded", "unavailable"]},
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drum_overlap_score", "category_overlap_score", "rhythm_landing_similarity_score"],
+      "properties": {
+        "drum_overlap_score": {"$ref": "#/$defs/nullableScore"},
+        "category_overlap_score": {"$ref": "#/$defs/nullableScore"},
+        "rhythm_landing_similarity_score": {"$ref": "#/$defs/nullableScore"}
+      }
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "rhythm_landing"],
+      "properties": {
+        "category": {"$ref": "#/$defs/score"},
+        "rhythm_landing": {"$ref": "#/$defs/score"}
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "high", "boundary_rule"],
+      "properties": {
+        "low": {"$ref": "#/$defs/score"},
+        "high": {"$ref": "#/$defs/score"},
+        "boundary_rule": {"const": "score < low; low <= score <= high; score > high"}
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "selection_applied"],
+      "properties": {
+        "status": {"enum": ["provisional_unvalidated", "heldout_validated"]},
+        "selection_applied": {"type": "boolean"}
+      }
+    },
+    "proposal_route": {"$ref": "#/$defs/route"},
+    "raw_threshold_route": {"anyOf": [{"$ref": "#/$defs/route"}, {"type": "null"}]},
+    "quality_flags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "cache_key": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "score": {"type": "number", "minimum": 0, "maximum": 1},
+    "nullableScore": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["band", "proposal_action"],
+      "properties": {
+        "band": {"type": "string", "minLength": 1},
+        "proposal_action": {"enum": ["fx_transition_case_1", "standard_mix", "continue_to_harmonic_check", "manual_review"]}
+      }
+    }
+  }
+}

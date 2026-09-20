@@ -1,0 +1,22 @@
+[Unit]
+Description=HarBeat labelled same-style library import and preprocessing
+After=network-online.target remote-fs.target
+Wants=network-online.target
+RequiresMountsFor=/mnt/nas/harbeat
+StartLimitIntervalSec=3600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=mark
+Group=mark
+EnvironmentFile=/etc/harbeat/same-style-library-import.env
+ExecStart=/usr/local/bin/harbeat-same-style-library-import
+Restart=on-failure
+RestartSec=300
+TimeoutStartSec=infinity
+TimeoutStopSec=120
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

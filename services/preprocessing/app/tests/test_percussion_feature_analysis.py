@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+import numpy as np
+
+from app.modules.library.percussion_feature_analysis import analyze_percussion_features
+
+
+def _burst(audio: np.ndarray, sr: int, time_sec: float, signal: np.ndarray) -> None:
+    start = int(time_sec * sr)
+    audio[start:start + len(signal)] += signal.astype(np.float32)
+
+
+def test_percussion_module_separates_short_and_sustained_metallic_families() -> None:
+    sr = 12000
+    duration = 8.0
+    audio = np.zeros(int(sr * duration), dtype=np.float32)
+    rng = np.random.default_rng(12)
+    closed_times = [0.5, 1.5, 2.5, 3.5]
+    open_times = [4.5, 5.5, 6.5, 7.2]
+    short_t = np.arange(int(0.08 * sr)) / sr
+    long_t = np.arange(int(0.42 * sr)) / sr
+    short = rng.normal(0, 0.35, len(short_t)) * np.exp(-short_t * 55)
+    long = rng.normal(0, 0.30, len(long_t)) * np.exp(-long_t * 8)
+    for value in closed_times:
+        _burst(audio, sr, value, short)
+    for value in open_times:
+        _burst(audio, sr, value, long)
+    analysis = {"events": {"hihat": [{"time": value} for value in closed_times + open_times]}}
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    assert result["features"]["short_metallic"]["score"] > 0.0
+    assert result["features"]["sustained_metallic"]["score"] > 0.0
+    assert "closed_hihat" in result["features"]["short_metallic"]["evidence"]["candidate_labels"]
+    assert "open_hihat" in result["features"]["sustained_metallic"]["evidence"]["candidate_labels"]
+
+
+def test_tonal_percussion_keeps_frequency_and_candidate_evidence() -> None:
+    sr = 12000
+    audio = np.zeros(sr * 6, dtype=np.float32)
+    times = [0.5, 1.25, 2.0, 2.75, 3.5, 4.25, 5.0]
+    local = np.arange(int(0.20 * sr)) / sr
+    tone = np.sin(2 * np.pi * 720 * local) * np.exp(-local * 18) * 0.6
+    for value in times:
+        _burst(audio, sr, value, tone)
+    analysis = {"events": {"percussion": [{"time": value} for value in times]}}
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    tonal = result["features"]["tonal_percussion"]
+    motif = result["features"]["repeated_tonal_motif"]
+    assert tonal["detected"] is True
+    assert motif["score"] > 0.5
+    assert "cowbell" in tonal["evidence"]["candidate_labels"]
+    assert tonal["evidence"]["frequency_rule_hz"]["tonal_percussion_dominant"] == [180, 3200]
+
+
+def test_missing_drums_stem_is_unknown() -> None:
+    result = analyze_percussion_features(None, 22050)
+
+    assert result["status"] == "unavailable"
+    assert result["features"]["wide_clap"]["detected"] is None
+
+
+def test_native_rate_analysis_preserves_air_band_evidence() -> None:
+    sr = 44100
+    duration = 4.0
+    audio = np.zeros(int(sr * duration), dtype=np.float32)
+    times = list(np.arange(0.2, duration - 0.06, 0.125))
+    local_time = np.arange(int(0.06 * sr)) / sr
+    burst = np.sin(2 * np.pi * 14000 * local_time) * np.exp(-local_time * 70) * 0.35
+    for value in times:
+        _burst(audio, sr, value, burst)
+    analysis = {"events": {"hihat": [{"time": value} for value in times]}}
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    evidence = result["features"]["continuous_high_percussion"]["evidence"]
+    assert result["analysis_sample_rate"] == 44100
+    assert "native_high_frequency_band_limited" not in result["quality_flags"]
+    assert evidence["high_band_floor_hz"] == 6000.0
+    assert evidence["high_band_energy_ratio"] > 0.1
+    assert any(event["air_ratio_8000_hz_plus"] > 0.5 for event in result["events"])
+
+
+def test_spectral_fallback_kicks_do_not_imply_low_pitched_percussion() -> None:
+    sr = 12000
+    audio = np.zeros(sr * 5, dtype=np.float32)
+    times = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    local = np.arange(int(0.22 * sr)) / sr
+    kick = np.sin(2 * np.pi * 75.0 * local) * np.exp(-local * 24.0) * 0.7
+    for value in times:
+        _burst(audio, sr, value, kick)
+    analysis = {
+        "detector_mode": "fallback",
+        "selected_engine": "spectral_flux_fallback",
+        "events": {"kick": [{"time": value, "confidence": 0.55} for value in times]},
+    }
+
+    result = analyze_percussion_features(audio, sr, drum_analysis=analysis)
+
+    low = result["features"]["low_pitched_drum"]
+    assert low["score"] == 0.0
+    assert low["evidence"]["comparison_event_count"] == 0
+    assert low["quality"]["reliability_cap"] == 0.55
+    assert "percussion_uses_spectral_drum_proxy" in result["quality_flags"]

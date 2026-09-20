@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harbeat.local/schemas/same-style-track-preprocess-v1.schema.json",
+  "title": "HarBeat same-style track preprocess artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "contract_version",
+    "track_id",
+    "analysis_run_id",
+    "generated_at",
+    "status",
+    "source",
+    "pipeline",
+    "assets",
+    "analysis",
+    "quality"
+  ],
+  "properties": {
+    "schema_name": {"const": "same_style_track_preprocess"},
+    "schema_version": {"const": "1.2.0"},
+    "contract_version": {"const": "same-style-preprocess-v1.2"},
+    "track_id": {"type": "string", "minLength": 1},
+    "analysis_run_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["ready", "degraded", "unavailable"]},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_sha256", "duration_ms", "original_filename", "title", "artist", "style_labels"],
+      "properties": {
+        "input_sha256": {"$ref": "#/$defs/sha256"},
+        "duration_ms": {"type": "integer", "minimum": 1},
+        "original_filename": {"type": "string", "minLength": 1},
+        "title": {"type": ["string", "null"]},
+        "artist": {"type": ["string", "null"]},
+        "style_labels": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_sha", "core", "sections", "stem_separation", "drum_subseparation", "drum_groups", "drum_event_detection"],
+      "properties": {
+        "git_sha": {"type": "string", "minLength": 7},
+        "core": {"const": "songformer_sections_v1"},
+        "sections": {"const": "songformer"},
+        "stem_separation": {"const": "htdemucs"},
+        "drum_subseparation": {"type": ["string", "null"]},
+        "drum_groups": {"type": ["string", "null"]},
+        "drum_event_detection": {"type": "string", "minLength": 1}
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["master", "stems", "drum_stems"],
+      "properties": {
+        "master": {"$ref": "#/$defs/asset"},
+        "stems": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vocals", "drums", "bass", "other"],
+          "properties": {
+            "vocals": {"$ref": "#/$defs/asset"},
+            "drums": {"$ref": "#/$defs/asset"},
+            "bass": {"$ref": "#/$defs/asset"},
+            "other": {"$ref": "#/$defs/asset"}
+          }
+        },
+        "drum_stems": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "kick", "snare", "hihat", "tom", "cymbal"],
+          "properties": {
+            "status": {"enum": ["ready", "degraded", "unavailable"]},
+            "kick": {"$ref": "#/$defs/nullableAsset"},
+            "snare": {"$ref": "#/$defs/nullableAsset"},
+            "hihat": {"$ref": "#/$defs/nullableAsset"},
+            "tom": {"$ref": "#/$defs/nullableAsset"},
+            "cymbal": {"$ref": "#/$defs/nullableAsset"}
+          }
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tempo", "beat_grid", "key", "sections", "energy", "drum_groups", "transition_windows"],
+      "properties": {
+        "tempo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bpm", "confidence", "stability", "needs_review"],
+          "properties": {
+            "bpm": {"type": "number", "exclusiveMinimum": 0},
+            "confidence": {"$ref": "#/$defs/score"},
+            "stability": {"$ref": "#/$defs/nullableScore"},
+            "needs_review": {"type": "boolean"}
+          }
+        },
+        "beat_grid": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unit", "beats_ms", "downbeats_ms", "bars_ms", "time_signature", "needs_review"],
+          "properties": {
+            "unit": {"const": "ms"},
+            "beats_ms": {"$ref": "#/$defs/timePoints"},
+            "downbeats_ms": {"$ref": "#/$defs/timePoints"},
+            "bars_ms": {"$ref": "#/$defs/timePoints"},
+            "time_signature": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["numerator", "denominator"],
+              "properties": {
+                "numerator": {"type": ["integer", "null"], "minimum": 1},
+                "denominator": {"type": ["integer", "null"], "minimum": 1}
+              }
+            },
+            "needs_review": {"type": "boolean"}
+          }
+        },
+        "key": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "camelot", "confidence", "needs_review"],
+          "properties": {
+            "name": {"type": ["string", "null"]},
+            "camelot": {"type": ["string", "null"]},
+            "confidence": {"$ref": "#/$defs/score"},
+            "needs_review": {"type": "boolean"}
+          }
+        },
+        "sections": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "source", "fallback_used", "items"],
+          "properties": {
+            "version": {"const": "songformer_sections_v1"},
+            "source": {"enum": ["songformer", "all_in_one_fallback"]},
+            "fallback_used": {"type": "boolean"},
+            "items": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/section"}
+            }
+          }
+        },
+        "energy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["overall", "curve"],
+          "properties": {
+            "overall": {"$ref": "#/$defs/score"},
+            "curve": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/windowValue"}
+            }
+          }
+        },
+        "drum_groups": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "status", "kick", "snare_clap", "hihat", "bass_808", "percussion", "quality_flags"],
+          "properties": {
+            "version": {"type": "string", "minLength": 1},
+            "status": {"enum": ["ready", "degraded", "unavailable"]},
+            "kick": {"$ref": "#/$defs/drumGroup"},
+            "snare_clap": {"$ref": "#/$defs/drumGroup"},
+            "hihat": {"$ref": "#/$defs/drumGroup"},
+            "bass_808": {"$ref": "#/$defs/drumGroup"},
+            "percussion": {"$ref": "#/$defs/drumGroup"},
+            "quality_flags": {"$ref": "#/$defs/stringArray"}
+          }
+        },
+        "transition_windows": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/transitionWindow"}
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["needs_review", "quality_flags", "modules"],
+      "properties": {
+        "needs_review": {"type": "boolean"},
+        "quality_flags": {"$ref": "#/$defs/stringArray"},
+        "modules": {
+          "type": "object",
+          "additionalProperties": {"enum": ["ready", "degraded", "unavailable"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "score": {"type": "number", "minimum": 0, "maximum": 1},
+    "nullableScore": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "storageKey": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+    "stringArray": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "timePoints": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storage_key", "sha256", "size_bytes", "content_type", "duration_ms", "sample_rate_hz", "channels"],
+      "properties": {
+        "storage_key": {"$ref": "#/$defs/storageKey"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "content_type": {"type": "string", "minLength": 1},
+        "duration_ms": {"type": "integer", "minimum": 1},
+        "sample_rate_hz": {"type": "integer", "minimum": 8000},
+        "channels": {"type": "integer", "minimum": 1, "maximum": 8}
+      }
+    },
+    "nullableAsset": {"anyOf": [{"$ref": "#/$defs/asset"}, {"type": "null"}]},
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms", "label", "confidence"],
+      "properties": {
+        "start_ms": {"type": "integer", "minimum": 0},
+        "end_ms": {"type": "integer", "minimum": 1},
+        "label": {"type": "string", "minLength": 1},
+        "confidence": {"$ref": "#/$defs/nullableScore"}
+      }
+    },
+    "windowValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms", "value"],
+      "properties": {
+        "start_ms": {"type": "integer", "minimum": 0},
+        "end_ms": {"type": "integer", "minimum": 1},
+        "value": {"$ref": "#/$defs/score"}
+      }
+    },
+    "drumGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "present", "event_count", "subtypes", "pattern_16"],
+      "properties": {
+        "status": {"enum": ["ready", "degraded", "unavailable"]},
+        "present": {"type": ["boolean", "null"]},
+        "event_count": {"type": ["integer", "null"], "minimum": 0},
+        "subtypes": {"$ref": "#/$defs/stringArray"},
+        "pattern_16": {"type": ["string", "null"], "pattern": "^[A-Za-z.]{16}$"}
+      }
+    },
+    "transitionWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms", "role", "confidence"],
+      "properties": {
+        "start_ms": {"type": "integer", "minimum": 0},
+        "end_ms": {"type": "integer", "minimum": 1},
+        "role": {"enum": ["in", "out", "both", "avoid"]},
+        "confidence": {"$ref": "#/$defs/nullableScore"}
+      }
+    }
+  }
+}
