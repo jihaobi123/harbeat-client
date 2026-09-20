@@ -10,6 +10,7 @@
 | 补充分析与可视化 | [analysis_platform](analysis_platform/README.md)、[web/src/analysis](web/src/analysis) | Jetson 独立分析服务；阿里云转发；原始结果与补充结果分开记录 |
 | 接歌输入、选点与计划 | [dj_contract.py](analysis_platform/dj_contract.py)、[dj_plan.py](analysis_platform/dj_plan.py) | 提供段落、拍网格、人声、响度和计划；人工未确认的边界保留待确认状态 |
 | 在线混音控制与播放 | [mixing/ONLINE.md](mixing/ONLINE.md) | 整理现有会话、策略、自动化和 RK 音频引擎源码；未在本次整理中部署或重接 V3 |
+| V3 浏览器实时试听 | [mixing/REALTIME_V3.md](mixing/REALTIME_V3.md) | 六首 Hip-Hop 原型；动态选点、现场 EQ/淡化与音频线程日志；尚未接原生 App |
 | 已认可的 V3 算法 | [mixing/README.md](mixing/README.md) | 离线渲染。冻结同事的原算法，保留选歌、选点、EQ、变速和执行日志 |
 | 数据合同 | [contracts](services/preprocessing/contracts)、[schemas/music_analysis](schemas/music_analysis) | 用版本、曲目 ID、运行 ID、音频 SHA256 绑定来源 |
 | 部署 | [部署关系](docs/audio-stack/DEPLOYMENT.md)、[分析服务配置](deploy/analysis-platform) | 模型环境、服务和数据分别管理 |

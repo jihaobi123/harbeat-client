@@ -41,7 +41,7 @@ jobs:
           tests/test_analysis_styles.py tests/test_analysis_platform_library.py
           tests/test_dj_preprocessing.py tests/test_dj_signals.py
           tests/test_demo_render.py tests/test_demo_v2.py tests/test_demo_v3.py
-          tests/test_colleague_policy.py tests/test_audio_checkout.py
+          tests/test_colleague_policy.py tests/test_audio_checkout.py tests/test_realtime_assets.py
           app/tests/test_session.py app/tests/test_transition_planner.py
           app/tests/test_stem_automix_bridge.py
       - name: Deployed preprocessing contract and publication (isolated import root)
@@ -67,3 +67,4 @@ jobs:
       - run: npm ci
       - run: npm test -- --run
       - run: npm run build
+      - run: npm run build:live

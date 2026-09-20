@@ -105,3 +105,6 @@ cypher-integration/flutter-app/android/app/src/main/java/io/flutter/plugins/Gene
 *.zip
 *.tar.gz
 /deploy/analysis-platform/ssh.config
+
+# Standalone realtime audition build
+/web/dist-live/
