@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react'
+import DecisionHistory from './DecisionHistory'
 import {LiveTransport} from './transport'
 import {Track,Intent} from './planner'
 import logo from '../analysis/assets/harbeat-logo.png'
@@ -33,12 +34,13 @@ export default function RealtimeLab(){
    </div>
   </section>
   <div role="status" className="live-status"><span className={p?.playing?'live-dot active':'live-dot'}/><span>{p?.status||'首次读取歌曲需要准备；开始后会提前准备少量候选。'}{pending&&<b> · {next?.title}：{Math.max(0,pending.start-p!.ctx.currentTime).toFixed(1)} 秒后混入，{Math.max(0,pending.end-p!.ctx.currentTime).toFixed(1)} 秒后接管</b>}</span><small>音频缓存 {p?.cache.sizeMB||0} MB</small>{(pending||p?.busy)&&<button onClick={()=>p?.cancel()}>取消待执行请求</button>}</div>
-  <section className="live-review"><div className="live-sectiontop"><div><span className="live-eyebrow">PLAN → AUDIO CLOCK</span><h2>下一次交接为什么这样做</h2></div><button disabled={!p?.logs.length} onClick={download}>导出全部日志 ↓</button></div>
+  <section className="live-review"><div className="live-sectiontop"><div><span className="live-eyebrow">PLAN → AUDIO CLOCK</span><h2>最近一次已安排的交接</h2></div><button disabled={!p?.logs.length} onClick={download}>导出全部日志 ↓</button></div>
    {!plan?<p className="live-muted">播放后点击“下一首”，这里会显示目标窗口、人声依据、速度映射和实际音频线程记录。没有合适方案时会继续播放当前歌曲。</p>:<><div className="live-facts"><div><small>进入歌曲</small><b>{tracks.find(t=>t.id===plan.to)?.title}</b></div><div><small>A 混入 → 退出</small><b>{time(plan.start)} → {time(plan.end)}</b></div><div><small>B 进入窗口</small><b>{time(plan.window.start)} → {time(plan.window.end)}</b></div><div><small>转场与速度</small><b>{plan.window.bars} 小节 / ×{plan.rate.toFixed(3)}</b></div><div><small>人声窗口占比 A / B</small><b>{(plan.aVocal*100).toFixed(0)}% / {(plan.bVocal*100).toFixed(0)}%</b></div><div><small>B 中频</small><b>{plan.midDuck?'−5 dB → 0 dB':'不触发人声衰减'}</b></div></div><p>{plan.reason}。A 开始位置距原始首拍 {(plan.gridError*1000).toFixed(0)} ms；B 交接后从 {time(plan.window.end)} 恢复原速。</p><p className="live-muted">固定规则：A 低频 −9 dB，B 低频 −7 dB；B 最后半小节由滤波声恢复原声。模型边界未人工确认；能量按钮使用原有局部曲线作候选比较。</p></>}
    <div className="live-tablewrap"><table><thead><tr><th>交接 / 事件</th><th>计划时间*</th><th>音频线程记录*</th><th>观察偏差</th></tr></thead><tbody>{events.length?events.map((e,i)=><tr key={i}><td><small>{(()=>{const record=p?.logs.find(x=>x.kind==='plan_scheduled'&&x.planId===e.planId);return record?tracks.find(t=>t.id===record.plan.from)?.title+' → '+tracks.find(t=>t.id===record.plan.to)?.title:''})()}</small><br/>{e.name}</td><td>{e.plannedContextSec.toFixed(3)} s</td><td>{e.observedContextSec.toFixed(3)} s</td><td>{e.observationDeltaMs.toFixed(2)} ms</td></tr>):<tr><td colSpan={4}>交接执行后显示音频线程记录。</td></tr>}</tbody></table></div><small className="live-muted">* 这里使用同一个 AudioContext 时钟。记录分辨率为一个音频处理块，保护限幅另增加约 5 ms；没有测量扬声器或蓝牙实际出声时间，也不以回调到达界面的时间冒充出声时间。</small>
    {p?.lastSearch&&<details><summary>查看候选与排除原因</summary><ul>{p.lastSearch.rejected.map((r:any,i:number)=><li key={i}>{r.track}：{r.reason}</li>)}</ul><div className="live-tablewrap"><table><thead><tr><th>候选歌曲</th><th>完成点</th><th>窗口</th><th>规则分</th></tr></thead><tbody>{p.lastSearch.candidates.slice(0,10).map((x:any)=><tr key={x.id}><td>{tracks.find(t=>t.id===x.to)?.title}</td><td>{time(x.end)}</td><td>{x.window.bars} 小节</td><td>{x.score.toFixed(3)}</td></tr>)}</tbody></table></div></details>}
    <details><summary>本次操作记录（{p?.logs.length||0} 条）</summary><ol className="live-logs">{p?.logs.slice(-30).reverse().map((e,i)=><li key={i}><code>{e.contextSec.toFixed(2)} s</code><b>{e.kind}</b><span>{e.message||e.intent?.kind||e.name||e.to||''}</span></li>)}</ol></details>
   </section>
+  <DecisionHistory logs={p?.logs||[]} eventCount={p?.logs.length||0} tracks={tracks}/>
   <footer><b>这是浏览器实时原型，尚未集成原生 App。</b><p>普通请求可在锁定前修改；开始交接后仅保存最新请求，完成后处理。暂停会暂停整个音频时钟。iOS／Android 锁屏、后台与蓝牙链路需要在对应真机另行验收。</p><details><summary>素材与能力边界</summary><ul>{catalog.limitations.map((s:string)=><li key={s}>{s}</li>)}</ul><a href="catalog.json" download>下载素材与预处理依据</a></details></footer>
   </>}
  </main>

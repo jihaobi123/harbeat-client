@@ -14,6 +14,57 @@ describe('live request lifecycle',()=>{
  it('cancel before lock stops prepared B and clears future A fades',async()=>{const p=await setup();await p.request({kind:'next'},10);const deck=p.pending!.deck;expect(p.cancel()).toBe(true);expect(p.pending).toBeNull();expect((deck.sources[0] as any).stops.length).toBeGreaterThan(0);expect((p.active!.gain.gain as any).events.some((x:any)=>x[0]==='cancel')).toBe(true)})
  it('ordinary request during mixing is deferred and does not tear down decks',async()=>{const p=await setup();await p.request({kind:'next'},10);const pending=p.pending!;(p.ctx as any).currentTime=pending.start+.1;await p.request({kind:'up'});expect(p.pending).toBe(pending);expect(p.gate.deferred).toEqual({kind:'up'});expect(p.cancel()).toBe(false)})
  it('cancelling initial preparation never starts audio when the download finishes',async()=>{const p=await setup();p.stop();let finish:any;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>{finish=r}));const task=p.start('b');await Promise.resolve();expect(p.busy).toBe(true);expect(p.cancel()).toBe(true);finish({duration:120});await task;expect(p.active).toBeNull();expect(p.busy).toBe(false)})
- it('keeps the original deadline for a request deferred during mixing',async()=>{const p=await setup();await p.request({kind:'next'},10);const pending=p.pending!;(p.ctx as any).currentTime=pending.start+.1;const clicked=p.ctx.currentTime;await p.request({kind:'up'},10);const spy=vi.spyOn(p,'request');(p.ctx as any).currentTime=pending.end+.01;(p as any).sync();expect(spy).toHaveBeenCalledWith({kind:'up'},10-(p.ctx.currentTime-clicked))})
+ it('keeps the original deadline for a request deferred during mixing',async()=>{const p=await setup();await p.request({kind:'next'},10);const pending=p.pending!;(p.ctx as any).currentTime=pending.start+.1;const clicked=p.ctx.currentTime;await p.request({kind:'up'},10);const spy=vi.spyOn(p,'request');(p.ctx as any).currentTime=pending.end+.01;(p as any).sync();expect(spy).toHaveBeenCalledWith({kind:'up'},10-(p.ctx.currentTime-clicked),{resumeId:p.logs.find(x=>x.kind==='request_received'&&x.intent.kind==='up')!.requestId})})
  it('a stop during asynchronous loading prevents later installation',async()=>{const p=await setup();let finish:any;p.cache.buffers.clear();p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>{finish=r}));const task=p.request({kind:'next'},10);p.stop();finish({duration:120});await task;expect(p.pending).toBeNull();expect(p.active).toBeNull();expect(p.busy).toBe(false)})
+})
+
+describe('complete request audit',()=>{
+ it('links the request, all searches, chosen rationale and audio events',async()=>{
+  const p=await setup();await p.request({kind:'next'},10)
+  const received=p.logs.find(x=>x.kind==='request_received')!;expect(received).toBeDefined()
+  const scheduled=p.logs.find(x=>x.kind==='plan_scheduled')!
+  expect(scheduled.requestId).toBe(received.requestId)
+  expect(scheduled.plan.decision.cues.aExit.sourceSec).toBe(scheduled.plan.end)
+  expect(scheduled.selection.candidateCount).toBeGreaterThan(0)
+  expect(scheduled.events.every((x:any)=>x.requestId===received.requestId)).toBe(true)
+  p.cancel();expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===received.requestId&&x.outcome==='cancelled')).toBe(true)
+ })
+ it('logs failed and rejected triggers with search evidence',async()=>{
+  const p=await setup();await p.request({kind:'style',style:'Missing'},10)
+  const received=p.logs.find(x=>x.kind==='request_received')!;expect(received).toBeDefined()
+  expect(p.logs.some(x=>x.kind==='decision_search'&&x.requestId===received.requestId&&x.result.exclusions.length)).toBe(true)
+  expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===received.requestId&&x.outcome==='failed')).toBe(true)
+  p.stop();await p.request({kind:'next'});expect(p.logs.at(-1)?.outcome).toBe('rejected')
+ })
+ it('keeps historical events past the old 1500-event cap and snapshots payloads',async()=>{
+  const p=await setup();const data={reason:'original'};p.log('snapshot',data);data.reason='changed'
+  for(let i=0;i<1600;i++)p.log('extra',{i})
+  expect(p.export().logs.find((x:any)=>x.kind==='snapshot')?.reason).toBe('original')
+ })
+})
+
+describe('audit terminal paths',()=>{
+ it('retains one request id across deferral and records overwritten requests',async()=>{
+  const p=await setup();await p.request({kind:'next'},10);const first=p.pending!;(p.ctx as any).currentTime=first.start+.1
+  await p.request({kind:'up'},10);const overwritten=p.logs.filter(x=>x.kind==='request_received').at(-1)!.requestId
+  await p.request({kind:'next'},10);const continued=p.logs.filter(x=>x.kind==='request_received').at(-1)!.requestId
+  expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===overwritten&&x.outcome==='superseded')).toBe(true)
+  ;(p.ctx as any).currentTime=first.end+.01;(p as any).sync();await Promise.resolve()
+  expect(p.logs.filter(x=>x.kind==='request_received')).toHaveLength(3)
+  expect(p.logs.some(x=>x.kind==='request_resumed'&&x.requestId===continued)).toBe(true)
+  expect(p.logs.filter(x=>x.kind==='request_outcome'&&x.requestId===first.requestId)).toHaveLength(1)
+ })
+ it('records deferred expiration with the original request id',async()=>{
+  const p=await setup();await p.request({kind:'next'},10);const first=p.pending!;(p.ctx as any).currentTime=first.start+.1
+  await p.request({kind:'up'},.1);const id=p.logs.filter(x=>x.kind==='request_received').at(-1)!.requestId
+  ;(p.ctx as any).currentTime=first.end+.01;(p as any).sync()
+  expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===id&&x.outcome==='expired')).toBe(true)
+ })
+ it('records load failure after provisional selection',async()=>{
+  const p=await setup();p.cache.buffers.clear();p.cache.load=vi.fn(async()=>{throw new Error('network unavailable')})
+  await p.request({kind:'next'},10)
+  const id=p.logs.find(x=>x.kind==='request_received')!.requestId
+  expect(p.logs.some(x=>x.kind==='preparation_started'&&x.requestId===id&&x.provisionalDecision)).toBe(true)
+  expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===id&&x.reason==='network unavailable')).toBe(true)
+ })
 })

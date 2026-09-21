@@ -11,3 +11,22 @@ describe('rolling V3 planner',()=>{
  it('rejects unknown voice information and absent or unreliable grids',()=>{const a=track('a');a.vocals=null;expect(planNext(a,[track('b')],10,{kind:'next'},new Set(['native.wav']),18).best).toBeNull();a.vocals=[];a.bars=[];expect(planNext(a,[track('b')],10,{kind:'next'},new Set(['native.wav']),18).best).toBeNull()})
  it('invalidates stale loads and defers requests after lock',()=>{const g=new RequestGate();const x=g.replace({kind:'next'});const y=g.replace({kind:'up'});expect(g.isCurrent(x)).toBe(false);expect(g.isCurrent(y)).toBe(true);g.locked=true;expect(g.replace({kind:'down'})).toBeNull();expect(g.deferred?.kind).toBe('down');g.reset();expect(g.isCurrent(y)).toBe(false)})
 })
+
+describe('decision evidence',()=>{
+ it('records exact cue evidence and additive score components without changing selection',()=>{
+  const a=track('a'),b=track('b');const result=planNext(a,[b],50,{kind:'next'},new Set(['native.wav']),10)
+  const p=result.best!;const detail=(p as any).decision
+  expect(detail).toBeDefined()
+  expect(detail.cues.aExit.sourceSec).toBe(p.end)
+  expect(detail.cues.aExit.rawBarIndex).toBe(a.bars.indexOf(p.end))
+  expect(detail.cues.bEntry.sourceSec).toBe(p.window.start)
+  expect(detail.score.components.reduce((v:number,x:any)=>v+x.contribution,0)).toBeCloseTo(p.score,12)
+  expect(detail.strategy.alternativesEvaluated).toEqual([])
+  expect(detail.strategy.midDuck.enabled).toBe(false)
+ })
+ it('explains exact filtering reasons even if no candidate exists',()=>{
+  const result=planNext(track('a'),[track('b','Trap'),track('c','Grime')],50,{kind:'style',style:'Grime'},new Set(),10)
+  expect((result as any).exclusions.some((x:any)=>x.code==='style_mismatch'&&x.trackId==='b')).toBe(true)
+  expect((result as any).exclusions.some((x:any)=>x.code==='asset_not_ready'&&x.trackId==='c')).toBe(true)
+ })
+})
