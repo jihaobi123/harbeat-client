@@ -15,3 +15,14 @@ describe('human-readable audit history',()=>{
   const text=decisionReport(logs,[]);expect(text).toContain('r1');expect(text).toContain('没有可用窗口');expect(text).toContain('超过等待预算')
  })
 })
+
+it('labels controlled playback and retains both plans with observed timing',()=>{
+ const controlled:any[]=[
+  {kind:'comparison_analysis',comparisonId:'trial:variant',experimentId:'vocal',arm:'variant',comparison:{searches:{variant:{rejected:['different-score']}}}},
+  {kind:'request_received',requestId:'c1',origin:'controlled_comparison',intent:{kind:'next'},budgetSec:18,sourcePosition:15,experiment:{comparisonId:'trial:variant',experimentId:'vocal',arm:'variant'}},
+  {kind:'audio_observation',requestId:'c1',name:'B 开始混入',plannedContextSec:5,observedContextSec:5.002,observationDeltaMs:2},
+ ];
+ const html=renderToStaticMarkup(<DecisionHistory logs={controlled} tracks={[]}/>),report=decisionReport(controlled,[]);
+ expect(html).toContain('受控试听');expect(html).toContain('different-score');expect(html).toContain('5.002');expect(html).toContain('计划 / 实际观察');
+ expect(report).toContain('受控试听');expect(report).toContain('different-score');
+});

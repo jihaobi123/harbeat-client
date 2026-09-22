@@ -77,3 +77,15 @@ it('exports a persistable real session and resolves planned times from audio fra
  const row=executionRows(snapshot.logs,snapshot.sampleRate)[0];
  expect(row.planned).toBeCloseTo(p.pending!.start,4);expect(row.actual).toBeNull();
 })
+
+it('plays a fixed comparison using unchanged cue times and only the requested mid EQ',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const plan=JSON.parse(JSON.stringify(p.pending!.plan));p.stop();
+ await p.playComparison(plan,50,{experimentId:'eq',arm:'variant',midDb:-8});
+ expect(p.pending!.deck.mid.gain.value).toBe(-8);expect(p.pending!.plan.start).toBe(plan.start);expect(p.pending!.plan.end).toBe(plan.end)
+ expect(p.logs.some(x=>x.kind==='comparison_started'&&x.experiment.arm==='variant')).toBe(true)
+ p.stop();await p.start('a',50);await p.request({kind:'next'},10);expect(p.pending!.deck.mid.gain.value).toBe(-5)
+})
+it('never starts a cancelled comparison after assets finish loading',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const plan=p.pending!.plan;p.stop();let release:any;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>release=r));
+ const task=p.playComparison(plan,50,{experimentId:'vocal',arm:'baseline',midDb:-5});await Promise.resolve();p.stop();release({duration:120});await task;expect(p.active).toBeNull();expect(p.pending).toBeNull()
+})

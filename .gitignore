@@ -108,3 +108,6 @@ cypher-integration/flutter-app/android/app/src/main/java/io/flutter/plugins/Gene
 
 # Standalone realtime audition build
 /web/dist-live/
+
+# Independent controlled realtime trials
+/web/dist-experiments/
