@@ -1,5 +1,7 @@
 import {describe,it,expect,vi,afterEach} from 'vitest'
 import {LiveTransport} from './transport'
+import {validateSession} from './sessionStore'
+import {executionRows} from '../analysis/MixTracePanel'
 import {Track} from './planner'
 class Param{value=0;events:any[]=[];setValueAtTime(v:number,t:number){this.events.push(['set',v,t]);this.value=v}linearRampToValueAtTime(v:number,t:number){this.events.push(['ramp',v,t])}cancelAndHoldAtTime(t:number){this.events.push(['cancel',t])}cancelScheduledValues(){}setTargetAtTime(){}}
 class Node{gain=new Param();frequency=new Param();Q=new Param();type='';buffer:any;starts:any[]=[];stops:any[]=[];connect(){}disconnect(){}start(...x:any[]){this.starts.push(x)}stop(...x:any[]){this.stops.push(x)}}
@@ -67,4 +69,11 @@ describe('audit terminal paths',()=>{
   expect(p.logs.some(x=>x.kind==='preparation_started'&&x.requestId===id&&x.provisionalDecision)).toBe(true)
   expect(p.logs.some(x=>x.kind==='request_outcome'&&x.requestId===id&&x.reason==='network unavailable')).toBe(true)
  })
+})
+
+it('exports a persistable real session and resolves planned times from audio frames',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const snapshot=p.export();
+ expect(validateSession(snapshot).catalog[0].title).toBe('a');
+ const row=executionRows(snapshot.logs,snapshot.sampleRate)[0];
+ expect(row.planned).toBeCloseTo(p.pending!.start,4);expect(row.actual).toBeNull();
 })

@@ -42,6 +42,7 @@ export default function RealtimeLab(){
    <details><summary>本次操作记录（{p?.logs.length||0} 条）</summary><ol className="live-logs">{p?.logs.slice(-30).reverse().map((e,i)=><li key={i}><code>{e.contextSec.toFixed(2)} s</code><b>{e.kind}</b><span>{e.message||e.intent?.kind||e.name||e.to||''}</span></li>)}</ol></details>
   </section>
   <EvidencePanel track={tracks.find(t=>t.id===selected)}/>
+  <p className="live-muted">会话存储：{p?.persistenceStatus||'播放后开始自动记录'}。<a href="/analysis-lab?tab=mix-debug" target="_blank" rel="noreferrer">在主分析平台查看混音过程与素材来源 ↗</a></p>
   <DecisionHistory logs={p?.logs||[]} eventCount={p?.logs.length||0} tracks={tracks}/>
   <footer><b>这是浏览器实时原型，尚未集成原生 App。</b><p>普通请求可在锁定前修改；开始交接后仅保存最新请求，完成后处理。暂停会暂停整个音频时钟。iOS／Android 锁屏、后台与蓝牙链路需要在对应真机另行验收。</p><details><summary>素材与能力边界</summary><ul>{catalog.limitations.map((s:string)=><li key={s}>{s}</li>)}</ul><a href="catalog.json" download>下载素材与预处理依据</a></details></footer>
   </>}

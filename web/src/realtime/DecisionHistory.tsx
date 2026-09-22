@@ -29,7 +29,7 @@ export default memo(function DecisionHistory({logs,tracks,eventCount=logs.length
  const [limit,setLimit]=useState(20);const all=useMemo(()=>entries(logs),[eventCount,logs])
  function download(){const url=URL.createObjectURL(new Blob([decisionReport(logs,tracks)],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='HarBeat-V3-Live-decisions.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
  return <section className="live-review live-decision-history"><div className="live-sectiontop"><div><h2>逐次混音决策日志</h2><p>每次触发保留独立编号、选择依据和最终结果。</p></div><button disabled={!all.length} onClick={download}>导出决策说明 ↓</button></div>
- <p className="live-muted">本页保留当前会话全部日志，不再删除较早记录。关闭或刷新前请导出；尚未自动保存到服务器。</p>
+ <p className="live-muted">本页保留当前会话全部日志，并自动保存到本浏览器，可在主分析平台查看。未上传服务器；跨设备查看请导出后导入。保存失败时请立即手动导出。</p>
  {!all.length&&<p>点击下一首、能量或风格后，这里会逐次显示；没有找到方案也会记录。</p>}
  {all.slice(-limit).reverse().map(({trigger:r,events,scheduled:s,outcome:o,searches})=><details className="live-decision" key={r.requestId}>
   <summary>{label[r.intent.kind]||r.intent.kind}{r.intent.style?' · '+r.intent.style:''}{r.intent.energy&&r.intent.energy!=='any'?' · '+(r.intent.energy==='up'?'持续提高能量':'持续降低能量'):''} · {o?label[o.outcome]:s?'已安排':events.some(e=>e.kind==='request_deferred')?'等待当前交接':'准备中'} · {r.wallTime}</summary>

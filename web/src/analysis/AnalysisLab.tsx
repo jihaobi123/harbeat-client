@@ -7,6 +7,7 @@ import './analysis.css'
 import './complete.css'
 import logo from './assets/harbeat-logo.png'
 import AllDimensions from './AllDimensions'
+import MixTracePanel from './MixTracePanel'
 import StylePanel from './StylePanel'
 import MeasurementsPanel from './MeasurementsPanel'
 import DJPanel from './DJPanel'
@@ -38,7 +39,7 @@ export default function AnalysisLab() {
   const [notice,setNotice] = useState('')
   const [busy,setBusy] = useState(false)
   const [job,setJob] = useState<any>(null)
-  const [tab,setTab] = useState('timeline')
+  const [tab,setTab] = useState(()=>{const t=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('tab'):null;return t&&['timeline','dj','measurements','styles','dimensions','stems','evidence','compare','listen','mix-material','mix-debug'].includes(t)?t:'timeline'})
   const [search,setSearch] = useState('')
   const [cursor,setCursor] = useState(0)
   const [localAudio,setLocalAudio] = useState<string>('')
@@ -63,7 +64,7 @@ export default function AnalysisLab() {
   const newer=report&&latestHistory.find(item=>item.audio?.catalog_track_id&&item.audio.catalog_track_id===report.audio.catalog_track_id&&item.id!==report.id)
   async function refresh(onItems?:(items:any[])=>void) { return loadWorkspace(items=>{setHistory(items);onItems?.(items)},setJobs) }
   async function select(id:string) {const seq=++selectionSeq.current;selectedReportId.current=id;setLoadingId(id);try{const next=await getReport(id);if(seq!==selectionSeq.current)return;selectedReportId.current=next.id;setReport(next);setComparison(null);setEvaluation(null);setLocalAudio('');setAudioFile(null);setCursor(0);setSearch('');setAudioChoice('master');setError('');setNotice('')}finally{if(seq===selectionSeq.current)setLoadingId('')}}
-  useEffect(()=>{const initialSelection=selectionSeq.current;refresh(items=>{if(items.length&&selectionSeq.current===initialSelection)select((items.find(item=>item.audio?.catalog_track_id)||items[0]).id).catch(e=>setError(e.message))}).then(async ({tasks})=>{const running=tasks.find(t=>['running','queued'].includes(t.status));if(running)trackJob(await call(`/jobs/${running.id}`),false)}).catch(e=>setError(e.message));call<any>('/status').then(setRuntime).catch(()=>{});call<any>('/catalog').then(setCatalog).catch(()=>{})},[])
+  useEffect(()=>{const initialSelection=selectionSeq.current;refresh(items=>{if(items.length&&selectionSeq.current===initialSelection)select(new URLSearchParams(window.location.search).get('report')||(items.find(item=>item.audio?.catalog_track_id)||items[0]).id).catch(e=>setError(e.message))}).then(async ({tasks})=>{const running=tasks.find(t=>['running','queued'].includes(t.status));if(running)trackJob(await call(`/jobs/${running.id}`),false)}).catch(e=>setError(e.message));call<any>('/status').then(setRuntime).catch(()=>{});call<any>('/catalog').then(setCatalog).catch(()=>{})},[])
   useEffect(()=>{const timer=setInterval(()=>{call<any>('/catalog').then(next=>{setCatalog(next);if(next.measurement?.updated_at&&next.measurement.updated_at!==lastCatalogUpdate.current){lastCatalogUpdate.current=next.measurement.updated_at;refresh().catch(()=>{})}}).catch(()=>{})},10000);return ()=>clearInterval(timer)},[])
   useEffect(()=>{const update=()=>call<any>('/coverage').then(next=>{setCoverage(next);if(next.updated_at&&next.updated_at!==lastCoverageUpdate.current){lastCoverageUpdate.current=next.updated_at;refresh().catch(()=>{})}}).catch(()=>{});update();const timer=setInterval(update,10000);return ()=>clearInterval(timer)},[])
   useEffect(()=>()=>{if(localAudio)URL.revokeObjectURL(localAudio)},[localAudio])
@@ -116,7 +117,7 @@ export default function AnalysisLab() {
   const roughness=report?.extensions.roughness?.data?.points || []
   return <div className="analysis-lab">
     <aside className="lab-sidebar"><a className="lab-brand" href="/analysis-lab"><img className="lab-logo" src={logo} alt="HarBeat 标志"/><div>HarBeat<small>ANALYSIS LAB</small></div></a>
-      <div className="lab-side-heading">工作空间 <span>01</span></div><button className="lab-side-current" onClick={()=>setTab('timeline')}>◉ 音乐分析工作台</button><button className="lab-side-link" onClick={()=>setTab('listen')}>◫ 转场盲听</button>
+      <div className="lab-side-heading">工作空间 <span>01</span></div><button className="lab-side-current" onClick={()=>setTab('timeline')}>◉ 音乐分析工作台</button><button className="lab-side-link" onClick={()=>setTab('mix-debug')}>◈ 混音调试与素材来源</button><button className="lab-side-link" onClick={()=>setTab('listen')}>◫ 转场盲听</button>
       <div className="lab-side-heading">曲库 <span>{latestHistory.length}</span></div>
       <input className="lab-catalog-search" aria-label="搜索曲目" placeholder="搜索歌曲或曲目编号" value={catalogSearch} onChange={e=>setCatalogSearch(e.target.value)}/><label className="lab-version-toggle"><input type="checkbox" checked={allVersions} onChange={e=>setAllVersions(e.target.checked)}/> 显示全部 {history.length} 个版本</label><div className="lab-history">{(allVersions?history:latestHistory).filter(item=>(item.title+' '+(item.audio?.catalog_track_id||'')).toLowerCase().includes(catalogSearch.toLowerCase())).map(item=><button key={item.id} className={report?.id===item.id?'selected':''} onClick={()=>select(item.id).catch(e=>setError(e.message))}><b>{item.title}</b><small>{item.audio?.binding==='published_manifest_reference'?'NAS 预处理':item.audio?.binding==='library_record_reference'?'正式曲库':'历史报告'} · {item.summary?.bpm ?? '—'} BPM · {item.id.slice(0,7)}</small></button>)}{!history.length&&<p className="lab-muted">导入后，分析版本会保存在这里。</p>}</div>
       <div className="lab-side-footer">独立分析 · 完整保留<br/><span>HarBeat / Analysis workspace</span></div>
@@ -130,13 +131,13 @@ export default function AnalysisLab() {
       {newer&&<div className="lab-notice">本曲已有更新的分析版本。<button onClick={()=>select(newer.id)}>查看最新结果</button></div>}
       {error&&<div className="lab-alert" role="alert">{error}<button onClick={()=>setError('')}>关闭</button></div>}
       {notice&&<div className="lab-notice" role="status">{notice}</div>}
-      {!report&&tab!=='listen'&&<div className="lab-empty"><div className="lab-empty-mark">≋</div><h2>从一份已有分析开始</h2><p>支持 HarBeat 原始分析、NAS 清单、TrackAnalysis 和批量曲库 JSON。</p><p>所有原始字段都会保留；新增模型单独记录来源与状态。</p><label className="lab-button">选择分析文件<input type="file" accept=".json" multiple onChange={e=>importing(e.target.files)}/></label></div>}
-      {report&&<><section className="lab-track"><div className="lab-cover">≋</div><div className="lab-track-info"><span className="lab-eyebrow">ANALYSIS REPORT · {report.id.slice(0,8)}</span><h2>{report.title}</h2><p>{Object.keys(report.documents).length} 份来源 · 原始数据完整保留 · {timeLabel(duration)}</p></div><div className="lab-actions"><label className="lab-button">添加来源<input type="file" accept=".json" multiple onChange={e=>{importing(e.target.files,true);e.target.value=''}}/></label><button onClick={()=>download(`${report.title}-analysis.json`,JSON.stringify(report,null,2))}>导出报告 ↓</button></div></section>
+      {!report&&tab!=='listen'&&tab!=='mix-debug'&&<div className="lab-empty"><div className="lab-empty-mark">≋</div><h2>从一份已有分析开始</h2><p>支持 HarBeat 原始分析、NAS 清单、TrackAnalysis 和批量曲库 JSON。</p><p>所有原始字段都会保留；新增模型单独记录来源与状态。</p><label className="lab-button">选择分析文件<input type="file" accept=".json" multiple onChange={e=>importing(e.target.files)}/></label></div>}
+      {report&&tab!=='mix-debug'&&<><section className="lab-track"><div className="lab-cover">≋</div><div className="lab-track-info"><span className="lab-eyebrow">ANALYSIS REPORT · {report.id.slice(0,8)}</span><h2>{report.title}</h2><p>{Object.keys(report.documents).length} 份来源 · 原始数据完整保留 · {timeLabel(duration)}</p></div><div className="lab-actions"><label className="lab-button">添加来源<input type="file" accept=".json" multiple onChange={e=>{importing(e.target.files,true);e.target.value=''}}/></label><button onClick={()=>download(`${report.title}-analysis.json`,JSON.stringify(report,null,2))}>导出报告 ↓</button></div></section>
       {report.diagnostics?.warnings.map((warning,i)=><div key={i} className="lab-alert" role="status">{warning}</div>)}
       <section className="lab-metrics">{[['速度',report.summary.bpm,'BPM'],['调性',report.summary.key,''],['Camelot',report.summary.camelot,''],['能量',report.summary.energy,'原始指标']].map(([label,value,unit])=><div key={String(label)}><small>{label}</small><strong>{value ?? '—'}</strong><span>{value==null?'未提供':unit}</span></div>)}</section>
       <section className="lab-player lab-multitrack"><SyncedStemPlayer key={`${report.id}:${localAudio}`} ref={player} report={report} localAudio={localAudio} onTime={setCursor} onSelection={setAudioChoice}/><div className="lab-actions"><label className="lab-button">选择原曲<input type="file" accept="audio/*" onChange={e=>{const f=e.target.files?.[0];if(f){setAudioFile(f);setLocalAudio(URL.createObjectURL(f));setCursor(0);setAudioChoice('master')}}}/></label>{localAudio&&<button onClick={()=>{setLocalAudio('');setAudioFile(null);setCursor(0)}}>返回报告原曲</button>}<button className="primary" disabled={(!audioFile&&!report.audio.sha256&&!report.audio.assets?.master?.id)||busy||active} onClick={run}>{active?'分析运行中…':'运行补充分析'}</button></div></section>
       {job&&<div className="lab-notice" role="status">任务：{({queued:'排队中',running:'正在计算',completed:'已完成',failed:'失败',interrupted:'已中断'} as any)[job.status]} {job.module==='stem_activity'?'真实分轨活动':moduleNames[job.module] || ''} {job.detail||''} {job.reason || ''} · 已记录 {Object.keys(job.module_results||{}).length} / {job.modules?.length||Object.keys(moduleNames).length} 个步骤{job.started_at&&` · 总耗时 ${Math.max(0,Math.floor(((job.finished_at?Date.parse(job.finished_at):Date.now())-Date.parse(job.started_at))/1000))} 秒`}{active&&job.module_started_at&&` · 当前步骤 ${Math.max(0,Math.floor((Date.now()-Date.parse(job.module_started_at))/1000))} 秒`}</div>}
-      <nav className="lab-tabs">{[['timeline','时间轴'],['dj','接歌准备'],['measurements','和弦与动态'],['styles','风格与人工确认'],['dimensions','全部维度'],['stems','分轨试听'],['evidence','全部特征与依据'],['compare','版本对照'],['listen','转场盲听']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+      <nav className="lab-tabs">{[['timeline','时间轴'],['mix-material','混音素材与来源'],['dj','接歌准备'],['measurements','和弦与动态'],['styles','风格与人工确认'],['dimensions','全部维度'],['stems','分轨试听'],['evidence','全部特征与依据'],['compare','版本对照'],['listen','转场盲听']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       {tab==='timeline'&&<><SourceStatus report={report}/><div className="lab-module-grid">{Object.entries(moduleNames).map(([key,name])=>{const taskMatches=job&&(job.source_report_id===report.id||job.report_id===report.id);const m=(taskMatches?job.module_results?.[key]:null)||report.extensions[key];const running=taskMatches&&active&&job.module===key;return <div key={key} className="lab-module"><span>{name}</span><b className={m?.status==='ready'?'ready':''}>{running?'正在计算':m ? statuses[m.status] || m.status : '尚未运行'}</b><small>{m?.reason || (m ? `${((m.elapsed_ms||0)/1000).toFixed(1)}s · 独立补充结果` : '不影响已有分析')}</small></div>})}</div>
         <div className="lab-panel"><div className="lab-panel-title"><h2>音乐时间轴</h2><span>点击定位 · 单位：秒</span></div>
         <StructurePanel report={report} onSeek={seek}/>
@@ -156,6 +157,7 @@ export default function AnalysisLab() {
         <select aria-label="选择区间来源" value={extraInterval} onChange={e=>setExtraInterval(e.target.value)}><option value="">选择区间（{discovered.intervals.length}）</option>{discovered.intervals.map(c=><option key={c.title} value={c.title}>{c.title}</option>)}</select>
         {discovered.intervals.filter(c=>c.title===extraInterval).map(c=><Segments key={c.title} title={c.title} segments={c.segments} duration={duration} onSeek={seek}/>)}
         </div></>}
+      {tab==='mix-material'&&<MixTracePanel key={report.id} report={report} materialOnly/>}
       {tab==='dj'&&<DJPanel key={report.id} auditionMatches={!localAudio} report={report} history={latestHistory} cursor={cursor} onSeek={seek} busy={Boolean(active)||busy} onRun={async()=>{setBusy(true);try{trackJob(await post(`/reports/${report.id}/modules/dj_signals`,{}))}catch(e){setError((e as Error).message)}finally{setBusy(false)}}}/>}
       {tab==='measurements'&&<MeasurementsPanel report={report} cursor={cursor} onSeek={seek} busy={Boolean(active)||busy} onRun={async module=>{setBusy(true);try{trackJob(await post(`/reports/${report.id}/modules/${module}`,{}))}catch(e){setError((e as Error).message)}finally{setBusy(false)}}}/>}
       {tab==='styles'&&<StylePanel key={report.id} report={report} busy={Boolean(active)||busy} onSeek={seek} onRun={async()=>{setBusy(true);try{trackJob(await post(`/reports/${report.id}/modules/genre`,{}))}catch(e){setError((e as Error).message)}finally{setBusy(false)}}}/>}
@@ -169,6 +171,7 @@ export default function AnalysisLab() {
         <label className="lab-button">载入同曲人工标注<input type="file" accept=".json" onChange={e=>annotate(e.target.files?.[0])}/></label>{evaluation&&<><pre>{JSON.stringify(evaluation,null,2)}</pre><button onClick={()=>download('evaluation.json',JSON.stringify(evaluation,null,2))}>导出评估结果</button></>}
       </div>}
       </>}
+      {tab==='mix-debug'&&<MixTracePanel/>}
       {tab==='listen'&&<BlindListening/>}<footer className="lab-footer">观测数据、模型估计与人工评价分别保留。计算完成不等于预测准确。</footer>
     </main>
   </div>
