@@ -84,8 +84,14 @@ def predict(kind, request):
     windows = []
     segments, all_scores = [], []
     threshold = float(request['config'].get('instrument_threshold', .35))
-    for start in range(0, len(audio), 30 * 16000):
-        end = min(start + 30 * 16000, len(audio))
+    requested = request['config'].get('genre_intervals') if kind == 'genre' else None
+    if requested is not None:
+        from .mix_profiles import inference_intervals
+        spans = inference_intervals(requested, duration)
+        if not spans: return {'status':'unavailable','reason':'No interval has 8 seconds of direct context'}
+    else:
+        spans = [(start,min(start+30*16000,len(audio))) for start in range(0,len(audio),30*16000)]
+    for start, end in spans:
         vectors, hit = cached_embedding(request['config'].get('embedding_cache_dir'),
                       {**identity, 'start_sample': start, 'end_sample': end}, lambda: embedding(audio[start:end]))
         hits += int(hit)
@@ -99,11 +105,15 @@ def predict(kind, request):
         all_scores.append(scores)
         segments.append({'start': start / 16000, 'end': min(start / 16000 + 30, duration),
                          'labels': select_instruments(classes, scores, threshold)})
-    provenance['embedding_cache'] = {'hits': hits, 'windows': (len(audio)+30*16000-1)//(30*16000), 'protocol': PROTOCOL}
+    provenance['embedding_cache'] = {'hits': hits, 'windows': len(spans), 'protocol': PROTOCOL}
     provenance['audio_sha256'] = identity['audio_sha256']
     if kind == 'genre':
         from .genre import summarize_genre
-        return {'status': 'ready', 'data': {**provenance, **summarize_genre(classes, windows)}}
+        summary = summarize_genre(classes, windows)
+        if requested is not None:
+            summary['aggregation'] = 'direct source intervals; per-interval mean; overlapping windows; global summary not for selection'
+            summary['interval_policy'] = 'minimum 8 seconds; original sections and takeover windows; no whole-track label inheritance'
+        return {'status': 'ready', 'data': {**provenance, **summary}}
     return {'status': 'ready', 'data': {**provenance, 'segments': segments,
             'labels': select_instruments(classes, np.max(all_scores, axis=0), threshold),
             'definition': '30-second instrument tags; scores are uncalibrated, not note-level events'}}

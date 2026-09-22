@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest'
 import {planNext,vocalPresence,RequestGate,Track} from './planner'
 const asset={url:'native.wav',sha256:'a',duration:120,bytes:1}
-function track(id:string,style='Trap',energy=.5):Track{return {id,title:id,bpm:100,style,styleScore:.4,duration:120,native:asset,bars:Array.from({length:50},(_,i)=>i*2.4),sections:[{start:0,end:120,label:'verse'}],vocals:[],energy:[{start:0,end:120,value:energy}],windows:[{id:id+'w',start:0,end:9.6,bars:4,role:'verse',energy,variants:{a:{...asset,duration:9.6,rate:1}}},{id:id+'short',start:0,end:4.8,bars:2,role:'verse',energy,variants:{a:{...asset,duration:4.8,rate:1}}}]}}
+function track(id:string,style='Trap',energy=.5):Track{const t:Track={id,title:id,bpm:100,style,styleScore:.4,duration:120,native:asset,bars:Array.from({length:50},(_,i)=>i*2.4),sections:[{start:0,end:120,label:'verse'}],vocals:[],energy:[{start:0,end:120,value:energy}],windows:[{id:id+'w',start:0,end:9.6,bars:4,role:'verse',energy,variants:{a:{...asset,duration:9.6,rate:1}}},{id:id+'short',start:0,end:4.8,bars:2,role:'verse',energy,variants:{a:{...asset,duration:4.8,rate:1}}}]};t.provenance={masterSha256:id};t.mixProfile={schema:'harbeat.mix_profiles.v1',policy:{calibrationId:'master-rms-common-digital-full-scale-v1',energyUnit:'dBFS_RMS'},source:{masterSha256:id},energyCurve:[],energyFrames:[{start:0,end:120,dbfs:-18+energy*6,coverage:1,status:'measured'}],sections:[],windows:t.windows.map(w=>({id:w.id,entry:{start:w.start,end:w.end,style:{status:'needs_review',top:[],reasons:[]}},takeover:{start:w.end,end:w.end+16,style:{status:'model_candidate',top:[{style,score:.4}],reasons:[]}},sustain:[]}))};return t}
 describe('rolling V3 planner',()=>{
  it('never selects a transition whose start is already missed',()=>{const p=planNext(track('a'),[track('b')],50,{kind:'next'},new Set(['native.wav']),10).best!;expect(p.start).toBeGreaterThan(50+.2);expect(p.end).toBeLessThanOrEqual(60);expect(p.end-p.start).toBeCloseTo(p.duration)})
  it('requires both prepared assets and a remaining body',()=>{expect(planNext(track('a'),[track('b')],50,{kind:'next'},new Set(),18).best).toBeNull();const b=track('b');b.duration=10;expect(planNext(track('a'),[b],50,{kind:'next'},new Set(['native.wav']),18).best).toBeNull()})
@@ -26,7 +26,8 @@ describe('decision evidence',()=>{
  })
  it('explains exact filtering reasons even if no candidate exists',()=>{
   const result=planNext(track('a'),[track('b','Trap'),track('c','Grime')],50,{kind:'style',style:'Grime'},new Set(),10)
-  expect((result as any).exclusions.some((x:any)=>x.code==='style_mismatch'&&x.trackId==='b')).toBe(true)
+  const local=planNext(track('a'),[track('b','Trap')],50,{kind:'style',style:'Grime'},new Set(['native.wav']),10)
+  expect(local.exclusions.some(x=>x.code==='local_style_mismatch'&&x.trackId==='b')).toBe(true)
   expect((result as any).exclusions.some((x:any)=>x.code==='asset_not_ready'&&x.trackId==='c')).toBe(true)
  })
 })

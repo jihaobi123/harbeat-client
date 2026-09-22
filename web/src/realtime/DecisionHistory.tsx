@@ -12,7 +12,7 @@ function entries(logs:Log[]){return logs.filter(e=>e.kind==='request_received').
 export function decisionReport(logs:Log[],tracks:Track[]){
  const rows=['# HarBeat V3 在线混音决策日志','','时间均标明原曲或 AudioContext；音频线程记录不等于扬声器出声实测。','固定 V3 模板，未比较其他混音算法；当前页面会话完整导出。','']
  for(const {trigger:r,events,scheduled:s,outcome:o,searches} of entries(logs)){
-  rows.push(`## ${r.requestId}`,`${r.wallTime} · ${r.origin==='source_end_auto'?'曲目将结束自动触发':'用户触发'} · ${label[r.intent.kind]||r.intent.kind}`,`当前曲目：${title(tracks,r.sourceTrackId)}；原曲 ${num(r.sourcePosition)} 秒；预算 ${r.budgetSec} 秒。`,`目标：${r.intent.targetId?title(tracks,r.intent.targetId):r.intent.style||'由规则选择'}。`,`结果：${o?`${label[o.outcome]||o.outcome} — ${o.reason}`:s?'已安排，尚无最终结果':'处理中／等待中'}`,'')
+  rows.push(`## ${r.requestId}`,`${r.wallTime} · ${r.origin==='source_end_auto'?'曲目将结束自动触发':'用户触发'} · ${label[r.intent.kind]||r.intent.kind}`,`当前曲目：${title(tracks,r.sourceTrackId)}；原曲 ${num(r.sourcePosition)} 秒；预算 ${r.budgetSec} 秒。`,`目标：${r.intent.targetId?title(tracks,r.intent.targetId):r.intent.style||'不限风格'}；能量 ${r.intent.energy||r.intent.kind}。`,`结果：${o?`${label[o.outcome]||o.outcome} — ${o.reason}`:s?'已安排，尚无最终结果':'处理中／等待中'}`,'')
   if(s){const d=s.plan.decision
    rows.push(`选择：${title(tracks,s.plan.from)} → ${title(tracks,s.plan.to)}`,`为什么胜出：${s.selection.reason}；合格候选 ${s.selection.candidateCount} 个。`,...d.pointReasons.map((x:string)=>`- ${x}`),`混音方案：${d.strategy.selectionReason}`,`人声处理：${d.strategy.midDuck.reason}`,`低频处理：${d.strategy.eq.lowReason}`,`恢复：${d.strategy.restore.reason}`,`规则分：${d.score.total}；${d.score.components.map((x:any)=>`${x.label} ${x.contribution}`).join('；')}`,`计划 AudioContext：B 开始 ${num(s.start)} 秒，EQ 恢复 ${num(s.restore)} 秒，交接完成 ${num(s.end)} 秒。`,'', '预处理、映射与自动化依据：','```json',JSON.stringify(d,null,2),'```','')
   }
@@ -32,7 +32,7 @@ export default memo(function DecisionHistory({logs,tracks,eventCount=logs.length
  <p className="live-muted">本页保留当前会话全部日志，不再删除较早记录。关闭或刷新前请导出；尚未自动保存到服务器。</p>
  {!all.length&&<p>点击下一首、能量或风格后，这里会逐次显示；没有找到方案也会记录。</p>}
  {all.slice(-limit).reverse().map(({trigger:r,events,scheduled:s,outcome:o,searches})=><details className="live-decision" key={r.requestId}>
-  <summary>{label[r.intent.kind]||r.intent.kind}{r.intent.style?' · '+r.intent.style:''} · {o?label[o.outcome]:s?'已安排':events.some(e=>e.kind==='request_deferred')?'等待当前交接':'准备中'} · {r.wallTime}</summary>
+  <summary>{label[r.intent.kind]||r.intent.kind}{r.intent.style?' · '+r.intent.style:''}{r.intent.energy&&r.intent.energy!=='any'?' · '+(r.intent.energy==='up'?'持续提高能量':'持续降低能量'):''} · {o?label[o.outcome]:s?'已安排':events.some(e=>e.kind==='request_deferred')?'等待当前交接':'准备中'} · {r.wallTime}</summary>
   <p><code>{r.requestId}</code></p><p>{r.origin==='source_end_auto'?'曲目将结束，自动触发':'用户触发'}；{title(tracks,r.sourceTrackId)} 原曲 {num(r.sourcePosition)} 秒；等待预算 {r.budgetSec} 秒{r.intent.targetId?`；指定 ${title(tracks,r.intent.targetId)}`:''}。</p>
   {o&&<p><b>{label[o.outcome]||o.outcome}：</b>{o.reason}</p>}
   {s&&<><h3>{title(tracks,s.plan.from)} → {title(tracks,s.plan.to)}</h3><p>{s.selection.reason}。合格候选 {s.selection.candidateCount} 个；规则分 {num(s.plan.score)}{s.selection.runnerUp?`，与第二名相差 ${num(s.selection.runnerUp.gap)}`:''}。</p>

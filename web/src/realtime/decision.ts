@@ -1,9 +1,9 @@
 import type {Track, Plan, Intent} from './planner'
 
 export const DECISION_POLICY = {
-  version: 'v3-live-rules-1.audit-1',
+  version: 'v3-live-rules-2.local-intents-1',
   minimumLeadSec: .25, maximumGridErrorSec: .065, boundaryRadiusSec: .4,
-  tempoRateRange: [.8, 1.2], minimumBodySec: 12, energyDelta: .025,
+  tempoRateRange: [.8, 1.2], minimumBodySec: 12, energyUnit:'dBFS_RMS', energyDeltaDb:1, sustainSec:16,
   vocalPaddingSec: .3, vocalMinimumSec: .5, vocalMinimumFraction: .05,
   ranking: '分数降序；同分取更早完成点；仍相同按候选 ID 字典序',
   strategy: 'v3_linear_eq',
@@ -37,12 +37,13 @@ export function explainPlan(a:Track,b:Track,p:Plan,position:number,intent:Intent
     {key:'vocal',label:'双窗口人声占比乘积',value:p.aVocal*p.bVocal,weight:-.3,contribution:-p.aVocal*p.bVocal*.3},
     {key:'boundary',label:'靠近 A 段落边界',value:boundary?1:0,weight:.16,contribution:boundary?.16:0},
     {key:'fourBars',label:'四小节窗口',value:p.window.bars===4?1:0,weight:.05,contribution:p.window.bars===4?.05:0},
-    {key:'style',label:'模型风格相同',value:a.style===b.style?1:0,weight:.04,contribution:a.style===b.style?.04:0},
+    {key:'style',label:'整曲模型候选相同（旧 V3 排序项）',value:a.style===b.style?1:0,weight:.04,contribution:a.style===b.style?.04:0},
   ]
   return {
     policyVersion:DECISION_POLICY.version,intent,positionSourceSec:position,budgetSec:budget,
     cues:{aMixStart:cue(a,p.start),aExit:cue(a,p.end),bEntry:cue(b,p.window.start),bBodyStart:cue(b,p.window.end)},
     pointReasons:[
+      ...(p.evidence?[p.evidence.reason]:[]),
       `A 在原曲 ${p.end.toFixed(3)} 秒退出，来自原始小节网格；等待 ${wait.toFixed(3)} 秒，预算 ${budget.toFixed(3)} 秒。`,
       `B 从原曲 ${p.window.start.toFixed(3)} 秒进入，到 ${p.window.end.toFixed(3)} 秒完成 ${p.window.bars} 小节交接；该窗口已具备对应 A 速度的素材。`,
       `按交接终点反推 A 开始点 ${p.start.toFixed(3)} 秒；距最近原始首拍 ${(p.gridError*1000).toFixed(2)} ms，门槛 65 ms。`,
@@ -53,8 +54,8 @@ export function explainPlan(a:Track,b:Track,p:Plan,position:number,intent:Intent
       equation:'B_source = B_entry + (contextTime - scheduledStart) × rate（名义时间映射，素材经 atempo 与精确长度裁剪／补齐）',
       afterHandoff:'B 正文从窗口末端恢复原速'},
     features:{style:{a:a.style,b:b.style,aModelScore:a.styleScore,bModelScore:b.styleScore},
-      energy:{a:p.aEnergy,b:p.bEnergy,aWindow:[position,position+8],bWindow:[p.window.end,Math.min(b.duration,p.window.end+16)],minimumDelta:.025,
-        use:intent.kind==='up'||intent.kind==='down'?'方向硬筛选；不是排序加分':'仅记录，没有参与本次能量方向筛选'},
+      localIntent:p.evidence,
+      legacyRelativeEnergy:{a:p.aEnergy,b:p.bEnergy,use:'保留旧曲线，仅记录；不用于跨曲能量筛选'},
       vocalA:voice(a,p.start,p.end,p.aVocal),vocalB:voice(b,p.window.start,p.window.end,p.bVocal)},
     strategy:{id:'v3_linear_eq',selectionReason:'本版本固定采用已认可 V3 的线性淡化和 EQ 模板；只搜索歌曲、进入窗口和交接时间，不在多种混音算法间择优。',
       alternativesEvaluated:[],gain:{a:[.76,0],b:[0,.76],curve:'linear'},

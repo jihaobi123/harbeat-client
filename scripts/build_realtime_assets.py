@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse,hashlib,json,math,statistics,subprocess
 import soundfile as sf
+from analysis_platform.mix_profiles import build_profiles
 
 def sha(p):
  h=hashlib.sha256()
@@ -54,7 +55,7 @@ def encode(source,dest,filters,commands):
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--data-dir',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);args=ap.parse_args()
  base=args.data_dir;out=args.output;media=out/'media';media.mkdir(parents=True,exist_ok=True)
- plan=json.loads((base/'listen/plan.json').read_text());rows=json.loads((base/'inputs/inputs.json').read_text());tracks=[];sources={};commands=[]
+ plan=json.loads((base/'listen/plan.json').read_text());rows=json.loads((base/'inputs/inputs.json').read_text());tracks=[];sources={};commands=[];reports={}
  for chosen in plan['tracks']:
   x=next(x for x in rows if x['report_id']==chosen['report_id']);rp=base/'inputs/reports'/(x['report_id']+'.json');source=base/'inputs'/x['relative_path']
   if sha(rp)!=x['report_file_sha256'] or sha(source)!=x['sha256']:raise ValueError('source identity mismatch')
@@ -67,7 +68,7 @@ def main():
   curve=[{'start':v['start_ms']/1000,'end':v['end_ms']/1000,'value':v['value']} for v in a['energy']['curve']]
   style=r['extensions']['genre']['data']['top'][0];native=encode(source,media/(tid+'.flac'),f'atrim=end={duration:.6f},asetpts=PTS-STARTPTS',commands)
   t={'id':tid,'title':r['title'],'bpm':bpm,'duration':native['duration'],'style':style['style'],'styleScore':style['score'],'native':native,'bars':bars,'sections':sections,'vocals':verify_vocals(c,r['documents']['vocal_activity']),'energy':curve,'windows':windows(bars,sections,native['duration']),'warnings':['段落与小节未经人工确认','能量使用已有局部曲线作启发式比较，未作跨曲感知校准']+(['原始 BPM 标记待确认'] if a['tempo'].get('needs_review') else []),'reportId':r['id'],'provenance':{'masterSha256':x['sha256'],'reportSha256':x['report_file_sha256'],'runId':c['analysis_run_id'],'sectionSource':a['sections']['source'],'vocalSha256':c['assets']['stems']['vocals']['sha256']}}
-  tracks.append(t);print('Native',t['title'],flush=True)
+  reports[tid]=r;tracks.append(t);print('Native',t['title'],flush=True)
  for b in tracks:
   for w in b['windows']:
    w['energy']=energy(b['energy'],w['end'],min(b['duration'],w['end']+16));w['variants']={}
@@ -78,6 +79,7 @@ def main():
     dest=media/(b['id']+'-'+w['id']+'-'+a['id'][6:]+'.flac')
     filt=f"atrim=start={w['start']:.6f}:end={w['end']:.6f},asetpts=PTS-STARTPTS,atempo={rate:.9f},apad=whole_dur={length:.9f},atrim=end={length:.9f}"
     asset=encode(sources[b['id']],dest,filt,commands);asset['rate']=rate;asset['mapping']='source interval → FFmpeg atempo → exact target-length trim/pad; no EQ or pair mixing';w['variants'][a['id']]=asset
+  b['mixProfile']=build_profiles(reports[b['id']],b)
   print('Entry assets',b['title'],flush=True)
  doc={'schema':'harbeat.realtime_v3.assets.v1','version':'V3 Live Preview 0.1','tracks':tracks,'policy':{'gain':.76,'aBassDb':-9,'bBassDb':-7,'aTrebleDb':-1.4,'bTrebleDb':1.2,'midDb':-5,'midHz':1200,'midQ':1.05,'lowHz':140,'highHz':3600},'limitations':['只提供六首既有 Hip-Hop 曲目，风格筛选为模型 Trap/Grime 候选','每首最多前150秒；不包含整场预渲染音频','浏览器 Biquad EQ 与自有保护限幅不同于原 FFmpeg 实现，不宣称波形完全相同','仅进入窗口保调变速，交接后正文恢复原速；所有跨曲 EQ 和淡化在浏览器实时执行','AudioWorklet 到点记录不是声卡／蓝牙输出实测','后台挂起会暂停音频时钟；原生手机后台播放未在此版本实现']}
  (out/'catalog.json').write_text(json.dumps(doc,ensure_ascii=False,indent=2));(out/'asset-build.json').write_text(json.dumps({'commands':commands,'ffmpeg':subprocess.check_output(['ffmpeg','-version'],text=True).splitlines()[0],'assets_are_single_song_only':True},ensure_ascii=False,indent=2))
