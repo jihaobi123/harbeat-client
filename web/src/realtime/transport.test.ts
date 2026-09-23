@@ -112,3 +112,13 @@ it('short audition skips waiting only, preserving both cue times and original tr
  const event=p.logs.filter(x=>x.kind==='comparison_started').at(-1)!;
  expect(event.virtualTriggerSourceSec).toBe(0);expect(event.virtualTriggerContextSec).toBeNull();expect(event.skippedWaitingSec).toBeGreaterThan(0)
 })
+
+it('executes phrase gain hold and EQ points on the audio clock, retaining request-linked observations',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const original=p.pending!.plan;p.cancel();
+ const fade=original.end-1,plan={...original,phrase:{exit:{lastBeat:original.end-.6,tailEnd:fade},fadeStart:fade,incomingVocalRender:fade+.1,vocalGap:.1} as any,automation:{version:'phrase-automation-v1' as const,kind:'adaptive' as const,aGain:[{t:0,value:1},{t:original.duration-1,value:1},{t:original.duration,value:0}],bGain:[{t:0,value:0},{t:original.duration,value:1}],aEq:[{t:0,low:0,mid:0,high:0},{t:original.duration,low:0,mid:0,high:0}],bEq:[{t:0,low:0,mid:0,high:0},{t:2,low:-3,mid:-1,high:-.5},{t:original.duration,low:0,mid:0,high:0}],evidence:[],limitations:[]}}
+ await p.playComparison(plan,50,{experimentId:'phrase-test',arm:'variant',midDb:-5});const pending=p.pending!,at=pending.start,ae=(p.active!.gain.gain as any).events,be=(pending.deck.low.gain as any).events
+ expect(ae).toContainEqual(['ramp',.76,at+original.duration-1]);expect(ae).toContainEqual(['ramp',0,pending.end]);expect(be).toContainEqual(['ramp',-3,at+2]);expect(be).toContainEqual(['ramp',0,pending.end]);
+ const scheduled=p.logs.filter(e=>e.kind==='plan_scheduled').at(-1)!,curve=p.logs.find(e=>e.kind==='phrase_automation')!
+ expect(curve.planId).toBe(scheduled.planId);expect(curve.requestId).toBe(scheduled.requestId);expect(scheduled.events.find((e:any)=>e.name.startsWith('A 尾音')).frame).toBe(Math.round((at+original.duration-1)*p.ctx.sampleRate));
+ expect(p.cancel()).toBe(true);expect(p.pending).toBeNull();expect((p.active!.dry.gain as any).events.at(-1)[1]).toBe(1)
+})

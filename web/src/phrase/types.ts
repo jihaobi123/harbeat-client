@@ -1,0 +1,7 @@
+export type Phrase={id:string;start:number;end:number;tailEnd:number;nextStart:number|null;sectionIndex:number;sourceRows:{vad:number[];rms:number[]};semanticStatus:string}
+export type PhraseExit={id:string;cut:number;phraseId:string;voiceEnd:number;tailEnd:number;nextVoiceStart:number|null;sectionEnd:number|null;sectionAligned:boolean;lastBeat:number;barStart:number;gridError:number;reason:string}
+export type PhraseAlignment={schema:string;status:string;source:{reportId:string;reportSha256:string;masterSha256:string;vocalSha256:string};bars:{index:number;start:number;lastBeat:number|null;end:number;beats:number[];valid:boolean;reason?:string}[];phrases:Phrase[];exits:PhraseExit[];conflicts:any[];bandFrames:{start:number;end:number;rmsDbfs:number|null;low:number|null;mid:number|null;high:number|null}[];limitations:string[];[key:string]:unknown}
+export type PhraseEvidence={exit:PhraseExit;incomingPhraseId:string;incomingVocalSource:number;incomingVocalRender:number;vocalGap:number;fadeStart:number;mode:'section'|'phrase';aSource:PhraseAlignment['source'];bSource:PhraseAlignment['source']}
+export type GainPoint={t:number;value:number}
+export type EqPoint={t:number;low:number;mid:number;high:number}
+export type TransitionAutomation={version:'phrase-automation-v1';kind:'fixed'|'adaptive';aGain:GainPoint[];bGain:GainPoint[];aEq:EqPoint[];bEq:EqPoint[];evidence:any[];limitations:string[]}

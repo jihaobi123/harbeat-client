@@ -115,3 +115,6 @@ cypher-integration/flutter-app/android/app/src/main/java/io/flutter/plugins/Gene
 web/dist-guarded/
 
 web/dist-v31/
+
+# Independent phrase / energy browser build
+web/dist-phrase/
