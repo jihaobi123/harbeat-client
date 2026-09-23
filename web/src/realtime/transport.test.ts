@@ -86,8 +86,8 @@ it('plays a fixed comparison using unchanged cue times and only the requested mi
  p.stop();await p.start('a',50);await p.request({kind:'next'},10);expect(p.pending!.deck.mid.gain.value).toBe(-5)
 })
 it('never starts a cancelled comparison after assets finish loading',async()=>{
- const p=await setup();await p.request({kind:'next'},10);const plan=p.pending!.plan;p.stop();let release:any;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>release=r));
- const task=p.playComparison(plan,50,{experimentId:'vocal',arm:'baseline',midDb:-5});await Promise.resolve();p.stop();release({duration:120});await task;expect(p.active).toBeNull();expect(p.pending).toBeNull()
+ const p=await setup();await p.request({kind:'next'},10);const plan=p.pending!.plan;p.stop();const releases:((b:AudioBuffer)=>void)[]=[];p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>releases.push(r)));
+ const task=p.playComparison(plan,50,{experimentId:'vocal',arm:'baseline',midDb:-5});await Promise.resolve();p.stop();expect(releases).toHaveLength(3);releases.forEach(r=>r({duration:120} as AudioBuffer));await task;expect(p.active).toBeNull();expect(p.pending).toBeNull()
 })
 
 it('a protected planner rejection keeps A playing and never falls back',async()=>{
