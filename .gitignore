@@ -111,3 +111,5 @@ cypher-integration/flutter-app/android/app/src/main/java/io/flutter/plugins/Gene
 
 # Independent controlled realtime trials
 /web/dist-experiments/
+
+web/dist-guarded/
