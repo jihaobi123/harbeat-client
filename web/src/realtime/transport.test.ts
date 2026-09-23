@@ -2,7 +2,7 @@ import {describe,it,expect,vi,afterEach} from 'vitest'
 import {LiveTransport} from './transport'
 import {validateSession} from './sessionStore'
 import {executionRows} from '../analysis/MixTracePanel'
-import {Track} from './planner'
+import {Track,planNext} from './planner'
 class Param{value=0;events:any[]=[];setValueAtTime(v:number,t:number){this.events.push(['set',v,t]);this.value=v}linearRampToValueAtTime(v:number,t:number){this.events.push(['ramp',v,t])}cancelAndHoldAtTime(t:number){this.events.push(['cancel',t])}cancelScheduledValues(){}setTargetAtTime(){}}
 class Node{gain=new Param();frequency=new Param();Q=new Param();type='';buffer:any;starts:any[]=[];stops:any[]=[];connect(){}disconnect(){}start(...x:any[]){this.starts.push(x)}stop(...x:any[]){this.stops.push(x)}}
 class Context{currentTime=0;sampleRate=44100;state='running';baseLatency=.01;outputLatency=.01;destination=new Node();audioWorklet={addModule:async()=>{}};createGain(){return new Node()}createBufferSource(){return new Node()}createBiquadFilter(){return new Node()}async resume(){this.state='running'}async suspend(){this.state='suspended'}async close(){}}
@@ -121,4 +121,27 @@ it('executes phrase gain hold and EQ points on the audio clock, retaining reques
  const scheduled=p.logs.filter(e=>e.kind==='plan_scheduled').at(-1)!,curve=p.logs.find(e=>e.kind==='phrase_automation')!
  expect(curve.planId).toBe(scheduled.planId);expect(curve.requestId).toBe(scheduled.requestId);expect(scheduled.events.find((e:any)=>e.name.startsWith('A 尾音')).frame).toBe(Math.round((at+original.duration-1)*p.ctx.sampleRate));
  expect(p.cancel()).toBe(true);expect(p.pending).toBeNull();expect((p.active!.dry.gain as any).events.at(-1)[1]).toBe(1)
+})
+
+it('V30 dynamic coefficients preserve every V3 gain, wet/dry event and source clock',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const plan=p.pending!.plan;p.stop();
+ await p.playComparison(plan,50,{experimentId:'v30',arm:'baseline',midDb:-5});
+ const events=(d:any)=>JSON.parse(JSON.stringify(['gain','wet','dry'].map(k=>d[k].gain.events)));
+ const original={a:events(p.active),b:events(p.pending!.deck),start:p.pending!.start,end:p.pending!.end};p.stop();
+ const eq={version:'v30-eq-only-v1',a:[{t:0,low:-9,mid:0,high:-1.4},{t:4.8,low:-10,mid:0,high:-2}],b:[{t:0,low:-7,mid:-5,high:1.2},{t:4.8,low:-8,mid:-6,high:0}],template:{a:{low:-9,mid:0,high:-1.4},b:{low:-7,mid:-5,high:1.2}},evidence:[],sources:{},limits:{lowHighDb:3,midDb:2,slewDbPerSec:3},limitations:[]} as const;
+ await p.playComparison({...plan,v30Eq:eq as any},50,{experimentId:'v30',arm:'variant',midDb:-5});
+ expect(events(p.active)).toEqual(original.a);expect(events(p.pending!.deck)).toEqual(original.b);
+ expect(p.pending!.start).toBe(original.start);expect(p.pending!.end).toBe(original.end);
+ expect((p.pending!.deck.low.gain as any).events.some((e:any)=>e[0]==='ramp'&&e[1]===-8)).toBe(true);
+ expect(p.logs.some(l=>l.kind==='v30_eq_automation')).toBe(true);
+ p.cancel();expect((p.active!.low.gain as any).events.at(-1)[1]).toBe(0);
+})
+
+it('reports the distinct highest-ranked alternative when correction chooses rank two',async()=>{
+ const p=await setup(),result=planNext(p.current!,p.tracks,50,{kind:'next'},p.cache.ready,18);
+ expect(result.candidates.length).toBeGreaterThan(1);
+ (p as any).schedule(result.candidates[1],0,{kind:'next'},'corrected',result);
+ const e=p.logs.filter(l=>l.kind==='plan_scheduled').at(-1)!;
+ expect(e.selection.chosenRank).toBe(2);expect(e.selection.runnerUp.id).toBe(result.candidates[0].id);
+ expect(e.selection.runnerUp.id).not.toBe(e.plan.id);
 })

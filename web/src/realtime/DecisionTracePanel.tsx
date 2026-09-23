@@ -17,11 +17,12 @@ function TrackEvidence({track,side}:{track:DecisionTrace['a'];side:string}){
 }
 export default function DecisionTracePanel({trace}:{trace?:DecisionTrace|null}){
  if(!trace)return <p className="decision-trace">这份旧记录没有逐行证据快照；保留原有决策 JSON，不能用今天的分析结果补认当时使用的数据。请在证据联通版重新试听并记录。</p>
- return <section className="decision-trace" aria-label="预处理到混音的证据链"><h3>预处理 → 选点 → 音频执行</h3><p>模式：{trace.mode==='v3-ranking'?'V3 普通选点':trace.mode==='protected-auto'?'自动声学保护':'人工核验保护'}。本表对应这一份计划；排名和落选原因在同次请求的候选表中。</p>
+ return <section className="decision-trace" aria-label="预处理到混音的证据链"><h3>预处理 → 选点 → 音频执行</h3><p>模式：{trace.mode.startsWith('v30-small-')?'V3 小幅核验 · '+(trace.mode.endsWith('dynamic')?'动态 EQ':'固定 EQ'):trace.mode==='v3-ranking'?'V3 普通选点':trace.mode==='protected-auto'?'自动声学保护':trace.mode==='protected-manual'?'人工核验保护':trace.mode.startsWith('phrase-')?'声学乐句实验':'其他已记录策略'}。本表对应这一份计划；排名和落选原因在同次请求的候选表中。</p>
  <div className="trace-scroll"><table><thead><tr><th>预处理信息</th><th>这一次实际怎么用</th></tr></thead><tbody>{trace.features.map(f=><tr key={f.key}><td>{f.name}<br/><code>{f.source}</code></td><td>{f.effect}</td></tr>)}</tbody></table></div>
  <h4>混音处理与听感排查</h4><p>{trace.strategy.reason}。没有比较多种混音算法后择优。</p><ul>{trace.strategy.facts.map(f=><li key={f}>{f}</li>)}</ul><p>{trace.strategy.interpretation}</p>
  <TrackEvidence track={trace.a} side="A 当前歌"/><TrackEvidence track={trace.b} side="B 下一首"/>
  <h4>实际播放素材</h4><p>变速素材的目标时长：{trace.material.tempoPreparation?`${trace.material.tempoPreparation.bars} × 240 ÷ ${trace.material.tempoPreparation.aBpm} = ${fmt(trace.material.tempoPreparation.nominalTargetSec)} 秒；窗口原长 ÷ 目标时长 = ${fmt(trace.material.tempoPreparation.derivedRate)} 倍速。实际片段时长还受采样帧取整影响。`:"旧日志未保存素材时长推导。"}</p><p>进入素材类型：{trace.material.lane}；B 进入片段来自原曲 {fmt(trace.material.sourceMapping.bStart)}–{fmt(trace.material.sourceMapping.bEnd)} 秒，以 {fmt(trace.material.sourceMapping.rate)} 倍速播放 {fmt(trace.material.sourceMapping.overlapSec)} 秒后，接回原曲正文。</p><div className="trace-scroll"><table><thead><tr><th>播放角色</th><th>实际文件与指纹</th></tr></thead><tbody>{[["A 原曲",trace.material.a],["B 正文",trace.material.b],["B 变速进入片段",trace.material.entry]].map(([label,asset]:any)=><tr key={label}><td>{label}</td><td><code>{asset.url}</code><br/><code>{asset.sha256}</code></td></tr>)}</tbody></table></div><details><summary>实际播放什么素材、如何从进入片段接回正文</summary><p>A、B 原曲和变速进入素材各自记录文件指纹；不把分轨分析来源误当成实际播放分轨。</p><pre>{JSON.stringify(trace.material,null,2)}</pre></details>
+ {trace.v30Tune&&<details><summary>V3 小幅核验与实际 EQ 控制点</summary><pre>{JSON.stringify({boundary:trace.v30Tune,eq:trace.v30Eq||"原 V3 固定参数"},null,2)}</pre></details>}
  {trace.protection&&<details><summary>保护规则的全部放行证据（含自动／人工来源）</summary><pre>{JSON.stringify(trace.protection,null,2)}</pre></details>}
  </section>
 }

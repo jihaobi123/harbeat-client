@@ -38,8 +38,8 @@ export function buildDecisionTrace(a:Track,b:Track,p:Plan,midDb=-5){
   {key:'energy',name:'能量与局部风格',source:`${CORE}/energy`,effect:p.evidence?`局部条件结果：${p.evidence.reason}；旧相对能量值仅记录`:'此保护请求未用于筛选或排名'},
   {key:'unused',name:'调性、和弦、鼓组、乐器、情绪、粗糙度、动态范围',source:'/documents/core/analysis + /extensions',effect:'未用于本次固定 EQ 模板或转场排名；是否已分析见快照模块清单，不能把未使用误认为没有分析'},
  ]
- const result={schema:'harbeat.decision-trace.v1',planId:p.id,mode,features,a:trackTrace(a,p.start,p.end,p.end,protection?.automaticExit),b:trackTrace(b,p.window.start,p.window.end,p.window.end,protection?.automaticEntry),protection,
-  strategy:{id:'v3_linear_eq',multipleAlgorithmsCompared:false,reason:p.decision?.strategy.selectionReason||'固定 V3 模板，搜索选点而非比较多种音效',actualBMidDb:p.midDuck?midDb:0,selection:p.decision?.score,automation:p.decision?.strategy,
+ const result={v30Tune:p.v30Tune||null,v30Eq:p.v30Eq||null,schema:'harbeat.decision-trace.v1',planId:p.id,mode,features,a:trackTrace(a,p.start,p.end,p.end,protection?.automaticExit),b:trackTrace(b,p.window.start,p.window.end,p.window.end,protection?.automaticEntry),protection,
+  strategy:{id:'v3_linear_eq',multipleAlgorithmsCompared:false,reason:p.decision?.strategy.selectionReason||'固定 V3 模板，搜索选点而非比较多种音效',actualBMidDb:(p.midDuck?midDb:0) as number|null,selection:p.decision?.score,automation:p.decision?.strategy,
    facts:[`转场 ${p.window.bars} 个候选小节，共 ${p.duration.toFixed(3)} 秒。`,`B 进入速率 ${p.rate.toFixed(6)}，接管后变为 1.0，原曲 BPM ${b.bpm}；目前没有渐进回速。`,`A 在混入点启用低频 −9 dB、高频 −1.4 dB，滤波声在 20 ms 内启用。`,`B 低频 −7 dB、高频 +1.2 dB、中频 ${p.midDuck?midDb:0} dB；最后 ${Math.min(p.duration,120/a.bpm).toFixed(3)} 秒恢复原声。`,...(protection?.sectionTailDelaySec!=null?[`A 比模型段尾晚 ${protection.sectionTailDelaySec.toFixed(3)} 秒退出；因此可能包含下一模型段落开头。`]:[])],interpretation:'以上是实际参数，可用于逐项试听定位；不能单凭数值认定听感问题的原因。'},
   material:{a:a.native,b:b.native,entry:p.asset,window:p.window,tempoPreparation:{beatsPerBar:4,bars:p.window.bars,aBpm:a.bpm,bNativeBpm:b.bpm,nominalTargetSec,derivedRate,assetRate:p.rate,rateMatchesRecipe:Math.abs(derivedRate-p.rate)<1e-6,actualAssetSec:p.asset.duration,formula:'targetSec = bars × 240 / A_BPM; rate = B_source_window_seconds / targetSec; actual duration includes sample rounding'},sourceMapping:{bStart:p.window.start,bEnd:p.window.end,rate:p.rate,overlapSec:p.duration,aStart:p.start,aEnd:p.end,restore:p.restore},lane:protection?.entry?.lane||'original_master'},
   limitations:['人声时间占比不是概率；模型区间不等于语义乐句','原始报告行号从 1 开始展示，JSON 路径从 0 开始','快照仅供追溯，不反向修改选点或音频处理']}
@@ -51,6 +51,17 @@ export function buildDecisionTrace(a:Track,b:Track,p:Plan,midDb=-5){
   result.strategy.facts=[`A 保持到原曲 ${p.phrase.fadeStart.toFixed(3)} 秒，之后才退出。`,`小节最后一拍 ${p.phrase.exit.lastBeat.toFixed(3)} 秒，退出首拍 ${p.end.toFixed(3)} 秒。`,`B 首句映射到 A 时轴 ${p.phrase.incomingVocalRender.toFixed(3)} 秒，距保护尾音 ${p.phrase.vocalGap.toFixed(3)} 秒。`,p.automation?.kind==='adaptive'?'B 频段衰减由局部功率计算；此处中频起始值不是全程固定值。':'使用原 EQ 参数，A 的 EQ 在保护尾音之后才启用。','正文接管仍恢复原速；本轮未改变时间伸缩策略。']
   Object.assign(result,{phrase:p.phrase,actualAutomation:p.automation})
   result.strategy.interpretation='声学候选、具体控制点与实测来源分开记录；不等同于人工听感验收'
+ }
+ if(p.v30Tune){
+  result.features.find(f=>f.key==='rms')!.effect=p.v30Tune.enabled?'通过保守声学活动与拍点做相邻小节核验；存在分歧或无明确改善时保留原 V3':'展示声学核验；选点仍由原 V3 决定'
+  result.mode='v30-small-'+(p.v30Eq?'dynamic':'fixed')
+  result.features.push({key:'v30_boundary',name:'小幅边界核验',source:'/alignment/phrases + /alignment/bars',effect:p.v30Tune.reason})
+  result.strategy.id='v30_'+(p.v30Eq?'dynamic_eq':'fixed_eq')
+  result.strategy.reason=p.v30Tune.reason
+  result.strategy.facts=[`完整重叠 ${p.duration.toFixed(3)} 秒；A 从起点到终点线性退出，B 同时线性进入。`,`相对原 V3 整体后移 ${p.v30Tune.shiftSec.toFixed(3)} 秒；B 素材、变速及等待上限保持不变。`,p.v30Eq?'EQ 在 V3 模板附近随源频段功率变化：低/高最多 3 dB，中频最多 2 dB，每秒最多改变 3 dB。':'沿用 V3 固定 EQ。',`B 在最后 ${Math.min(p.duration,120/a.bpm).toFixed(3)} 秒沿用原干湿曲线恢复原声。`]
+  if(p.v30Eq){result.strategy.actualBMidDb=null;result.features.push({key:'v30_eq',name:'局部频段功率与同步人声',source:'/alignment/bandFrames + /alignment/phrases',effect:'只改变 EQ 系数，不改变选点、增益或时长；每个控制点含 A/B 源时间与原始帧行号'});result.strategy.automation=undefined}
+  Object.assign(result,{v30Tune:p.v30Tune,v30Eq:p.v30Eq||null})
+  result.limitations.push('边界只做声学核验，未新增语义歌词识别；段落标签仍为模型候选')
  }
  return result
 }

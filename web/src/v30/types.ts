@@ -1,0 +1,4 @@
+import type {EqPoint} from '../phrase/types'
+export type ExitAssessment={sourceBound:boolean;gridValid:boolean;lastBeat:number|null;nextDownbeat:number;sectionDistance:number|null;activePhraseId:string|null;tailRemaining:number;sourceRows:unknown;conflicts:unknown[];reason:string}
+export type V30Tune={version:'v30-small-correction-v1';enabled:boolean;originalPlanId:string;originalStart:number;originalEnd:number;shiftSec:number;before:ExitAssessment;after:ExitAssessment;reason:string;considered:{end:number;eligible:boolean;assessment:ExitAssessment}[];preserved:{duration:number;assetSha256:string;windowId:string;rate:number;gain:'V3 full-overlap linear';budget:number}}
+export type V30Eq={version:'v30-eq-only-v1';a:EqPoint[];b:EqPoint[];template:{a:Omit<EqPoint,'t'>;b:Omit<EqPoint,'t'>};evidence:any[];sources:unknown;limits:{lowHighDb:number;midDb:number;slewDbPerSec:number};limitations:string[]}
