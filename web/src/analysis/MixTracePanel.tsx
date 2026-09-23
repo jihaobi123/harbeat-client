@@ -1,3 +1,4 @@
+import DecisionTracePanel from '../realtime/DecisionTracePanel'
 import {useEffect,useState} from 'react'
 import type {Report} from './data'
 import {download} from './data'
@@ -41,7 +42,7 @@ export function SessionEvidence({session}:{session:SessionSnapshot}){
  const events=logs.filter(x=>x.requestId===r.requestId),s=events.find(x=>x.kind==='plan_scheduled'),o=events.find(x=>x.kind==='request_outcome'),d=s?.plan?.decision
  return <details key={i}><summary>{r.wallTime||''} · {r.intent?.style||'不限风格'} · {r.intent?.energy||r.intent?.kind||'未知请求'} · {o?.outcome||'未记录最终结果'}</summary>
  <p>{title(r.sourceTrackId)} 原曲 {fmt(r.sourcePosition)} 秒触发；预算 {fmt(r.budgetSec)} 秒。{o?.reason||'还没有最终结果。'}</p>
- {s&&<><p><b>{title(s.plan?.from)} → {title(s.plan?.to)}</b> · {s.selection?.reason||'旧日志没有记录排名原因'}</p><ul>{d?.pointReasons?.map((x:string,j:number)=><li key={j}>{x}</li>)}</ul><p>{d?.strategy?.selectionReason}</p><p>{d?.strategy?.midDuck?.reason}</p><details><summary>选点、人声、能量、风格、变速和 EQ 完整证据</summary><pre>{JSON.stringify(d||s.plan,null,2)}</pre></details></>}
+ {s&&<><p><b>{title(s.plan?.from)} → {title(s.plan?.to)}</b> · {s.selection?.reason||'旧日志没有记录排名原因'}</p><ul>{d?.pointReasons?.map((x:string,j:number)=><li key={j}>{x}</li>)}</ul><p>{d?.strategy?.selectionReason}</p><p>{d?.strategy?.midDuck?.reason}</p><DecisionTracePanel trace={s.trace}/><details><summary>选点、人声、能量、风格、变速和 EQ 完整证据</summary><pre>{JSON.stringify(d||s.plan,null,2)}</pre></details></>}
  {events.filter(x=>x.kind==='decision_search').map((search,j)=><details key={j}><summary>{search.phase} · {search.result?.candidateCount||0} 个合格候选</summary><ul>{search.result?.exclusions?.map((x:any,k:number)=><li key={k}>{x.track} / {x.windowId||'整曲'}：{x.reason}（{x.code}，{x.count}次）</li>)}</ul><pre>{JSON.stringify(search.result,null,2)}</pre></details>)}
  <details><summary>请求事件链与失败位置</summary><pre>{JSON.stringify(events,null,2)}</pre></details></details>
  })}</div>
@@ -63,7 +64,7 @@ export default function MixTracePanel({report,materialOnly=false}:{report?:Repor
  {track&&<MaterialEvidence key={track.id} track={track}/>}
  {!materialOnly&&<><h2>实时混音与过程记录</h2><p>开始后，播放器的计划、执行观察与失败请求会自动保存在本浏览器。跨设备／同事共享请导出后导入；本次没有开放匿名服务器写入。</p><button onClick={()=>setRunning(!running)}>{running?'关闭播放器（将停止播放）':'在本页打开实时混音播放器'}</button> <a className="lab-button" href={LIVE+'index.html'} target="_blank" rel="noreferrer">独立播放页 ↗</a>
  {running&&<iframe title="V3 实时混音与执行日志" src={LIVE+'index.html'} allow="autoplay" className="mix-player-frame"/>}
- <h3>已保存的混音会话</h3><p>同源同浏览器下，独立播放页与这里共享记录。以前只存在内存中且没有导出的会话无法补回；浏览器清理站点数据后本地记录也会删除。</p>
+ <p><a className="lab-button" href="/analysis-lab-static/v3-decision-evidence-20260923/index.html" target="_blank" rel="noreferrer">保护版 · 查看逐行决策证据 ↗</a> <a className="lab-button" href="/analysis-lab-static/v3-decision-evidence-20260923/index.html?mode=v3" target="_blank" rel="noreferrer">V3 下一首 · 查看逐行决策证据 ↗</a></p><h3>已保存的混音会话</h3><p>同源同浏览器下，独立播放页与这里共享记录。以前只存在内存中且没有导出的会话无法补回；浏览器清理站点数据后本地记录也会删除。</p>
  <label className="lab-button">导入同事／历史会话 JSON<input type="file" accept=".json" onChange={e=>{void importing(e.target.files?.[0]);e.target.value=''}}/></label>
  {sessionError&&<p role="alert">会话存储：{sessionError}。可在播放页手动导出完整日志。</p>}
  <select aria-label="选择混音会话" value={sessionId} onChange={e=>{setSessionId(e.target.value);setSession(null)}}><option value="">选择已保存的会话…</option>{sessions.map(s=><option key={s.sessionId} value={s.sessionId}>{s.savedAt} · {s.requests}次请求 · {s.events}个事件</option>)}</select>

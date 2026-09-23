@@ -1,3 +1,4 @@
+import DecisionTracePanel from './DecisionTracePanel'
 import {memo,useMemo,useState} from 'react'
 import type {Track} from './planner'
 import type {Log} from './transport'
@@ -17,7 +18,7 @@ export function decisionReport(logs:Log[],tracks:Track[]){
   rows.push(`## ${r.requestId}`,`${r.wallTime} · ${origin(r)} · ${label[r.intent.kind]||r.intent.kind}`,`当前曲目：${title(tracks,r.sourceTrackId)}；原曲 ${num(r.sourcePosition)} 秒；预算 ${r.budgetSec} 秒。`,`目标：${r.intent.targetId?title(tracks,r.intent.targetId):r.intent.style||'不限风格'}；能量 ${r.intent.energy||r.intent.kind}。`,`结果：${o?`${label[o.outcome]||o.outcome} — ${o.reason}`:s?'已安排，尚无最终结果':'处理中／等待中'}`,'')
   if(comparison)rows.push('受控试听：两版计划与完整候选依据','```json',JSON.stringify(comparison,null,2),'```','')
   if(s){const d=s.plan.decision
-   rows.push(`选择：${title(tracks,s.plan.from)} → ${title(tracks,s.plan.to)}`,`为什么胜出：${s.selection.reason}；合格候选 ${s.selection.candidateCount} 个。`,...d.pointReasons.map((x:string)=>`- ${x}`),`混音方案：${d.strategy.selectionReason}`,`人声处理：${d.strategy.midDuck.reason}`,`低频处理：${d.strategy.eq.lowReason}`,`恢复：${d.strategy.restore.reason}`,`规则分：${d.score.total}；${d.score.components.map((x:any)=>`${x.label} ${x.contribution}`).join('；')}`,`计划 AudioContext：B 开始 ${num(s.start)} 秒，EQ 恢复 ${num(s.restore)} 秒，交接完成 ${num(s.end)} 秒。`,'', '预处理、映射与自动化依据：','```json',JSON.stringify(d,null,2),'```','')
+   rows.push(`选择：${title(tracks,s.plan.from)} → ${title(tracks,s.plan.to)}`,`为什么胜出：${s.selection.reason}；合格候选 ${s.selection.candidateCount} 个。`,...d.pointReasons.map((x:string)=>`- ${x}`),`混音方案：${d.strategy.selectionReason}`,`人声处理：${d.strategy.midDuck.reason}`,`低频处理：${d.strategy.eq.lowReason}`,`恢复：${d.strategy.restore.reason}`,`规则分：${d.score.total}；${d.score.components.map((x:any)=>`${x.label} ${x.contribution}`).join('；')}`,`计划 AudioContext：B 开始 ${num(s.start)} 秒，EQ 恢复 ${num(s.restore)} 秒，交接完成 ${num(s.end)} 秒。`,'', '预处理、映射与自动化依据：','```json',JSON.stringify({decision:d,trace:s.trace||null,protection:s.plan.protection||null},null,2),'```','')
   }
   for(const search of searches){rows.push(`### ${phase[search.phase]||search.phase}`,`剩余预算 ${num(search.remainingBudgetSec)} 秒；合格候选 ${search.result.candidateCount} 个。`)
    for(const e of search.result.exclusions)rows.push(`- ${e.track}${e.windowId?' / '+e.windowId:''}：${e.reason}（${e.code}，${e.count} 次筛除）`)
@@ -44,7 +45,7 @@ export default memo(function DecisionHistory({logs,tracks,eventCount=logs.length
    <ul>{s.plan.decision.pointReasons.map((x:string,i:number)=><li key={i}>{x}</li>)}</ul>
    <h4>为什么采用这个混音方案</h4><p>{s.plan.decision.strategy.selectionReason}</p><p>{s.plan.decision.strategy.midDuck.reason}</p><p>{s.plan.decision.strategy.eq.lowReason} {s.plan.decision.strategy.restore.reason}</p>
    <div className="live-tablewrap"><table><thead><tr><th>评分依据</th><th>原始值</th><th>权重</th><th>贡献</th></tr></thead><tbody>{s.plan.decision.score.components.map((c:any)=><tr key={c.key}><td>{c.label}</td><td>{num(c.value)}</td><td>{c.weight}</td><td>{num(c.contribution)}</td></tr>)}</tbody></table></div>
-   <details><summary>查看预处理来源、人声区间、变速与 EQ 参数</summary><pre>{JSON.stringify(s.plan.decision,null,2)}</pre></details>
+   <DecisionTracePanel trace={s.trace}/><details><summary>查看预处理来源、人声区间、变速与 EQ 参数</summary><pre>{JSON.stringify(s.plan.decision,null,2)}</pre></details>
   </>}
   {searches.map((search,i)=><details key={i}><summary>{phase[search.phase]||search.phase}：{search.result.candidateCount} 个合格候选</summary>
    <p>剩余预算 {num(search.remainingBudgetSec)} 秒；下列次数是逐项筛除次数，并非互相独立的歌曲数量。</p><ul>{search.result.exclusions.map((x:any,j:number)=><li key={j}>{x.track}{x.windowId?' / '+x.windowId:''}：{x.reason}（{x.count} 次）</li>)}</ul>
