@@ -113,10 +113,10 @@ export class LiveTransport{
    await this.ctx.resume();if(token!==this.starting||this.dead)return
    this.cache.protected=new Set([a.native.url,b.native.url,plan.asset.url])
    for(const asset of [a.native,b.native,plan.asset]){await this.cache.load(asset);if(token!==this.starting||this.dead)return}
-   const at=this.ctx.currentTime+.08,offset=Math.max(0,position-4)
+   const at=this.ctx.currentTime+.08,offset=Math.max(0,(experiment.skipWaiting===true?plan.start:position)-4)
    this.active=this.graph(a,at,offset);this.source(this.active,this.cache.buffers.get(a.native.url)!,at,offset);this.active.gain.gain.setValueAtTime(0,at);this.active.gain.gain.linearRampToValueAtTime(.76,at+.02)
    this.paused=false;this.log('track_start',{track:a.id,sourceOffset:offset,scheduledAt:at,assetSha256:a.native.sha256})
-   this.log('comparison_started',{requestId,experiment,plan,sourcePlaybackStart:offset,virtualTriggerSourceSec:position,virtualTriggerContextSec:at+position-offset,cacheProtocol:'A、B和进入素材全部就绪后开始；关闭自动接歌与背景预加载'})
+   this.log('comparison_started',{requestId,experiment,plan,sourcePlaybackStart:offset,virtualTriggerSourceSec:position,virtualTriggerContextSec:position>=offset?at+position-offset:null,skippedWaitingSec:Math.max(0,offset-position),cacheProtocol:'A、B和进入素材全部就绪后开始；关闭自动接歌与背景预加载'})
    this.schedule(plan,at+position-offset,{kind:'next',targetId:b.id},requestId,{best:plan,candidates:[plan],rejected:[],exclusions:[]})
    this.comparisonEnd=at+(plan.end-offset)+8;this.protected()
   }catch(e){if(token===this.starting){this.outcome(requestId,'failed',(e as Error).message);this.stop();this.status=(e as Error).message}throw e}

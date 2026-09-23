@@ -113,3 +113,5 @@ cypher-integration/flutter-app/android/app/src/main/java/io/flutter/plugins/Gene
 /web/dist-experiments/
 
 web/dist-guarded/
+
+web/dist-v31/

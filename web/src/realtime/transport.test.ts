@@ -105,3 +105,10 @@ it('records immutable per-request evidence and exports the exact runtime preproc
  expect(event.trace.a.binding).toBe('missing_snapshot');const recorded=JSON.stringify(event.trace);p.tracks[0].vocals!.push([500,600]);expect(JSON.stringify(event.trace)).toBe(recorded);
  const snapshot=p.export();expect(snapshot.catalog[0].bars).toEqual(p.tracks[0].bars);expect(snapshot.catalog[0].windows).toEqual(p.tracks[0].windows);expect(snapshot.catalog[0].vocals).toEqual(p.tracks[0].vocals);
 })
+it('short audition skips waiting only, preserving both cue times and original trigger evidence',async()=>{
+ const p=await setup();await p.request({kind:'next'},10);const plan=p.pending!.plan;p.stop();
+ await p.playComparison(plan,0,{experimentId:'v31',arm:'variant',midDb:-5,skipWaiting:true});
+ expect(p.active!.offset).toBe(Math.max(0,plan.start-4));expect(p.pending!.plan).toBe(plan);
+ const event=p.logs.filter(x=>x.kind==='comparison_started').at(-1)!;
+ expect(event.virtualTriggerSourceSec).toBe(0);expect(event.virtualTriggerContextSec).toBeNull();expect(event.skippedWaitingSec).toBeGreaterThan(0)
+})
