@@ -27,10 +27,11 @@ function trackTrace(t:Track,start:number,end:number,cut:number,acoustic?:any){
 export function buildDecisionTrace(a:Track,b:Track,p:Plan,midDb=-5){
  const protection=(p as Plan&{protection?:any}).protection||null,protectedMode=!!protection,mode=protection?.automaticExit?'protected-auto':protectedMode?'protected-manual':'v3-ranking'
  const weight=(key:string,fallback:number)=>p.decision?.score.components.find(c=>c.key===key)?.weight??fallback
+ const nominalTargetSec=p.window.bars*240/a.bpm, derivedRate=(p.window.end-p.window.start)/nominalTargetSec
  const features=[
   {key:'sections',name:'段落起止与标签',source:`${CORE}/sections/items`,effect:protectedMode?'硬约束：合并相邻同标签段落，A 在段尾后通过核验的点退出；B 入口不得跨段':`排序：A 退出距任意段落起止 <0.4 秒加 ${weight('boundary',.16)}；没有“必须播完段落”的硬约束`},
   {key:'beats',name:'拍点、小节候选',source:`${CORE}/beat_grid`,effect:'决定候选退出与反推混入；A 混入与网格偏差必须 ≤65 ms。网格行号不等于人工确认的小节编号'},
-  {key:'tempo',name:'BPM 与变速素材',source:`${CORE}/tempo`,effect:`只接收已有对应 A 速度的 B 片段；rate=${p.rate.toFixed(6)}，范围 0.8–1.2；时长使用实际素材 duration`},
+  {key:'tempo',name:'BPM 与变速素材',source:`${CORE}/tempo`,effect:`只接收已有对应 A 速度的 B 片段；rate=${p.rate.toFixed(6)}，范围 0.8–1.2；预制时按窗口小节数×240÷A的BPM确定目标秒数，再以B窗口原长÷目标秒数得到rate。实时使用素材记录，并不直接用两首整曲BPM相除`},
   {key:'vocals',name:'人声活动区间',source:'/documents/vocal_activity/intervals',effect:protectedMode?'硬约束：自动模式 B 入口至正文后 0.1 秒不得有未扩展 VAD 区间；A 用声学间隙保护。扩展占比仅记录，不参与排名或触发中频衰减':`排序项 ${weight('vocal',-.3)}×A占比×B占比；两侧均满足占比≥5%且并集≥0.5秒时，B 中频衰减。不是逐帧冲突或歌词检测`},
   {key:'rms',name:'分离人声 RMS',source:'/extensions/dj_signals/data/vocals/points',effect:mode==='protected-auto'?'硬约束：完整 B 入口与 A 精确退出点通过 ≤−32 dBFS 的声学间隙；实际阈值和帧见下方':mode==='protected-manual'?'不作为自动放行；使用精确点与素材的人工核验记录':'此版本未用于选点'},
   {key:'style',name:'整曲风格候选',source:'/extensions/genre/data/top',effect:protectedMode?'未参与保护版选点':`A、B 标签相同加 ${weight('style',.04)}；模型原始分数仅展示，不是混音成功率`},
@@ -40,7 +41,7 @@ export function buildDecisionTrace(a:Track,b:Track,p:Plan,midDb=-5){
  return {schema:'harbeat.decision-trace.v1',planId:p.id,mode,features,a:trackTrace(a,p.start,p.end,p.end,protection?.automaticExit),b:trackTrace(b,p.window.start,p.window.end,p.window.end,protection?.automaticEntry),protection,
   strategy:{id:'v3_linear_eq',multipleAlgorithmsCompared:false,reason:p.decision?.strategy.selectionReason||'固定 V3 模板，搜索选点而非比较多种音效',actualBMidDb:p.midDuck?midDb:0,selection:p.decision?.score,automation:p.decision?.strategy,
    facts:[`转场 ${p.window.bars} 个候选小节，共 ${p.duration.toFixed(3)} 秒。`,`B 进入速率 ${p.rate.toFixed(6)}，接管后变为 1.0，原曲 BPM ${b.bpm}；目前没有渐进回速。`,`A 在混入点启用低频 −9 dB、高频 −1.4 dB，滤波声在 20 ms 内启用。`,`B 低频 −7 dB、高频 +1.2 dB、中频 ${p.midDuck?midDb:0} dB；最后 ${Math.min(p.duration,120/a.bpm).toFixed(3)} 秒恢复原声。`,...(protection?.sectionTailDelaySec!=null?[`A 比模型段尾晚 ${protection.sectionTailDelaySec.toFixed(3)} 秒退出；因此可能包含下一模型段落开头。`]:[])],interpretation:'以上是实际参数，可用于逐项试听定位；不能单凭数值认定听感问题的原因。'},
-  material:{a:a.native,b:b.native,entry:p.asset,window:p.window,sourceMapping:{bStart:p.window.start,bEnd:p.window.end,rate:p.rate,overlapSec:p.duration,aStart:p.start,aEnd:p.end,restore:p.restore},lane:protection?.entry?.lane||'original_master'},
+  material:{a:a.native,b:b.native,entry:p.asset,window:p.window,tempoPreparation:{beatsPerBar:4,bars:p.window.bars,aBpm:a.bpm,bNativeBpm:b.bpm,nominalTargetSec,derivedRate,assetRate:p.rate,rateMatchesRecipe:Math.abs(derivedRate-p.rate)<1e-6,actualAssetSec:p.asset.duration,formula:'targetSec = bars × 240 / A_BPM; rate = B_source_window_seconds / targetSec; actual duration includes sample rounding'},sourceMapping:{bStart:p.window.start,bEnd:p.window.end,rate:p.rate,overlapSec:p.duration,aStart:p.start,aEnd:p.end,restore:p.restore},lane:protection?.entry?.lane||'original_master'},
   limitations:['人声时间占比不是概率；模型区间不等于语义乐句','原始报告行号从 1 开始展示，JSON 路径从 0 开始','快照仅供追溯，不反向修改选点或音频处理']}
 }
 export type DecisionTrace=ReturnType<typeof buildDecisionTrace>
