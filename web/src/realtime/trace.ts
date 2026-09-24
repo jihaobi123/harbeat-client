@@ -1,4 +1,5 @@
 import type {Plan,Track} from './planner'
+import type {OverlapPlan} from '../vocal-overlap/planner'
 export type PreprocessingEvidence={
  schema:string;reportId:string;reportSha256:string;masterSha256:string;reportSnapshotUrl:string;
  bindingChecks:Record<string,boolean>;sections:{source?:string;version?:string;items:{start_ms:number;end_ms:number;label:string;confidence?:number|null}[]};
@@ -62,6 +63,23 @@ export function buildDecisionTrace(a:Track,b:Track,p:Plan,midDb=-5){
   if(p.v30Eq){result.strategy.actualBMidDb=null;result.features.push({key:'v30_eq',name:'局部频段功率与同步人声',source:'/alignment/bandFrames + /alignment/phrases',effect:'只改变 EQ 系数，不改变选点、增益或时长；每个控制点含 A/B 源时间与原始帧行号'});result.strategy.automation=undefined}
   Object.assign(result,{v30Tune:p.v30Tune,v30Eq:p.v30Eq||null})
   result.limitations.push('边界只做声学核验，未新增语义歌词识别；段落标签仍为模型候选')
+ }
+ const overlap=(p as Partial<OverlapPlan>).vocalOverlap
+ if(overlap){
+  result.mode='vocal-overlap-dynamic'
+  result.features.find(f=>f.key==='vocals')!.effect='排序项 −0.3×对齐后的加权同时人声；保留 0.3 秒源时间扩展，B 按变速映射；原中频触发规则保持不变。权重依据完整渐变，不是实际人声响度或歌词语义。'
+  result.features.push({key:'v30_eq',name:'局部频段功率与同步人声',source:'/alignment/bandFrames + /alignment/phrases',effect:'沿用正式 V3.1 动态 EQ；按本次源区间生成控制点，曲线保存在 v30Eq。'})
+  result.strategy.id='vocal_overlap_v30_dynamic_eq'
+  result.strategy.actualBMidDb=null
+  result.strategy.automation=undefined
+  result.strategy.reason=p.decision!.strategy.selectionReason
+  result.strategy.facts=[`固定 B 原曲片段、变速和 ${p.duration.toFixed(3)} 秒完整重叠；A、B 仍在全程分别线性渐弱、渐强。`,
+   `相对基线移动 ${overlap.shiftSec.toFixed(3)} 秒；替换人声评分，其余排序项与约束保持不变。`,
+   `同时人声 ${overlap.simultaneousSec.toFixed(3)} 秒，渐变加权重叠 ${(100*overlap.weightedOverlap).toFixed(2)}%。`,
+   '动态 EQ 算法保持不变；选点变化后，系数读取新位置的频段与活动证据。']
+  result.strategy.interpretation='加权重叠是选点代理指标；改进听感需要同曲试听判断。'
+  Object.assign(result,{vocalOverlap:overlap})
+  result.limitations.push('B 时间映射采用预制变速素材的名义倍率，未逐帧测量时间伸缩的局部误差。')
  }
  return result
 }

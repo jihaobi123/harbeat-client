@@ -14,7 +14,8 @@
     "build:v31": "tsc && vite build --config vite.v31.config.ts",
     "build:phrase": "tsc && vite build --config vite.phrase.config.ts",
     "build:v30": "tsc && vite build --config vite.v30.config.ts",
-    "build:v31-release": "tsc && vite build --config vite.v31-release.config.ts"
+    "build:v31-release": "tsc && vite build --config vite.v31-release.config.ts",
+    "build:vocal-overlap": "tsc && vite build --config vite.vocal-overlap.config.ts"
   },
   "dependencies": {
     "@fontsource/oswald": "^5.3.0",

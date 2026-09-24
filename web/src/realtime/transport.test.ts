@@ -145,3 +145,23 @@ it('reports the distinct highest-ranked alternative when correction chooses rank
  expect(e.selection.chosenRank).toBe(2);expect(e.selection.runnerUp.id).toBe(result.candidates[0].id);
  expect(e.selection.runnerUp.id).not.toBe(e.plan.id);
 })
+
+it('exports vocal-overlap ranking evidence while retaining the full linear handoff',async()=>{
+ const {planVocalOverlap}=await import('../vocal-overlap/planner');const p=await setup()
+ for(const track of p.tracks){track.reportId='r';track.provenance={masterSha256:'m',reportSha256:'r',vocalSha256:'v',runId:'run'};track.alignment={schema:'x',status:'candidate',source:{reportId:'r',masterSha256:'m',reportSha256:'r',vocalSha256:'v'},bars:[],phrases:[],exits:[],conflicts:[],bandFrames:[{start:0,end:120,rmsDbfs:-15,low:-20,mid:-22,high:-30}],limitations:[]};track.preprocessing={schema:'harbeat.preprocessing-evidence.v1',reportId:'r',reportSha256:'r',masterSha256:'m',reportSnapshotUrl:'report.json',bindingChecks:{reportHash:true,masterHash:true},sections:{items:[]},beatGrid:{bars_ms:[],beats_ms:[]},tempo:{},vocalActivity:{status:'ready',time_origin:'master_audio_start',unit:'ms',source:{track_id:track.id,analysis_run_id:'run',vocal_sha256:'v'},intervals:[{start_ms:0,end_ms:120000}]},vocalRms:{points:[]},energy:{},genre:{},extensions:[]}}
+ ;(p as any).options={planner:planVocalOverlap,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1'}
+ await p.request({kind:'next'},18)
+ const scheduled=p.logs.find(e=>e.kind==='plan_scheduled')!,search=p.logs.filter(e=>e.kind==='decision_search').at(-1)!
+ expect(search.result.selectedVocalOverlap.version).toBe('vocal-overlap-v1')
+ expect(search.result.candidates[0].vocalOverlap.weightedOverlap).toBeCloseTo(1)
+ expect(p.export().policy.ranking).toContain('gain-weighted')
+ expect(scheduled.selection.strategyReason).toContain('人声评分')
+ expect(scheduled.trace.mode).toBe('vocal-overlap-dynamic')
+ expect(scheduled.trace.strategy.actualBMidDb).toBeNull()
+ expect(scheduled.trace.strategy.automation).toBeUndefined()
+ expect(scheduled.trace.features.find((f:any)=>f.key==='vocals').effect).toContain('加权')
+ expect(scheduled.trace.vocalOverlap.weightedOverlap).toBeCloseTo(1)
+ expect((p.active!.gain.gain as any).events).toContainEqual(['set',.76,p.pending!.start])
+ expect((p.active!.gain.gain as any).events).toContainEqual(['ramp',0,p.pending!.end])
+ expect((p.pending!.deck.gain.gain as any).events).toContainEqual(['ramp',.76,p.pending!.end])
+})
