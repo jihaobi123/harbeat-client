@@ -43,3 +43,23 @@ describe('bounded audio pool across player recreation',()=>{
   cache.dispose();await expect(cache.load(asset)).rejects.toThrow('播放器已关闭')
  })
 })
+
+
+it('aborts an abandoned sole load and never installs its decoded result',async()=>{
+ let release!:(value:AudioBuffer)=>void
+ const decoder=ctx();(decoder.decodeAudioData as any)=vi.fn(()=>new Promise<AudioBuffer>(r=>release=r))
+ vi.stubGlobal('fetch',vi.fn(async()=>new Response(body)))
+ const cache=new AudioCache(decoder,base,()=>{}),controller=new AbortController()
+ const work=cache.load(asset,controller.signal);const rejected=expect(work).rejects.toMatchObject({name:'AbortError'})
+ for(let i=0;i<20&&!release;i++)await new Promise(r=>setTimeout(r,0))
+ controller.abort();release({duration:10,length:10,numberOfChannels:2} as AudioBuffer)
+ await rejected;await Promise.resolve();expect(cache.ready.size).toBe(0);cache.dispose()
+})
+it('cancelling one coalesced waiter does not cancel another owner of that load',async()=>{
+ let release!:()=>void;const hold=new Promise<void>(r=>release=r)
+ vi.stubGlobal('fetch',vi.fn(async()=>{await hold;return new Response(body)}))
+ const cache=new AudioCache(ctx(),base,()=>{}),controller=new AbortController()
+ const abandoned=cache.load(asset,controller.signal),retained=cache.load(asset)
+ const rejected=expect(abandoned).rejects.toMatchObject({name:'AbortError'});controller.abort();release()
+ await rejected;expect((await retained).duration).toBe(10);expect(cache.ready.has(asset.url)).toBe(true);cache.dispose()
+})

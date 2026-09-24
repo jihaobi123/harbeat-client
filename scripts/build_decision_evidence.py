@@ -13,17 +13,21 @@ def attach(catalog, reports, out, media_base, evidence_base):
         actual=sha(raw); master=r['documents']['core']['assets']['master']['sha256']
         assert actual==t['provenance']['reportSha256'], f"report identity mismatch {t['title']}"
         assert master==t['provenance']['masterSha256'], f"audio identity mismatch {t['title']}"
-        core=r['documents']['core']['analysis']; ext=r.get('extensions',{}); va=r['documents']['vocal_activity']
-        genre=ext.get('genre',{}).get('data',{}); vocals=ext.get('dj_signals',{}).get('data',{}).get('vocals',{})
-        producer=va.get('producer',{})
+        core=r['documents']['core']['analysis']; ext=r.get('extensions') or {}; va=r['documents']['vocal_activity']
+        # Failed optional extensions can explicitly carry null data. Extract an
+        # empty snapshot without rewriting the source document or its raw hash.
+        genre=(ext.get('genre') or {}).get('data') or {}
+        signals=(ext.get('dj_signals') or {}).get('data') or {}
+        vocals=signals.get('vocals') or {}
+        producer=va.get('producer') or {}
         e=dict(schema='harbeat.preprocessing-evidence.v1',reportId=r['id'],reportSha256=actual,masterSha256=master,
             reportSnapshotUrl=evidence_base+actual+'.json',bindingChecks={'reportHash':True,'masterHash':True},
             sections=core['sections'],beatGrid=core['beat_grid'],tempo=core['tempo'],energy=core['energy'],
             vocalActivity={k:va[k] for k in ['intervals','status','needs_review','time_origin','unit','coverage_ratio'] if k in va},
             vocalRms={k:vocals[k] for k in ['points','parameters','asset','source','status','limitations'] if k in vocals},
             genre={k:genre[k] for k in ['top','aggregation','backend','model_files','definition'] if k in genre},
-            extensions=[{'name':k,'status':v.get('status','unknown'),'path':'/extensions/'+k} for k,v in ext.items()])
-        e['vocalActivity']['source']={k:va.get('source',{}).get(k) for k in ['analysis_run_id','manifest_sha256','track_id','vocal_sha256']}
+            extensions=[{'name':k,'status':(v or {}).get('status','unknown'),'path':'/extensions/'+k} for k,v in ext.items()])
+        e['vocalActivity']['source']={k:(va.get('source') or {}).get(k) for k in ['analysis_run_id','manifest_sha256','track_id','vocal_sha256']}
         e['vocalActivity']['producer']={k:producer[k] for k in ['model','package_version','implementation','model_sha256','backend','parameters'] if k in producer}
         e['vocalRms'].setdefault('points',[])
         target=out/'evidence'/f'{actual}.json';target.parent.mkdir(parents=True,exist_ok=True)

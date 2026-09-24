@@ -125,3 +125,6 @@ web/dist-v31-release/
 
 # Independent vocal overlap scoring experiment
 web/dist-vocal-overlap/
+
+# Independent continuous player build
+web/dist-continuous/

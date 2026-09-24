@@ -22,28 +22,45 @@ export class AudioBufferPool{
  }
 }
 export class AudioCache{
- private loading=new Map<string,Promise<AudioBuffer>>()
+ private loading=new Map<string,{promise:Promise<AudioBuffer>;controller:AbortController;users:number}>()
  protected=new Set<string>();disposed=false
  readonly pool:AudioBufferPool
  constructor(private ctx:AudioContext,private base:URL,private progress:(s:string)=>void,pool?:AudioBufferPool){this.pool=pool||new AudioBufferPool();this.pool.owners.add(this)}
  get buffers(){return this.pool.buffers}
  get ready(){return new Set(this.buffers.keys())}
  get sizeMB(){return Math.round(this.pool.bytes/1024/1024)}
- async load(asset:Asset){
+ async load(asset:Asset,signal?:AbortSignal){
+  signal?.throwIfAborted()
   if(this.disposed)throw new Error('播放器已关闭')
   const identity=`${new URL(asset.url,this.base)}|${asset.sha256}|${asset.duration}|${this.ctx.sampleRate}`
   const hit=this.buffers.get(asset.url)
   if(hit&&this.pool.identities.get(asset.url)===identity){this.buffers.delete(asset.url);this.buffers.set(asset.url,hit);this.progress('复用已就绪音频');return hit}
   if(hit)this.pool.delete(asset.url)
-  const current=this.loading.get(identity);if(current)return current
-  const work=this.fetch(asset,identity).finally(()=>this.loading.delete(identity));this.loading.set(identity,work);return work
+  let work=this.loading.get(identity)
+  if(work?.controller.signal.aborted)work=undefined
+  if(!work){
+   const controller=new AbortController()
+   const created={controller,users:0,promise:Promise.resolve(null as unknown as AudioBuffer)}
+   created.promise=this.fetch(asset,identity,controller).finally(()=>{if(this.loading.get(identity)===created)this.loading.delete(identity)})
+   work=created;this.loading.set(identity,created)
+  }
+  const shared=work;shared.users++
+  return new Promise<AudioBuffer>((resolve,reject)=>{
+   let finished=false
+   const finish=(error:unknown,buffer?:AudioBuffer)=>{if(finished)return;finished=true;signal?.removeEventListener('abort',abort);shared.users--;if(!shared.users&&!this.buffers.has(asset.url))shared.controller.abort();if(error)reject(error);else resolve(buffer!)}
+   const abort=()=>finish(signal?.reason||new DOMException('音频准备已取消','AbortError'))
+   signal?.addEventListener('abort',abort,{once:true})
+   if(signal?.aborted)abort()
+   shared.promise.then(buffer=>finish(null,buffer),error=>finish(error))
+  })
  }
- private async fetch(asset:Asset,identity:string){
+ private async fetch(asset:Asset,identity:string,controller:AbortController){
   const url=new URL(asset.url,this.base);url.searchParams.set('sha256',asset.sha256)
   let cached=await readEncoded(url.href)
   if(cached&&await fingerprint(cached)!==asset.sha256){await deleteEncoded(url.href);cached=null}
   if(this.disposed)throw new Error('播放器已关闭')
-  this.progress(cached?'正在读取本机音频缓存…':'正在读取音频素材…');const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),180000)
+  controller.signal.throwIfAborted()
+  this.progress(cached?'正在读取本机音频缓存…':'正在读取音频素材…');const timer=setTimeout(()=>controller.abort(),180000)
   let bytes:ArrayBuffer
   try{
    if(cached){bytes=cached}else{
@@ -64,7 +81,8 @@ export class AudioCache{
   this.progress('正在解码并核对音频…');const buffer=await this.ctx.decodeAudioData(bytes)
   if(this.disposed)throw new Error('播放器已关闭')
   if(Math.abs(buffer.duration-asset.duration)>.04)throw new Error('解码时长与素材记录不一致')
+  controller.signal.throwIfAborted()
   const installed=this.pool.put(asset.url,identity,buffer);this.progress('素材已就绪');return installed
  }
- dispose(){this.disposed=true;this.protected.clear();this.pool.owners.delete(this)}
+ dispose(){this.disposed=true;for(const work of this.loading.values())work.controller.abort();this.protected.clear();this.pool.owners.delete(this)}
 }

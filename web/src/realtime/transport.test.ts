@@ -165,3 +165,56 @@ it('exports vocal-overlap ranking evidence while retaining the full linear hando
  expect((p.active!.gain.gain as any).events).toContainEqual(['ramp',0,p.pending!.end])
  expect((p.pending!.deck.gain.gain as any).events).toContainEqual(['ramp',.76,p.pending!.end])
 })
+
+async function segmented(){const p=await setup();(p as any).options={autoNext:false,prewarm:false};for(const track of p.tracks){track.duration=240;track.native.duration=150;track.bars=Array.from({length:100},(_,i)=>i*2.4);track.sections=[{start:0,end:240,label:'verse'}];track.vocals=[[0,240]];track.energy=[{start:0,end:240,value:.5}];track.windows[0].variants.b={...track.windows[0].variants.a,url:track.id+'-clip.flac'};track.audioSegments=[{start:0,end:150,asset:track.native},...Array.from({length:3},(_,i)=>({start:150+i*30,end:180+i*30,asset:{url:track.id+'-'+i+'.flac',sha256:'x',bytes:1,duration:30}}))]}return p}
+async function drain(){for(let i=0;i<12;i++)await Promise.resolve()}
+describe('continuous full-song transport',()=>{
+ it('seeks into a late chunk and schedules the next one without a clock gap',async()=>{const p=await segmented();await p.start('a',181);await drain();expect((p.active!.sources[0] as any).starts[0]).toEqual([.08,1,29]);expect((p.active!.sources[1] as any).starts[0]).toEqual([29.08,0,30]);expect(p.cache.protected.has('a.flac')).toBe(false)})
+ it('keeps pause intent after seek and never resumes as a side effect of preparation',async()=>{const p=await segmented();await p.togglePause();await p.seek(181);expect(p.paused).toBe(true);expect(p.ctx.state).toBe('suspended');await p.prepareNext('b');expect(p.paused).toBe(true);expect(p.ctx.state).toBe('suspended');expect(p.position).toBe(181)})
+ it('prepares the selected next song while preserving the current deck and clock',async()=>{const p=await segmented();const deck=p.active;await p.prepareNext('b');expect(p.active).toBe(deck);expect(p.pending).toBeNull();expect(p.cache.ready.has('b.flac')).toBe(true);expect(p.cache.ready.has('clip.flac')).toBe(true);p.cancelPreparation();expect(p.cache.protected.has('b.flac')).toBe(false)})
+ it('a stopped prefetch cannot retain pins or install a stale selection',async()=>{const p=await segmented();let complete!:(b:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>complete=r));const work=p.prepareNext('b');await Promise.resolve();p.stop();complete({duration:150} as AudioBuffer);await expect(work).rejects.toMatchObject({name:'AbortError'});expect(p.cache.protected.size).toBe(0);expect(p.active).toBeNull()})
+ it('suspends before a missing boundary and resumes only after verified audio is available',async()=>{const p=await segmented();await p.start('a',110);let complete!:(b:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>complete=r));(p.ctx as any).currentTime=10.08;(p as any).tick();(p.ctx as any).currentTime=39.8;(p as any).tick();await drain();expect(p.buffering).toBe(true);expect(p.ctx.state).toBe('suspended');complete({duration:30} as AudioBuffer);await drain();expect(p.buffering).toBe(false);expect(p.ctx.state).toBe('running');expect((p.active!.sources[1] as any).starts[0]).toEqual([40.08,0,30])})
+ it('honors a user pause while a missing chunk completes',async()=>{const p=await segmented();await p.start('a',110);let complete!:(b:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>complete=r));(p.ctx as any).currentTime=10.08;(p as any).tick();(p.ctx as any).currentTime=39.8;(p as any).tick();await drain();await p.togglePause();complete({duration:30} as AudioBuffer);await drain();expect(p.paused).toBe(true);expect(p.ctx.state).toBe('suspended')})
+ it('continues B into body chunks and allows another full handoff in the same session',async()=>{const p=await segmented();await p.start('a',140);await drain();await p.request({kind:'next',targetId:'b'},10);const first=p.pending!;expect(first).not.toBeNull();expect((first.deck.sources[1] as any).starts[0]).toEqual([first.end,4.8,145.2]);(p.ctx as any).currentTime=first.end+.01;(p as any).tick();await p.prepareNext('a');await p.request({kind:'next',targetId:'a'},10);expect(p.pending!.plan.to).toBe('a');expect(p.sessionId).toBe(p.logs.find(x=>x.kind==='track_start')!.sessionId)})
+})
+
+
+it('cancelling a mix request does not strand an independent segment buffering pause',async()=>{
+ const p=await segmented();await p.start('a',110);let complete!:(b:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>complete=r));(p.ctx as any).currentTime=10.08;(p as any).tick();(p.ctx as any).currentTime=39.8;(p as any).tick();p.cancel();await drain();complete({duration:30} as AudioBuffer);await drain();expect(p.buffering).toBe(false);expect(p.ctx.state).toBe('running')
+})
+
+it('replaces a stale selected-next fetch without stopping A or losing the latest pins',async()=>{
+ const p=await segmented(),c=JSON.parse(JSON.stringify(p.tracks[1]));c.id='c';c.native={...c.native,url:'c.flac'};c.audioSegments[0].asset=c.native;c.windows[0].variants.a={...c.windows[0].variants.a,url:'c-clip.flac'};p.tracks.push(c)
+ const active=p.active;let release!:(b:AudioBuffer)=>void
+ const original=p.cache.load;p.cache.load=vi.fn((asset,signal)=>asset.url==='b.flac'?new Promise<AudioBuffer>(r=>release=r):original(asset,signal))
+ const old=p.prepareNext('b'),rejected=expect(old).rejects.toMatchObject({name:'AbortError'});await Promise.resolve();await p.prepareNext('c');release({duration:150} as AudioBuffer);await rejected
+ expect(p.active).toBe(active);expect(p.cache.protected.has('b.flac')).toBe(false);expect(p.cache.protected.has('c.flac')).toBe(true)
+})
+it('late background wakeups restore the last covered source point and log the interruption',async()=>{
+ const p=await segmented();await p.start('a',110);let release!:(b:AudioBuffer)=>void
+ const original=p.cache.load;p.cache.load=vi.fn((asset,signal)=>asset.url==='a-0.flac'?new Promise<AudioBuffer>(r=>release=r):original(asset,signal))
+ ;(p.ctx as any).currentTime=10.08;(p as any).tick();(p.ctx as any).currentTime=41;(p as any).tick();await drain()
+ p.cache.load=original;release({duration:30} as AudioBuffer);await drain()
+ expect(p.logs.some(l=>l.kind==='segment_deadline_missed'&&l.resumeSourceSec===150)).toBe(true);expect(p.position).toBe(150);expect(p.active?.track.id).toBe('a')
+})
+it('stop prevents a buffering completion from resuming the audio context',async()=>{
+ const p=await segmented();await p.start('a',110);let complete!:(b:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>complete=r));(p.ctx as any).currentTime=10.08;(p as any).tick();(p.ctx as any).currentTime=39.8;(p as any).tick();await drain();p.stop();complete({duration:30} as AudioBuffer);await drain();expect(p.ctx.state).toBe('suspended');expect(p.active).toBeNull();expect(p.cache.protected.size).toBe(0)
+})
+
+it('loads the correct B body chunk when an entry ends exactly at the prefix boundary',async()=>{
+ const p=await segmented(),b=p.tracks[1];b.windows[0].start=145.2;b.windows[0].end=150
+ await p.request({kind:'next',targetId:'b'},10);expect(p.pending).not.toBeNull()
+ const body=p.pending!.deck.sources[1] as any
+ expect(body.buffer).toBe(p.cache.buffers.get('b-0.flac'));expect(body.starts[0]).toEqual([p.pending!.end,0,30])
+})
+
+it('records each full-song source range and hash at its scheduled audio-clock time',async()=>{
+ const p=await segmented();await p.start('a',181);await drain();const rows=p.logs.filter(l=>l.kind==='native_segment_scheduled')
+ expect(rows).toHaveLength(2);expect(rows[0]).toMatchObject({track:'a',sourceStart:181,sourceEnd:210,scheduledContextSec:.08,assetUrl:'a-1.flac',assetSha256:'x'});expect(rows[1]).toMatchObject({sourceStart:210,sourceEnd:240,scheduledContextSec:29.08})
+})
+
+it('does not pause a committed handoff for an outgoing chunk that starts after A retires',async()=>{
+ const p=await segmented(),original=p.cache.load;p.tracks[0].bars=[145,149.8,154.6]
+ p.cache.load=vi.fn((asset,signal)=>asset.url==='a-0.flac'?new Promise<AudioBuffer>(()=>{}):original(asset,signal));await p.start('a',140);await drain();await p.request({kind:'next',targetId:'b'},10)
+ const pending=p.pending!;expect(pending).not.toBeNull();expect(pending.plan.end).toBe(149.8);(p.ctx as any).currentTime=pending.end-.1;(p as any).tick();await drain();expect(p.buffering).toBe(false);expect(p.ctx.state).toBe('running')
+})
