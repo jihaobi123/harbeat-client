@@ -15,15 +15,52 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 class ContinuousLibraryTests(unittest.TestCase):
+    def test_runtime_section_end_clips_only_millisecond_representation_error(self):
+        rows=[{'start_ms':0,'end_ms':193788,'label':'outro'}]
+        duration=193.7879365079365
+        original=copy.deepcopy(rows)
+        result=MODULE.runtime_sections(rows,duration)
+        self.assertEqual(result[0]['end'],duration)
+        self.assertEqual(rows,original)
+        self.assertEqual(MODULE.runtime_sections([{'start_ms':0,'end_ms':193800,'label':'bad'}],duration)[0]['end'],193.8)
+
+    def test_alignment_scope_uses_observed_vocal_coverage_only_within_one_sample(self):
+        track={'duration':126.77420833333333}
+        signals={'vocals':{'coverage_sec':126.77419501133786}}
+        self.assertEqual(MODULE.alignment_duration(track,signals),signals['vocals']['coverage_sec'])
+        self.assertEqual(MODULE.alignment_duration(track,{'vocals':{'coverage_sec':120}}),track['duration'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'FFmpeg not installed')
+    def test_48khz_source_is_sample_bound_after_native_resampling(self):
+        import soundfile as sf
+        import numpy as np
+        class Registry:
+            def register(self,path,sha):return {'id':sha}
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);source=root/'source.wav';out=root/'out';out.mkdir()
+            frames=48_000*151+17
+            samples=np.sin(np.arange(frames)*2*np.pi*439/48000)*.3
+            sf.write(source,np.column_stack([samples,samples]),48000,subtype='PCM_16')
+            reference=root/'reference.wav'
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-i',str(source),'-ar','44100','-ac','2','-c:a','pcm_s16le',str(reference)],check=True)
+            track={'id':'b','duration':frames/48000,'bpm':120,'mixStatus':'unavailable','provenance':{'masterSha256':MODULE.file_sha(source)},'windows':[]}
+            result,_=MODULE.build_track(track,source,[],MODULE.Renderer(out,Registry()),out)
+            self.assertEqual(result['playStatus'],'ready')
+            self.assertEqual(result['duration'],sf.info(reference).duration)
+            by_hash={json.loads(path.read_text())['sha256']:path.with_suffix('.flac') for path in (out/'media').glob('*.json')}
+            self.assertEqual(len(result['audioSegments']),6)
+            rendered=np.concatenate([sf.read(by_hash[s['asset']['sha256']],dtype='int16')[0] for s in result['audioSegments']])
+            np.testing.assert_array_equal(rendered,sf.read(reference,dtype='int16')[0])
+
     def test_segments_cover_full_sample_timeline_without_rounding_gaps(self):
         frames = 193 * 44100 + 123
         rows = MODULE.segment_bounds(frames, 44100)
-        self.assertEqual(rows[0], (0, 150 * 44100))
+        self.assertEqual(rows[0], (0, 30 * 44100))
         self.assertEqual(rows[-1][1], frames)
         self.assertEqual(rows[1][0], rows[0][1])
         self.assertTrue(all(b > a for a,b in rows))
         self.assertEqual(sum(b-a for a,b in rows), frames)
-        self.assertEqual(MODULE.segment_bounds(74*44100,44100), [(0,74*44100)])
+        self.assertEqual(MODULE.segment_bounds(74*44100,44100), [(0,30*44100),(30*44100,60*44100),(60*44100,74*44100)])
 
     def test_all_entries_remain_and_manual_labels_are_not_model_style(self):
         items=[{'track_id':'one','title':'One','source_collection':'KPOP','style_labels':['manual-pop']},

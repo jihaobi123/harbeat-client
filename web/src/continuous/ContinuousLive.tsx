@@ -5,6 +5,7 @@ import {planVocalOverlap} from '../vocal-overlap/planner'
 import {filterLibrary,readLibraryIndex,suggestNext,TrackLibrary,type LibraryEntry,type LibraryIndex} from './catalog'
 import {NextSelection,type SelectionState} from './selection'
 import {automaticAction} from './automatic'
+import {initializeFromGesture} from './activation'
 import './continuous.css'
 
 const base=new URL('.',location.href)
@@ -36,7 +37,7 @@ export default function ContinuousLive(){
   if(transport.current)return transport.current
   if(initializing.current)return initializing.current
   const player=new LiveTransport([],()=>{if(alive.current)refresh(x=>x+1)},base,{planner:planVocalOverlap,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1',noPlanMessage:'这个时间附近没有合适的交接点，当前歌曲会继续播放。可以稍后重试或选另一首。'})
-  const task=player.initialize().then(()=>{
+  const task=initializeFromGesture(player).then(()=>{
    if(!alive.current){player.dispose();throw Error('页面已关闭')}
    transport.current=player;player.setVolume(volumeRef.current)
    next.current=new NextSelection(id=>library.current!.load(id),{install:()=>install(),prepare:id=>player.prepareNext(id)},state=>{if(alive.current)setSelection({...state})})
@@ -50,6 +51,9 @@ export default function ContinuousLive(){
  }
  function choose(id:string,automaticChoice=false){
   setNotice('');const player=transport.current;if(!player)return
+  // A seek replaces the active source asynchronously. Cancelling here would
+  // abort that seek and leave no song for prepareNext to attach to.
+  if(!player.current){if(player.busy)setNotice('正在加载播放位置，请稍候再选下一首。');return}
   selectionRevision.current++
   if(!automaticChoice){autoExcluded.current.clear();autoAt.current=player.position+Math.min(12,Math.max(0,(player.current?.duration||0)-player.position-22))}
   if((player.pending||player.busy)&&!player.gate.locked)player.cancel()
@@ -110,7 +114,7 @@ export default function ContinuousLive(){
     <div className="disc" aria-hidden="true"><div>H<span>•</span>B</div></div>
     <h2>{current?.title||'从曲库开始'}</h2><p className="song-meta">{current?`${entries.find(e=>e.id===current.id)?.collection||''} · ${current.bpm.toFixed(1).replace('.0','')} BPM`:'三组音乐，一段接着一段'}</p>
     <div className="progress"><input aria-label="播放进度" type="range" min={0} max={current?.duration||1} step={.1} value={seekDraft??position} disabled={!current||!!t?.busy} onChange={e=>setSeekDraft(Number(e.target.value))} onPointerUp={()=>void seek()} onKeyUp={e=>{if(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(e.key))void seek()}} onBlur={()=>void seek()}/><div><span>{clock(seekDraft??position)}</span><span>{clock(current?.duration||0)}</span></div></div>
-    <div className="play-actions"><button className="primary" disabled={!current} onClick={()=>{setError('');void t?.togglePause().catch(e=>setError(e.message))}}>{t?.paused?'▶ 继续播放':'Ⅱ 暂停'}</button><button disabled={!current&&!starting} onClick={stop}>停止</button><label className="volume">音量<input aria-label="音量" type="range" min={0} max={1} step={.01} value={volume} onChange={e=>{const v=Number(e.target.value);setVolume(v);t?.setVolume(v)}}/></label></div>
+    <div className="play-actions"><button className="primary" disabled={!current} onClick={()=>{setError('');void t?.togglePause().catch(e=>setError(e.message))}}>{t?.paused?'▶ 继续播放':'Ⅱ 暂停'}</button><button disabled={!current&&!starting&&!t?.busy} onClick={stop}>停止</button><label className="volume">音量<input aria-label="音量" type="range" min={0} max={1} step={.01} value={volume} onChange={e=>{const v=Number(e.target.value);setVolume(v);t?.setVolume(v)}}/></label></div>
     <p className="transport-status" role="status">{starting?(t?.status||'正在读取歌曲资料…'):t?.status||'点选任意歌曲，开始播放完整原曲。'}</p>
    </div>
    <div className="next card"><div className="card-top"><span className="eyebrow">接下来</span><label className="auto-toggle"><input type="checkbox" checked={automatic} onChange={e=>setAutomatic(e.target.checked)}/>自动续播</label></div>
@@ -125,7 +129,7 @@ export default function ContinuousLive(){
    <div className="filters"><div className="collection-tabs" role="group" aria-label="曲库分组"><button className={!collection?'selected':''} onClick={()=>{setCollection('');setLabel('');setLimit(40)}}>全部 <span>{entries.length}</span></button>{collections.map(c=><button key={c} className={collection===c?'selected':''} onClick={()=>{setCollection(c);setLabel('');setLimit(40)}}>{c} <span>{entries.filter(e=>e.collection===c).length}</span></button>)}</div><select aria-label="筛选风格" value={label} onChange={e=>{setLabel(e.target.value);setLimit(40)}}><option value="">全部风格</option>{labels.map(l=><option key={l} value={l}>{l}</option>)}</select></div>
    {!index&&!error&&<p className="empty">正在载入歌曲清单…</p>}
    {index&&visible.length===0&&<p className="empty">没有找到符合条件的歌曲，试试其他名称或分组。</p>}
-   <div className="song-list">{visible.slice(0,limit).map((entry,i)=>{const isCurrent=current?.id===entry.id,isNext=selection.id===entry.id,unavailable=entry.playStatus!=='ready'||!!current&&entry.mixStatus!=='ready';return <article className={`song-row ${isCurrent?'current':''} ${isNext?'queued':''}`} key={entry.id}><span className="song-number">{isCurrent?'♫':String(i+1).padStart(2,'0')}</span><div className="song-name"><h3>{entry.title}</h3><p>{entry.collection}{entry.styleLabels.length?' / '+entry.styleLabels.join(' · '):''}{unavailable?' · '+(entry.reason||'暂未准备好'):''}</p></div><span className="tempo">{entry.bpm!==null&&Number.isFinite(entry.bpm)?entry.bpm.toFixed(0):'—'}<small>BPM</small></span><span className="duration">{entry.duration===null?'—':clock(entry.duration)}</span><button aria-label={`${!current?'播放':isCurrent?'正在播放':isNext?'已选':'接下来播'} ${entry.title}`} disabled={unavailable||isCurrent||starting} className={isNext?'selected':''} onClick={()=>current?choose(entry.id):void startSong(entry)}>{isCurrent?'播放中':isNext?'已选 ✓':current?'接下来播':'播放 ↗'}</button></article>})}</div>
+   <div className="song-list">{visible.slice(0,limit).map((entry,i)=>{const isCurrent=current?.id===entry.id,isNext=selection.id===entry.id,unavailable=entry.playStatus!=='ready'||!!current&&entry.mixStatus!=='ready';return <article className={`song-row ${isCurrent?'current':''} ${isNext?'queued':''}`} key={entry.id}><span className="song-number">{isCurrent?'♫':String(i+1).padStart(2,'0')}</span><div className="song-name"><h3>{entry.title}</h3><p>{entry.collection}{entry.styleLabels.length?' / '+entry.styleLabels.join(' · '):''}{unavailable?' · '+(entry.reason||'暂未准备好'):''}</p></div><span className="tempo">{entry.bpm!==null&&Number.isFinite(entry.bpm)?entry.bpm.toFixed(0):'—'}<small>BPM</small></span><span className="duration">{entry.duration===null?'—':clock(entry.duration)}</span><button aria-label={`${!current?'播放':isCurrent?'正在播放':isNext?'已选':'接下来播'} ${entry.title}`} disabled={unavailable||isCurrent||starting||!!t?.busy&&!current} className={isNext?'selected':''} onClick={()=>current?choose(entry.id):void startSong(entry)}>{isCurrent?'播放中':isNext?'已选 ✓':current?'接下来播':'播放 ↗'}</button></article>})}</div>
    {visible.length>limit&&<button className="more" onClick={()=>setLimit(n=>n+40)}>再显示 {Math.min(40,visible.length-limit)} 首</button>}
    {index&&<p className="library-note">{readyCount} 首可播放 · 分组与风格沿用原有曲库标签。选歌不打断当前播放。</p>}
   </section>

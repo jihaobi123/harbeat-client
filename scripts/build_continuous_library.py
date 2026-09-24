@@ -15,12 +15,27 @@ from pathlib import Path
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 FORMAT = 'flac-s16-stereo-44100-frame4096-v1'
 SR = 44100
+
+def runtime_sections(rows,duration):
+    # Contract timestamps have millisecond precision; decoded audio has sample
+    # precision. Keep the signed report intact and normalize only a <1 ms tail.
+    return [dict(start=x['start_ms']/1000,
+                 end=duration if 0<x['end_ms']/1000-duration<=.001 else x['end_ms']/1000,
+                 label=x['label']) for x in rows]
+
+def alignment_duration(track,signals):
+    coverage=(signals.get('vocals') or {}).get('coverage_sec')
+    duration=track['duration']
+    # A resampled stem can end one output sample before its 48 kHz master.
+    # Analyze only the observed range; a larger gap still fails the original gate.
+    return coverage if isinstance(coverage,(int,float)) and 0<duration-coverage<=1/SR else duration
 
 def file_sha(path):
     value=hashlib.sha256()
@@ -37,7 +52,9 @@ def atomic_json(path, value, compressed=False):
 
 def segment_bounds(frames, sample_rate=SR):
     if not isinstance(frames,int) or frames<=0 or sample_rate<=0:raise ValueError('invalid sample duration')
-    rows=[];start=0;end=min(frames,150*sample_rate)
+    # A short first segment avoids a 150-second FLAC download before first play.
+    # Entry-window search retains its separate, unchanged 150-second scope.
+    rows=[];start=0;end=min(frames,30*sample_rate)
     while start<frames:
         rows.append((start,end));start=end;end=min(frames,end+30*sample_rate)
     return rows
@@ -114,7 +131,7 @@ def prepare_track(item,manifest,raw,report,nas,out,public,verify=True):
                style=top.get('style') or ('unknown:'+item['track_id']),styleScore=top.get('score',0),collection=item['source_collection'],
                styleLabels=item.get('style_labels',[]),native={'url':public+'pending.flac'},nativeDuration=min(150,duration),
                bars=[v/1000 for v in analysis['beat_grid']['bars_ms'] if v/1000<duration],
-               sections=[dict(start=x['start_ms']/1000,end=x['end_ms']/1000,label=x['label']) for x in analysis['sections']['items']],
+               sections=runtime_sections(analysis['sections']['items'],duration),
                vocals=[[x['start_ms']/1000,x['end_ms']/1000] for x in vad['intervals']],
                energy=[dict(start=x['start_ms']/1000,end=x['end_ms']/1000,value=x['value']) for x in analysis['energy']['curve']],
                windows=[],warnings=['模型段落、拍网格均非人工真值']+(['BPM 待确认'] if analysis['tempo'].get('needs_review') else []),
@@ -130,7 +147,7 @@ def prepare_track(item,manifest,raw,report,nas,out,public,verify=True):
     temp=out/'scratch'/(track['id']+'.json');atomic_json(temp,{'tracks':[track]})
     track=attach(temp,{report['id']:(raw,report)},out,public,public+'evidence/')['tracks'][0]
     temp.unlink()
-    track['alignment']=analyze_alignment(track,signals)
+    track['alignment']=analyze_alignment({**track,'duration':alignment_duration(track,signals)},signals)
     if track['alignment']['status']!='candidate' or not track['alignment'].get('bandFrames'):
         reasons.append('dynamic EQ alignment unavailable: '+'; '.join(track['alignment'].get('limitations',[])[-1:]))
     if not reasons:
@@ -197,14 +214,23 @@ def build_track(track,source,all_tracks,renderer,out):
     # Batch straight from the source. An intermediate PCM conversion changes
     # negotiation/rounding before atempo; each batch decodes once for 24 clips.
     info=sf.info(source)
-    if info.samplerate!=SR or info.channels!=2:raise ValueError('source format requires dedicated resampling validation')
+    if info.samplerate not in (SR,48000) or info.channels!=2:raise ValueError('source format requires dedicated resampling validation')
     if abs(info.duration-track['duration'])>.05:raise ValueError('decoded full duration disagrees with bound source analysis')
-    track['duration']=info.duration;track['nativeDuration']=min(150,info.duration)
-    sha=track['provenance']['masterSha256'];bounds=segment_bounds(info.frames,SR)
+    frames=info.frames
+    resample=''
+    if info.samplerate!=SR:
+        with tempfile.TemporaryDirectory(prefix='harbeat-resample-') as temp:
+            reference=Path(temp)/'native.wav'
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-threads','1','-i',str(source),
+                            '-ar',str(SR),'-ac','2','-c:a','pcm_s16le',str(reference)],check=True,timeout=600)
+            frames=sf.info(reference).frames
+        resample=f'aresample={SR},'
+    track['duration']=frames/SR;track['nativeDuration']=min(150,track['duration'])
+    sha=track['provenance']['masterSha256'];bounds=segment_bounds(frames,SR)
     native_recipes=[]
     for index,(start,end) in enumerate(bounds):
         filt=f'atrim=end={end/SR:.6f},asetpts=PTS-STARTPTS' if index==0 else f'atrim=start_sample={start}:end_sample={end},asetpts=PTS-STARTPTS'
-        native_recipes.append(dict(sourceSha256=sha,filter=filt,format=FORMAT))
+        native_recipes.append(dict(sourceSha256=sha,filter=resample+filt,format=FORMAT))
     assets=renderer.render(source,native_recipes)
     track['audioSegments']=[]
     for (start,end),recipe in zip(bounds,native_recipes):
@@ -244,6 +270,7 @@ def main():
     p.add_argument('--reuse',action='append',type=Path,default=[])
     p.add_argument('--workers',type=int,default=4);p.add_argument('--batch',type=int,default=24)
     p.add_argument('--audit-only',action='store_true');p.add_argument('--benchmark',type=int,default=0)
+    p.add_argument('--export-jobs',action='store_true',help='Export bound jobs for cloud-local rendering; no audio is rendered here')
     p.add_argument('--skip-source-hash',action='store_true')
     args=p.parse_args();args.out.mkdir(parents=True,exist_ok=True);(args.out/'scratch').mkdir(exist_ok=True)
     items=json.loads(args.index.read_text())['items'];report_index=json.loads(args.report_index.read_text())
@@ -270,6 +297,10 @@ def main():
     manifest=dict(schema='harbeat.continuous-library-audit.v1',sourceIndexSha256=file_sha(args.index),rows=audit,indexed=len(items),prepared=len(prepared),mixReady=sum(t['mixStatus']=='ready' for t in all_tracks),sourceMixReady=sum(t['mixStatus']=='ready' for t in all_tracks),uniqueEntryRecipes=recipe_count,failures=failures)
     atomic_json(args.out/'corpus-audit.json',manifest)
     print('AUDIT',json.dumps({k:v for k,v in manifest.items() if k not in ('rows','failures')},ensure_ascii=False),flush=True)
+    if args.export_jobs:
+        atomic_json(args.out/'prepared-jobs.json',dict(items=items,audit=manifest,
+                    jobs=[dict(track=t,source=str(sources[t['id']])) for t in all_tracks]),compressed=True)
+        return
     if args.audit_only:return
     from analysis_platform.media import MediaRegistry
     from analysis_platform.store import Store
