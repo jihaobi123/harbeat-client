@@ -27,7 +27,7 @@ it.skipIf(!root||!base||!auditRoot)('compares a fixed old/new matrix with identi
   // Pair selection depends on prepared tempo variants, never the score change.
   for(const t of added){
     const compatible=(a:Track,b:Track)=>b.windows.some(w=>!!w.variants[a.id])
-    const ordered=[...old].sort((a,b)=>Math.abs(a.bpm-t.bpm)-Math.abs(b.bpm-t.bpm)||a.id.localeCompare(b.id))
+    const ordered=tracks.filter(a=>oldIds.has(a.id)).sort((a,b)=>Math.abs(a.bpm-t.bpm)-Math.abs(b.bpm-t.bpm)||a.id.localeCompare(b.id))
     const incoming=ordered.find(a=>compatible(a,t)),outgoing=ordered.find(b=>compatible(t,b))
     expect(incoming).toBeTruthy();expect(outgoing).toBeTruthy()
     newCases.push({id:`new-in:${t.id}`,a:incoming!.id,b:t.id,position:30,group:'new_music'},

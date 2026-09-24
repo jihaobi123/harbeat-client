@@ -14,7 +14,7 @@ The weight is an audibility proxy, not calibrated vocal loudness or semantic und
 
 ## Data and listening
 
-Keep all original twenty track records, windows and assets. Select twelve additional unique tracks from existing NAS reports by model style, tempo and vocal density before evaluating the new score. Require the existing source-bound preprocessing and dynamic EQ evidence. Generate only missing single-song assets in an isolated directory. Keep exclusions in the audit.
+Keep all original twenty track records, windows and assets. Aim for twelve additional unique tracks from existing NAS reports by model style, tempo and vocal density before evaluating the new score. The readiness audit found six eligible additions; keep that count instead of weakening the criteria. Require the existing source-bound preprocessing and dynamic EQ evidence. Generate only missing single-song assets in an isolated directory. Keep exclusions in the audit.
 
 The independent page offers baseline versus overlap-score listening, the same A/B music and request position, clear cue and score evidence, and live triggering through the existing transport. New feedback uses its own storage key; old ratings and sessions remain available. Keep fixed new-track test cases even when no plan exists, and label separately any examples chosen to demonstrate changed cues.
 

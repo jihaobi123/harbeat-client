@@ -122,3 +122,6 @@ web/dist-phrase/
 # V3 small-tuning static build
 web/dist-v30/
 web/dist-v31-release/
+
+# Independent vocal overlap scoring experiment
+web/dist-vocal-overlap/
