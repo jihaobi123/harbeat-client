@@ -2,6 +2,8 @@
 
 This experiment replaces the vocal-conflict term in the accepted V3.1 ranking. The formal reference remains `audio-v3.1.0` (`2ba6c8f`). Its page and historical feedback are preserved.
 
+Published listening page: [Vocal overlap experiment](https://8.136.120.255/analysis-lab-static/vocal-overlap-20260924/index.html). It contains 26 tracks, including six additions, with controlled comparisons and live handoff.
+
 ## What changes
 
 The original planner first selects B and its entry material. The experiment keeps that song, source range, audio asset, tempo rate and complete overlap duration. It then compares the original eligible A timings for that material. The 18-second request budget, beat constraints, waiting term, section bonus, full linear crossfade and dynamic EQ algorithm stay the same.
@@ -37,7 +39,9 @@ Build with `npm run build:vocal-overlap` in `web`. The page has controlled compa
 
 The local preview is served by the delivered `serve-local.cjs` on port 4317. It serves the new page locally, reads existing public audio from HarBeat, and caches missing new audio from the private NAS through read-only SSH. Every new audio read is checked against its catalog size and SHA256. Its remote source is restricted to this experiment's immutable FLAC filenames. No UI or new music is published remotely by this server. The official-page link returns to the original remote origin, where previous browser feedback remains available.
 
-Remote publication remains pending explicit user authorization after automatic approval review rejected uploading the experiment UI. The intended separate page directory is `vocal-overlap-20260924`; the formal index and previous versions must remain intact.
+The user explicitly authorized publishing the independent page and new listening assets on 2026-09-24. Publication uses `vocal-overlap-20260924` for the page and `vocal-overlap-corpus-20260924` for the new assets. The release process verifies every copied asset and the existing page fingerprints before exposing the completed directories.
+
+The public release is complete. All 823 audio files, six evidence snapshots and twelve page/data files were verified. The formal page, original baseline, earlier tuning page and platform index retain their pre-publication hashes. The public URL serves all assets directly and does not depend on the local preview server.
 
 ## Validation
 
@@ -48,3 +52,5 @@ Remote publication remains pending explicit user authorization after automatic a
 - An isolated browser on the expanded local page completed both arms of the changed example, the MOMMAE to Soul Of Freedom fixed audition, and a live request with that new song. All three audio-thread events were observed for each transition. Existing eighteen feedback records remained unchanged, three new test ratings persisted separately, and desktop/mobile checks reported no page errors or failed requests. These observations do not measure speaker or Bluetooth latency. Details are in `expanded-local-browser-proof.json` and the corresponding session exports.
 
 All 823 new single-song assets passed size and SHA256 verification on the private NAS. The local package contains the six native previews and uses verified read-only caching for remaining clips. Expanded coverage and per-request results are in `coverage-matrix.json`.
+
+Public verification repeated the controlled auditions, new-song playback, live handoff and feedback persistence in an isolated browser, with no page errors or failed requests. The six new native previews all returned valid byte ranges; their published evidence snapshots matched the catalog. Public catalog and case files matched the release hashes. Proofs are saved as `public-http-proof.json`, `public-browser-proof.json` and `publication-result.json` in the delivery directory.
