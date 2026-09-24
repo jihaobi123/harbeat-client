@@ -1,0 +1,13 @@
+# Continuous Live Implementation Plan
+
+**Goal:** Provide continuous playback and in-session control across all 157 songs, with honest readiness states and the accepted vocal-overlap mix.
+**Architecture:** NAS preparation emits an index and immutable per-track details/media. A segmented native-source scheduler extends the existing transport without changing legacy playback. A separate listening page manages the next-song selection, preloading and continuous handoffs.
+**Tech Stack:** Python, FFmpeg, React, TypeScript, WebAudio, existing media registry, Vitest and Playwright.
+
+- [ ] Corpus preparation: create `scripts/build_continuous_library.py` and `tests/test_continuous_library.py`. Test all-entry accounting, full duration, source binding, label separation, contiguous segment bounds, recipe deduplication and resume behavior before implementation. Audit the 157 records, benchmark rendering, then produce all native segments and compatible entry assets in a new NAS directory. Keep old source and release files intact.
+- [ ] Audio scheduler: create `web/src/continuous/segments.ts` and tests, add optional `audioSegments` to `Track`, and integrate full-song sources into `web/src/realtime/transport.ts`. Write failing regressions for late seeks, segment boundaries, pause, stop/seek races, memory pins, buffer deadlines and legacy scheduling first. Preserve the existing transition graph, EQ and planner.
+- [ ] Continuous page: create `web/src/continuous/ContinuousLive.tsx`, controller/catalog helpers, CSS, entry HTML and Vite config. Test metadata loading, stale selections, current-song continuity, repeated handoffs and catalog filters. The page keeps all 157 entries visible, lazy-loads details, uses `planVocalOverlap`, prepares the selected next song and exposes playback/volume/progress controls.
+- [ ] Integration: validate actual corpus contracts, run the new tests and full source suite with the accepted reference fixtures. Verify full durations, existing algorithms, source identities and retained failed/unavailable entries. Review concurrency and memory behavior independently.
+- [ ] Browser and release: build the independent page, verify a local preview, publish verified data/page files, and run public browser checks for segment crossing, multiple handoffs, selection changes, pause/seek/volume and feedback preservation. Save publication hashes, coverage and exact limitations.
+
+Execution uses separate bounded workers for corpus preparation and audio scheduling while the main worker builds the page and integrates the results. The available execution skill explicitly recommends subagent work; its named subagent-specific companion is not installed, so use the provided collaboration tools and review each result before release.
