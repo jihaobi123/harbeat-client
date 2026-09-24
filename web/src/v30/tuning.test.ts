@@ -2,8 +2,25 @@ import {describe,it,expect} from 'vitest'
 import {planNext,type Track} from '../realtime/planner'
 import {makeV30Planner,assessExit} from './planner'
 import {buildV30Eq} from './eq'
+import {planV31} from '../v31-release/release'
 function track(id:string):Track {return {id,title:id,bpm:120,style:'Trap',styleScore:1,duration:80,native:{url:id,sha256:'encoded',duration:80,bytes:1},provenance:{masterSha256:'m',reportSha256:'r',vocalSha256:'v'},bars:Array.from({length:40},(_,i)=>i*2),sections:[{start:0,end:80,label:'verse'}],vocals:[[0,80]],energy:[{start:0,end:80,value:.4}],windows:[{id:'w',start:0,end:8,bars:4,role:'intro',energy:.4,variants:{a:{url:'clip',sha256:'c',duration:8,bytes:1,rate:1}}}],alignment:{schema:'x',status:'candidate',source:{reportId:'report',masterSha256:'m',reportSha256:'r',vocalSha256:'v'},bars:Array.from({length:39},(_,i)=>({index:i,start:i*2,end:i*2+2,lastBeat:i*2+1.5,beats:[0,.5,1,1.5].map(x=>x+i*2),valid:true})),phrases:[{id:'p',start:0,end:11,tailEnd:11.1,nextStart:null,sectionIndex:0,sourceRows:{vad:[0],rms:[0]},semanticStatus:'unverified'}],exits:[],conflicts:[],bandFrames:[{start:0,end:80,rmsDbfs:-15,low:-20,mid:-22,high:-30}],limitations:[]}}}
 const args=(a:Track,b:Track,budget=18)=>[a,[a,b] as Track[],0,{kind:'next' as const,targetId:b.id},new Set<string>(),budget,false] as const
+describe('accepted V3.1 release',()=>{
+ it('reproduces the accepted original-dynamic arm even when boundary tuning would move the plan',()=>{
+  const a=track('a'),b=track('b'),input=args(a,b)
+  expect(makeV30Planner(true,'dynamic')(...input).best!.v30Tune!.shiftSec).toBe(2)
+  const released=planV31(...input),accepted=makeV30Planner(false,'dynamic')(...input)
+  expect(released).toEqual(accepted)
+  expect(released.best!.v30Tune!.shiftSec).toBe(0)
+  expect(released.best!.automation).toBeUndefined()
+  expect(released.best!.phrase).toBeUndefined()
+ })
+ it('preserves the accepted explicit failure on unavailable EQ evidence',()=>{
+  const a=track('a'),b=track('b');b.alignment!.bandFrames=[]
+  expect(planV31(...args(a,b))).toEqual(makeV30Planner(false,'dynamic')(...args(a,b)))
+  expect(planV31(...args(a,b)).best).toBeNull()
+ })
+})
 describe('V3 small correction',()=>{
  it('keeps exact V3 plan when correction is off; only adds evidence',()=>{const a=track('a'),b=track('b'),old=planNext(...args(a,b)).best!,p=makeV30Planner(false,'fixed')(...args(a,b)).best!;expect(p.id).toBe(old.id);expect(p.duration).toBe(8);expect(p.automation).toBeUndefined();expect(p.phrase).toBeUndefined();expect(p.v30Tune?.shiftSec).toBe(0)})
  it('moves the whole overlap one existing bar later to avoid cutting an active phrase',()=>{const a=track('a'),b=track('b'),old=planNext(...args(a,b)).best!,p=makeV30Planner(true,'fixed')(...args(a,b)).best!;expect(old.end).toBe(10);expect(p.end).toBe(12);expect(p.start-old.start).toBe(2);expect(p.duration).toBe(old.duration);expect(p.asset).toEqual(old.asset);expect(p.window).toEqual(old.window);expect(p.v30Tune?.before.activePhraseId).toBe('p');expect(p.v30Tune?.after.activePhraseId).toBeNull()})

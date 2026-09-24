@@ -1,0 +1,47 @@
+{
+  "release": "3.1.0",
+  "id": "v31-live-20260924",
+  "date": "2026-09-24",
+  "acceptedArm": "original-dynamic",
+  "acceptedSourceCommit": "9e3daccb360b976c9b9576ceb064cc56dfe1eb85",
+  "entry": "https://8.136.120.255/analysis-lab-static/v31-live-20260924/index.html",
+  "sourceFiles": {
+    "web/src/v30/planner.ts": "d6027a68c257cd2686e8c2c963fe6d1fc0e9510a41b7138e6c171e041f4b3e69",
+    "web/src/v30/eq.ts": "837cafaa4d17a29db8e69093b70ba65961a5e6beddd0aa2c289c9aaaf697ca37",
+    "web/src/v30/types.ts": "0e41425a74917aa53b768284f1e6f18c6eded3dfec8cf738b633a0aa885c1292",
+    "web/src/realtime/planner.ts": "ddb168665a5fb723307ae2e150ae58fb681b523803413245a858ae4453378544",
+    "web/src/realtime/decision.ts": "b031316f0f3fef143db6a6719d1c127a2a31fcb42bdb4258c3812be0203d0ffc",
+    "web/src/realtime/evidence.ts": "cbc2c03b43ce12fb185e5c5f8b95003f60b73ad315e08f7566d7e611704d09e6",
+    "web/public/v3-clock.js": "da4c97488f80b3f5272055991111d50069746997d2f1bd1732ca5ee55f5328d7"
+  },
+  "catalogFiles": {
+    "catalog.json": "419d77e2aaa12861eea35c9ac291ae7e8e1cc4c6e99c9cc5a462ceddba77466e",
+    "catalog.json.gz": "b2c48432cc8a7779908fa74dd5bd704a99b0fd9a62ed1cd405fd064fa212e346",
+    "cases.json": "4278878b27fc5da06fbad041177105d53217899d300ee2880f38438c6d998de7"
+  },
+  "behavior": {
+    "planner": "original V3",
+    "adjacentBarCorrection": false,
+    "eq": "v30-eq-only-v1",
+    "gains": "original V3 full-overlap linear",
+    "energyStyleReranking": false,
+    "maxWaitSec": 18,
+    "tracks": 20,
+    "windows": 152
+  },
+  "feedback": {
+    "storageKey": "harbeat-v30-small-tuning-feedback-v1",
+    "migration": "none; same origin, same browser key and arm identifiers",
+    "serverUpload": false
+  },
+  "archiveUrls": {
+    "v3": "../v3-live-baseline-20260922/index.html",
+    "eqExperiment": "../v30-tuning-20260924/index.html",
+    "protectiveCandidate": "../v31-candidate-20260923/index.html"
+  },
+  "notes": [
+    "The former protective V3.1 candidate remains an archived experiment, not this release.",
+    "Existing audio asset URLs and hashes are reused; no reanalysis or rerender.",
+    "Transport changes are release metadata only; fades, filters, gains and clocks unchanged."
+  ]
+}
