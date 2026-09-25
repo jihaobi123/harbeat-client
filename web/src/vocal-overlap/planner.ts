@@ -10,7 +10,7 @@ export type VocalOverlapEvidence = OverlapMeasure & {
   anchor:{to:string;windowId:string;assetSha256:string;rate:number;duration:number};
 }
 export type OverlapPlan = Plan & {vocalOverlap:VocalOverlapEvidence}
-function requireBoundVocals(t:Track) {
+export function requireBoundVocals(t:Track) {
   const snapshot=t.preprocessing,vad=snapshot?.vocalActivity,source=vad?.source as Record<string,unknown>|undefined
   if (!sourceBound(t) || !snapshot || snapshot.reportId!==t.reportId ||
       t.alignment?.source.reportId!==t.reportId || snapshot.reportSha256!==t.provenance?.reportSha256 ||

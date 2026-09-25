@@ -56,3 +56,12 @@ export function suggestNext(entries:LibraryEntry[],current:LibraryEntry,recent:s
   return cost(a)-cost(b)||a.id.localeCompare(b.id)
  })[0]||null
 }
+
+export function shortlistNext(entries:LibraryEntry[],current:LibraryEntry,recent:string[],intent:{targetId?:string;style?:string}={},limit=8){
+ const eligible=entries.filter(e=>(!intent.targetId||e.id===intent.targetId)&&(!intent.style||e.styleLabels.includes(intent.style)))
+ const choices:LibraryEntry[]=[]
+ let remaining=eligible.filter(e=>!recent.includes(e.id)||e.id===intent.targetId)
+ if(!remaining.some(e=>suggestNext([e],current,[])))remaining=eligible
+ while(choices.length<limit){const pick=suggestNext(remaining,current,[]);if(!pick)break;choices.push(pick);remaining=remaining.filter(e=>e.id!==pick.id)}
+ return choices
+}

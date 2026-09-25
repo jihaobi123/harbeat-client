@@ -21,14 +21,14 @@ SUFFIXES = {'.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus', '.aif', '.
 
 
 def playlist_url(text):
-    match = re.search(r'https?://[^\s<>"\u201c\u201d\u3000\uFF08\uFF09]+', text)
+    match = re.search(r'https?://[^\s<>"\[\]()\u201c\u201d\u3000\uFF08\uFF09]+', text)
     if not match:
         raise ValueError('请粘贴网易云或 QQ 音乐的歌单分享链接。')
     url = match[0].rstrip(').,，。')
     parsed = urlparse(url)
     host = parsed.hostname or ''
     if parsed.username or parsed.password or parsed.port not in (None, 80, 443) or not (
-        host == 'music.163.com' or host.endswith('.music.163.com') or host == 'y.qq.com' or host.endswith('.y.qq.com')
+        host == '163cn.tv' or host == 'music.163.com' or host.endswith('.music.163.com') or host == 'y.qq.com' or host.endswith('.y.qq.com')
     ):
         raise ValueError('仅支持网易云和 QQ 音乐歌单链接。')
     return url
@@ -36,6 +36,25 @@ def playlist_url(text):
 
 async def parse_playlist(text):
     url = playlist_url(text)
+    if urlparse(url).hostname == '163cn.tv':
+        async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
+            for _ in range(5):
+                host = urlparse(url).hostname or ''
+                if host == 'music.163.com' or host.endswith('.music.163.com'):
+                    match = re.search(r'[?&#]id=(\d+)', url)
+                    if match:
+                        url = 'https://music.163.com/playlist?id=' + match[1]
+                        break
+                response = await client.get(url)
+                if not response.is_redirect:
+                    response.raise_for_status()
+                    raise ValueError('网易云分享链接没有返回歌单编号，请复制完整歌单链接。')
+                url = playlist_url(urljoin(url, response.headers['location']))
+                host = urlparse(url).hostname or ''
+                if not (host == '163cn.tv' or host == 'music.163.com' or host.endswith('.music.163.com')):
+                    raise ValueError('网易云分享链接跳转到了不支持的地址。')
+            else:
+                raise ValueError('网易云分享链接重定向次数过多，请复制完整歌单链接。')
     # Resolve QQ short links ourselves: every redirect must stay on the platform.
     if 'qq.com' in (urlparse(url).hostname or ''):
         async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:

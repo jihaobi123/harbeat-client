@@ -13,3 +13,9 @@ export function automaticAction(s:Snapshot,nextAttemptAt:number):'prepare'|'alte
  if(s.status==='ready'&&(s.plannedStart!=null?s.position>=s.plannedStart-8:left<=22))return 'mix'
  return null
 }
+
+/** Call after cancelling only automatic work; preserve any remaining manual request. */
+export function canPrepareAfterAutoOff(player:{current:unknown;pending:unknown;busy:boolean;gate:{locked:boolean}},id:string|null){
+ return !!player.current&&!!id&&!player.pending&&!player.busy&&!player.gate.locked
+}
+export function selectionSnapshot(rendered:SelectionState,controller:{state:SelectionState}|null){return controller?.state||rendered}

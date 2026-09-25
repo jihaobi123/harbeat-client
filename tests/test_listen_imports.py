@@ -111,3 +111,30 @@ def test_batch_queue_transaction_rolls_back_on_capacity(tmp_path):
     with pytest.raises(ValueError):
         jobs.submit_many([('a',{'title':'A'}),('b',{'title':'B'})])
     assert jobs.list_public()==[]
+
+
+def test_netease_short_share_markdown_url():
+    assert playlist_url('分享歌单: 舞者的HIP-HOP [https://163cn.tv/bg8QkvT3](https://163cn.tv/bg8QkvT3) (@网易云音乐)') == 'https://163cn.tv/bg8QkvT3'
+
+
+def test_netease_short_redirect_is_resolved_and_restricted(monkeypatch):
+    import asyncio
+    import httpx
+    from listen_imports import sources
+    original = httpx.AsyncClient
+    called = []
+    destination = ['https://music.163.com/m/playlist?app_version=9.5.90&id=2835757']
+    def handler(request):
+        called.append(str(request.url))
+        return httpx.Response(302, headers={'location': destination[0]})
+    monkeypatch.setattr(sources.httpx, 'AsyncClient', lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs))
+    async def parse(url):
+        assert url == 'https://music.163.com/playlist?id=2835757'
+        return {'name': '舞者的HIP-HOP', 'tracks': []}
+    monkeypatch.setattr(sources, 'parse_playlist_url', parse)
+    assert asyncio.run(sources.parse_playlist('https://163cn.tv/bg8QkvT3'))['name'] == '舞者的HIP-HOP'
+    for bad in ['http://127.0.0.1/playlist?id=2835757', 'https://music.163.com.evil.test/playlist?id=1', 'https://y.qq.com/n/ryqq/playlist/1']:
+        destination[0] = bad
+        with pytest.raises(ValueError):
+            asyncio.run(sources.parse_playlist('https://163cn.tv/bg8QkvT3'))
+    assert called == ['https://163cn.tv/bg8QkvT3'] * 4

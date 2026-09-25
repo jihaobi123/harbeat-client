@@ -1,3 +1,4 @@
+import type {AutomaticPlanner} from '../continuous/qualityPlan'
 import {planAutomatic} from '../continuous/automaticPlan'
 import {nativeSegment,SegmentScheduler} from '../continuous/segments'
 import type {OverlapPlan} from '../vocal-overlap/planner'
@@ -15,19 +16,20 @@ type Pending={automatic?:boolean;plan:Plan;deck:Deck;start:number;end:number;id:
 export class LiveTransport{
  private automaticRequestId:string|null=null
  private automaticPrepared:{source:Deck;targetId:string;result:ReturnType<typeof planAutomatic>}|null=null
+ private automaticBackup:LiveTransport['automaticPrepared']=null
  get automaticStart(){return this.automaticPrepared?.source===this.active?this.automaticPrepared.result.best?.start??null:null}
  cancelAutomatic(){if((this.pending?.automatic||this.automaticRequestId!==null&&this.automaticRequestId===this.currentRequestId)&&!this.gate.locked)this.cancel()}
  buffering=false;private bufferSuspend:Promise<void>|null=null;private bufferResume=false;private startLoad:AbortController|null=null;private requestLoad:AbortController|null=null;private prepareLoad:AbortController|null=null;private prepareSequence=0;private preparedPins=new Set<string>();private requestPins=new Set<string>();private startPins=new Set<string>();
  private comparisonId:string|null=null;private comparisonMode=false;private comparisonEnd:number|null=null;private comparisonMidDb=-5;
  persistenceStatus='会话尚未保存';private recorder:SessionWriter|null=null;private flushSession=()=>{void this.recorder?.flush()};
  ctx:AudioContext;cache:AudioCache;gate=new RequestGate();logs:Log[]=[];active:Deck|null=null;pending:Pending|null=null;status='选择歌曲后开始播放';lastPlan:Plan|null=null;lastSearch:any=null;paused=false;busy=false;private monitor!:AudioWorkletNode;private volume:GainNode;private timer:number;private starting=0;private autoTried=false;private base:URL;private dead=false;private deferredDeadline=0;private requestSequence=0;private currentRequestId:string|null=null;private deferredRequestId:string|null=null;private terminalRequests=new Set<string>();readonly sessionId=`live-${Date.now()}-${Math.random().toString(36).slice(2,10)}`
- constructor(public tracks:Track[],private update:()=>void,base:URL,private options:{planner?:typeof planNext;autoNext?:boolean;prewarm?:boolean;noPlanMessage?:string;policyVersion?:string;release?:{version:string;id:string;acceptedArm:string;acceptedSourceCommit:string};audioPool?:AudioBufferPool}={}){this.base=base;this.ctx=new AudioContext({sampleRate:44100,latencyHint:'interactive'});this.volume=this.ctx.createGain();this.volume.gain.value=.85;this.volume.connect(this.ctx.destination);this.cache=new AudioCache(this.ctx,base,s=>{if((this.busy||!this.active)&&!this.buffering){this.status=s;this.update()}},options.audioPool);this.timer=window.setInterval(()=>this.tick(),80);if(typeof indexedDB!=='undefined'){this.recorder=new SessionWriter(()=>this.export(),saveSession,status=>{this.persistenceStatus=status;if(!this.dead)this.update()});window.addEventListener('pagehide',this.flushSession)}this.ctx.onstatechange=()=>{this.log('context_state',{state:this.ctx.state});this.update()}}
+ constructor(public tracks:Track[],private update:()=>void,base:URL,private options:{automaticPlanner?:AutomaticPlanner;automaticPolicyVersion?:string;planner?:typeof planNext;autoNext?:boolean;prewarm?:boolean;noPlanMessage?:string;policyVersion?:string;release?:{version:string;id:string;acceptedArm:string;acceptedSourceCommit:string};audioPool?:AudioBufferPool}={}){this.base=base;this.ctx=new AudioContext({sampleRate:44100,latencyHint:'interactive'});this.volume=this.ctx.createGain();this.volume.gain.value=.85;this.volume.connect(this.ctx.destination);this.cache=new AudioCache(this.ctx,base,s=>{if((this.busy||!this.active)&&!this.buffering){this.status=s;this.update()}},options.audioPool);this.timer=window.setInterval(()=>this.tick(),80);if(typeof indexedDB!=='undefined'){this.recorder=new SessionWriter(()=>this.export(),saveSession,status=>{this.persistenceStatus=status;if(!this.dead)this.update()});window.addEventListener('pagehide',this.flushSession)}this.ctx.onstatechange=()=>{this.log('context_state',{state:this.ctx.state});this.update()}}
  async initialize(){await this.ctx.audioWorklet.addModule(new URL('v3-clock.js',this.base));this.monitor=new AudioWorkletNode(this.ctx,'v3-clock',{outputChannelCount:[2]});this.monitor.connect(this.volume);this.monitor.port.onmessage=({data})=>{this.log('audio_observation',{...data,plannedContextSec:data.frame/this.ctx.sampleRate,observedContextSec:data.observedFrame/this.ctx.sampleRate,observationDeltaMs:(data.observedFrame-data.frame)/this.ctx.sampleRate*1000,messageReceivedContextSec:this.ctx.currentTime,basis:'Audio-thread render quantum observation; not measured source onset, device output or Bluetooth latency'});this.sync();this.update()}}
  log(kind:string,data:Log={}){this.logs.push(JSON.parse(JSON.stringify({kind,sessionId:this.sessionId,sequence:this.logs.length+1,wallTime:new Date().toISOString(),contextSec:this.ctx.currentTime,...data})));if(this.recorder){if(['request_received','plan_scheduled','audio_observation','request_outcome','track_stop'].includes(kind))void this.recorder.flush();else this.recorder.queue()}}
  private outcome(requestId:string|null,outcome:string,reason:string,extra:Log={}){if(!requestId||this.terminalRequests.has(requestId))return;this.terminalRequests.add(requestId);this.log('request_outcome',{requestId,outcome,reason,...extra})}
- private auditSearch(requestId:string,phase:string,result:ReturnType<typeof planNext>,position:number,budget:number){
+ private auditSearch(requestId:string,phase:string,result:ReturnType<typeof planNext>,position:number,budget:number,policyVersion=this.options.policyVersion||DECISION_POLICY.version){
   const ranked=result.candidates.map((p,rank)=>({rank:rank+1,id:p.id,to:p.to,windowId:p.window.id,start:p.start,end:p.end,score:p.score,prepared:p.prepared,scoreComponents:p.decision?.score.components,reason:p.reason,localEvidence:p.evidence,...((p as OverlapPlan).vocalOverlap?{vocalOverlap:(p as OverlapPlan).vocalOverlap}:{})}))
-  this.log('decision_search',{requestId,phase,sourcePosition:position,planningPosition:'planningPosition' in result?result.planningPosition:position,remainingBudgetSec:budget,result:{candidateCount:ranked.length,selectedId:result.best?.id||null,selectedAdjustment:result.best?.v30Tune||null,selectedEqMode:result.best?.v30Eq?'dynamic':'fixed',...((result.best as OverlapPlan|null)?.vocalOverlap?{selectedVocalOverlap:(result.best as OverlapPlan).vocalOverlap}:{}),candidates:ranked,exclusions:result.exclusions,rejected:result.rejected},policyVersion:this.options.policyVersion||DECISION_POLICY.version})
+  this.log('decision_search',{requestId,phase,sourcePosition:position,planningPosition:'planningPosition' in result?result.planningPosition:position,remainingBudgetSec:budget,result:{candidateCount:ranked.length,selectedId:result.best?.id||null,selectedAdjustment:result.best?.v30Tune||null,selectedEqMode:result.best?.v30Eq?'dynamic':'fixed',...((result.best as OverlapPlan|null)?.vocalOverlap?{selectedVocalOverlap:(result.best as OverlapPlan).vocalOverlap}:{}),candidates:ranked,exclusions:result.exclusions,rejected:result.rejected},policyVersion})
  }
 
  get position(){if(!this.active)return 0;return Math.min(this.active.track.duration,this.active.offset+Math.max(0,this.ctx.currentTime-this.active.at))}
@@ -81,8 +83,9 @@ export class LiveTransport{
   this.log('pause',{paused:this.paused});this.update()
  }
  async seek(position:number){if(!this.active)return;const id=this.active.track.id,pause=this.paused;this.log('seek',{position});await this.start(id,position,pause)}
- cancelPreparation(){this.automaticPrepared=null;this.prepareSequence++;this.prepareLoad?.abort();this.prepareLoad=null;this.preparedPins.clear();this.protected()}
+ cancelPreparation(){this.automaticPrepared=null;this.automaticBackup=null;this.prepareSequence++;this.prepareLoad?.abort();this.prepareLoad=null;this.preparedPins.clear();this.protected()}
  async prepareNext(trackId:string,options:{automatic?:boolean}={}){
+  if(options.automatic&&this.options.automaticPlanner){await this.prepareAutomatic([trackId]);return}
   this.cancelPreparation();const active=this.active;if(!active)throw new Error('请先播放歌曲')
   const token=this.prepareSequence,controller=new AbortController();this.prepareLoad=controller
   const check=()=>{if(controller.signal.aborted||token!==this.prepareSequence||this.active!==active||this.dead)throw new DOMException('下一首准备已取消','AbortError')}
@@ -104,6 +107,42 @@ export class LiveTransport{
    throw new Error('下载期间错过了预定接点，正在重新选择下一首。')
   }catch(error){if(token===this.prepareSequence){this.preparedPins.clear();this.automaticPrepared=null;this.protected()}throw error}
   finally{if(token===this.prepareSequence)this.prepareLoad=null}
+ }
+ /** Rank metadata before loading audio. Keep only the winner and one backup pinned. */
+ async prepareAutomatic(ids:string[]):Promise<string>{
+  this.cancelPreparation();const active=this.active,planner=this.options.automaticPlanner
+  if(!active||!planner)throw Error('自动选曲暂时不可用')
+  const token=this.prepareSequence,controller=new AbortController();this.prepareLoad=controller
+  const check=()=>{if(controller.signal.aborted||token!==this.prepareSequence||this.active!==active||this.dead)throw new DOMException('自动准备已取消','AbortError')}
+  let tracks=this.tracks.filter(t=>ids.includes(t.id)),background=false
+  const assets=(p:Plan)=>{const target=tracks.find(t=>t.id===p.to)!;return [...new Map([target.native,p.asset,nativeSegment(target,p.window.end).asset].map(a=>[a.url,a])).values()]}
+  const load=async(p:Plan)=>{for(const asset of assets(p)){try{await this.cache.load(asset,controller.signal)}catch(error){throw Object.assign(new Error(String(error)),{assetUrl:asset.url})}check()}}
+  try{
+   for(let attempt=0;attempt<Math.max(6,ids.length*3);attempt++){
+    check();const result=planner(active.track,tracks,this.position,{kind:'next'},this.cache.ready,false),plan=result.best
+    if(!plan)throw Error('这些歌曲在剩余播放范围内没有可靠的完整交接点。')
+    this.preparedPins=new Set(assets(plan).map(a=>a.url));this.protected()
+    this.log('next_preparation_started',{automatic:true,trackId:plan.to,from:active.track.id,candidateId:plan.id,sourcePosition:this.position,planningPosition:result.planningPosition,plannedStart:plan.start,shortlist:ids,candidateCount:result.candidates.length})
+    try{await load(plan)}catch(error){check();this.log('automatic_candidate_failed',{trackId:plan.to,message:String(error)});const failedUrl=(error as {assetUrl?:string}).assetUrl
+     tracks=tracks.flatMap(t=>t.id!==plan.to?[t]:!failedUrl||failedUrl===t.native.url?[]:[{...t,windows:t.windows.filter(w=>w.variants[active.track.id]?.url!==failedUrl&&nativeSegment(t,w.end).asset.url!==failedUrl)}]);continue}
+    if(plan.start<this.position+.25)continue
+    this.automaticPrepared={source:active,targetId:plan.to,result}
+    this.log('next_preparation_ready',{automatic:true,trackId:plan.to,from:active.track.id,candidateId:plan.id,plannedStart:plan.start});this.update()
+    // Prefer a different song; exact-song requests can use another entry window.
+    const alternatives=tracks.length>1?tracks.filter(t=>t.id!==plan.to):tracks.map(t=>({...t,windows:t.windows.filter(w=>w.id!==plan.window.id)}))
+    const backup=planner(active.track,alternatives,this.position,{kind:'next'},this.cache.ready,false)
+    if(backup.best){
+     const primaryPins=new Set(this.preparedPins),b=backup.best
+     for(const asset of assets(b))this.preparedPins.add(asset.url);this.protected();background=true
+     void (async()=>{try{await load(b);check();if(b.start<this.position+.25)return;this.automaticBackup={source:active,targetId:plan.to,result:backup};this.log('automatic_backup_ready',{trackId:b.to,candidateId:b.id,plannedStart:b.start});this.update()}
+      catch(error){if(token===this.prepareSequence)this.log('automatic_backup_failed',{trackId:b.to,message:String(error)})}
+      finally{if(token===this.prepareSequence){if(!this.automaticBackup)this.preparedPins=primaryPins;this.prepareLoad=null;this.protected()}}})()
+    }
+    return plan.to
+   }
+   throw Error('下载期间错过了预定接点，请重新准备。')
+  }catch(error){if(token===this.prepareSequence){this.automaticPrepared=null;this.preparedPins.clear();this.protected()}throw error}
+  finally{if(!background&&token===this.prepareSequence)this.prepareLoad=null}
  }
  private checkSegments(){
   const decks=[this.active,this.pending?.deck].filter(Boolean) as Deck[]
@@ -143,8 +182,9 @@ export class LiveTransport{
  async request(intent:Intent,budget=18,options:{resumeId?:string;origin?:string;automatic?:boolean}={}){
   this.sync()
   if(options.automatic&&this.active)budget=Math.max(0,this.active.track.duration-this.position-.1)
+  const effectivePolicy=options.automatic?(this.options.automaticPolicyVersion||this.options.policyVersion||DECISION_POLICY.version):(this.options.policyVersion||DECISION_POLICY.version)
   const requestId=options.resumeId||`${this.sessionId}:request-${++this.requestSequence}`
-  if(!options.resumeId)this.log('request_received',{requestId,intent,origin:options.origin||'user',sourceTrackId:this.active?.track.id||null,sourcePosition:this.position,budgetSec:budget,deadlineContextSec:this.ctx.currentTime+budget,policyVersion:this.options.policyVersion||DECISION_POLICY.version})
+  if(!options.resumeId)this.log('request_received',{requestId,intent,origin:options.origin||'user',sourceTrackId:this.active?.track.id||null,sourcePosition:this.position,budgetSec:budget,deadlineContextSec:this.ctx.currentTime+budget,policyVersion:effectivePolicy})
   else this.log('request_resumed',{requestId,remainingBudgetSec:budget,sourceTrackId:this.active?.track.id,sourcePosition:this.position})
   if(!this.active||this.paused){this.status='请先播放歌曲';this.outcome(requestId,'rejected',this.paused?'当前处于暂停状态':'当前没有播放曲目');this.update();return}
   const token=this.gate.replace(intent)
@@ -162,17 +202,20 @@ export class LiveTransport{
   try{
    const search=(remaining:number,requireReady=true)=>{
     if(!options.automatic)return (this.options.planner||planNext)(source,this.tracks,this.position,intent,this.cache.ready,remaining,requireReady)
-    const prepared=this.automaticPrepared,p=prepared?.result.best
-    if(prepared?.source===this.active&&prepared.targetId===intent.targetId&&p&&p.start>=this.position+.25&&
-      (!requireReady||[p.asset.url,this.tracks.find(t=>t.id===p.to)!.native.url,nativeSegment(this.tracks.find(t=>t.id===p.to)!,p.window.end).asset.url].every(url=>this.cache.ready.has(url))))return {...prepared.result,best:{...p,prepared:true},candidates:prepared.result.candidates.map(c=>({...c,prepared:this.cache.ready.has(c.asset.url)&&this.cache.ready.has(this.tracks.find(t=>t.id===c.to)!.native.url)}))}
+    for(const prepared of [this.automaticPrepared,this.automaticBackup]){
+     const p=prepared?.result.best,b=this.tracks.find(t=>t.id===p?.to)
+     if(prepared?.source===this.active&&prepared.targetId===intent.targetId&&p&&b&&p.start>=this.position+.25&&
+       [p.asset.url,b.native.url,nativeSegment(b,p.window.end).asset.url].every(url=>this.cache.ready.has(url)))return {...prepared.result,best:{...p,prepared:true}}
+    }
+    if(this.options.automaticPlanner)return this.options.automaticPlanner(source,this.tracks,this.position,intent,this.cache.ready,requireReady)
     return planAutomatic(this.options.planner||planNext,source,this.tracks,this.position,intent,this.cache.ready,requireReady)
    }
    let result=search(budget)
-   this.auditSearch(requestId,'ready_assets',result,this.position,budget)
+   this.auditSearch(requestId,'ready_assets',result,this.position,budget,effectivePolicy)
    const readyBody=result.best?nativeSegment(this.tracks.find(t=>t.id===result.best!.to)!,result.best.window.end).asset:null
    if(!result.best||!this.cache.ready.has(readyBody!.url)){
     const preview=search(budget,false)
-    this.lastSearch=preview;this.auditSearch(requestId,'preparation_preview',preview,this.position,budget)
+    this.lastSearch=preview;this.auditSearch(requestId,'preparation_preview',preview,this.position,budget,effectivePolicy)
     if(!preview.best)throw new Error(this.options.noPlanMessage||'等待范围内没有符合目标的窗口。可以改用较长等待或选择其他歌曲。')
     const b=this.tracks.find(t=>t.id===preview.best!.to)!
     this.log('preparation_started',{requestId,candidateId:preview.best.id,provisionalDecision:preview.best.decision,assets:[b.native,preview.best.asset],reason:'暂定候选，素材准备后必须按剩余预算重新选点，不承诺执行此窗口'})
@@ -184,7 +227,7 @@ export class LiveTransport{
     const remaining=budget-(this.ctx.currentTime-requestedAt)
     this.log('preparation_completed',{requestId,elapsedSec:this.ctx.currentTime-requestedAt,remainingBudgetSec:remaining})
     result=search(remaining)
-    this.auditSearch(requestId,'after_preparation',result,this.position,remaining)
+    this.auditSearch(requestId,'after_preparation',result,this.position,remaining,effectivePolicy)
    }
    if(!this.gate.isCurrent(token)||this.active?.track.id!==source.id)return
    this.lastSearch=result
@@ -224,6 +267,6 @@ export class LiveTransport{
   finally{if(token===this.starting){this.busy=false;this.update()}}
  }
  private async prewarm(){if(this.comparisonMode||this.options.prewarm===false)return;const a=this.active;if(!a)return;const revision=this.starting;const intents:Intent[]=[{kind:'next'},{kind:'style',style:a.track.style==='Trap'?'Grime':'Trap'}];for(const intent of intents){if(this.pending||this.busy||this.active!==a||revision!==this.starting)return;const p=planNext(a.track,this.tracks,Math.max(this.position,(a.track.bars[0]||0)+1),intent,this.cache.ready,30,false).best;if(!p)continue;try{const b=this.tracks.find(t=>t.id===p.to)!;await this.cache.load(b.native);if(this.active!==a||this.pending)return;await this.cache.load(p.asset)}catch(e){this.log('prewarm_failed',{message:(e as Error).message})}}this.update()}
- export(){return {schema:'harbeat.v3_live_session.v2',sessionId:this.sessionId,...(this.options.release?{release:this.options.release}:{}),policy:this.options.policyVersion?{version:this.options.policyVersion,ranking:this.options.policyVersion==='vocal-overlap-v1'?'Same V3.1 entry asset/rate/duration; replace vocal term with aligned gain-weighted activity; unchanged other score terms and dynamic EQ':this.options.policyVersion.startsWith('v30-original-dynamic')?'Original V3 ranking and full overlap; source-dependent bounded EQ only':this.options.policyVersion.startsWith('v30')?'Original V3 ranking; optional eligible adjacent-bar correction; independent bounded EQ':this.options.policyVersion.startsWith('phrase')?'Hard phrase/timing constraints; wait plus vocal-gap cost, then stable ID; EQ does not rerank':"Hard constraints, earliest verified exit then rate deviation then ID"}:DECISION_POLICY,retention:'完整事件自动保存在同源同浏览器 IndexedDB；仍可导出，不上传服务器。清理站点数据会删除本地记录。',catalog:this.tracks.map(t=>({...t})),sampleRate:this.ctx.sampleRate,baseLatency:this.ctx.baseLatency,outputLatency:this.ctx.outputLatency,logs:this.logs,limitations:['Audio observations locate render quanta, not physical source onset/speaker output','Single-song tempo assets were prepared ahead; selection/EQ/fade/mixing run live','Browser DSP is not bit-identical to FFmpeg V3','Energy uses common dBFS RMS, not validated perceived energy; all structural candidates need listening confirmation']}}
+ export(){return {schema:'harbeat.v3_live_session.v2',sessionId:this.sessionId,...(this.options.automaticPolicyVersion?{automaticPolicy:{version:this.options.automaticPolicyVersion,ranking:'Automatic-only cross-track/window/exit quality ranking; no waiting penalty; full local beat and source binding gates; original weighted vocal coefficient, progressive gains and dynamic EQ preserved'}}:{}),...(this.options.release?{release:this.options.release}:{}),policy:this.options.policyVersion?{version:this.options.policyVersion,ranking:this.options.policyVersion==='vocal-overlap-v1'?'Same V3.1 entry asset/rate/duration; replace vocal term with aligned gain-weighted activity; unchanged other score terms and dynamic EQ':this.options.policyVersion.startsWith('v30-original-dynamic')?'Original V3 ranking and full overlap; source-dependent bounded EQ only':this.options.policyVersion.startsWith('v30')?'Original V3 ranking; optional eligible adjacent-bar correction; independent bounded EQ':this.options.policyVersion.startsWith('phrase')?'Hard phrase/timing constraints; wait plus vocal-gap cost, then stable ID; EQ does not rerank':"Hard constraints, earliest verified exit then rate deviation then ID"}:DECISION_POLICY,retention:'完整事件自动保存在同源同浏览器 IndexedDB；仍可导出，不上传服务器。清理站点数据会删除本地记录。',catalog:this.tracks.map(t=>({...t})),sampleRate:this.ctx.sampleRate,baseLatency:this.ctx.baseLatency,outputLatency:this.ctx.outputLatency,logs:this.logs,limitations:['Audio observations locate render quanta, not physical source onset/speaker output','Single-song tempo assets were prepared ahead; selection/EQ/fade/mixing run live','Browser DSP is not bit-identical to FFmpeg V3','Energy uses common dBFS RMS, not validated perceived energy; all structural candidates need listening confirmation']}}
  dispose(){this.dead=true;this.stop();window.removeEventListener?.('pagehide',this.flushSession);this.flushSession();clearInterval(this.timer);this.cache.dispose();void this.ctx.close()}
 }

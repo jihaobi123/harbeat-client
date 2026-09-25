@@ -263,3 +263,56 @@ it('turning off automatic mode also cancels an in-flight automatic asset load',a
  expect(p.busy).toBe(true);p.cancelAutomatic();release();await request
  expect(p.pending).toBeNull();expect(p.active?.track.id).toBe('a')
 })
+
+it('automatic shortlist prepares a winning song and a ready backup without scheduling fades',async()=>{
+ const p=await setup();const {qualityTrack}=await import('../continuous/qualityFixture');const {planAutomaticQuality}=await import('../continuous/qualityPlan')
+ ;(p as any).options.automaticPlanner=planAutomaticQuality
+ p.tracks=['a','b','c'].map(qualityTrack);await p.start('a',0)
+ const id=await p.prepareAutomatic(['b','c']);await new Promise<void>(r=>queueMicrotask(r));await new Promise<void>(r=>queueMicrotask(r))
+ expect(id).toBe('b');expect(p.automaticStart).toBeGreaterThan(40);expect(p.pending).toBeNull()
+ expect(p.logs.some(l=>l.kind==='automatic_backup_ready')).toBe(true)
+ expect(p.cache.protected.has('c')).toBe(true)
+})
+it('automatic shortlist falls back on download failure and exact-song requests never substitute another song',async()=>{
+ const p=await setup();const {qualityTrack}=await import('../continuous/qualityFixture');const {planAutomaticQuality}=await import('../continuous/qualityPlan')
+ ;(p as any).options.automaticPlanner=planAutomaticQuality;p.tracks=['a','b','c'].map(qualityTrack);await p.start('a',0)
+ const load=p.cache.load;p.cache.load=vi.fn(async(asset,signal)=>{if(asset.url==='b')throw Error('offline');return load(asset,signal)})
+ expect(await p.prepareAutomatic(['b','c'])).toBe('c')
+ await expect(p.prepareAutomatic(['b'])).rejects.toThrow()
+ expect(p.automaticStart).toBeNull()
+})
+it('cancelled automatic shortlist cannot install a late result',async()=>{
+ const p=await setup();const {qualityTrack}=await import('../continuous/qualityFixture');const {planAutomaticQuality}=await import('../continuous/qualityPlan')
+ ;(p as any).options.automaticPlanner=planAutomaticQuality;p.tracks=['a','b'].map(qualityTrack);await p.start('a',0)
+ let finish!:(value:AudioBuffer)=>void;p.cache.load=vi.fn(()=>new Promise<AudioBuffer>(r=>{finish=r}))
+ const task=p.prepareAutomatic(['b']);p.cancelPreparation();finish({} as AudioBuffer)
+ await expect(task).rejects.toThrow();expect(p.automaticStart).toBeNull()
+})
+
+it('an exact-song automatic request tries another entry window if the preferred clip fails',async()=>{
+ const p=await setup();const {qualityTrack}=await import('../continuous/qualityFixture');const {planAutomaticQuality}=await import('../continuous/qualityPlan')
+ ;(p as any).options.automaticPlanner=planAutomaticQuality;const a=qualityTrack('a'),b=qualityTrack('b')
+ b.windows.push({...b.windows[0],id:'second',start:12,end:20,variants:{a:{...b.windows[0].variants.a,url:'second',sha256:'second'}}})
+ p.tracks=[a,b];await p.start('a',0)
+ const load=p.cache.load;p.cache.load=vi.fn(async(asset,signal)=>{if(asset.url==='clip')throw Error('bad clip');return load(asset,signal)})
+ expect(await p.prepareAutomatic(['b'])).toBe('b')
+ expect(p.logs.filter(l=>l.kind==='next_preparation_ready').at(-1)!.candidateId).toContain(':second:')
+})
+
+it('turning auto off preserves an already scheduled manual handoff',async()=>{
+ const p=await setup();const {canPrepareAfterAutoOff}=await import('../continuous/automatic')
+ await p.request({kind:'next',targetId:'b'},18);const manual=p.pending
+ p.cancelAutomatic();p.cancelPreparation()
+ if(canPrepareAfterAutoOff(p,'b'))p.cancel()
+ expect(p.pending).toBe(manual)
+})
+it('automatic request audit names the actual policy without relabeling manual requests',async()=>{
+ const p=await setup();const {qualityTrack}=await import('../continuous/qualityFixture');const {planAutomaticQuality,AUTOMATIC_POLICY}=await import('../continuous/qualityPlan')
+ Object.assign((p as any).options,{automaticPlanner:planAutomaticQuality,automaticPolicyVersion:AUTOMATIC_POLICY,policyVersion:'vocal-overlap-v1'})
+ p.tracks=['a','b'].map(qualityTrack);await p.start('a',0);await p.prepareAutomatic(['b']);await p.request({kind:'next',targetId:'b'},18,{automatic:true})
+ expect(p.logs.filter(l=>l.kind==='request_received').at(-1)!.policyVersion).toBe(AUTOMATIC_POLICY)
+ expect(p.logs.filter(l=>l.kind==='decision_search').at(-1)!.policyVersion).toBe(AUTOMATIC_POLICY)
+ expect(p.export().automaticPolicy?.version).toBe(AUTOMATIC_POLICY)
+ p.cancel();await p.request({kind:'next',targetId:'b'},18)
+ expect(p.logs.filter(l=>l.kind==='request_received').at(-1)!.policyVersion).toBe('vocal-overlap-v1')
+})

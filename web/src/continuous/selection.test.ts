@@ -30,3 +30,26 @@ it('keeps a future selection queued during a committed handoff and prepares it f
  await selection.select('c')
  expect(selection.state).toMatchObject({id:'c',status:'ready'});expect(prepare).toHaveBeenCalledTimes(1);expect(prepare).toHaveBeenCalledWith('c')
 })
+
+it('loads shortlist metadata, retains a healthy candidate when another fails, and displays the chosen winner',async()=>{
+ const port={install:vi.fn(),prepare:vi.fn(),prepareCandidates:vi.fn(async()=> 'c')}
+ const selection=new NextSelection(async id=>{if(id==='b')throw Error('metadata unavailable');return {id} as any},port,()=>{})
+ await selection.selectCandidates(['b','c','d'])
+ expect(port.prepareCandidates).toHaveBeenCalledWith(['c','d'])
+ expect(selection.state).toEqual({id:'c',status:'ready',error:''})
+})
+it('manual replacement prevents a stale shortlist from preparing or selecting a different song',async()=>{
+ let finish!:(track:any)=>void
+ const port={install:vi.fn(),prepare:vi.fn(async()=>{}),prepareCandidates:vi.fn(async()=> 'b')}
+ const selection=new NextSelection(id=>id==='b'?new Promise(r=>{finish=r}):Promise.resolve({id} as any),port,()=>{})
+ const pending=selection.selectCandidates(['b']);await selection.select('c');finish({id:'b'});await pending
+ expect(selection.state.id).toBe('c');expect(port.prepareCandidates).not.toHaveBeenCalled()
+})
+
+it('invalidating metadata work retains selection but cannot start automatic preparation after toggling off',async()=>{
+ let finish!:(track:any)=>void
+ const port={install:vi.fn(),prepare:vi.fn(async()=>{}),prepareCandidates:vi.fn(async()=> 'b')}
+ const selection=new NextSelection(()=>new Promise(r=>{finish=r}),port,()=>{})
+ const task=selection.selectCandidates(['b']);selection.cancelPending();finish({id:'b'});await task
+ expect(port.prepareCandidates).not.toHaveBeenCalled();expect(selection.state.id).toBe('b');expect(selection.state.status).toBe('idle')
+})

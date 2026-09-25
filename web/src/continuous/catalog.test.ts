@@ -48,3 +48,12 @@ describe('source labels and next-song suggestions',()=>{
   expect(suggestNext([current,entry('too-fast',130)],current,[])).toBeNull()
  })
 })
+
+it('shortlists eight compatible tracks while respecting exact song and style constraints',async()=>{
+ const {shortlistNext}=await import('./catalog')
+ const current=entry('a'),rows=[current,...Array.from({length:12},(_,i)=>entry('b'+i,100+i))]
+ expect(shortlistNext(rows,current,[])).toHaveLength(8)
+ expect(shortlistNext(rows,current,[],{targetId:'b11'}).map(e=>e.id)).toEqual(['b11'])
+ expect(shortlistNext(rows,current,[],{style:'house'})).toEqual([])
+ expect(shortlistNext(rows,current,['b0']).some(e=>e.id==='b0')).toBe(false)
+})

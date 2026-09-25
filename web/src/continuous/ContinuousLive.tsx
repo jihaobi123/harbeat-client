@@ -1,10 +1,11 @@
 import {useEffect,useMemo,useRef,useState} from 'react'
 import {loadJson} from '../phrase/load'
 import {LiveTransport} from '../realtime/transport'
+import {planAutomaticQuality,AUTOMATIC_POLICY} from './qualityPlan'
 import {planContinuous} from './beatAlignment'
-import {filterLibrary,readLibraryIndex,suggestNext,TrackLibrary,refreshLibraryTracks,type LibraryEntry,type LibraryIndex} from './catalog'
+import {filterLibrary,readLibraryIndex,suggestNext,shortlistNext,TrackLibrary,refreshLibraryTracks,type LibraryEntry,type LibraryIndex} from './catalog'
 import {NextSelection,type SelectionState} from './selection'
-import {automaticAction} from './automatic'
+import {automaticAction,canPrepareAfterAutoOff,selectionSnapshot} from './automatic'
 import {initializeFromGesture} from './activation'
 import {styleChoices,pickStyle} from './styles'
 import MusicImport from './MusicImport'
@@ -20,6 +21,7 @@ export default function ContinuousLive(){
  const [selection,setSelection]=useState<SelectionState>(idle),[volume,setVolume]=useState(.85),[automatic,setAutomatic]=useState(true),[seekDraft,setSeekDraft]=useState<number|null>(null)
  const [importOpen,setImportOpen]=useState(false),[chooseMode,setChooseMode]=useState<'song'|'style'>('song'),[styleDraft,setStyleDraft]=useState(''),[intentStyle,setIntentStyle]=useState('')
  const automaticRef=useRef(automatic);automaticRef.current=automatic
+ const shortlistPins=useRef<string[]>([]),explicitSong=useRef<string|null>(null)
  const styleIntent=useRef(''),startingId=useRef<string|null>(null);styleIntent.current=intentStyle
  const [,refresh]=useState(0),transport=useRef<LiveTransport|null>(null),initializing=useRef<Promise<LiveTransport>|null>(null),library=useRef<TrackLibrary|null>(null),next=useRef<NextSelection|null>(null)
  const alive=useRef(true),startRevision=useRef(0),recent=useRef<string[]>([]),lastCurrent=useRef<string|null>(null),autoAt=useRef(0),autoExcluded=useRef(new Set<string>()),autoWorking=useRef(false),selectionRevision=useRef(0),filters=useRef({collection,label,query}),volumeRef=useRef(volume)
@@ -42,7 +44,7 @@ export default function ContinuousLive(){
   const pins=()=>{
    const player=transport.current
    if(player?.busy&&!player.current)throw Error('播放位置正在加载，曲库会稍后自动更新。')
-   return [startingId.current,player?.current?.id,player?.pending?.plan.to,next.current?.state.id].filter(Boolean) as string[]
+   return [startingId.current,player?.current?.id,player?.pending?.plan.to,next.current?.state.id,...shortlistPins.current].filter(Boolean) as string[]
   }
   await refreshLibraryTracks(lib,pins)
   if(!alive.current)return
@@ -50,23 +52,23 @@ export default function ContinuousLive(){
  }
  function install(){
   const lib=library.current,player=transport.current;if(!lib||!player)return
-  lib.trim(new Set([player.current?.id,player.pending?.plan.to,next.current?.state.id].filter(Boolean) as string[]))
+  lib.trim(new Set([player.current?.id,player.pending?.plan.to,next.current?.state.id,...shortlistPins.current].filter(Boolean) as string[]))
   player.tracks=lib.values()
  }
  async function ensure(){
   if(transport.current)return transport.current
   if(initializing.current)return initializing.current
-  const player=new LiveTransport([],()=>{if(alive.current)refresh(x=>x+1)},base,{planner:planContinuous,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1',noPlanMessage:'这个时间附近没有合适的交接点，当前歌曲会继续播放。可以稍后重试或选另一首。'})
+  const player=new LiveTransport([],()=>{if(alive.current)refresh(x=>x+1)},base,{planner:planContinuous,automaticPlanner:planAutomaticQuality,automaticPolicyVersion:AUTOMATIC_POLICY,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1',noPlanMessage:'这个时间附近没有合适的交接点，当前歌曲会继续播放。可以稍后重试或选另一首。'})
   const task=initializeFromGesture(player).then(()=>{
    if(!alive.current){player.dispose();throw Error('页面已关闭')}
    transport.current=player;player.setVolume(volumeRef.current)
-   next.current=new NextSelection(id=>library.current!.load(id),{install:()=>install(),prepare:id=>player.prepareNext(id,{automatic:automaticRef.current})},state=>{if(alive.current)setSelection({...state})})
+   next.current=new NextSelection(id=>library.current!.load(id),{install:()=>install(),prepare:id=>player.prepareNext(id,{automatic:automaticRef.current}),prepareCandidates:ids=>player.prepareAutomatic(ids)},state=>{if(alive.current)setSelection({...state})})
    return player
   }).catch(e=>{player.dispose();throw e}).finally(()=>{if(initializing.current===task)initializing.current=null})
   initializing.current=task;return task
  }
  async function startSong(entry:LibraryEntry){
-  const revision=++startRevision.current;startingId.current=entry.id;setStarting(true);setNotice('');setError('');next.current?.clear();transport.current?.cancelPreparation()
+  const revision=++startRevision.current;startingId.current=entry.id;explicitSong.current=null;shortlistPins.current=[];setStarting(true);setNotice('');setError('');next.current?.clear();transport.current?.cancelPreparation()
   try{const player=await ensure();await library.current!.load(entry.id);if(revision!==startRevision.current||!alive.current)return;install();await player.start(entry.id)}catch(e){if(revision===startRevision.current&&alive.current)setError((e as Error).message)}finally{if(revision===startRevision.current&&alive.current){startingId.current=null;setStarting(false)}}
  }
  function choose(id:string,automaticChoice=false,keepStyle=false){
@@ -74,13 +76,23 @@ export default function ContinuousLive(){
   // A seek replaces the active source asynchronously. Cancelling here would
   // abort that seek and leave no song for prepareNext to attach to.
   if(!player.current){if(player.busy)setNotice('正在加载播放位置，请稍候再选下一首。');return}
-  if(!automaticChoice&&!keepStyle){setIntentStyle('');styleIntent.current='';setChooseMode('song')}
-  selectionRevision.current++
+  if(!automaticChoice&&!keepStyle){explicitSong.current=id;setIntentStyle('');styleIntent.current='';setChooseMode('song')}
+  shortlistPins.current=[id];selectionRevision.current++
   if(!automaticChoice){autoExcluded.current.clear();autoAt.current=player.position}
   if((player.pending||player.busy)&&!player.gate.locked)player.cancel()
   player.cancelPreparation();void next.current?.select(id,{defer:!!player.pending&&player.gate.locked})
  }
+ function chooseAutomatic(sourceId:string){
+  const player=transport.current,entry=entries.find(e=>e.id===sourceId);if(!player||!entry)return
+  const eligible=styleIntent.current||explicitSong.current?entries:filterLibrary(entries,{collection:filters.current.collection,label:filters.current.label})
+  const picks=shortlistNext(eligible.filter(e=>!autoExcluded.current.has(e.id)),entry,recent.current.slice(-8),{style:styleIntent.current||undefined,targetId:explicitSong.current||undefined})
+  if(!picks.length){autoAt.current=entry.duration||Infinity;setNotice('当前选择范围内没有可衔接的歌曲，可以选择其他歌曲或风格。');return}
+  shortlistPins.current=picks.map(e=>e.id);selectionRevision.current++
+  if((player.pending||player.busy)&&!player.gate.locked)player.cancel()
+  player.cancelPreparation();void next.current?.selectCandidates(shortlistPins.current)
+ }
  function suggest(id:string){
+  if(automaticRef.current){chooseAutomatic(id);return}
   const entry=entries.find(e=>e.id===id);if(!entry)return
   const candidates=styleIntent.current?entries.filter(e=>e.styleLabels.includes(styleIntent.current)):filterLibrary(entries,{collection:filters.current.collection,label:filters.current.label})
   const pick=suggestNext(candidates,entry,recent.current.slice(-8))
@@ -92,30 +104,28 @@ export default function ContinuousLive(){
   if(!from||!key)return
   const pick=pickStyle(entries,from,key,recent.current.slice(-8))
   if(!pick){setNotice(`“${key}”暂时没有节奏能衔接的歌曲。当前音乐会继续播放，可以换一个风格。`);return}
-  styleIntent.current=key;setIntentStyle(key);choose(pick.id,false,true)
+  styleIntent.current=key;setIntentStyle(key);explicitSong.current=null;autoExcluded.current.clear();autoAt.current=0
+  if(automaticRef.current&&!player?.gate.locked)chooseAutomatic(from.id);else choose(pick.id,false,true)
  }
  useEffect(()=>{
   const id=current?.id||null
   if(!id&&transport.current?.busy)return
   if(id===lastCurrent.current)return
   lastCurrent.current=id;autoAt.current=0;autoExcluded.current.clear()
-  if(id){recent.current.push(id);setNotice('');if(!next.current?.state.id||next.current.state.id===id)suggest(id);else choose(next.current.state.id,false,true);install()}
+  if(id){recent.current.push(id);setNotice('');if(explicitSong.current===id)explicitSong.current=null;if(explicitSong.current)choose(explicitSong.current,false,true);else suggest(id);install()}
   else {next.current?.clear();transport.current?.cancelPreparation()}
  },[current?.id])
  useEffect(()=>{
   if(!automatic||!t||!current||autoWorking.current)return
-  const action=automaticAction({position,duration:current.duration,playing:t.playing,busy:t.busy,pending:!!t.pending,status:selection.status,hasSelection:!!selection.id,plannedStart:t.automaticStart,futurePreparation:true},autoAt.current)
+  const liveSelection=selectionSnapshot(selection,next.current)
+  const action=automaticAction({position,duration:current.duration,playing:t.playing,busy:t.busy,pending:!!t.pending,status:liveSelection.status,hasSelection:!!liveSelection.id,plannedStart:t.automaticStart,futurePreparation:true},autoAt.current)
   if(!action)return
   autoAt.current=position+(action==='prepare'?12:3)
-  if(action==='prepare'&&selection.id){choose(selection.id,true);return}
+  if(action==='prepare'&&liveSelection.id){if(explicitSong.current)choose(explicitSong.current,true);else chooseAutomatic(current.id);return}
   const alternative=()=>{
-   if(selection.id)autoExcluded.current.add(selection.id)
-   const entry=entries.find(e=>e.id===current.id)
-   if(!entry)return
-   const candidates=(styleIntent.current?entries.filter(e=>e.styleLabels.includes(styleIntent.current)):filterLibrary(entries,{collection:filters.current.collection,label:filters.current.label})).filter(e=>!autoExcluded.current.has(e.id))
-   const pick=suggestNext(candidates,entry,recent.current.slice(-8))
-   if(pick){choose(pick.id,true);setNotice('已选歌曲暂时没有可用交接点，正在自动准备另一首。')}
-   else{autoAt.current=current.duration;t.cancelPreparation();setNotice('这次曲尾没有找到可接的歌曲。你可以手动选择下一首，或扩大曲库筛选范围。')}
+   if(explicitSong.current){autoAt.current=current.duration;setNotice('指定的下一首暂时没有可靠接点，当前歌曲继续播放；可以换歌或稍后重试。');return}
+   for(const id of shortlistPins.current)autoExcluded.current.add(id)
+   chooseAutomatic(current.id)
   }
   if(action==='alternative'){alternative();return}
   autoWorking.current=true;const sourceId=current.id,revision=selectionRevision.current
@@ -126,11 +136,11 @@ export default function ContinuousLive(){
   setNotice('');setError('')
   try{await player.request({kind:'next',targetId:id},18,{origin,automatic:origin==='continuous_end_auto'});if(!player.pending&&alive.current)setNotice(player.status)}catch(e){if(alive.current)setError((e as Error).message)}
  }
- function stop(){startRevision.current++;startingId.current=null;setStarting(false);next.current?.clear();transport.current?.stop();lastCurrent.current=null;setSeekDraft(null);setNotice('')}
+ function stop(){explicitSong.current=null;shortlistPins.current=[];startRevision.current++;startingId.current=null;setStarting(false);next.current?.clear();transport.current?.stop();lastCurrent.current=null;setSeekDraft(null);setNotice('')}
  async function seek(){
   if(seekDraft===null||!transport.current)return
   const offset=seekDraft,id=next.current?.state.id;setSeekDraft(null);setNotice('');autoAt.current=0;autoExcluded.current.clear()
-  try{await transport.current.seek(offset);if(id)choose(id,false,true)}catch(e){setError((e as Error).message)}
+  try{await transport.current.seek(offset);if(explicitSong.current)choose(explicitSong.current,false,true);else if(automaticRef.current&&transport.current.current)chooseAutomatic(transport.current.current.id);else if(id)choose(id,false,true)}catch(e){setError((e as Error).message)}
  }
  function exportSession(){const player=transport.current;if(!player)return;const url=URL.createObjectURL(new Blob([JSON.stringify(player.export(),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`harbeat-continuous-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
  const readyCount=entries.filter(e=>e.playStatus==='ready').length
@@ -146,7 +156,7 @@ export default function ContinuousLive(){
     <div className="play-actions"><button className="primary" disabled={!current} onClick={()=>{setError('');void t?.togglePause().catch(e=>setError(e.message))}}>{t?.paused?'▶ 继续播放':'Ⅱ 暂停'}</button><button disabled={!current&&!starting&&!t?.busy} onClick={stop}>停止</button><label className="volume">音量<input aria-label="音量" type="range" min={0} max={1} step={.01} value={volume} onChange={e=>{const v=Number(e.target.value);setVolume(v);t?.setVolume(v)}}/></label></div>
     <p className="transport-status" role="status">{starting?(t?.status||'正在读取歌曲资料…'):t?.status||'点选任意歌曲，开始播放完整原曲。'}</p>
    </div>
-   <div className="next card"><div className="card-top"><span className="eyebrow">接下来</span><label className="auto-toggle"><input type="checkbox" checked={automatic} onChange={e=>{setAutomatic(e.target.checked);if(!e.target.checked)t?.cancelAutomatic();autoAt.current=0}}/>自动续播</label></div>
+   <div className="next card"><div className="card-top"><span className="eyebrow">接下来</span><label className="auto-toggle"><input type="checkbox" checked={automatic} onChange={e=>{setAutomatic(e.target.checked);automaticRef.current=e.target.checked;if(!e.target.checked){next.current?.cancelPending();t?.cancelAutomatic();t?.cancelPreparation();if(t&&canPrepareAfterAutoOff(t,selection.id))choose(selection.id!,true)}else if(current&&!t?.gate.locked){autoExcluded.current.clear();chooseAutomatic(current.id)}autoAt.current=0}}/>自动续播</label></div>
     <div className="next-mode" role="group" aria-label="下一首选择方式"><button aria-pressed={chooseMode==='song'} onClick={()=>setChooseMode('song')}>选下一首</button><button aria-pressed={chooseMode==='style'} onClick={()=>setChooseMode('style')}>选下个风格</button></div>
     {chooseMode==='style'&&<div className="style-picker"><label>下一首风格<select aria-label="下一首风格" value={styleDraft||styles[0]?.key||''} onChange={e=>setStyleDraft(e.target.value)}>{styles.map(s=><option key={s.key} value={s.key}>{s.key} · {s.count} 首</option>)}</select></label><button disabled={!current||!styles.length||!!t?.busy&&!t?.pending} onClick={chooseStyle}>按此风格选歌</button></div>}
     {intentStyle&&<p className="style-intent">后续优先播放 {intentStyle}<button onClick={()=>{setIntentStyle('');styleIntent.current=''}}>取消偏好</button></p>}
