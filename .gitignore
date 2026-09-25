@@ -128,3 +128,6 @@ web/dist-vocal-overlap/
 
 # Independent continuous player build
 web/dist-continuous/
+
+# Independent vocal / accompaniment bridge trial
+web/dist-vocal-bridge/
