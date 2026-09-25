@@ -218,3 +218,48 @@ it('does not pause a committed handoff for an outgoing chunk that starts after A
  p.cache.load=vi.fn((asset,signal)=>asset.url==='a-0.flac'?new Promise<AudioBuffer>(()=>{}):original(asset,signal));await p.start('a',140);await drain();await p.request({kind:'next',targetId:'b'},10)
  const pending=p.pending!;expect(pending).not.toBeNull();expect(pending.plan.end).toBe(149.8);(p.ctx as any).currentTime=pending.end-.1;(p as any).tick();await drain();expect(p.buffering).toBe(false);expect(p.ctx.state).toBe('running')
 })
+
+it('prepares the future automatic cue while preserving current audio and no scheduled fade',async()=>{
+ const p=await setup();const active=p.active
+ await p.prepareNext('b',{automatic:true})
+ expect(p.automaticStart).toBeGreaterThan(80)
+ expect(p.active).toBe(active);expect(p.pending).toBeNull()
+ p.cancelPreparation();expect(p.automaticStart).toBeNull()
+})
+
+it('executes the prepared future plan intact, instead of reselecting within an 18-second click budget',async()=>{
+ const p=await setup();await p.prepareNext('b',{automatic:true})
+ const start=p.automaticStart!;expect(start).toBeGreaterThan(p.position+18)
+ ;(p.ctx as any).currentTime=p.active!.at+start-p.active!.offset-8
+ await p.request({kind:'next',targetId:'b'},18,{origin:'continuous_end_auto',automatic:true})
+ expect(p.pending!.plan.start).toBe(start);expect(p.pending!.plan.prepared).toBe(true)
+ expect(p.pending!.plan.duration).toBe(4.8)
+ expect((p.active!.gain.gain as any).events).toContainEqual(['ramp',0,p.pending!.end])
+ expect((p.pending!.deck.gain.gain as any).events).toContainEqual(['ramp',.76,p.pending!.end])
+})
+it('turning off automatic mode cancels its unlocked schedule while preserving manual handoffs',async()=>{
+ const p=await setup();await p.prepareNext('b',{automatic:true});await p.request({kind:'next',targetId:'b'},18,{automatic:true})
+ expect(p.pending?.automatic).toBe(true);p.cancelAutomatic();expect(p.pending).toBeNull()
+ await p.request({kind:'next',targetId:'b'},18);expect(p.pending).not.toBeNull()
+ p.cancelAutomatic();expect(p.pending).not.toBeNull()
+})
+it('seeking clears the old automatic cue and pause keeps its replacement on the paused clock',async()=>{
+ const p=await setup();await p.prepareNext('b',{automatic:true});await p.togglePause();await p.seek(70)
+ expect(p.automaticStart).toBeNull();expect(p.paused).toBe(true)
+ await p.prepareNext('b',{automatic:true});expect(p.automaticStart).toBeGreaterThan(70)
+ await p.request({kind:'next',targetId:'b'},18,{automatic:true});expect(p.pending).toBeNull()
+})
+it('a slow automatic preload does not publish an already missed cue',async()=>{
+ const p=await setup(),load=p.cache.load;let moved=false
+ p.cache.load=vi.fn(async(asset,signal)=>{const buffer=await load(asset,signal);if(!moved){(p.ctx as any).currentTime=60;moved=true}return buffer})
+ await p.prepareNext('b',{automatic:true})
+ expect(p.automaticStart).toBeGreaterThan(p.position+.25)
+})
+
+it('turning off automatic mode also cancels an in-flight automatic asset load',async()=>{
+ const p=await setup();p.cache.buffers.clear();const load=p.cache.load;let release!:()=>void
+ let first=true;p.cache.load=vi.fn(async(asset,signal)=>{if(first){first=false;await new Promise<void>(r=>release=r)}return load(asset,signal)})
+ const request=p.request({kind:'next',targetId:'b'},18,{automatic:true})
+ expect(p.busy).toBe(true);p.cancelAutomatic();release();await request
+ expect(p.pending).toBeNull();expect(p.active?.track.id).toBe('a')
+})

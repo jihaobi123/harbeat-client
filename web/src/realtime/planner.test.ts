@@ -31,3 +31,15 @@ describe('decision evidence',()=>{
   expect((result as any).exclusions.some((x:any)=>x.code==='asset_not_ready'&&x.trackId==='c')).toBe(true)
  })
 })
+
+it('applies an optional timing eligibility gate before choosing the entry material, preserving scores of eligible plans',()=>{
+ const a=track('a'),b=track('b'),args=[a,[b] as Track[],50,{kind:'next'},new Set(['native.wav']),18,true] as const
+ const before=planNext(...args)
+ const gate=(_a:Track,_b:Track,cue:{window:{bars:number}})=>cue.window.bars===2?null:'local beats do not align'
+ const after=planNext(...args,gate)
+ expect(after.candidates.every((p:any)=>p.window.bars===2)).toBe(true)
+ expect(after.exclusions.some((e:any)=>e.code==='local_beat_alignment')).toBe(true)
+ for(const p of after.candidates)expect(p.score).toBe(before.candidates.find(q=>q.id===p.id)!.score)
+ const blocked=planNext(...args,()=> 'invalid local grid')
+ expect(blocked.best).toBeNull()
+})

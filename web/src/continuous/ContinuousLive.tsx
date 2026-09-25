@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react'
 import {loadJson} from '../phrase/load'
 import {LiveTransport} from '../realtime/transport'
-import {planVocalOverlap} from '../vocal-overlap/planner'
+import {planContinuous} from './beatAlignment'
 import {filterLibrary,readLibraryIndex,suggestNext,TrackLibrary,refreshLibraryTracks,type LibraryEntry,type LibraryIndex} from './catalog'
 import {NextSelection,type SelectionState} from './selection'
 import {automaticAction} from './automatic'
@@ -19,6 +19,7 @@ export default function ContinuousLive(){
  const [collection,setCollection]=useState(''),[label,setLabel]=useState(''),[query,setQuery]=useState(''),[limit,setLimit]=useState(40)
  const [selection,setSelection]=useState<SelectionState>(idle),[volume,setVolume]=useState(.85),[automatic,setAutomatic]=useState(true),[seekDraft,setSeekDraft]=useState<number|null>(null)
  const [importOpen,setImportOpen]=useState(false),[chooseMode,setChooseMode]=useState<'song'|'style'>('song'),[styleDraft,setStyleDraft]=useState(''),[intentStyle,setIntentStyle]=useState('')
+ const automaticRef=useRef(automatic);automaticRef.current=automatic
  const styleIntent=useRef(''),startingId=useRef<string|null>(null);styleIntent.current=intentStyle
  const [,refresh]=useState(0),transport=useRef<LiveTransport|null>(null),initializing=useRef<Promise<LiveTransport>|null>(null),library=useRef<TrackLibrary|null>(null),next=useRef<NextSelection|null>(null)
  const alive=useRef(true),startRevision=useRef(0),recent=useRef<string[]>([]),lastCurrent=useRef<string|null>(null),autoAt=useRef(0),autoExcluded=useRef(new Set<string>()),autoWorking=useRef(false),selectionRevision=useRef(0),filters=useRef({collection,label,query}),volumeRef=useRef(volume)
@@ -55,11 +56,11 @@ export default function ContinuousLive(){
  async function ensure(){
   if(transport.current)return transport.current
   if(initializing.current)return initializing.current
-  const player=new LiveTransport([],()=>{if(alive.current)refresh(x=>x+1)},base,{planner:planVocalOverlap,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1',noPlanMessage:'这个时间附近没有合适的交接点，当前歌曲会继续播放。可以稍后重试或选另一首。'})
+  const player=new LiveTransport([],()=>{if(alive.current)refresh(x=>x+1)},base,{planner:planContinuous,autoNext:false,prewarm:false,policyVersion:'vocal-overlap-v1',noPlanMessage:'这个时间附近没有合适的交接点，当前歌曲会继续播放。可以稍后重试或选另一首。'})
   const task=initializeFromGesture(player).then(()=>{
    if(!alive.current){player.dispose();throw Error('页面已关闭')}
    transport.current=player;player.setVolume(volumeRef.current)
-   next.current=new NextSelection(id=>library.current!.load(id),{install:()=>install(),prepare:id=>player.prepareNext(id)},state=>{if(alive.current)setSelection({...state})})
+   next.current=new NextSelection(id=>library.current!.load(id),{install:()=>install(),prepare:id=>player.prepareNext(id,{automatic:automaticRef.current})},state=>{if(alive.current)setSelection({...state})})
    return player
   }).catch(e=>{player.dispose();throw e}).finally(()=>{if(initializing.current===task)initializing.current=null})
   initializing.current=task;return task
@@ -75,7 +76,7 @@ export default function ContinuousLive(){
   if(!player.current){if(player.busy)setNotice('正在加载播放位置，请稍候再选下一首。');return}
   if(!automaticChoice&&!keepStyle){setIntentStyle('');styleIntent.current='';setChooseMode('song')}
   selectionRevision.current++
-  if(!automaticChoice){autoExcluded.current.clear();autoAt.current=player.position+Math.min(12,Math.max(0,(player.current?.duration||0)-player.position-22))}
+  if(!automaticChoice){autoExcluded.current.clear();autoAt.current=player.position}
   if((player.pending||player.busy)&&!player.gate.locked)player.cancel()
   player.cancelPreparation();void next.current?.select(id,{defer:!!player.pending&&player.gate.locked})
  }
@@ -103,7 +104,7 @@ export default function ContinuousLive(){
  },[current?.id])
  useEffect(()=>{
   if(!automatic||!t||!current||autoWorking.current)return
-  const action=automaticAction({position,duration:current.duration,playing:t.playing,busy:t.busy,pending:!!t.pending,status:selection.status,hasSelection:!!selection.id},autoAt.current)
+  const action=automaticAction({position,duration:current.duration,playing:t.playing,busy:t.busy,pending:!!t.pending,status:selection.status,hasSelection:!!selection.id,plannedStart:t.automaticStart,futurePreparation:true},autoAt.current)
   if(!action)return
   autoAt.current=position+(action==='prepare'?12:3)
   if(action==='prepare'&&selection.id){choose(selection.id,true);return}
@@ -114,7 +115,7 @@ export default function ContinuousLive(){
    const candidates=(styleIntent.current?entries.filter(e=>e.styleLabels.includes(styleIntent.current)):filterLibrary(entries,{collection:filters.current.collection,label:filters.current.label})).filter(e=>!autoExcluded.current.has(e.id))
    const pick=suggestNext(candidates,entry,recent.current.slice(-8))
    if(pick){choose(pick.id,true);setNotice('已选歌曲暂时没有可用交接点，正在自动准备另一首。')}
-   else{autoAt.current=current.duration;setNotice('这次曲尾没有找到可接的歌曲。你可以手动选择下一首，或扩大曲库筛选范围。')}
+   else{autoAt.current=current.duration;t.cancelPreparation();setNotice('这次曲尾没有找到可接的歌曲。你可以手动选择下一首，或扩大曲库筛选范围。')}
   }
   if(action==='alternative'){alternative();return}
   autoWorking.current=true;const sourceId=current.id,revision=selectionRevision.current
@@ -123,7 +124,7 @@ export default function ContinuousLive(){
  async function mix(origin='continuous_user'){
   const player=transport.current,id=next.current?.state.id;if(!player||!id)return
   setNotice('');setError('')
-  try{await player.request({kind:'next',targetId:id},18,{origin});if(!player.pending&&alive.current)setNotice(player.status)}catch(e){if(alive.current)setError((e as Error).message)}
+  try{await player.request({kind:'next',targetId:id},18,{origin,automatic:origin==='continuous_end_auto'});if(!player.pending&&alive.current)setNotice(player.status)}catch(e){if(alive.current)setError((e as Error).message)}
  }
  function stop(){startRevision.current++;startingId.current=null;setStarting(false);next.current?.clear();transport.current?.stop();lastCurrent.current=null;setSeekDraft(null);setNotice('')}
  async function seek(){
@@ -145,15 +146,15 @@ export default function ContinuousLive(){
     <div className="play-actions"><button className="primary" disabled={!current} onClick={()=>{setError('');void t?.togglePause().catch(e=>setError(e.message))}}>{t?.paused?'▶ 继续播放':'Ⅱ 暂停'}</button><button disabled={!current&&!starting&&!t?.busy} onClick={stop}>停止</button><label className="volume">音量<input aria-label="音量" type="range" min={0} max={1} step={.01} value={volume} onChange={e=>{const v=Number(e.target.value);setVolume(v);t?.setVolume(v)}}/></label></div>
     <p className="transport-status" role="status">{starting?(t?.status||'正在读取歌曲资料…'):t?.status||'点选任意歌曲，开始播放完整原曲。'}</p>
    </div>
-   <div className="next card"><div className="card-top"><span className="eyebrow">接下来</span><label className="auto-toggle"><input type="checkbox" checked={automatic} onChange={e=>setAutomatic(e.target.checked)}/>自动续播</label></div>
+   <div className="next card"><div className="card-top"><span className="eyebrow">接下来</span><label className="auto-toggle"><input type="checkbox" checked={automatic} onChange={e=>{setAutomatic(e.target.checked);if(!e.target.checked)t?.cancelAutomatic();autoAt.current=0}}/>自动续播</label></div>
     <div className="next-mode" role="group" aria-label="下一首选择方式"><button aria-pressed={chooseMode==='song'} onClick={()=>setChooseMode('song')}>选下一首</button><button aria-pressed={chooseMode==='style'} onClick={()=>setChooseMode('style')}>选下个风格</button></div>
     {chooseMode==='style'&&<div className="style-picker"><label>下一首风格<select aria-label="下一首风格" value={styleDraft||styles[0]?.key||''} onChange={e=>setStyleDraft(e.target.value)}>{styles.map(s=><option key={s.key} value={s.key}>{s.key} · {s.count} 首</option>)}</select></label><button disabled={!current||!styles.length||!!t?.busy&&!t?.pending} onClick={chooseStyle}>按此风格选歌</button></div>}
     {intentStyle&&<p className="style-intent">后续优先播放 {intentStyle}<button onClick={()=>{setIntentStyle('');styleIntent.current=''}}>取消偏好</button></p>}
     {pending&&<div className="handoff" role="status"><span>{t!.ctx.currentTime<t!.pending!.start?'已安排交接':'正在渐进交接'}</span><strong>{pending.title}</strong><small>{Math.max(0,t!.pending!.end-t!.ctx.currentTime).toFixed(1)} 秒后完成</small></div>}
     <div className="next-choice"><span className="next-number" aria-hidden="true">↗</span><h2>{selected?.title||'下一首，由你来选'}</h2><p className="song-meta">{selected?`${selected.collection} · ${selected.bpm?.toFixed(1).replace('.0','')||'—'} BPM`:'播放中选歌，当前音乐会继续。'}</p></div>
-    <p className={`prep-status ${selection.status==='failed'?'failed':''}`} role="status">{selection.status==='loading'?(t?.paused?'正在后台准备，播放保持暂停。':'正在后台准备，当前音乐继续…'):selection.status==='queued'?'当前交接完成后，会准备这首歌。':selection.status==='ready'?'素材已准备，点击后选择可用交接点。':selection.status==='failed'?selection.error:'开始播放后，会为你准备一首可接的歌曲。'}</p>
+    <p className={`prep-status ${selection.status==='failed'?'failed':''}`} role="status">{selection.status==='loading'?(t?.paused?'正在后台准备，播放保持暂停。':'正在后台准备，当前音乐继续…'):selection.status==='queued'?'当前交接完成后，会准备这首歌。':selection.status==='ready'?'素材已准备，将按播放进度衔接；也可提前接歌。':selection.status==='failed'?selection.error:'开始播放后，会为你准备一首可接的歌曲。'}</p>
     <div className="next-actions"><button className="primary" disabled={!current||!t?.playing||selection.status!=='ready'||selection.id===current.id||!!t.pending} onClick={()=>void mix()}>现在接歌 <span>↗</span></button>{selection.status==='failed'&&<button onClick={()=>selection.id&&choose(selection.id)}>重新准备</button>}{(t?.pending||t?.busy)&&current&&<button disabled={!!t.gate.locked} onClick={()=>{t.cancel();setNotice('')}}>{t.gate.locked?'交接中':'取消交接'}</button>}</div>
-    <p className="next-hint">{chooseMode==='style'?'选好风格后会自动准备下一首；也可在曲库点选具体歌曲。':'在曲库点选下一首，当前音乐会继续。'} 开启自动续播后，临近曲尾会尝试衔接；也可点“现在接歌”提前交接。</p>
+    <p className="next-hint">{chooseMode==='style'?'选好风格后会自动准备下一首；也可在曲库点选具体歌曲。':'在曲库点选下一首，当前音乐会继续。'} 开启自动续播后，会提前准备并在合适的拍点衔接；也可点“现在接歌”提前交接。</p>
    </div>
   </section>
   <section className="library" aria-labelledby="library-title"><div className="section-heading"><div><p className="eyebrow">YOUR COLLECTION</p><h2 id="library-title">所有音乐 <span>{entries.length}</span></h2></div><div className="library-tools"><button className="add-music" onClick={()=>setImportOpen(true)}>＋ 添加音乐</button><label className="search"><span aria-hidden="true">⌕</span><input type="search" aria-label="搜索歌曲或风格" placeholder="搜索歌曲或风格" value={query} onChange={e=>{setQuery(e.target.value);setLimit(40)}}/></label></div></div>

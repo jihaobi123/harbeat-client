@@ -1,3 +1,4 @@
+import {planAutomatic} from '../continuous/automaticPlan'
 import {nativeSegment,SegmentScheduler} from '../continuous/segments'
 import type {OverlapPlan} from '../vocal-overlap/planner'
 import {scheduleV30Eq} from '../v30/eq'
@@ -10,8 +11,12 @@ import {planNext,RequestGate,Track,Intent,Plan} from './planner'
 export type Log=Record<string,any>
 export type ComparisonRun={experimentId:string;arm:'baseline'|'variant';midDb:-5|-8;[key:string]:unknown}
 type Deck={stream?:SegmentScheduler;track:Track;sources:AudioBufferSourceNode[];nodes:AudioNode[];gain:GainNode;dry:GainNode;wet:GainNode;low:BiquadFilterNode;high:BiquadFilterNode;mid:BiquadFilterNode;at:number;offset:number;headEnd?:number;bodyOffset?:number;rate?:number}
-type Pending={plan:Plan;deck:Deck;start:number;end:number;id:string;committed:boolean;requestId:string}
+type Pending={automatic?:boolean;plan:Plan;deck:Deck;start:number;end:number;id:string;committed:boolean;requestId:string}
 export class LiveTransport{
+ private automaticRequestId:string|null=null
+ private automaticPrepared:{source:Deck;targetId:string;result:ReturnType<typeof planAutomatic>}|null=null
+ get automaticStart(){return this.automaticPrepared?.source===this.active?this.automaticPrepared.result.best?.start??null:null}
+ cancelAutomatic(){if((this.pending?.automatic||this.automaticRequestId!==null&&this.automaticRequestId===this.currentRequestId)&&!this.gate.locked)this.cancel()}
  buffering=false;private bufferSuspend:Promise<void>|null=null;private bufferResume=false;private startLoad:AbortController|null=null;private requestLoad:AbortController|null=null;private prepareLoad:AbortController|null=null;private prepareSequence=0;private preparedPins=new Set<string>();private requestPins=new Set<string>();private startPins=new Set<string>();
  private comparisonId:string|null=null;private comparisonMode=false;private comparisonEnd:number|null=null;private comparisonMidDb=-5;
  persistenceStatus='会话尚未保存';private recorder:SessionWriter|null=null;private flushSession=()=>{void this.recorder?.flush()};
@@ -22,7 +27,7 @@ export class LiveTransport{
  private outcome(requestId:string|null,outcome:string,reason:string,extra:Log={}){if(!requestId||this.terminalRequests.has(requestId))return;this.terminalRequests.add(requestId);this.log('request_outcome',{requestId,outcome,reason,...extra})}
  private auditSearch(requestId:string,phase:string,result:ReturnType<typeof planNext>,position:number,budget:number){
   const ranked=result.candidates.map((p,rank)=>({rank:rank+1,id:p.id,to:p.to,windowId:p.window.id,start:p.start,end:p.end,score:p.score,prepared:p.prepared,scoreComponents:p.decision?.score.components,reason:p.reason,localEvidence:p.evidence,...((p as OverlapPlan).vocalOverlap?{vocalOverlap:(p as OverlapPlan).vocalOverlap}:{})}))
-  this.log('decision_search',{requestId,phase,sourcePosition:position,remainingBudgetSec:budget,result:{candidateCount:ranked.length,selectedId:result.best?.id||null,selectedAdjustment:result.best?.v30Tune||null,selectedEqMode:result.best?.v30Eq?'dynamic':'fixed',...((result.best as OverlapPlan|null)?.vocalOverlap?{selectedVocalOverlap:(result.best as OverlapPlan).vocalOverlap}:{}),candidates:ranked,exclusions:result.exclusions,rejected:result.rejected},policyVersion:this.options.policyVersion||DECISION_POLICY.version})
+  this.log('decision_search',{requestId,phase,sourcePosition:position,planningPosition:'planningPosition' in result?result.planningPosition:position,remainingBudgetSec:budget,result:{candidateCount:ranked.length,selectedId:result.best?.id||null,selectedAdjustment:result.best?.v30Tune||null,selectedEqMode:result.best?.v30Eq?'dynamic':'fixed',...((result.best as OverlapPlan|null)?.vocalOverlap?{selectedVocalOverlap:(result.best as OverlapPlan).vocalOverlap}:{}),candidates:ranked,exclusions:result.exclusions,rejected:result.rejected},policyVersion:this.options.policyVersion||DECISION_POLICY.version})
  }
 
  get position(){if(!this.active)return 0;return Math.min(this.active.track.duration,this.active.offset+Math.max(0,this.ctx.currentTime-this.active.at))}
@@ -76,20 +81,28 @@ export class LiveTransport{
   this.log('pause',{paused:this.paused});this.update()
  }
  async seek(position:number){if(!this.active)return;const id=this.active.track.id,pause=this.paused;this.log('seek',{position});await this.start(id,position,pause)}
- cancelPreparation(){this.prepareSequence++;this.prepareLoad?.abort();this.prepareLoad=null;this.preparedPins.clear();this.protected()}
- async prepareNext(trackId:string){
+ cancelPreparation(){this.automaticPrepared=null;this.prepareSequence++;this.prepareLoad?.abort();this.prepareLoad=null;this.preparedPins.clear();this.protected()}
+ async prepareNext(trackId:string,options:{automatic?:boolean}={}){
   this.cancelPreparation();const active=this.active;if(!active)throw new Error('请先播放歌曲')
   const token=this.prepareSequence,controller=new AbortController();this.prepareLoad=controller
   const check=()=>{if(controller.signal.aborted||token!==this.prepareSequence||this.active!==active||this.dead)throw new DOMException('下一首准备已取消','AbortError')}
   try{
-   const result=(this.options.planner||planNext)(active.track,this.tracks,this.position,{kind:'next',targetId:trackId},this.cache.ready,30,false),plan=result.best
-   if(!plan)throw new Error(this.options.noPlanMessage||'当前时间附近没有符合要求的交接窗口，可以稍后再试或换一首')
-   const target=this.tracks.find(t=>t.id===trackId);if(!target)throw new Error('歌曲不存在')
-   const body=nativeSegment(target,plan.window.end).asset
-   this.preparedPins=new Set([target.native.url,plan.asset.url,body.url]);this.protected();this.log('next_preparation_started',{trackId,from:active.track.id,candidateId:plan.id})
-   await this.cache.load(target.native,controller.signal);check();await this.cache.load(plan.asset,controller.signal);check();if(body.url!==target.native.url){await this.cache.load(body,controller.signal);check()}
-   this.log('next_preparation_ready',{trackId,from:active.track.id,candidateId:plan.id});this.update()
-  }catch(error){if(token===this.prepareSequence){this.preparedPins.clear();this.protected()}throw error}
+   const planner=this.options.planner||planNext,target=this.tracks.find(t=>t.id===trackId)
+   if(!target)throw new Error('歌曲不存在')
+   for(let attempt=0;attempt<3;attempt++){
+    const result=options.automatic?planAutomatic(planner,active.track,this.tracks,this.position,{kind:'next',targetId:trackId},this.cache.ready):
+     {...planner(active.track,this.tracks,this.position,{kind:'next',targetId:trackId},this.cache.ready,30,false),planningPosition:this.position}
+    const plan=result.best
+    if(!plan)throw new Error(options.automatic?'这首歌在剩余播放范围内没有可靠接点，正在寻找其他歌曲。':this.options.noPlanMessage||'当前时间附近没有符合要求的交接窗口，可以稍后再试或换一首')
+    const body=nativeSegment(target,plan.window.end).asset
+    this.preparedPins=new Set([target.native.url,plan.asset.url,body.url]);this.protected();this.log('next_preparation_started',{trackId,from:active.track.id,candidateId:plan.id,automatic:!!options.automatic,sourcePosition:this.position,planningPosition:result.planningPosition,plannedStart:plan.start})
+    await this.cache.load(target.native,controller.signal);check();await this.cache.load(plan.asset,controller.signal);check();if(body.url!==target.native.url){await this.cache.load(body,controller.signal);check()}
+    if(options.automatic&&plan.start<this.position+.25)continue
+    if(options.automatic)this.automaticPrepared={source:active,targetId:trackId,result}
+    this.log('next_preparation_ready',{trackId,from:active.track.id,candidateId:plan.id,automatic:!!options.automatic,plannedStart:plan.start});this.update();return
+   }
+   throw new Error('下载期间错过了预定接点，正在重新选择下一首。')
+  }catch(error){if(token===this.prepareSequence){this.preparedPins.clear();this.automaticPrepared=null;this.protected()}throw error}
   finally{if(token===this.prepareSequence)this.prepareLoad=null}
  }
  private checkSegments(){
@@ -127,8 +140,9 @@ export class LiveTransport{
  private tick(){if(this.dead)return;this.checkSegments();this.sync();if(this.comparisonEnd!==null&&this.ctx.currentTime>=this.comparisonEnd){this.log('comparison_finished',{comparisonId:this.comparisonId,reason:'交接后8秒试听结束'});this.stop();this.status='本次对照试听结束';this.update();return}if(this.active&&this.ctx.state==='running'&&!this.paused&&!this.pending&&!this.busy){const left=this.active.track.duration-this.position;if(left<20&&!this.autoTried&&!this.comparisonMode&&this.options.autoNext!==false){this.autoTried=true;void this.request({kind:'next'},18,{origin:'source_end_auto'})}if(left<=.01){this.stop();this.status='本段试听已播完';this.log('source_end')}}this.update()}
  cancel(){this.sync();if(this.gate.locked){this.log('cancel_denied',{requestId:this.currentRequestId,planId:this.pending?.id,reason:'交接已锁定，取消不会打断当前声音；仍可停止'});this.status='交接已锁定；可停止播放，普通请求将在完成后处理';this.update();return false}this.outcome(this.currentRequestId,'cancelled','用户取消待执行请求');this.outcome(this.deferredRequestId,'cancelled','用户取消等待中的请求');if(!this.active)this.starting++;this.startLoad?.abort();this.requestLoad?.abort();this.startPins.clear();this.requestPins.clear();this.gate.reset();this.busy=false;this.cancelScheduled();this.currentRequestId=null;this.deferredRequestId=null;this.protected();this.log('request_cancelled');this.status='已取消待执行转场';this.update();return true}
  private cancelScheduled(){const p=this.pending;if(!p)return;this.monitor.port.postMessage({kind:'cancel',planId:p.id});this.retire(p.deck,false);if(this.active){this.hold(this.active.gain.gain,.76);this.hold(this.active.wet.gain,0);this.hold(this.active.dry.gain,1);if(p.plan.v30Eq)for(const band of ['low','mid','high'] as const)this.hold(this.active[band].gain,0)}this.log('plan_cancelled',{requestId:p.requestId,planId:p.id,reason:'撤销尚未执行的自动化并恢复 A 原始增益'});this.pending=null;this.protected()}
- async request(intent:Intent,budget=18,options:{resumeId?:string;origin?:string}={}){
+ async request(intent:Intent,budget=18,options:{resumeId?:string;origin?:string;automatic?:boolean}={}){
   this.sync()
+  if(options.automatic&&this.active)budget=Math.max(0,this.active.track.duration-this.position-.1)
   const requestId=options.resumeId||`${this.sessionId}:request-${++this.requestSequence}`
   if(!options.resumeId)this.log('request_received',{requestId,intent,origin:options.origin||'user',sourceTrackId:this.active?.track.id||null,sourcePosition:this.position,budgetSec:budget,deadlineContextSec:this.ctx.currentTime+budget,policyVersion:this.options.policyVersion||DECISION_POLICY.version})
   else this.log('request_resumed',{requestId,remainingBudgetSec:budget,sourceTrackId:this.active?.track.id,sourcePosition:this.position})
@@ -142,15 +156,22 @@ export class LiveTransport{
    this.status='当前交接已锁定，将在完成后处理最新请求';this.update();return
   }
   this.outcome(this.currentRequestId,'superseded','被新混音请求替代',{replacementRequestId:requestId})
-  this.requestLoad?.abort();const controller=new AbortController();this.requestLoad=controller;this.requestPins.clear();this.cancelScheduled();this.currentRequestId=requestId
+  this.requestLoad?.abort();const controller=new AbortController();this.requestLoad=controller;this.requestPins.clear();this.cancelScheduled();this.currentRequestId=requestId;this.automaticRequestId=options.automatic?requestId:null
   const source=this.active.track,requestedAt=this.ctx.currentTime
   this.busy=true;this.status='正在选择可用交接窗口…';this.update()
   try{
-   let result=(this.options.planner||planNext)(source,this.tracks,this.position,intent,this.cache.ready,budget)
+   const search=(remaining:number,requireReady=true)=>{
+    if(!options.automatic)return (this.options.planner||planNext)(source,this.tracks,this.position,intent,this.cache.ready,remaining,requireReady)
+    const prepared=this.automaticPrepared,p=prepared?.result.best
+    if(prepared?.source===this.active&&prepared.targetId===intent.targetId&&p&&p.start>=this.position+.25&&
+      (!requireReady||[p.asset.url,this.tracks.find(t=>t.id===p.to)!.native.url,nativeSegment(this.tracks.find(t=>t.id===p.to)!,p.window.end).asset.url].every(url=>this.cache.ready.has(url))))return {...prepared.result,best:{...p,prepared:true},candidates:prepared.result.candidates.map(c=>({...c,prepared:this.cache.ready.has(c.asset.url)&&this.cache.ready.has(this.tracks.find(t=>t.id===c.to)!.native.url)}))}
+    return planAutomatic(this.options.planner||planNext,source,this.tracks,this.position,intent,this.cache.ready,requireReady)
+   }
+   let result=search(budget)
    this.auditSearch(requestId,'ready_assets',result,this.position,budget)
    const readyBody=result.best?nativeSegment(this.tracks.find(t=>t.id===result.best!.to)!,result.best.window.end).asset:null
    if(!result.best||!this.cache.ready.has(readyBody!.url)){
-    const preview=(this.options.planner||planNext)(source,this.tracks,this.position,intent,this.cache.ready,budget,false)
+    const preview=search(budget,false)
     this.lastSearch=preview;this.auditSearch(requestId,'preparation_preview',preview,this.position,budget)
     if(!preview.best)throw new Error(this.options.noPlanMessage||'等待范围内没有符合目标的窗口。可以改用较长等待或选择其他歌曲。')
     const b=this.tracks.find(t=>t.id===preview.best!.to)!
@@ -162,15 +183,16 @@ export class LiveTransport{
     if(body.url!==b.native.url){await this.cache.load(body,controller.signal);if(!this.gate.isCurrent(token))return}
     const remaining=budget-(this.ctx.currentTime-requestedAt)
     this.log('preparation_completed',{requestId,elapsedSec:this.ctx.currentTime-requestedAt,remainingBudgetSec:remaining})
-    result=(this.options.planner||planNext)(source,this.tracks,this.position,intent,this.cache.ready,remaining)
+    result=search(remaining)
     this.auditSearch(requestId,'after_preparation',result,this.position,remaining)
    }
    if(!this.gate.isCurrent(token)||this.active?.track.id!==source.id)return
    this.lastSearch=result
    if(!result.best)throw new Error('素材已准备，但原来的交接窗口已错过。当前歌曲继续播放，请再次选择。')
    this.schedule(result.best,requestedAt,intent,requestId,result)
+   if(this.pending)this.pending.automatic=!!options.automatic
   }catch(e){if(this.gate.isCurrent(token)){this.status=(e as Error).message;this.log('request_failed',{requestId,message:this.status,intent});this.outcome(requestId,'failed',this.status)}}
-  finally{if(this.gate.isCurrent(token)){this.requestLoad=null;this.requestPins.clear();this.busy=false;this.protected();this.update()}}
+  finally{if(this.automaticRequestId===requestId)this.automaticRequestId=null;if(this.gate.isCurrent(token)){this.requestLoad=null;this.requestPins.clear();this.busy=false;this.protected();this.update()}}
  }
  private schedule(plan:Plan,requestedAt:number,intent:Intent,requestId:string,search:ReturnType<typeof planNext>){const a=this.active!;const b=this.tracks.find(t=>t.id===plan.to)!;const start=a.at+(plan.start-a.offset),end=start+plan.duration;const restore=end-Math.min(plan.duration,120/a.track.bpm);if(start<this.ctx.currentTime+.2)throw new Error('距离进歌点太近，已保留当前播放');const native=this.cache.buffers.get(nativeSegment(b,plan.window.end).asset.url),clip=this.cache.buffers.get(plan.asset.url);if(!native||!clip)throw new Error('正文片段尚未就绪，当前歌曲继续播放');const deck=this.graph(b,end,plan.window.end);this.source(deck,clip,start,0,end);this.nativeSource(deck,native,end,plan.window.end,true)
   const id=`${this.gate.revision}-${plan.id}`,runnerUp=search.candidates.find(c=>c.id!==plan.id)

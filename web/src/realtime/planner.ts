@@ -14,7 +14,8 @@ export function vocalPresence(intervals:[number,number][],start:number,end:numbe
  return total/Math.max(.001,end-start)
 }
 export function energyAt(t:Track,start:number,end:number){let sum=0,weight=0;for(const e of t.energy){const w=Math.max(0,Math.min(end,e.end)-Math.max(start,e.start));sum+=w*e.value;weight+=w}return weight?sum/weight:NaN}
-export function planNext(a:Track,tracks:Track[],position:number,intent:Intent,ready:Set<string>,budget=18,requireReady=true){
+export type TimingGate=(a:Track,b:Track,cue:{start:number;end:number;window:Window;rate:number;duration:number})=>string|null
+export function planNext(a:Track,tracks:Track[],position:number,intent:Intent,ready:Set<string>,budget=18,requireReady=true,timingGate?:TimingGate){
  const candidates:Plan[]=[];const rejected:{track:string;reason:string}[]=[];const reject=(t:Track,reason:string)=>rejected.push({track:t.title,reason});const ae=energyAt(a,position,position+8)
  const exclusions:{trackId:string;track:string;windowId?:string;code:string;reason:string;count:number;samples?:{mixStart:number;exit:number;evidence:ReturnType<typeof evaluateEvidence>}[]}[]=[]
  const exclude=(t:Track,code:string,reason:string,w?:Window)=>{const old=exclusions.find(x=>x.trackId===t.id&&x.windowId===w?.id&&x.code===code);if(old)old.count++;else exclusions.push({trackId:t.id,track:t.title,windowId:w?.id,code,reason,count:1})}
@@ -34,6 +35,8 @@ export function planNext(a:Track,tracks:Track[],position:number,intent:Intent,re
     if(out>position+budget){exclude(b,'deadline','A 退出点超过本次剩余等待预算',w);continue}
     if(out>=a.duration-.1){exclude(b,'source_end','A 退出点过于接近素材结束',w);continue}
     const gridError=Math.min(...a.bars.map(x=>Math.abs(x-start)));if(gridError>.065){exclude(b,'grid_error','反推 A 混入点距原始首拍超过 65 ms',w);continue}
+    const timingReason=timingGate?.(a,b,{start,end:out,window:w,rate,duration:d})
+    if(timingReason){exclude(b,'local_beat_alignment',timingReason,w);continue}
     const evidence=evaluateEvidence(a,b,w,start,intent)
     if(!evidence.accepted){exclude(b,evidence.code,evidence.reason,w);const entry=exclusions.find(x=>x.trackId===b.id&&x.windowId===w.id&&x.code===evidence.code)!;(entry.samples||= []).push({mixStart:start,exit:out,evidence});continue}
     const av=vocalPresence(a.vocals,start,out),bv=vocalPresence(b.vocals,w.start,w.end)

@@ -10,8 +10,8 @@ export function assessExit(a:Track,end:number):ExitAssessment{
  const distances=a.sections.map(s=>Math.abs(s.end-end)).filter(Number.isFinite)
  return {sourceBound:bound,gridValid,lastBeat:bar?.lastBeat??null,nextDownbeat:end,sectionDistance:distances.length?Math.min(...distances):null,activePhraseId:phrase?.id??null,tailRemaining:phrase?phrase.tailEnd-end:0,sourceRows:phrase?.sourceRows??null,conflicts,reason:!bound?'预处理指纹缺失或不一致；保持 V3':!gridValid?'缺少完整实测小节；保持 V3':conflicts.length?'退出点附近的声学证据有分歧；保持 V3':phrase?'退出时仍有声学人声活动':'退出点未落在已检出的声学人声活动内（语义句尾待确认）'}
 }
-export function makeV30Planner(adjust:boolean,eq:'fixed'|'dynamic'):typeof planNext{return (a,tracks,pos,intent,ready,budget=18,requireReady=true)=>{
- const result=planNext(a,tracks,pos,intent,ready,budget,requireReady),original=result.best
+export function makeV30Planner(adjust:boolean,eq:'fixed'|'dynamic'):typeof planNext{return (a,tracks,pos,intent,ready,budget=18,requireReady=true,timingGate)=>{
+ const result=planNext(a,tracks,pos,intent,ready,budget,requireReady,timingGate),original=result.best
  if(!original)return result
  const before=assessExit(a,original.end),next=a.bars.find(t=>t>original.end+.065)
  const possible=next===undefined?undefined:result.candidates.find(c=>c.to===original.to&&c.window.id===original.window.id&&c.asset.sha256===original.asset.sha256&&Math.abs(c.end-next)<.001&&Math.abs(c.duration-original.duration)<1e-6)

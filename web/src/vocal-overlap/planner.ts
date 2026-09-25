@@ -26,9 +26,9 @@ function requireBoundVocals(t:Track) {
         !Number.isFinite(vad.intervals[i].start_ms) || !Number.isFinite(vad.intervals[i].end_ms)))
     throw Error(t.title+' 人声区间与绑定的原始报告不一致或尚未就绪')
 }
-export const planVocalOverlap:typeof planV31 = (a,tracks,position,intent,ready,budget=18,requireReady=true) => {
+export const planVocalOverlap:typeof planV31 = (a,tracks,position,intent,ready,budget=18,requireReady=true,timingGate) => {
   let original:ReturnType<typeof planV31>
-  try {original = planV31(a,tracks,position,intent,ready,budget,requireReady)}
+  try {original = planV31(a,tracks,position,intent,ready,budget,requireReady,timingGate)}
   catch(error){return {best:null,candidates:[],rejected:[],exclusions:[{trackId:a.id,track:a.title,
     code:'vocal_overlap_unavailable',reason:'人声选点实验的基础证据无效：'+(error as Error).message,count:1}]}}
   const baseline = original.best
