@@ -1,0 +1,28 @@
+[Unit]
+Description=HarBeat continuous library import queue
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/harbeat-listen/import-service/code
+ExecStart=/srv/harbeat-listen/venv/bin/python -m listen_imports.server
+Environment=LISTEN_IMPORT_ROOT=/srv/harbeat-listen/imports
+Environment=LISTEN_SITE_ROOT=/srv/harbeat-listen
+Environment=LISTEN_PUBLIC_ORIGIN=https://8.136.120.255
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+CPUQuota=120%
+MemoryMax=1500M
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/harbeat-listen
+
+[Install]
+WantedBy=multi-user.target

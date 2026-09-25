@@ -34,6 +34,14 @@ export class TrackLibrary{
  values(){return [...this.loaded.values()]}
  trim(pinned:Set<string>,limit=6){for(const [id] of this.loaded){if(this.loaded.size<=limit)break;if(!pinned.has(id))this.loaded.delete(id)}}
 }
+export async function refreshLibraryTracks(library:TrackLibrary,pins:()=>string[]){
+ for(let attempt=0;attempt<8;attempt++){
+  await Promise.all([...new Set(pins())].map(id=>library.load(id)))
+  const loaded=new Set(library.values().map(t=>t.id))
+  if(pins().every(id=>loaded.has(id)))return
+ }
+ throw Error('歌曲正在切换，曲库会稍后自动更新。')
+}
 export function filterLibrary(entries:LibraryEntry[],filters:{collection?:string;label?:string;query?:string}){
  const query=filters.query?.trim().toLocaleLowerCase()||''
  return entries.filter(t=>(!filters.collection||t.collection===filters.collection)&&(!filters.label||t.styleLabels.includes(filters.label))&&(!query||`${t.title} ${t.styleLabels.join(' ')} ${t.collection}`.toLocaleLowerCase().includes(query)))

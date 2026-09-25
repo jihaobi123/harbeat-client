@@ -1,9 +1,16 @@
 import {describe,it,expect,vi} from 'vitest'
-import {readLibraryIndex,TrackLibrary,filterLibrary,suggestNext,type LibraryEntry} from './catalog'
+import {readLibraryIndex,TrackLibrary,filterLibrary,suggestNext,refreshLibraryTracks,type LibraryEntry} from './catalog'
 import type {Track} from '../realtime/planner'
 const entry=(id:string,bpm=100,collection='KPOP'):LibraryEntry=>({id,title:id,bpm,collection,style:'Pop',styleLabels:['KPOP'],duration:200,detailUrl:`tracks/${id}.json`,playStatus:'ready',mixStatus:'ready'})
 const detail=(e:LibraryEntry)=>({track:{...e,styleScore:1,native:{url:e.id+'.flac',sha256:'a'.repeat(64),bytes:10,duration:150},bars:[0,2.4],windows:[],sections:[],energy:[],vocals:[]} as Track})
 describe('complete library index and lazy detail loading',()=>{
+ it('refreshes metadata for the latest live tracks when selection changes during a catalog refresh',async()=>{
+  const entries=[entry('a'),entry('b')];let pins=['a'];let finish!:(value:any)=>void
+  const lib=new TrackLibrary(entries,new URL('https://example.test/'),file=>file.includes('/a.')?new Promise(r=>{finish=r}):Promise.resolve(detail(entries[1])))
+  const refresh=refreshLibraryTracks(lib,()=>pins)
+  pins=['b'];finish(detail(entries[0]));await refresh
+  expect(lib.values().map(t=>t.id)).toEqual(['a','b'])
+ })
  it('retains unavailable songs and rejects duplicate identities',()=>{
   const entries=[entry('a'),{...entry('b'),mixStatus:'unavailable',playStatus:'unavailable',duration:null,bpm:null,reason:'源文件待核验'}]
   expect(readLibraryIndex({schema:'harbeat.continuous-library.v1',tracks:entries}).tracks).toHaveLength(2)

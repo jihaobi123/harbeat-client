@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import tempfile
 
 
 def write_json(path, value):
@@ -42,7 +43,7 @@ def build_bundle(corpus, store, out, source_root, expected=157):
             any(row.get('playStatus') != 'ready' for row in rows) or
             sum(row.get('mixStatus') == 'ready' for row in rows) != expected_mix or audit.get('failures')):
         raise ValueError('complete playable and mix-ready library required')
-    assets, records, details, evidence = {}, {}, {}, {}
+    assets, records, evidence = {}, {}, set()
 
     def rewrite(value):
         if isinstance(value, list):
@@ -78,26 +79,36 @@ def build_bundle(corpus, store, out, source_root, expected=157):
             filename = Path(result['reportSnapshotUrl']).name
             source = corpus / 'evidence' / filename
             if source.is_file():
-                evidence[filename] = json.loads(source.read_text())
+                evidence.add(filename)
                 result['reportSnapshotUrl'] = '/listen/evidence/' + filename
             else:
                 result.pop('reportSnapshotUrl')
         return result
 
-    for row in rows:
-        document = json.loads((corpus / 'details' / (row['id'] + '.json')).read_text())
-        if document['track']['id'] != row['id']:
-            raise ValueError('detail track identity mismatch')
-        details[row['id']] = rewrite(document)
-        row['detailUrl'] = 'details/' + row['id'] + '.json'
-    index['coverage'].update(indexed=expected, playable=expected, mixReady=expected_mix,
-                             unavailable=0, mixUnavailable=expected-expected_mix)
-    # Validation completes before any public index can be written.
-    for identifier, document in details.items():
-        write_json(out / 'details' / (identifier + '.json'), document)
-    for filename, document in evidence.items():
-        write_json(out / 'evidence' / filename, rewrite(document))
-    write_json(out / 'library.json', index)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    # Decode one song at a time. Keeping the full 157-song object graph in RAM
+    # exhausted the small ECS import service. Stage on disk, then publish only
+    # after every source and registry record has passed the same checks.
+    with tempfile.TemporaryDirectory(prefix='package-', dir=out.parent) as temp:
+        stage = Path(temp)
+        for row in rows:
+            document = json.loads((corpus / 'details' / (row['id'] + '.json')).read_text())
+            if document['track']['id'] != row['id']:
+                raise ValueError('detail track identity mismatch')
+            write_json(stage / 'details' / (row['id'] + '.json'), rewrite(document))
+            row['detailUrl'] = 'details/' + row['id'] + '.json'
+        for filename in sorted(evidence):
+            document = json.loads((corpus / 'evidence' / filename).read_text())
+            write_json(stage / 'evidence' / filename, rewrite(document))
+        index['coverage'].update(indexed=expected, playable=expected, mixReady=expected_mix,
+                                 unavailable=0, mixUnavailable=expected-expected_mix)
+        # Move validated metadata, with the public index written last.
+        for path in stage.rglob('*'):
+            if path.is_file():
+                target = out / path.relative_to(stage)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(path, target)
+        write_json(out / 'library.json', index)
     return {'schema': 'harbeat.cloud-transfer.v1', 'tracks': expected,
             'bytes': sum(v['bytes'] for v in assets.values()),
             'assets': sorted(assets.values(), key=lambda v: v['source'])}
