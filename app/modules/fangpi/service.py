@@ -11,6 +11,8 @@ import json
 import logging
 import os
 import re
+from html.parser import HTMLParser
+from urllib.parse import quote
 
 import httpx
 
@@ -27,7 +29,8 @@ _UA_MOBILE = (
     "AppleWebKit/537.36 Chrome/116.0 Mobile Safari/537.36"
 )
 _UA_DOWNLOAD = "okhttp/3.10.0"
-_FANGPI_BASE = "https://www.fangpi.net"
+# The provider's old domain now redirects here; the old play-url route is gone.
+_FANGPI_BASE = "https://www.fangpiw.com"
 _MIN_REAL_FILE_SIZE = 200_000  # 200 KB — anything smaller is a placeholder
 
 
@@ -63,7 +66,7 @@ async def _fangpi_search(query: str) -> list[dict]:
             if r1.status_code >= 500:
                 return []
 
-            encoded = query.strip().replace(" ", "%20")
+            encoded = quote(query.strip(), safe="")
             resp = await client.get(
                 f"{_FANGPI_BASE}/s/{encoded}",
                 headers={"User-Agent": _UA_BROWSER, "Referer": f"{_FANGPI_BASE}/"},
@@ -82,7 +85,7 @@ async def _fangpi_search(query: str) -> list[dict]:
             continue
         seen_ids.add(mid)
         full_title = _clean_html(match.group(2)).strip()
-        parts = full_title.split(" - ", 1)
+        parts = full_title.rsplit(" - ", 1)
         title = parts[0].strip()
         artist = parts[1].strip() if len(parts) > 1 else ""
         results.append({
@@ -115,14 +118,29 @@ async def _fangpi_get_audio_url(music_id: str) -> str:
         if not play_id:
             raise ValueError("play_id 为空")
 
+        class PageToken(HTMLParser):
+            token = ''
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == 'meta' and values.get('name') == 'csrf-token':
+                    self.token = values.get('content') or ''
+        page = PageToken()
+        page.feed(resp.text)
+        headers = {"User-Agent": _UA_BROWSER, "Referer": f"{_FANGPI_BASE}/music/{music_id}",
+                   "Accept": "application/json", "X-Requested-With": "XMLHttpRequest"}
+        if page.token:
+            headers['X-CSRF-TOKEN'] = page.token
         r2 = await client.post(
-            f"{_FANGPI_BASE}/api/play-url",
-            data={"id": play_id},
-            headers={"User-Agent": _UA_BROWSER, "Referer": f"{_FANGPI_BASE}/music/{music_id}"},
+            f"{_FANGPI_BASE}/member/common-play-url",
+            data={"id": play_id, "purpose": "download"},
+            headers=headers,
         )
+        r2.raise_for_status()
         body = r2.json()
         if body.get("code") == 1 and body.get("data", {}).get("url"):
             return body["data"]["url"]
+        # Login, quota and verification responses are terminal, not fallback URLs.
+        raise ValueError('放屁音乐未提供下载音源：' + re.sub(r'<[^>]+>', '', str(body.get('msg') or '请在平台核对下载条件'))[:180])
 
     raise ValueError("无法获取音频链接")
 
