@@ -19,13 +19,12 @@ describe('blind coverage rounds',()=>{
   expect(markHeard(round,{roundId:round.id,caseId:'missing',letter:'A',status:'complete'},'time')).toBe(round)
   expect(markHeard(round,{roundId:round.id,caseId:'anchor',letter:'A',status:'complete'},'time').cases.anchor.heard).toEqual({A:'time'})
  })
- it('requires all three full plays, then preserves the original blind choice and timestamp forever',()=>{
-  const round=make()
-  expect(canVote(round,'anchor')).toBe(false)
-  expect(recordChoice(round,'anchor','A','early')).toBe(round)
-  const heard=hearAll({...round,practice:true})
-  expect(canVote(heard,'anchor')).toBe(true)
-  const chosen=recordChoice(heard,'anchor','A','first-time')
+ it('accepts a choice without full plays and preserves the original blind choice after edits',()=>{
+  const round={...make(),practice:true}
+  expect(canVote(round,'anchor')).toBe(true)
+  expect(canVote(round,'missing')).toBe(false)
+  const chosen=recordChoice(round,'anchor','A','first-time')
+  expect(chosen.cases.anchor.heard).toEqual({})
   const revealed=revealCase(chosen,'anchor','reveal-time')
   const edited=recordChoice(revealed,'anchor','none','edit-time')
   expect(edited.cases.anchor.firstBlindChoice).toEqual({choice:'A',at:'first-time'})

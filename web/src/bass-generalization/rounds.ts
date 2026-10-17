@@ -29,7 +29,7 @@ export function markHeard(round:Round,event:{roundId?:string;caseId:string;lette
  if(c.heard[letter])return round
  return {...round,cases:{...round.cases,[event.caseId]:{...c,heard:{...c.heard,[letter]:at}}}}
 }
-export function canVote(round:Round,caseId:string){return letters.every(letter=>!!round.cases[caseId]?.heard[letter])}
+export function canVote(round:Round,caseId:string){return !!round.cases[caseId]}
 export function recordChoice(round:Round,caseId:string,choice:Choice,at=now()):Round{
  const c=round.cases[caseId]
  if(!c||!canVote(round,caseId))return round
