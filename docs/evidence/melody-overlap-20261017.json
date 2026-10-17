@@ -1,0 +1,63 @@
+{
+  "page": "http://127.0.0.1:5188/melody-overlap.html",
+  "selectionSha256": "017c74355086e2281fdfea94c8059c1bffec8c9135486723157e9f82464281d9",
+  "cases": [
+    {
+      "caseId": "melody-track-274577b1e51f104f4658",
+      "a": "Meant To Be",
+      "b": "HIPHOP",
+      "planSha256": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+      "originalOverlap": 4.481791383219955,
+      "shortOverlap": 2.2600000000000176,
+      "samePlanEqVocalDrumCurves": true,
+      "completedArms": 2
+    },
+    {
+      "caseId": "melody-track-642bd1ac0da727a3b53b",
+      "a": "Attention",
+      "b": "HIPHOP",
+      "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+      "originalOverlap": 9.151564625850341,
+      "shortOverlap": 2.2750000000000057,
+      "samePlanEqVocalDrumCurves": true,
+      "completedArms": 2
+    },
+    {
+      "caseId": "melody-track-0a1c8c54ff45b04f1568",
+      "a": "All Falls Down",
+      "b": "GRILLZ (feat. Ilir808)",
+      "planSha256": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+      "originalOverlap": 9.795918367346939,
+      "shortOverlap": 2.4400000000000084,
+      "samePlanEqVocalDrumCurves": true,
+      "completedArms": 2
+    }
+  ],
+  "eventCounts": {
+    "melody_requested": 6,
+    "melody_started": 6,
+    "audio_observation": 18,
+    "melody_finished": 6
+  },
+  "browserWarningsErrors": 0,
+  "stopAndSwitchVerified": true,
+  "loadCancellationUnitVerified": true,
+  "feedbackSaveNoteUpdateExportUndo": true,
+  "testFeedbackReverted": true,
+  "subjectiveSoundQualityJudged": false,
+  "screenshot": "melody-overlap.png",
+  "productionDeployment": false,
+  "tests": {
+    "typescriptPassed": 134,
+    "optionalCorpusSkipped": 1,
+    "pythonRendererPassed": 5,
+    "typescriptCheck": true,
+    "isolatedBuild": true
+  },
+  "review": "No remaining critical or important findings",
+  "limits": [
+    "Separated layers retain bleed and residuals.",
+    "Reference and short arms share multichannel entry rendering; this may differ in texture from the previous single-master renderer.",
+    "Worklet limiter minimum is accumulated across sessions; no per-arm clipping improvement claim."
+  ]
+}

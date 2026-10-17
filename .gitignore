@@ -135,3 +135,8 @@ web/dist-vocal-bridge/
 # Isolated harmonic audition snapshot and build
 /web/harmonic-key-data.json
 /web/dist-harmonic-key/
+
+# Isolated melody overlap audition assets and build
+/web/melody-audio/
+/web/melody-overlap-data.json
+/web/dist-melody-overlap/
