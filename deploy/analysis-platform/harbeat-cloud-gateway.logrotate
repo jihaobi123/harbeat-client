@@ -1,0 +1,11 @@
+# Install as /etc/logrotate.d/harbeat-cloud-gateway on the cloud host.
+/var/log/cloud_gateway.log {
+    daily
+    maxsize 50M
+    rotate 14
+    missingok
+    notifempty
+    compress
+    copytruncate
+    su root root
+}
