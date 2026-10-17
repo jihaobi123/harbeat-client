@@ -1,0 +1,1529 @@
+{
+  "page": "http://127.0.0.1:5191/bass-neighbors.html",
+  "selectionSha256": "6fb93e41256e7997d8cf322e0d4c94c6731c48d3bbb3d351600471a9d06ba213",
+  "cases": [
+    {
+      "id": "neighbor-edm-1",
+      "a": "Move Up (Lost Gravity)",
+      "b": "Let's Groove",
+      "bpm": [
+        120,
+        125
+      ],
+      "planSha256": "b680be51b273e81aba00a1147f90818a19dab2413d946d6925acf67dc0565017",
+      "cue": {
+        "id": "track-f4219339062cac4ce823:track-f2c81091b622e28460c2:w8-4:162.040",
+        "from": "track-f4219339062cac4ce823",
+        "to": "track-f2c81091b622e28460c2",
+        "start": 154.04,
+        "end": 162.04,
+        "duration": 8,
+        "rate": 0.96,
+        "aVocal": 0,
+        "bVocal": 0.9427083333333318,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 31.64,
+        "end": 39.32
+      },
+      "timing": {
+        "duckStart": 4,
+        "swapStart": 5.480000000000018,
+        "swapEnd": 6
+      },
+      "similarity": {
+        "referenceId": "coverage-edm",
+        "referenceTitles": [
+          "Nevada",
+          "SOMETHING AIN'T RIGHT"
+        ],
+        "referencePreference": "stem",
+        "referenceVector": {
+          "bpm": [
+            125,
+            125
+          ],
+          "sourceTags": [
+            "EDM"
+          ],
+          "destinationTags": [
+            "house"
+          ],
+          "styles": [
+            "House",
+            "House"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            120,
+            125
+          ],
+          "sourceTags": [
+            "EDM"
+          ],
+          "destinationTags": [
+            "funk"
+          ],
+          "styles": [
+            "Tropical House",
+            "House"
+          ],
+          "vocals": [
+            0,
+            0.9427083333333318
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "distance": 0.6329166666666673,
+        "components": {
+          "tempo": 0.16000000000000014,
+          "sourceTags": 0,
+          "destinationTags": 0.35,
+          "modelStyles": 0.1,
+          "vocals": 0.022916666666667276,
+          "bars": 0,
+          "harmonicCategory": 0
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 62,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.11040135307020679
+        },
+        "bEntry": {
+          "bassRms": 0.10014255326625478
+        },
+        "bBody": {
+          "bassRms": 0.1064437019523348
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-f4219339062cac4ce823-f4219339062c-a268a5c-bbabde0c",
+          "manifestSha256": "19977510302dfd3fb7fb9866ba5a02bf4c975aa6969f0a3a922fecc44472ad6d",
+          "masterSha256": "f4219339062cac4ce82329b1a84b2f4095e446f1a892e0223d2076d8b6da0029",
+          "bassSha256": "6dbee2e02c26404909733f23fd83bf17476a57f588efa70503b44296a9411ecc"
+        },
+        "b": {
+          "runId": "run-track-f2c81091b622e28460c2-f2c81091b622-a268a5c-6f0385e8",
+          "manifestSha256": "6017761c5f82935f115a8728d1c033fc6e4a911e0a1155ff02cb9a64c0ac5526",
+          "masterSha256": "f2c81091b622e28460c2e50181df063647abf0b035f036fea70c1b63da309ae2",
+          "bassSha256": "29d083b844ee97a654b097afd3d518e03aafdfa59110faae362e9e3aedb43282"
+        }
+      }
+    },
+    {
+      "id": "neighbor-funk-1",
+      "a": "24K Magic (1)",
+      "b": "POPPING SEASON 01",
+      "bpm": [
+        107,
+        105
+      ],
+      "planSha256": "9b1a681c53f0d364405ccdbf1b7b2ef21a5a446a95e65602d8cb98ce290097ea",
+      "cue": {
+        "id": "track-49d4ac83da372eab5722:track-8cc99b421fe47b03e7ca:w8-4:169.380",
+        "from": "track-49d4ac83da372eab5722",
+        "to": "track-8cc99b421fe47b03e7ca",
+        "start": 160.40802721088434,
+        "end": 169.38,
+        "duration": 8.971972789115647,
+        "rate": 1.01984375,
+        "aVocal": 1,
+        "bVocal": 0,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 36.56,
+        "end": 45.71
+      },
+      "timing": {
+        "duckStart": 4.501972789115655,
+        "swapStart": 6.181972789115662,
+        "swapEnd": 6.751972789115655
+      },
+      "similarity": {
+        "referenceId": "coverage-funk",
+        "referenceTitles": [
+          "24K Magic (1)",
+          "Straight (Battle Beat)"
+        ],
+        "referencePreference": "reference",
+        "referenceVector": {
+          "bpm": [
+            107,
+            107
+          ],
+          "sourceTags": [
+            "funk"
+          ],
+          "destinationTags": [
+            "Hip-Hop"
+          ],
+          "styles": [
+            "G-Funk",
+            "House"
+          ],
+          "vocals": [
+            1,
+            0
+          ],
+          "bars": 4.000004535147393,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            107,
+            105
+          ],
+          "sourceTags": [
+            "funk"
+          ],
+          "destinationTags": [
+            "Hip-Hop"
+          ],
+          "styles": [
+            "G-Funk",
+            "Ambient"
+          ],
+          "vocals": [
+            1,
+            0
+          ],
+          "bars": 4.000004535147393,
+          "harmonicBonus": 0
+        },
+        "distance": 0.17476635514018693,
+        "components": {
+          "tempo": 0.07476635514018692,
+          "sourceTags": 0,
+          "destinationTags": 0,
+          "modelStyles": 0.1,
+          "vocals": 0,
+          "bars": 0,
+          "harmonicCategory": 0
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 5,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.13838790688334662
+        },
+        "bEntry": {
+          "bassRms": 0.07284915846548844
+        },
+        "bBody": {
+          "bassRms": 0.07898892476412456
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-49d4ac83da372eab5722-49d4ac83da37-a268a5c-28012d49",
+          "manifestSha256": "d082f435d01ed673ab50f140ecdbb103a6bb7675b3ce1ec33fedbaae278a1849",
+          "masterSha256": "49d4ac83da372eab5722524cb71d732dca8d14bcd6eb5f21393026c8d0e2986f",
+          "bassSha256": "5376d4d7138394112793aae5dcf9ea86577e436de7f10ae4686d14be76077407"
+        },
+        "b": {
+          "runId": "run-track-8cc99b421fe47b03e7ca-8cc99b421fe4-a268a5c-de18236c",
+          "manifestSha256": "d8b7c3360dbd0888e483d320e667fe6622345a13a4f19ec4294044c3562b9a26",
+          "masterSha256": "8cc99b421fe47b03e7cab7a0d7d049229c5ec553352efa8bbbc9c956f7d88e52",
+          "bassSha256": "ba1e37fdff4b5ad361fd5169e9c864d8466438a5fba45d92583edf6a1a271885"
+        }
+      }
+    },
+    {
+      "id": "neighbor-jazz-1",
+      "a": "Soul Of Freedom",
+      "b": "Playback (feat. Ine)",
+      "bpm": [
+        94,
+        91.9
+      ],
+      "planSha256": "6f69955a22f1100e8bcb0dfda17dfbb7b272ccb172da04b01885ba477f208a30",
+      "cue": {
+        "id": "track-8ce53e93953814086ae0:track-5f7a688d0c0dff4e1bc7:w0-4:266.020",
+        "from": "track-8ce53e93953814086ae0",
+        "to": "track-5f7a688d0c0dff4e1bc7",
+        "start": 255.80723356009068,
+        "end": 266.02,
+        "duration": 10.212766439909297,
+        "rate": 1.0231312499999998,
+        "aVocal": 0,
+        "bVocal": 1,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 10.82,
+        "end": 21.269
+      },
+      "timing": {
+        "duckStart": 5.102766439909345,
+        "swapStart": 7.022766439909304,
+        "swapEnd": 7.662766439909348
+      },
+      "similarity": {
+        "referenceId": "coverage-jazz",
+        "referenceTitles": [
+          "Love Note (Original Instrumental)",
+          "Feather"
+        ],
+        "referencePreference": "stem",
+        "referenceVector": {
+          "bpm": [
+            90,
+            90.9
+          ],
+          "sourceTags": [
+            "jazz hiphop"
+          ],
+          "destinationTags": [
+            "jazz hiphop",
+            "boombap"
+          ],
+          "styles": [
+            "Jazzy Hip-Hop",
+            "Jazzy Hip-Hop"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            94,
+            91.9
+          ],
+          "sourceTags": [
+            "jazz hiphop"
+          ],
+          "destinationTags": [
+            "jazz hiphop"
+          ],
+          "styles": [
+            "Jazzy Hip-Hop",
+            "Gangsta"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4.000000188964474,
+          "harmonicBonus": 0
+        },
+        "distance": 0.32178218766604544,
+        "components": {
+          "tempo": 0.22178217821782198,
+          "sourceTags": 0,
+          "destinationTags": 0,
+          "modelStyles": 0.1,
+          "vocals": 0,
+          "bars": 9.448223491342049e-09,
+          "harmonicCategory": 0
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 76,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.18228003588571207
+        },
+        "bEntry": {
+          "bassRms": 0.13643081532874904
+        },
+        "bBody": {
+          "bassRms": 0.1367891487575527
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-8ce53e93953814086ae0-8ce53e939538-a268a5c-dc669410",
+          "manifestSha256": "cb71276293c31db2287b299c8d53842eb1b9781f66967563bd4434f8d051424c",
+          "masterSha256": "8ce53e93953814086ae03093be6d285b794767b8b0bf061a833f24b1e1a6f74a",
+          "bassSha256": "900442189358fee43ca644053e7430a3a4ee9968393f1b2c807436d51e297564"
+        },
+        "b": {
+          "runId": "run-track-5f7a688d0c0dff4e1bc7-5f7a688d0c0d-a268a5c-3af088d8",
+          "manifestSha256": "4af150271ea6054c470d2ce357175a4ede138763605e0554b124a9841ff5140d",
+          "masterSha256": "5f7a688d0c0dff4e1bc7b9ae70470b8fe2afe69ecafd75397755e6668dc7eb5e",
+          "bassSha256": "94960dd09af66ed9496fccceea3622030efb82d7ea65068f7e77884e8084f465"
+        }
+      }
+    },
+    {
+      "id": "neighbor-edm-2",
+      "a": "For The Time Being",
+      "b": "Fantastic Baby",
+      "bpm": [
+        124,
+        130
+      ],
+      "planSha256": "26bfaa182e840f471838348c4cd72629bf6e713f3e6791bc05a5739374976676",
+      "cue": {
+        "id": "track-1016c9c0d9a4ecd66bc5:track-181660177eedf82d9b64:w0-4:265.640",
+        "from": "track-1016c9c0d9a4ecd66bc5",
+        "to": "track-181660177eedf82d9b64",
+        "start": 257.89807256235827,
+        "end": 265.64,
+        "duration": 7.741927437641723,
+        "rate": 0.95325,
+        "aVocal": 0,
+        "bVocal": 1,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 14.9,
+        "end": 22.28
+      },
+      "timing": {
+        "duckStart": 3.8419274376417434,
+        "swapStart": 5.301927437641723,
+        "swapEnd": 5.801927437641723
+      },
+      "similarity": {
+        "referenceId": "coverage-edm",
+        "referenceTitles": [
+          "Nevada",
+          "SOMETHING AIN'T RIGHT"
+        ],
+        "referencePreference": "stem",
+        "referenceVector": {
+          "bpm": [
+            125,
+            125
+          ],
+          "sourceTags": [
+            "EDM"
+          ],
+          "destinationTags": [
+            "house"
+          ],
+          "styles": [
+            "House",
+            "House"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            124,
+            130
+          ],
+          "sourceTags": [
+            "house"
+          ],
+          "destinationTags": [
+            "KPOP"
+          ],
+          "styles": [
+            "Deep House",
+            "House"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 3.999995842781557,
+          "harmonicBonus": 0
+        },
+        "distance": 0.8920002078610303,
+        "components": {
+          "tempo": 0.19200000000000017,
+          "sourceTags": 0.25,
+          "destinationTags": 0.35,
+          "modelStyles": 0.1,
+          "vocals": 0,
+          "bars": 2.078610301566831e-07,
+          "harmonicCategory": 0
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 62,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.12689233421339435
+        },
+        "bEntry": {
+          "bassRms": 0.011891261834673017
+        },
+        "bBody": {
+          "bassRms": 0.009527489233443305
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-1016c9c0d9a4ecd66bc5-1016c9c0d9a4-a268a5c-7291e9eb",
+          "manifestSha256": "b277dcb2a2c856ed83d5e67aea691f8791c6c19a77ab7f7a3666a21cdaa79063",
+          "masterSha256": "1016c9c0d9a4ecd66bc5408881df51ae132386aa8b960e5cecaa0df74691b03b",
+          "bassSha256": "880c7203803a2fa7ac213daf1426a1ecf879cc26a631178c8f9cc79976fee4b9"
+        },
+        "b": {
+          "runId": "run-track-181660177eedf82d9b64-181660177eed-a268a5c-d93d583a",
+          "manifestSha256": "04165c6d2abbe2618855d1e86f2822e5db9437c135810d14e4ef25bdab642459",
+          "masterSha256": "181660177eedf82d9b646da23561cc87291d5850f74bfb08007c12dbc239dcb8",
+          "bassSha256": "c7e89161d624fe33fdeb036accd2c12a5f0cc6863e9a3861503d07702af265e8"
+        }
+      }
+    },
+    {
+      "id": "neighbor-funk-2",
+      "a": "If I Saw You Again",
+      "b": "Hamba Nobani",
+      "bpm": [
+        110.4,
+        114.7
+      ],
+      "planSha256": "f456d397ae2ff0b4c7a7273df67872a1cd21cb72a1f6a9135d32efc1da34d3a0",
+      "cue": {
+        "id": "track-cbd413e0e1c43d7e419f:track-19dd6399e3f1caa0a9fa:w8-4:174.100",
+        "from": "track-cbd413e0e1c43d7e419f",
+        "to": "track-19dd6399e3f1caa0a9fa",
+        "start": 165.4043537414966,
+        "end": 174.1,
+        "duration": 8.695646258503402,
+        "rate": 0.9683000000000003,
+        "aVocal": 1,
+        "bVocal": 0,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 84.38,
+        "end": 92.8
+      },
+      "timing": {
+        "duckStart": 4.2756462585034,
+        "swapStart": 5.975646258503389,
+        "swapEnd": 6.515646258503381
+      },
+      "similarity": {
+        "referenceId": "coverage-funk",
+        "referenceTitles": [
+          "24K Magic (1)",
+          "Straight (Battle Beat)"
+        ],
+        "referencePreference": "reference",
+        "referenceVector": {
+          "bpm": [
+            107,
+            107
+          ],
+          "sourceTags": [
+            "funk"
+          ],
+          "destinationTags": [
+            "Hip-Hop"
+          ],
+          "styles": [
+            "G-Funk",
+            "House"
+          ],
+          "vocals": [
+            1,
+            0
+          ],
+          "bars": 4.000004535147393,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            110.4,
+            114.7
+          ],
+          "sourceTags": [
+            "funk"
+          ],
+          "destinationTags": [
+            "amapiano"
+          ],
+          "styles": [
+            "Disco",
+            "House"
+          ],
+          "vocals": [
+            1,
+            0
+          ],
+          "bars": 3.999997278911565,
+          "harmonicBonus": 0.064
+        },
+        "distance": 0.964953633839747,
+        "components": {
+          "tempo": 0.4149532710280379,
+          "sourceTags": 0,
+          "destinationTags": 0.35,
+          "modelStyles": 0.1,
+          "vocals": 0,
+          "bars": 3.628117091086692e-07,
+          "harmonicCategory": 0.1
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 5,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.09623151720558419
+        },
+        "bEntry": {
+          "bassRms": 0.037027065820993466
+        },
+        "bBody": {
+          "bassRms": 0.042876322868254095
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-cbd413e0e1c43d7e419f-cbd413e0e1c4-a268a5c-381fa2d8",
+          "manifestSha256": "f6fa13e8c6d7048e86c6d34935aa6b82ba108f2689fac7c0215449bb7dc73822",
+          "masterSha256": "cbd413e0e1c43d7e419f4f23797b25598f59570880815d2b9c33d5b2f1744269",
+          "bassSha256": "2392466a124193dd23799062f8d6cdc50e3c202dfa1cbf950a88e4e651c90f26"
+        },
+        "b": {
+          "runId": "run-track-19dd6399e3f1caa0a9fa-19dd6399e3f1-a268a5c-fafb4c8c",
+          "manifestSha256": "6254c420597abeec854c097ce7dcc8590574a38aea4bf83ba61fd98a79132de4",
+          "masterSha256": "19dd6399e3f1caa0a9fad6aa7e05011eb08f992decf83808273eba58a16ff90b",
+          "bassSha256": "492fa37f98d1fc24549f6a0f22779cb6530d3850e16ed17ed4cf59176fcd8958"
+        }
+      }
+    },
+    {
+      "id": "neighbor-jazz-2",
+      "a": "Ampersand",
+      "b": "Prayer Vox feat. Vivian Chen ~infused by Caccini 「Ave Maria」~",
+      "bpm": [
+        98,
+        93.9
+      ],
+      "planSha256": "cecbe5deb298ec1cfe884cbd48406b0ad10379fe6417fb1b3621ff67fe67b49b",
+      "cue": {
+        "id": "track-8728534e623361f35870:track-074b5867a7993833d698:w0-4:255.200",
+        "from": "track-8728534e623361f35870",
+        "to": "track-074b5867a7993833d698",
+        "start": 245.40408163265306,
+        "end": 255.2,
+        "duration": 9.795918367346939,
+        "rate": 1.0417604166666665,
+        "aVocal": 0,
+        "bVocal": 1,
+        "midDuck": false
+      },
+      "incomingWindow": {
+        "start": 20.643,
+        "end": 30.848
+      },
+      "timing": {
+        "duckStart": 4.895918367346951,
+        "swapStart": 6.735918367346926,
+        "swapEnd": 7.34591836734694
+      },
+      "similarity": {
+        "referenceId": "coverage-jazz",
+        "referenceTitles": [
+          "Love Note (Original Instrumental)",
+          "Feather"
+        ],
+        "referencePreference": "stem",
+        "referenceVector": {
+          "bpm": [
+            90,
+            90.9
+          ],
+          "sourceTags": [
+            "jazz hiphop"
+          ],
+          "destinationTags": [
+            "jazz hiphop",
+            "boombap"
+          ],
+          "styles": [
+            "Jazzy Hip-Hop",
+            "Jazzy Hip-Hop"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "candidateVector": {
+          "bpm": [
+            98,
+            93.9
+          ],
+          "sourceTags": [
+            "jazz hiphop"
+          ],
+          "destinationTags": [
+            "jazz hiphop"
+          ],
+          "styles": [
+            "Downtempo",
+            "Jazzy Hip-Hop"
+          ],
+          "vocals": [
+            0,
+            1
+          ],
+          "bars": 4,
+          "harmonicBonus": 0
+        },
+        "distance": 0.587568756875687,
+        "components": {
+          "tempo": 0.487568756875687,
+          "sourceTags": 0,
+          "destinationTags": 0,
+          "modelStyles": 0.1,
+          "vocals": 0,
+          "bars": 0,
+          "harmonicCategory": 0
+        },
+        "scope": "metadata neighbor, not verified perceptual groove similarity",
+        "candidateCount": 76,
+        "familyOrder": "scarce funk, then jazz, then EDM; choose minimum total-distance disjoint pair within family"
+      },
+      "levels": {
+        "a": {
+          "bassRms": 0.1252287691833074
+        },
+        "bEntry": {
+          "bassRms": 0.04953346479879891
+        },
+        "bBody": {
+          "bassRms": 0.051153589447582845
+        }
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a",
+          "manifestSha256": "804c89997abdf992c08e48e9d9a29b3a8df82f0c8e37907aa039a96553c863a1",
+          "masterSha256": "8728534e623361f3587005b72c0c698507f715ffe2f585e074c4a0d6a9dc5d10",
+          "bassSha256": "4e23826fce0bad929f11827eb65b458dd754330465bb45c7969228f09b86449f"
+        },
+        "b": {
+          "runId": "run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04",
+          "manifestSha256": "a63ffc03c080e7ef46242bc9ec95d5b288bffc1ae19b0a5a660f69cbf84c1b41",
+          "masterSha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+          "bassSha256": "6f27ca8b57340f466d13bcf6fe469bafbd574e1bcf8c2231865e27e4c1af5f06"
+        }
+      }
+    }
+  ],
+  "selectionVerification": {
+    "selectionSha256": "6fb93e41256e7997d8cf322e0d4c94c6731c48d3bbb3d351600471a9d06ba213",
+    "candidateLedgerSha256": "09bc44cd3ab47c071bf9c8c3421a76ca781f6ccdfe5e4c144a626fa5567f9b4d",
+    "frozenCandidatesAudited": 322,
+    "selectedPlansUnmodified": true,
+    "uniqueRoundTracks": 12,
+    "newTracks": 11,
+    "sameSourceControl": "24K Magic (1)",
+    "rejectedWindows": [
+      {
+        "planId": "track-f4219339062cac4ce823:track-9fbfb800b64e90305927:w0-4:146.040",
+        "side": "a",
+        "trackId": "track-f4219339062cac4ce823",
+        "sourceStart": 138.04,
+        "sourceEnd": 146.04,
+        "bassRms": 0.0004625881731152602,
+        "floor": 0.005,
+        "basis": "exact shared four-channel master/bass render",
+        "scope": "same frozen outgoing source window across candidates; not entire track"
+      },
+      {
+        "case": "neighbor-edm-2",
+        "planId": "track-1016c9c0d9a4ecd66bc5:track-6aa43bf8997b97571097:w8-4:265.640",
+        "side": "b",
+        "trackId": "track-6aa43bf8997b97571097",
+        "sourceStart": 30.98,
+        "sourceEnd": 38.72,
+        "bassRms": 0.0033067896503065275,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "planId": "track-074b5867a7993833d698:track-afc2c5c171a1fce80ef0:w0-4:240.234",
+        "side": "a",
+        "trackId": "track-074b5867a7993833d698",
+        "sourceStart": 230.01034920634922,
+        "sourceEnd": 240.234,
+        "bassRms": 0.0018838937747724517,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      },
+      {
+        "case": "neighbor-edm-2",
+        "planId": "track-8609b4e8327adfe21adc:track-9fbfb800b64e90305927:w0-4:384.020",
+        "side": "b",
+        "trackId": "track-9fbfb800b64e90305927",
+        "sourceStart": 31.74,
+        "sourceEnd": 39.34,
+        "bassRms": 0.0007614467128710489,
+        "rate": 0.9500000000000006,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      }
+    ]
+  },
+  "selectionAudit": {
+    "catalog": 148,
+    "fallbacks": [
+      "Strict all-new funk sources provided only one eligible pair. Retain only the 24K Magic reference source with a new destination as an explicit same-source control; retain every cue/vocal gate."
+    ],
+    "excludedPreviousTrackIds": [
+      "track-642bd1ac0da727a3b53b",
+      "track-d2d58531421de0eb9690",
+      "track-aab34351ca8529caf4f2",
+      "track-ec77d16b9f1c0372f326",
+      "track-95060500a263d21dc683",
+      "track-b8ffcc19b1cb7e0798a9",
+      "track-61926ee832b5095d266a",
+      "track-d8e167ca8fe99139729a",
+      "track-49d4ac83da372eab5722",
+      "track-86141f55b6b1219e1c38",
+      "track-1f5e732a369cc1becc27",
+      "track-800c87e20dd333ab44b4"
+    ],
+    "families": [
+      {
+        "id": "funk",
+        "reference": "coverage-funk",
+        "labels": [
+          "funk"
+        ],
+        "preference": "reference"
+      },
+      {
+        "id": "jazz",
+        "reference": "coverage-jazz",
+        "labels": [
+          "jazz hiphop",
+          "boombap"
+        ],
+        "preference": "stem"
+      },
+      {
+        "id": "edm",
+        "reference": "coverage-edm",
+        "labels": [
+          "EDM",
+          "house"
+        ],
+        "preference": "stem"
+      }
+    ],
+    "missingDestinationTagPolicy": "Feather has no human tag; its Jazzy Hip-Hop model style is matched using declared jazz hiphop/boombap destination family tags, never inferred from BPM alone",
+    "scanAudit": [
+      {
+        "family": "funk",
+        "source": "Treasure (1)",
+        "sourceId": "track-6b70bdcea259890c30a4",
+        "rawSafePlans": 1692,
+        "frozenDestinations": 9,
+        "exclusionCounts": {
+          "grid_error": 126,
+          "local_beat_alignment": 2669,
+          "start_too_soon": 62,
+          "missing_variant": 1
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 9
+        }
+      },
+      {
+        "family": "funk",
+        "source": "If I Saw You Again",
+        "sourceId": "track-cbd413e0e1c43d7e419f",
+        "rawSafePlans": 3821,
+        "frozenDestinations": 21,
+        "exclusionCounts": {
+          "grid_error": 3524,
+          "local_beat_alignment": 4049,
+          "missing_variant": 1
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 20
+        }
+      },
+      {
+        "family": "funk",
+        "source": "24K Magic (1)",
+        "sourceId": "track-49d4ac83da372eab5722",
+        "rawSafePlans": 4900,
+        "frozenDestinations": 19,
+        "exclusionCounts": {
+          "grid_error": 432,
+          "local_beat_alignment": 5239
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 15
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "What I'm After",
+        "sourceId": "track-042c62464b524ce46103",
+        "rawSafePlans": 4429,
+        "frozenDestinations": 16,
+        "exclusionCounts": {
+          "start_too_soon": 252,
+          "grid_error": 126,
+          "local_beat_alignment": 6375,
+          "missing_variant": 2
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 3
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Prayer Vox feat. Vivian Chen ~infused by Caccini 「Ave Maria」~",
+        "sourceId": "track-074b5867a7993833d698",
+        "rawSafePlans": 5080,
+        "frozenDestinations": 24,
+        "exclusionCounts": {
+          "grid_error": 1653,
+          "local_beat_alignment": 7164,
+          "missing_variant": 2
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 7
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Playback (feat. Ine)",
+        "sourceId": "track-5f7a688d0c0dff4e1bc7",
+        "rawSafePlans": 5395,
+        "frozenDestinations": 21,
+        "exclusionCounts": {
+          "grid_error": 462,
+          "local_beat_alignment": 7353
+        },
+        "timingRejected": 4,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 8
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Ampersand",
+        "sourceId": "track-8728534e623361f35870",
+        "rawSafePlans": 4132,
+        "frozenDestinations": 15,
+        "exclusionCounts": {
+          "grid_error": 342,
+          "local_beat_alignment": 5580,
+          "missing_variant": 2
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 4
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Lonely & Cold",
+        "sourceId": "track-8978aa380e85155e8a2d",
+        "rawSafePlans": 3078,
+        "frozenDestinations": 16,
+        "exclusionCounts": {
+          "start_too_soon": 360,
+          "grid_error": 1200,
+          "local_beat_alignment": 3234,
+          "missing_variant": 2
+        },
+        "timingRejected": 2,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 16
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Soul Of Freedom",
+        "sourceId": "track-8ce53e93953814086ae0",
+        "rawSafePlans": 6560,
+        "frozenDestinations": 24,
+        "exclusionCounts": {
+          "grid_error": 522,
+          "local_beat_alignment": 8584,
+          "missing_variant": 2
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 4
+        }
+      },
+      {
+        "family": "jazz",
+        "source": "Luv(sic.) Part 3 (feat. Shing02)",
+        "sourceId": "track-afc2c5c171a1fce80ef0",
+        "rawSafePlans": 7634,
+        "frozenDestinations": 24,
+        "exclusionCounts": {
+          "grid_error": 528,
+          "local_beat_alignment": 9462,
+          "missing_variant": 2
+        },
+        "timingRejected": 1,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 6
+        }
+      },
+      {
+        "family": "edm",
+        "source": "For The Time Being",
+        "sourceId": "track-1016c9c0d9a4ecd66bc5",
+        "rawSafePlans": 14691,
+        "frozenDestinations": 38,
+        "exclusionCounts": {
+          "grid_error": 9106,
+          "local_beat_alignment": 25163,
+          "missing_variant": 2
+        },
+        "timingRejected": 65,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 35
+        }
+      },
+      {
+        "family": "edm",
+        "source": "Feeling for You",
+        "sourceId": "track-68e1b6036f7f3d0dfc31",
+        "rawSafePlans": 1985,
+        "frozenDestinations": 37,
+        "exclusionCounts": {
+          "grid_error": 31458,
+          "local_beat_alignment": 4665,
+          "missing_variant": 6
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 12
+        }
+      },
+      {
+        "family": "edm",
+        "source": "Gone Gone Gone",
+        "sourceId": "track-8609b4e8327adfe21adc",
+        "rawSafePlans": 15336,
+        "frozenDestinations": 29,
+        "exclusionCounts": {
+          "grid_error": 660,
+          "local_beat_alignment": 18224
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 7
+        }
+      },
+      {
+        "family": "edm",
+        "source": "The Spectre",
+        "sourceId": "track-b36fb933dcd2d9cff436",
+        "rawSafePlans": 2174,
+        "frozenDestinations": 0,
+        "exclusionCounts": {
+          "grid_error": 21168,
+          "local_beat_alignment": 4249,
+          "missing_variant": 6
+        },
+        "timingRejected": 2149,
+        "eqRejected": 0,
+        "neighborRejections": {}
+      },
+      {
+        "family": "edm",
+        "source": "Move Up (Lost Gravity)",
+        "sourceId": "track-f4219339062cac4ce823",
+        "rawSafePlans": 6294,
+        "frozenDestinations": 29,
+        "exclusionCounts": {
+          "start_too_soon": 660,
+          "local_beat_alignment": 8155,
+          "grid_error": 2310
+        },
+        "timingRejected": 0,
+        "eqRejected": 0,
+        "neighborRejections": {
+          "vocal-direction": 8
+        }
+      }
+    ],
+    "audioRejections": [
+      {
+        "planId": "track-f4219339062cac4ce823:track-9fbfb800b64e90305927:w0-4:146.040",
+        "side": "a",
+        "trackId": "track-f4219339062cac4ce823",
+        "sourceStart": 138.04,
+        "sourceEnd": 146.04,
+        "bassRms": 0.0004625881731152602,
+        "floor": 0.005,
+        "basis": "exact shared four-channel master/bass render",
+        "scope": "same frozen outgoing source window across candidates; not entire track"
+      },
+      {
+        "case": "neighbor-edm-2",
+        "planId": "track-1016c9c0d9a4ecd66bc5:track-6aa43bf8997b97571097:w8-4:265.640",
+        "side": "b",
+        "trackId": "track-6aa43bf8997b97571097",
+        "sourceStart": 30.98,
+        "sourceEnd": 38.72,
+        "bassRms": 0.0033067896503065275,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "planId": "track-074b5867a7993833d698:track-afc2c5c171a1fce80ef0:w0-4:240.234",
+        "side": "a",
+        "trackId": "track-074b5867a7993833d698",
+        "sourceStart": 230.01034920634922,
+        "sourceEnd": 240.234,
+        "bassRms": 0.0018838937747724517,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      },
+      {
+        "case": "neighbor-edm-2",
+        "planId": "track-8609b4e8327adfe21adc:track-9fbfb800b64e90305927:w0-4:384.020",
+        "side": "b",
+        "trackId": "track-9fbfb800b64e90305927",
+        "sourceStart": 31.74,
+        "sourceEnd": 39.34,
+        "bassRms": 0.0007614467128710489,
+        "rate": 0.9500000000000006,
+        "floor": 0.005,
+        "basis": "shared four-channel master/bass at frozen rate; no pre-roll for preflight"
+      }
+    ],
+    "strictFallback": true,
+    "selectionRule": "original best eligible frozen plan per destination; metadata distance only selects pairs, never edits plan; minimum sum distance of two disjoint pairs per family; no listening-based choice",
+    "limitations": [
+      "six new pairs; one listener; no guaranteed outcome",
+      "style/model labels are proxies, not verified groove similarity",
+      "only selected safe vocal handoff and measured complete bars",
+      "all prior tracks excluded except the declared 24K Magic source control; no track repeats within this round"
+    ]
+  },
+  "packaging": {
+    "sourcePackSha256": "6d26054e6f5159d9f653ee1cb13806d30bdbbb2b9df7f9a4b4a634d2f61930fb",
+    "changes": "Only URL prefix /coverage-audio/ -> /neighbor-audio/ and three-arm descriptive text -> two arms; audio bytes unchanged."
+  },
+  "assetVerification": {
+    "selectionSha256": "6fb93e41256e7997d8cf322e0d4c94c6731c48d3bbb3d351600471a9d06ba213",
+    "caseCount": 6,
+    "assetCount": 36,
+    "bytes": 77401443,
+    "allPlansAndTimingsIdenticalToSelection": true,
+    "assets": [
+      {
+        "case": "neighbor-edm-1",
+        "part": "aMaster",
+        "bytes": 4233714,
+        "sha256": "da8320f5f98fa67823ff678765e3e26907d71933a40e18b53e1495df08b86800",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.0
+      },
+      {
+        "case": "neighbor-edm-1",
+        "part": "aBass",
+        "bytes": 1768832,
+        "sha256": "91f151c38e73f7749204118ffe97fb7c36c0e6ed7cab6fa25dbe87cd56937258",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.0
+      },
+      {
+        "case": "neighbor-edm-1",
+        "part": "bEntryMaster",
+        "bytes": 2822514,
+        "sha256": "443826b83b9ccf7fd10c12b8a2207c4dd08bd7e3ff8ec2a8a0213137cb6dd73c",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-edm-1",
+        "part": "bEntryBass",
+        "bytes": 1178286,
+        "sha256": "f06c6f376a587a448fd1518a497b27792f64e331d6714ab177a2866a27c4c7a4",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-edm-1",
+        "part": "bBodyMaster",
+        "bytes": 2822514,
+        "sha256": "3430af35a996d4cca485610cb016be21e3106255172fce3e7a7d72db46cc8b7a",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-edm-1",
+        "part": "bBodyBass",
+        "bytes": 1179239,
+        "sha256": "9eb050afa568c5e673b03558efcf7fbac1d96d220203d033cb61ebcd1eea66d1",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "aMaster",
+        "bytes": 4576626,
+        "sha256": "2cde0fa79349fda83baf5b60d720d1d9eeda832ed3be02c00f2b20084ed086c7",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.971972789115647
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "aBass",
+        "bytes": 1845991,
+        "sha256": "733932f101f229a93d8346d3f8265c1ea27aef728a230851bf0631b452f2dd5e",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.971972789115647
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "bEntryMaster",
+        "bytes": 3165426,
+        "sha256": "36ce1e9705e97d2ac5e74fd439794a9f55127ee0d4e7ab591a9fe136bd422374",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.971972789115647
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "bEntryBass",
+        "bytes": 1242291,
+        "sha256": "cd8985af0de144d766283b9cce5b00bba0fbd89178b5c50a62d0ba80a6713213",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.971972789115647
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "bBodyMaster",
+        "bytes": 1427853,
+        "sha256": "86ddd5b26aae7550bc5aabcba3e7f0f0f68d82073fe71d1eb3cf424e4f830fa0",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-funk-1",
+        "part": "bBodyBass",
+        "bytes": 1087928,
+        "sha256": "200a53896e0981177c6647a0a908676d1903fdfe62b231ca9d057a80784bec3c",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "aMaster",
+        "bytes": 5014378,
+        "sha256": "7eee8bfb38cfcf41a6dea02dd60fe26f8cb157423ef924efcde8855a0ff202fd",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 14.212766439909297
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "aBass",
+        "bytes": 2015710,
+        "sha256": "af0aa7e594aafd8f1f0527abf093fd2f8202cb478f01c17b1723ca1c6e86486c",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 14.212766439909297
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "bEntryMaster",
+        "bytes": 3603178,
+        "sha256": "09aaf1366212ca3b311a834d0ba056d1ffa86217507d2aca4e097e753cd861ab",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 10.212766439909297
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "bEntryBass",
+        "bytes": 1390236,
+        "sha256": "df1f039035055f770cdf0f169b21f0335416baea6524e7c0fe65009c5706e5f0",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 10.212766439909297
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "bBodyMaster",
+        "bytes": 2822514,
+        "sha256": "89596603ca23b266dd516d45291b2a11e6dc37370d68c158ab48dc3649fa449f",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-jazz-1",
+        "part": "bBodyBass",
+        "bytes": 1095379,
+        "sha256": "4f6c7c16e8e59e1e503186984be6a88c62c1a61fae218965c616f7aa1e875d9f",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "aMaster",
+        "bytes": 1908533,
+        "sha256": "5259e405394514fc3f111592c03a3f5f76569b7b7eee1443fd0c13a1527fd405",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 11.741927437641724
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "aBass",
+        "bytes": 1365320,
+        "sha256": "fd34e53a4c5dd018c19d67217c24f326ef35a357762028838d8ab79cbe8a5223",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 11.741927437641724
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "bEntryMaster",
+        "bytes": 1686890,
+        "sha256": "31962b7b6e1d34eca3d351f2b344c422721928fbd5c46a80f7f33a5e2b9e1bb2",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 7.741927437641723
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "bEntryBass",
+        "bytes": 1069780,
+        "sha256": "21b6ae59ec271f69ce8bcac8a59bf4119bd698f40fd93a67c3f05d8719b4d0b6",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 7.741927437641723
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "bBodyMaster",
+        "bytes": 1775347,
+        "sha256": "1c85b9fa57806b0730ed50d0d28b604d87f9e9bf4e0e577b5d58334600ca2d82",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-edm-2",
+        "part": "bBodyBass",
+        "bytes": 1116146,
+        "sha256": "df99d47cc8b489b6ab81bfb13d1b20feed98594f72feae23862ab8bef996a094",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "aMaster",
+        "bytes": 4479138,
+        "sha256": "8eaa85130c3196715d4c5da762aa3eeb79e6c9743276f9ae9c3aeb867e296246",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.695646258503402
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "aBass",
+        "bytes": 1782159,
+        "sha256": "b8d82df2a7a5ba0448aef1411a6c313c1305958c93b955530ab3bb0f6278691b",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 12.695646258503402
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "bEntryMaster",
+        "bytes": 1743262,
+        "sha256": "9c92a37e6ab2dee6ef23ac713745f244acfda58e6594375b08468588fe22ffdf",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.695646258503402
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "bEntryBass",
+        "bytes": 1165843,
+        "sha256": "3f2ca5d59f737359bad1d43da27ee312b8158cc5cdead9ae02c82d6cda48d27c",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.695646258503402
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "bBodyMaster",
+        "bytes": 1612770,
+        "sha256": "f128b3c559a32e414ebba6b23a0b62c8197faee5c44d895c839e6eaedfa32386",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-funk-2",
+        "part": "bBodyBass",
+        "bytes": 1075928,
+        "sha256": "3b925887ab7313684f21398274f5ee413136b6c19ede0deecb62da7b0d75967a",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "aMaster",
+        "bytes": 2660299,
+        "sha256": "488acc60ccbd0e447447b37f6e2d33957d84cbe4ac28030a5e458be656d84b54",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 13.795918367346939
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "aBass",
+        "bytes": 1854485,
+        "sha256": "ccbef14346608f00b6fa5bf6f0a353ad8aa374a6ea421f21f3f0ca0a25cc05fb",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 13.795918367346939
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "bEntryMaster",
+        "bytes": 3456114,
+        "sha256": "009fb868bd5f7918d66a45a29a867a871cd4152889b2b149e8ff111d85e47a84",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 9.795918367346939
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "bEntryBass",
+        "bytes": 1390078,
+        "sha256": "91d05ea2742d058104c73f38220b336c46e92fb50c63dff0f8d537f012626792",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 9.795918367346939
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "bBodyMaster",
+        "bytes": 2822514,
+        "sha256": "e86a1aa754829e3b6536fa3be4d2b29f839f4026abf7c273c8c2873a4b01b351",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      },
+      {
+        "case": "neighbor-jazz-2",
+        "part": "bBodyBass",
+        "bytes": 1144228,
+        "sha256": "523f9b4a460e355aa1baa84253ca5a756993167f1bc33559b5772c6cad508d93",
+        "sampleRate": 44100,
+        "channels": 2,
+        "duration": 8.0
+      }
+    ]
+  },
+  "browserVerification": {
+    "completePlaybacks": 12,
+    "timedEvents": 72,
+    "failedPlaybacks": 0,
+    "samePlanEqRestGains": true,
+    "balancedAssignments": true,
+    "practiceExcluded": true,
+    "firstChoicePreserved": true
+  },
+  "persistenceVerification": {
+    "actualReloadRestoredFullPracticeRound": true,
+    "actualReloadRestoredArchivedHistory": true,
+    "actualReloadRestored12PlaybackLogs": true,
+    "firstHeardSnapshotPreserved": true,
+    "freshFormalRound": true,
+    "practiceExcluded": true,
+    "currentRoundId": "2fc01fb9-2c9e-4578-af37-b436316b62e5"
+  },
+  "browserWarningsErrors": 0,
+  "timedEventsLate": 0,
+  "earlyVoteVerifiedWithoutPlayback": true,
+  "interruptedLoadDidNotComplete": true,
+  "formalRevealRequiresSixInitialChoices": true,
+  "tests": {
+    "typescriptPassed": 181,
+    "optionalCorpusSkipped": 1,
+    "rendererPythonPassed": 12,
+    "typescriptCheck": true,
+    "isolatedBuild": true
+  },
+  "review": "Independent code review resolved incoming-window rate identity; independent all-asset audit passed. Unreferenced staging manifest removed from deliverable audio folder.",
+  "subjectiveSoundQualityJudged": false,
+  "productionDeployment": false,
+  "screenshot": "bass-neighbors.png",
+  "limits": [
+    "Six new pairs, eleven new tracks and one same-source 24K Magic control; one listener.",
+    "Metadata neighbor distance is not validated perceptual groove similarity or causal evidence. Some destination style tags differ.",
+    "Eligible source/destination BPM within ten percent of each prior reference; actual transitions still satisfy original rate, beat, vocal and cue gates.",
+    "Four failed frozen bass windows were excluded at .005 floor; findings do not cover weak-bass windows or poor separation.",
+    "No arm-specific loudness normalization; shared limiter may respond differently.",
+    "Provisional harmonic labels remain unvalidated; no production ranking change.",
+    "First-vote heard snapshot records completed clips only; partial exposure remains available in playback logs."
+  ]
+}

@@ -34,13 +34,13 @@ export const objectStoreName='rounds'
 export const recordKey='all-rounds'
 
 /** Keep the full history and source evidence in IndexedDB, outside localStorage's small quota. */
-export function indexedDBBackend():RawBackend{
+export function indexedDBBackend(name=databaseName):RawBackend{
  let opening:Promise<IDBDatabase>|undefined
  function database():Promise<IDBDatabase>{
   if(opening)return opening
   opening=new Promise<IDBDatabase>((resolve,reject)=>{
    if(!globalThis.indexedDB){reject(Error('当前浏览器无法使用 IndexedDB'));return}
-   const request=indexedDB.open(databaseName,1)
+   const request=indexedDB.open(name,1)
    let blocked=false
    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(objectStoreName))request.result.createObjectStore(objectStoreName)}
    request.onsuccess=()=>{if(blocked){request.result.close();return}request.result.onversionchange=()=>request.result.close();resolve(request.result)}
