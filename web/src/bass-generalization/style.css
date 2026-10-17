@@ -1,0 +1,27 @@
+@import url('../melody-overlap/style.css');
+.coverage .arms{grid-template-columns:repeat(3,minmax(0,1fr))}
+.coverage .arms h3{font-size:23px;min-height:32px;line-height:1.4}
+.coverage .arms .play{background:#344f35;color:#fff;transition:background-color .15s ease}
+.coverage .arms .play:hover:not(:disabled){background:#203d24;color:#fff}
+.coverage .arms .play:active:not(:disabled){background:#172f1a;color:#fff}
+.coverage .arms .play:focus-visible{outline-color:#64854e;outline-offset:4px}
+.coverage nav{flex-wrap:wrap}
+.coverage nav button{flex:1 1 15%;font-size:10px;line-height:1.6}
+.coverage nav span{min-height:42px;overflow-wrap:anywhere}
+.coverage .round-bar{border:1px solid #cbd1c4;border-radius:8px;padding:20px;background:#eeefe5;margin:0 0 28px}
+.coverage .round-bar>div:first-child{display:flex;justify-content:space-between;gap:12px;margin-bottom:16px}
+.coverage .round-bar span,.coverage .round-bar p,.coverage .history p,.coverage .reveal p,.coverage .history li{font-size:13px;color:#65725f;line-height:1.8}
+.coverage .round-bar label{font-size:13px;display:flex;align-items:center;gap:8px}
+.coverage input[type=checkbox]{accent-color:#344f35;width:16px;height:16px;flex-shrink:0}
+.coverage .round-actions{display:flex;flex-wrap:wrap;gap:8px}
+.coverage .round-actions button{background:#fffef6;font-size:13px}
+.coverage .symptoms{padding:15px 0;margin:8px 0 14px;border:0;border-top:1px solid #cbd1c4;display:flex;flex-wrap:wrap;gap:12px 22px}
+.coverage .symptoms legend{font-size:13px;padding:0 8px 0 0}
+.coverage .symptoms label{display:flex;align-items:center;gap:5px}
+.coverage .feedback textarea{min-height:104px}
+.coverage .first-choice{background:#e9eddf;padding:12px;border-radius:5px}
+.coverage .reveal{border:1px solid #cbd1c4;border-radius:8px;background:#fffef6;padding:23px;margin:30px 0}
+.coverage .reveal h2,.coverage .history h2{font-size:20px;margin-top:0}
+.coverage .reveal li{font-size:14px;margin:10px 0}
+.coverage .history{margin:30px 0;padding-top:24px;border-top:1px solid #cbd1c4}
+@media(max-width:700px){.coverage nav button{flex-basis:30%}.coverage .arms{grid-template-columns:1fr}.coverage .arms article+article{border-left:0;border-top:1px solid #cbd1c4}.coverage .arms h3{min-height:0}.coverage .round-bar>div:first-child{display:block}.coverage .round-bar span{display:block;margin-top:6px}.coverage .round-actions button{width:100%;text-align:center}.coverage .reveal{padding:18px}.coverage .intro h1{font-size:36px}}

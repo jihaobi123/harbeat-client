@@ -145,3 +145,8 @@ web/dist-vocal-bridge/
 /web/bass-audio/
 /web/bass-swap-data.json
 /web/dist-bass-swap/
+
+# Isolated six-pair bass and EQ comparison assets and build
+/web/coverage-audio/
+/web/bass-generalization-data.json
+/web/dist-bass-generalization/
