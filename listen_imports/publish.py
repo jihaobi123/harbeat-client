@@ -162,7 +162,7 @@ def publish(result, evidence_root, progress):
                 continue
             old = json.loads((corpus/'details'/(old_id+'.json')).read_text())['track']
             reserve()
-            progress(f'正在准备新歌的双向衔接：{i+1}/{len(data["jobs"])}')
+            progress(f'正在准备新歌的双向衔接：{i+1}/{len(base_jobs)}')
             recipes, assignments = extend_incoming(old, new, bpms)
             if recipes:
                 fetch_source(old_job['source'], source, old['provenance']['masterSha256'])
