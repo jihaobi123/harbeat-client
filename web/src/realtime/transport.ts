@@ -1,3 +1,4 @@
+import {comparisonSources} from './comparisonSources'
 import type {AutomaticPlanner} from '../continuous/qualityPlan'
 import {planAutomatic} from '../continuous/automaticPlan'
 import {nativeSegment,SegmentScheduler} from '../continuous/segments'
@@ -255,11 +256,12 @@ export class LiveTransport{
   this.log('request_received',{requestId,intent:{kind:'next',targetId:b.id},origin:'controlled_comparison',sourceTrackId:a.id,sourcePosition:position,budgetSec:experiment.horizonSec||18,experiment,note:'预先规划的受控源时间触发点；不是用户在该时刻实际点击'})
   try{
    await this.ctx.resume();if(token!==this.starting||this.dead)return
-   this.cache.protected=new Set([a.native.url,b.native.url,plan.asset.url])
-   const loadStart=performance.now();const previouslyReady=this.cache.ready;await Promise.all([a.native,b.native,plan.asset].map(asset=>this.cache.load(asset)));if(token!==this.starting||this.dead)return;this.log('audio_preparation',{elapsedMs:performance.now()-loadStart,reusedAssets:[a.native,b.native,plan.asset].filter(asset=>previouslyReady.has(asset.url)).map(asset=>asset.url),assetCount:3,parallel:true})
-   const at=this.ctx.currentTime+.08,offset=Math.max(0,(experiment.skipWaiting===true?plan.start:position)-4)
-   this.active=this.graph(a,at,offset);this.nativeSource(this.active,this.cache.buffers.get(a.native.url)!,at,offset);this.active.gain.gain.setValueAtTime(0,at);this.active.gain.gain.linearRampToValueAtTime(.76,at+.02)
-   this.paused=false;this.log('track_start',{track:a.id,sourceOffset:offset,scheduledAt:at,assetSha256:a.native.sha256})
+   const selected=comparisonSources(a,b,plan,position,experiment.skipWaiting===true),assets=[...selected.assets,plan.asset]
+   this.cache.protected=new Set(assets.map(asset=>asset.url))
+   const loadStart=performance.now();const previouslyReady=this.cache.ready;await Promise.all(assets.map(asset=>this.cache.load(asset)));if(token!==this.starting||this.dead)return;this.log('audio_preparation',{elapsedMs:performance.now()-loadStart,reusedAssets:assets.filter(asset=>previouslyReady.has(asset.url)).map(asset=>asset.url),assetCount:assets.length,parallel:true})
+   const at=this.ctx.currentTime+.08,offset=selected.offset
+   this.active=this.graph(a,at,offset);this.nativeSource(this.active,this.cache.buffers.get(selected.from.asset.url)!,at,offset);this.active.gain.gain.setValueAtTime(0,at);this.active.gain.gain.linearRampToValueAtTime(.76,at+.02)
+   this.paused=false;this.log('track_start',{track:a.id,sourceOffset:offset,scheduledAt:at,assetSha256:selected.from.asset.sha256})
    this.log('comparison_started',{requestId,experiment,plan,sourcePlaybackStart:offset,virtualTriggerSourceSec:position,virtualTriggerContextSec:position>=offset?at+position-offset:null,skippedWaitingSec:Math.max(0,offset-position),cacheProtocol:'A、B和进入素材全部就绪后开始；关闭自动接歌与背景预加载'})
    this.schedule(plan,at+position-offset,{kind:'next',targetId:b.id},requestId,{best:plan,candidates:[plan],rejected:[],exclusions:[]})
    this.comparisonEnd=at+(plan.end-offset)+8;this.protected()

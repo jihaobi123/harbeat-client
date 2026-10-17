@@ -1,0 +1,506 @@
+{
+  "schema": "harbeat.harmonic-audition-evidence.v1",
+  "release": "import-1792231449553769681",
+  "createdAt": "2026-10-17T10:28:45.203Z",
+  "keyValidation": {
+    "sourceBoundTracks": 148,
+    "needsReviewTracks": 148,
+    "validatedAccuracy": null,
+    "reason": "No deployment validation report; confidence 0.79 is a provisional cap"
+  },
+  "cohort": 19,
+  "safeSources": 19,
+  "strictFallback": true,
+  "maxBonus": 0.08,
+  "cases": [
+    {
+      "id": "key-track-274577b1e51f104f4658",
+      "source": "track-274577b1e51f104f4658",
+      "baseline": "track-274577b1e51f104f4658:track-86141f55b6b1219e1c38:w8-2:155.240",
+      "variant": "track-274577b1e51f104f4658:track-d2d58531421de0eb9690:w28-2:155.240",
+      "exploratory": true,
+      "ranking": [
+        {
+          "id": "track-274577b1e51f104f4658:track-d2d58531421de0eb9690:w28-2:155.240",
+          "score": 0.8646986843329328,
+          "bonus": 0.064,
+          "rankScore": 0.9286986843329328
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-86141f55b6b1219e1c38:w8-2:155.240",
+          "score": 0.8776565122809082,
+          "bonus": 0,
+          "rankScore": 0.8776565122809082
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-cf23264f7eb3b1a888d1:w24-2:155.240",
+          "score": 0.8461274542613791,
+          "bonus": 0,
+          "rankScore": 0.8461274542613791
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-6bcba4d577699a35104c:w8-2:155.240",
+          "score": 0.8187099792281879,
+          "bonus": 0,
+          "rankScore": 0.8187099792281879
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-ee96480c21a657e5cf4f:w0-2:155.240",
+          "score": 0.6869842390718442,
+          "bonus": 0.064,
+          "rankScore": 0.7509842390718442
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-080bca25199811cdd57d:w15-2:155.240",
+          "score": 0.7007520939650761,
+          "bonus": 0,
+          "rankScore": 0.7007520939650761
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-0a1c8c54ff45b04f1568:w28-2:155.240",
+          "score": 0.6225612862502664,
+          "bonus": 0.064,
+          "rankScore": 0.6865612862502664
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-642bd1ac0da727a3b53b:w0-2:155.240",
+          "score": 0.5620255124019138,
+          "bonus": 0.08,
+          "rankScore": 0.6420255124019137
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-d8e167ca8fe99139729a:w16-2:155.240",
+          "score": 0.5293445958517417,
+          "bonus": 0.08,
+          "rankScore": 0.6093445958517416
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-20cb7bd9306804d2ea54:w12-2:155.240",
+          "score": 0.5330838811057671,
+          "bonus": 0.064,
+          "rankScore": 0.597083881105767
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-64f489707fddc3101438:w8-2:155.240",
+          "score": 0.5681929481229463,
+          "bonus": 0,
+          "rankScore": 0.5681929481229463
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-7c28de573d1db91e6dd3:w0-2:155.240",
+          "score": 0.5642387684283344,
+          "bonus": 0,
+          "rankScore": 0.5642387684283344
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-42f027ee822c71afddf2:w0-2:155.240",
+          "score": 0.496061956589028,
+          "bonus": 0.064,
+          "rankScore": 0.560061956589028
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-62f1425047763578f494:w0-2:155.240",
+          "score": 0.46898007001673003,
+          "bonus": 0.08,
+          "rankScore": 0.54898007001673
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-6f00bcef1ad28fdca81e:w0-2:155.240",
+          "score": 0.5390487239916839,
+          "bonus": 0,
+          "rankScore": 0.5390487239916839
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-8978aa380e85155e8a2d:w6-2:155.240",
+          "score": 0.45645330276982726,
+          "bonus": 0,
+          "rankScore": 0.45645330276982726
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-01717e42ff56d1620e68:w20-2:155.240",
+          "score": 0.41920639202596083,
+          "bonus": 0,
+          "rankScore": 0.41920639202596083
+        },
+        {
+          "id": "track-274577b1e51f104f4658:track-b95895081efc74a37949:w16-2:155.240",
+          "score": 0.3353980884440502,
+          "bonus": 0,
+          "rankScore": 0.3353980884440502
+        }
+      ]
+    },
+    {
+      "id": "key-track-642bd1ac0da727a3b53b",
+      "source": "track-642bd1ac0da727a3b53b",
+      "baseline": "track-642bd1ac0da727a3b53b:track-cf23264f7eb3b1a888d1:w24-4:155.887",
+      "variant": "track-642bd1ac0da727a3b53b:track-d2d58531421de0eb9690:w8-4:155.887",
+      "exploratory": true,
+      "ranking": [
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-d2d58531421de0eb9690:w8-4:155.887",
+          "score": 1.0816854061751475,
+          "bonus": 0.064,
+          "rankScore": 1.1456854061751476
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-cf23264f7eb3b1a888d1:w24-4:155.887",
+          "score": 1.0842947979645077,
+          "bonus": 0,
+          "rankScore": 1.0842947979645077
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-86141f55b6b1219e1c38:w0-4:155.887",
+          "score": 1.0705294220137624,
+          "bonus": 0,
+          "rankScore": 1.0705294220137624
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-6bcba4d577699a35104c:w8-4:119.327",
+          "score": 1.0495421041928916,
+          "bonus": 0,
+          "rankScore": 1.0495421041928916
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-ee96480c21a657e5cf4f:w0-4:155.887",
+          "score": 0.9309559518388458,
+          "bonus": 0.064,
+          "rankScore": 0.9949559518388458
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-080bca25199811cdd57d:w15-4:155.887",
+          "score": 0.9831014261553461,
+          "bonus": 0,
+          "rankScore": 0.9831014261553461
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-274577b1e51f104f4658:w25-4:155.887",
+          "score": 0.8450928051282274,
+          "bonus": 0.08,
+          "rankScore": 0.9250928051282273
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-20cb7bd9306804d2ea54:w0-2:146.750",
+          "score": 0.8587796703072299,
+          "bonus": 0.064,
+          "rankScore": 0.92277967030723
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-62f1425047763578f494:w12-2:146.750",
+          "score": 0.8389753465287121,
+          "bonus": 0.08,
+          "rankScore": 0.918975346528712
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-0a1c8c54ff45b04f1568:w28-2:155.887",
+          "score": 0.8420841369000254,
+          "bonus": 0.064,
+          "rankScore": 0.9060841369000254
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-d8e167ca8fe99139729a:w24-2:146.750",
+          "score": 0.7574764370025892,
+          "bonus": 0.08,
+          "rankScore": 0.8374764370025891
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-64f489707fddc3101438:w24-2:146.750",
+          "score": 0.8294830896148573,
+          "bonus": 0,
+          "rankScore": 0.8294830896148573
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-7c28de573d1db91e6dd3:w26-2:146.750",
+          "score": 0.8213217356755957,
+          "bonus": 0,
+          "rankScore": 0.8213217356755957
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-42f027ee822c71afddf2:w0-2:146.750",
+          "score": 0.7507562341590811,
+          "bonus": 0.064,
+          "rankScore": 0.814756234159081
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-6f00bcef1ad28fdca81e:w0-4:155.887",
+          "score": 0.803599900264106,
+          "bonus": 0,
+          "rankScore": 0.803599900264106
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-01717e42ff56d1620e68:w20-2:146.750",
+          "score": 0.7389839620434202,
+          "bonus": 0,
+          "rankScore": 0.7389839620434202
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-8978aa380e85155e8a2d:w11-2:146.750",
+          "score": 0.7004494242475989,
+          "bonus": 0,
+          "rankScore": 0.7004494242475989
+        },
+        {
+          "id": "track-642bd1ac0da727a3b53b:track-b95895081efc74a37949:w16-2:146.750",
+          "score": 0.6651750899797814,
+          "bonus": 0,
+          "rankScore": 0.6651750899797814
+        }
+      ]
+    },
+    {
+      "id": "key-track-0a1c8c54ff45b04f1568",
+      "source": "track-0a1c8c54ff45b04f1568",
+      "baseline": "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240",
+      "variant": "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240",
+      "exploratory": true,
+      "ranking": [
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240",
+          "score": 1.155802103014724,
+          "bonus": 0,
+          "rankScore": 1.155802103014724
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-ee96480c21a657e5cf4f:w0-4:177.240",
+          "score": 1.0493472357148224,
+          "bonus": 0,
+          "rankScore": 1.0493472357148224
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-6f00bcef1ad28fdca81e:w24-4:177.240",
+          "score": 0.9378905309735068,
+          "bonus": 0.064,
+          "rankScore": 1.0018905309735069
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-cf23264f7eb3b1a888d1:w16-4:177.240",
+          "score": 1.0008430604354082,
+          "bonus": 0,
+          "rankScore": 1.0008430604354082
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-d2d58531421de0eb9690:w8-4:177.240",
+          "score": 0.9923073556170915,
+          "bonus": 0,
+          "rankScore": 0.9923073556170915
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-62f1425047763578f494:w20-4:177.240",
+          "score": 0.9258909921331739,
+          "bonus": 0.064,
+          "rankScore": 0.989890992133174
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-86141f55b6b1219e1c38:w16-4:177.240",
+          "score": 0.9821806340828336,
+          "bonus": 0,
+          "rankScore": 0.9821806340828336
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-080bca25199811cdd57d:w15-4:177.240",
+          "score": 0.9741453090647999,
+          "bonus": 0,
+          "rankScore": 0.9741453090647999
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-642bd1ac0da727a3b53b:w16-4:177.240",
+          "score": 0.905718620354613,
+          "bonus": 0.064,
+          "rankScore": 0.9697186203546131
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-274577b1e51f104f4658:w25-4:177.240",
+          "score": 0.9016938543668895,
+          "bonus": 0.064,
+          "rankScore": 0.9656938543668896
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-01717e42ff56d1620e68:w20-4:177.240",
+          "score": 0.9206987400387908,
+          "bonus": 0,
+          "rankScore": 0.9206987400387908
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-d8e167ca8fe99139729a:w16-4:177.240",
+          "score": 0.832017895157887,
+          "bonus": 0.064,
+          "rankScore": 0.896017895157887
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-8978aa380e85155e8a2d:w11-4:177.240",
+          "score": 0.8947902164392195,
+          "bonus": 0,
+          "rankScore": 0.8947902164392195
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-20cb7bd9306804d2ea54:w0-4:177.240",
+          "score": 0.8530836290986525,
+          "bonus": 0,
+          "rankScore": 0.8530836290986525
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-b95895081efc74a37949:w16-4:177.240",
+          "score": 0.843832086373722,
+          "bonus": 0,
+          "rankScore": 0.843832086373722
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-7c28de573d1db91e6dd3:w26-4:177.240",
+          "score": 0.8141359965795457,
+          "bonus": 0,
+          "rankScore": 0.8141359965795457
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-64f489707fddc3101438:w24-4:177.240",
+          "score": 0.8138011531539331,
+          "bonus": 0,
+          "rankScore": 0.8138011531539331
+        },
+        {
+          "id": "track-0a1c8c54ff45b04f1568:track-42f027ee822c71afddf2:w0-4:177.240",
+          "score": 0.7356368369666331,
+          "bonus": 0,
+          "rankScore": 0.7356368369666331
+        }
+      ]
+    }
+  ],
+  "frozenPlanHashes": {
+    "track-274577b1e51f104f4658:track-86141f55b6b1219e1c38:w8-2:155.240": "9a5cda09bf0c210302c136c8455c9d6b1e9edc11ef63826a048e51c738ed0543",
+    "track-274577b1e51f104f4658:track-d2d58531421de0eb9690:w28-2:155.240": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+    "track-274577b1e51f104f4658:track-cf23264f7eb3b1a888d1:w24-2:155.240": "56b8a78b352f792ed363d0f02d9689e371971d1051c60e07ce54e5d3272b6b24",
+    "track-274577b1e51f104f4658:track-6bcba4d577699a35104c:w8-2:155.240": "77d6e951b4856677fbe76ff95ae56eb796b1075da24b33744b249a7305f03452",
+    "track-274577b1e51f104f4658:track-080bca25199811cdd57d:w15-2:155.240": "caead08590f9a4ae558e617b8e420e43f67bc6eff4a353936cf2cb1872a8e9b0",
+    "track-274577b1e51f104f4658:track-ee96480c21a657e5cf4f:w0-2:155.240": "48a5beeaea243152a7ed737e4f26e5acce131ed0e32eeb4b5bc650c6a14059bd",
+    "track-274577b1e51f104f4658:track-0a1c8c54ff45b04f1568:w28-2:155.240": "8c58db34d5790f7e18e55ab05ac9bb865cf52633582f69ee70ed13abacb5bd8a",
+    "track-274577b1e51f104f4658:track-64f489707fddc3101438:w8-2:155.240": "fe14c157a45763b291277ef12fd809090b5a3ab333b856d4c547768b4273433b",
+    "track-274577b1e51f104f4658:track-7c28de573d1db91e6dd3:w0-2:155.240": "b4237e24279d975bd8a168c7bb0b44b1a4f3db92e75ec8cf90150dd2cb5c436a",
+    "track-274577b1e51f104f4658:track-642bd1ac0da727a3b53b:w0-2:155.240": "0aa89d9f0124e05a87c839f33e71fa79db31269381abb01de79180390cff089d",
+    "track-274577b1e51f104f4658:track-6f00bcef1ad28fdca81e:w0-2:155.240": "55fa8e86935b093230543c2d1fd586afe77539dbd740a423b5c1f6aa89bec47f",
+    "track-274577b1e51f104f4658:track-20cb7bd9306804d2ea54:w12-2:155.240": "de90916e06797e60b3eacb99d2109f70a870cba2cbd2f117dfac08951c359b1f",
+    "track-274577b1e51f104f4658:track-d8e167ca8fe99139729a:w16-2:155.240": "a1a32fda51569e66d13a71a4d4ce7d7767fa086919638ea31dae75640c45959c",
+    "track-274577b1e51f104f4658:track-42f027ee822c71afddf2:w0-2:155.240": "0cc63ee6b05fb6b865b95e26c4d33bc2e6a8f857fd909c55c41e5878fa655aa3",
+    "track-274577b1e51f104f4658:track-62f1425047763578f494:w0-2:155.240": "9b6f824b55aa77942841f9179b79103da9af6b20baec072ce884b639399afc5c",
+    "track-274577b1e51f104f4658:track-8978aa380e85155e8a2d:w6-2:155.240": "490dadcae5256e0db57298e9a2cd782ab6a831372cc96eeb1a70479b9471f551",
+    "track-274577b1e51f104f4658:track-01717e42ff56d1620e68:w20-2:155.240": "15919d727db95cab029c87fe9d732a6494a24d38c79e5788d80bef7f192ff616",
+    "track-274577b1e51f104f4658:track-b95895081efc74a37949:w16-2:155.240": "03c0255dba544052065a88fc104edeb93ba6f34a5715dd84dbae02b36e2e64bb",
+    "track-642bd1ac0da727a3b53b:track-cf23264f7eb3b1a888d1:w24-4:155.887": "89eeb8ac98f7ca1d6571de8f06596939bbae0186e175001addd441d637e9e615",
+    "track-642bd1ac0da727a3b53b:track-d2d58531421de0eb9690:w8-4:155.887": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+    "track-642bd1ac0da727a3b53b:track-86141f55b6b1219e1c38:w0-4:155.887": "ea2faf6ef6a5ed0cf644c26b3562212a19a80c00472f69452e546c2c3a97013b",
+    "track-642bd1ac0da727a3b53b:track-6bcba4d577699a35104c:w8-4:119.327": "eaa52b58921b067333dab6d11f3cd92d1adadefa7f49ccf2cc68eef9678e534a",
+    "track-642bd1ac0da727a3b53b:track-080bca25199811cdd57d:w15-4:155.887": "bfb06da3873d5db45fd5a58adec01a0f136896b5146d9e010696774f02990d5c",
+    "track-642bd1ac0da727a3b53b:track-ee96480c21a657e5cf4f:w0-4:155.887": "4e2638e14b627eb8b4b9e60f062fbd953e0f8d74cab60874e36b04c10ea038d4",
+    "track-642bd1ac0da727a3b53b:track-20cb7bd9306804d2ea54:w0-2:146.750": "6c6084319239d3ae7fa9f788322c4f022064cea16383cc6988b83c88f2919300",
+    "track-642bd1ac0da727a3b53b:track-274577b1e51f104f4658:w25-4:155.887": "052fdbbcb6855e06929303a2ce3b5fe7271a8a98316341d4c20efc63d22185ce",
+    "track-642bd1ac0da727a3b53b:track-0a1c8c54ff45b04f1568:w28-2:155.887": "4bba5e2818a158d5b67e35295729970b47e6c1478fe7dc425782b9388af74e59",
+    "track-642bd1ac0da727a3b53b:track-62f1425047763578f494:w12-2:146.750": "575505298b7f24f1e9e4877b16075748ae6f5fb17e3e0eefef7b008fc7207b6b",
+    "track-642bd1ac0da727a3b53b:track-64f489707fddc3101438:w24-2:146.750": "51f1df7536f9de6857c68137f613e34886285c0b2d7f1a919d5ff1f9c82b1ce9",
+    "track-642bd1ac0da727a3b53b:track-7c28de573d1db91e6dd3:w26-2:146.750": "2635a2e381e675eec5d0ce5f79b855da8e22b71fda8afe47e64c749e4e50ad00",
+    "track-642bd1ac0da727a3b53b:track-6f00bcef1ad28fdca81e:w0-4:155.887": "765e52ce791227fc815b16b092cdfff96331fd7cb74a0974be8506e4164a7b6a",
+    "track-642bd1ac0da727a3b53b:track-d8e167ca8fe99139729a:w24-2:146.750": "985195c5412895f92ad7ccb382e8210477e3e4f21bbb7978c2b1be56686cd5c3",
+    "track-642bd1ac0da727a3b53b:track-42f027ee822c71afddf2:w0-2:146.750": "5b56d3d6104db3fdd3c0926d371e79abbf150ab658a5ba277bd6c6f52d6df9e9",
+    "track-642bd1ac0da727a3b53b:track-01717e42ff56d1620e68:w20-2:146.750": "161641b6618a97a7b78589b25da721e3dacba66498522cd7783b207f92a5ec54",
+    "track-642bd1ac0da727a3b53b:track-8978aa380e85155e8a2d:w11-2:146.750": "27f926a4fd7b9bbecc117f453b5da231ecaad680c1ccf0a8b09022903ff48124",
+    "track-642bd1ac0da727a3b53b:track-b95895081efc74a37949:w16-2:146.750": "6fec65ffa0b2ab08b6242dc1b3109e0f5915f51e3ad74923f9e454bdfc814704",
+    "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+    "track-0a1c8c54ff45b04f1568:track-ee96480c21a657e5cf4f:w0-4:177.240": "097cc8177a03ff989fba2e917e62c93a30f014ae4e797356ca2f144128568aa1",
+    "track-0a1c8c54ff45b04f1568:track-cf23264f7eb3b1a888d1:w16-4:177.240": "98df72d254b1a21a4725ee41586c7f03808f04c81da59b27e59ec351e613358d",
+    "track-0a1c8c54ff45b04f1568:track-d2d58531421de0eb9690:w8-4:177.240": "06285a1fc76a782dad3c7aa3d54f8a2911c7f0e811ef6ceae339435a911be539",
+    "track-0a1c8c54ff45b04f1568:track-86141f55b6b1219e1c38:w16-4:177.240": "ad77054761722dbe590efd6e414847a6cc57ec29c26d6807269e6b7e55b98d53",
+    "track-0a1c8c54ff45b04f1568:track-080bca25199811cdd57d:w15-4:177.240": "e5590eedb1e22753a29bd0db48cf5fd4ca698464900dab8445acd39b363aa2bf",
+    "track-0a1c8c54ff45b04f1568:track-6f00bcef1ad28fdca81e:w24-4:177.240": "26f55b7a40206b12d3c0fae316728162f598954cbd8aed7db1f414eed86472f9",
+    "track-0a1c8c54ff45b04f1568:track-62f1425047763578f494:w20-4:177.240": "e6763a627b3786262b33c7dbe5742a1fb31699294cf76d0f3ed06c1f781d42be",
+    "track-0a1c8c54ff45b04f1568:track-01717e42ff56d1620e68:w20-4:177.240": "b101c3780fbd020e9785a0906e0435e58b80e0e790c75c5d3886d8b2bb942b04",
+    "track-0a1c8c54ff45b04f1568:track-642bd1ac0da727a3b53b:w16-4:177.240": "b1186840a9435e2658489530a5a0249dc37603e2e2c7b077fc5806fa5a981f0a",
+    "track-0a1c8c54ff45b04f1568:track-274577b1e51f104f4658:w25-4:177.240": "d1caff5fd9e58d4125279795f16941c7ea8a79f7179bddee0d8b39b6b9a572cd",
+    "track-0a1c8c54ff45b04f1568:track-8978aa380e85155e8a2d:w11-4:177.240": "8ee387eb66f577fe55055335d74e11cf2b6978607b520a4eaf62f4a8f973a6ed",
+    "track-0a1c8c54ff45b04f1568:track-20cb7bd9306804d2ea54:w0-4:177.240": "85c46e8815842dcf1497d60c3d03aae9ecebdaddb30e7b5d626cfcb6da737fee",
+    "track-0a1c8c54ff45b04f1568:track-b95895081efc74a37949:w16-4:177.240": "132fac6307e3d79dd09d492ee894bb2084bb71f86619f3fc5344d8f3dfafbcbd",
+    "track-0a1c8c54ff45b04f1568:track-d8e167ca8fe99139729a:w16-4:177.240": "66954f2a022afd52e15b2028af2c97ac0c3bdca08e4799ed6e65160dbf17401c",
+    "track-0a1c8c54ff45b04f1568:track-7c28de573d1db91e6dd3:w26-4:177.240": "1d3c0bff6a6d27151fc3b18e47fe311a764f5f6332700a5a0b3051e50a1dbaf3",
+    "track-0a1c8c54ff45b04f1568:track-64f489707fddc3101438:w24-4:177.240": "c41aa28f4bdd0bbb9d81f7c97dcb444ae4ac528150b30d5ad12766b6bb29f528",
+    "track-0a1c8c54ff45b04f1568:track-42f027ee822c71afddf2:w0-4:177.240": "b89e5b942e9d2d166662e8ef1ff60908c8119c0554bb29b12342dfd80bce8017"
+  },
+  "validation": {
+    "testsPassed": 116,
+    "corpusTestsSkipped": 1,
+    "typescript": true,
+    "isolatedBuild": true,
+    "productionDefaultsChanged": false,
+    "browser": {
+      "page": "http://127.0.0.1:5187/harmonic-key.html",
+      "packSha256": "6473e626485a405d22f18dd5da85ea1d59f290b9d7a9517e0527c43ded547def",
+      "runs": [
+        {
+          "caseId": "key-track-274577b1e51f104f4658",
+          "arm": "baseline",
+          "frozenPlanId": "track-274577b1e51f104f4658:track-86141f55b6b1219e1c38:w8-2:155.240",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        },
+        {
+          "caseId": "key-track-274577b1e51f104f4658",
+          "arm": "variant",
+          "frozenPlanId": "track-274577b1e51f104f4658:track-d2d58531421de0eb9690:w28-2:155.240",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        },
+        {
+          "caseId": "key-track-642bd1ac0da727a3b53b",
+          "arm": "baseline",
+          "frozenPlanId": "track-642bd1ac0da727a3b53b:track-cf23264f7eb3b1a888d1:w24-4:155.887",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        },
+        {
+          "caseId": "key-track-642bd1ac0da727a3b53b",
+          "arm": "variant",
+          "frozenPlanId": "track-642bd1ac0da727a3b53b:track-d2d58531421de0eb9690:w8-4:155.887",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        },
+        {
+          "caseId": "key-track-0a1c8c54ff45b04f1568",
+          "arm": "baseline",
+          "frozenPlanId": "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        },
+        {
+          "caseId": "key-track-0a1c8c54ff45b04f1568",
+          "arm": "variant",
+          "frozenPlanId": "track-0a1c8c54ff45b04f1568:track-6bcba4d577699a35104c:w24-4:177.240",
+          "planUnchanged": true,
+          "handoffCompleted": true,
+          "finished": true
+        }
+      ],
+      "browserErrors": 0,
+      "stopAndSwitchVerified": true,
+      "feedbackSavedAndExported": true,
+      "testFeedbackReverted": true,
+      "audibleQualityJudged": false,
+      "screenshot": "harmonic-audition.png",
+      "productionDeployment": false,
+      "tests": {
+        "passed": 116,
+        "optionalCorpusSkipped": 1,
+        "typescript": true,
+        "isolatedBuild": true
+      },
+      "review": "No remaining critical or important findings"
+    }
+  },
+  "rebuild": {
+    "cwd": "web",
+    "command": "./node_modules/.bin/vite-node scripts/build-harmonic-pack.ts",
+    "auditInputs": "workspace work/harmonic-key-20261017/",
+    "pack": "web/harmonic-key-data.json",
+    "build": "./node_modules/.bin/vite build --config vite.harmonic-key.config.ts"
+  }
+}

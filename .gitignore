@@ -131,3 +131,7 @@ web/dist-continuous/
 
 # Independent vocal / accompaniment bridge trial
 web/dist-vocal-bridge/
+
+# Isolated harmonic audition snapshot and build
+/web/harmonic-key-data.json
+/web/dist-harmonic-key/
