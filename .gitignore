@@ -140,3 +140,8 @@ web/dist-vocal-bridge/
 /web/melody-audio/
 /web/melody-overlap-data.json
 /web/dist-melody-overlap/
+
+# Isolated bass swap audition assets and build
+/web/bass-audio/
+/web/bass-swap-data.json
+/web/dist-bass-swap/

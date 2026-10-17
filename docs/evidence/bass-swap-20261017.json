@@ -1,0 +1,46 @@
+{
+  "page": "http://127.0.0.1:5189/bass-swap.html",
+  "selectionSha256": "d0317cfdb4803a6f05c06a35dffd7acee9ce9a6193c7361951cd984e25b58ee5",
+  "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+  "a": "Attention",
+  "b": "HIPHOP",
+  "originalSourceStart": 146.73543537414966,
+  "originalSourceEnd": 155.887,
+  "bassSourceMarkers": {
+    "duckStart": 151.324,
+    "swapStart": 153.043,
+    "swapEnd": 153.612
+  },
+  "samePlanEqNonBassCurves": true,
+  "completedArms": 2,
+  "events": {
+    "bass_requested": 2,
+    "bass_started": 2,
+    "audio_observation": 12,
+    "bass_finished": 2
+  },
+  "browserWarningsErrors": 0,
+  "stopReplaceVerified": true,
+  "loadCancellationUnitVerified": true,
+  "feedbackSaveUpdateExportUndo": true,
+  "testFeedbackReverted": true,
+  "sourceAssetCount": 6,
+  "assetBytes": 14944852,
+  "subjectiveSoundQualityJudged": false,
+  "productionDeployment": false,
+  "screenshot": "bass-swap.png",
+  "tests": {
+    "typescriptPassed": 149,
+    "optionalCorpusSkipped": 1,
+    "bassPythonPassed": 3,
+    "previousRendererPythonPassed": 5,
+    "typescriptCheck": true,
+    "isolatedBuild": true
+  },
+  "review": "No remaining critical or important findings",
+  "limits": [
+    "Bass separation retains bleed; non-bass control curves are invariant, not a claim of acoustically perfect isolation.",
+    "Both arms share new four-channel entry rendering, which may differ in texture from the previous preview.",
+    "Bass-envelope changes can affect shared limiter behavior; minimum limiter gain statistics are cumulative, not per-arm."
+  ]
+}

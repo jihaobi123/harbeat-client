@@ -1,0 +1,3 @@
+@import url('../melody-overlap/style.css');
+.bass-phases{display:flex;gap:16px;margin:24px 0;padding:0;list-style:none;counter-reset:phase}.bass-phases li{flex:1;font-size:12px;line-height:1.6;border-top:1px solid #cbd1c4;padding-top:10px}.bass-phases span{display:block;color:#65725f;font-size:11px;margin-top:5px}@media(max-width:600px){.bass-phases{gap:10px}.bass-phases li{font-size:11px}}
+.harmonic .arms .play:hover:not(:disabled){background:#263e27;color:#fff}
