@@ -1,0 +1,216 @@
+{
+  "schema": "harbeat.stems-readiness.v1",
+  "auditedAt": "2026-10-18T04:14:32.076704+00:00",
+  "scope": {
+    "publishedManifests": 407,
+    "frozenAuditionReports": 148,
+    "allAudioHashesRecomputed": false,
+    "assetVerification": "All407 manifest pointer/SUCCESS hashes and referenced file presence checked; full source hashes and decoded frames rechecked only on the selected trial."
+  },
+  "counts": {
+    "pointerManifestSuccessHashMatch": 407,
+    "allFourStemFilesPresent": 407,
+    "allFiveDrumSubgroupFilesPresent": 407,
+    "beatGridPresent": 407,
+    "barsPresent": 407,
+    "sectionsPresent": 407,
+    "vocalActivityPublished": 407,
+    "vocalActivityNeedsReview": 407,
+    "globalKeyNeedsReview": 407,
+    "manifestStatus": {
+      "degraded": 407
+    },
+    "frozenReportHashMatches": 147,
+    "chordExtensionReports": 138,
+    "djSignalReports": 148
+  },
+  "frozenReportMismatches": [
+    {
+      "id": "track-080bca25199811cdd57d",
+      "title": "Clear (Shawn Wasabi Remix)",
+      "action": "exclude; preserve old snapshot and current report; no rewrite"
+    }
+  ],
+  "extensionValidationCounts": {
+    "experimental": 1188
+  },
+  "techniques": [
+    {
+      "name": "人声与伴奏错开交接",
+      "controlledAudition": "supported with guarded activity endpoints and bound source; one of12 frozen pairs eligible",
+      "unattendedAutomatic": "not supported for guaranteed complete lyrical phrases",
+      "missing": "word/phrase boundaries and explicit semantic verification, local vocal/accompaniment harmony, stem bleed/alignment checks"
+    },
+    {
+      "name": "旋律让位",
+      "controlledAudition": "supported at grouped other-stem level",
+      "unattendedAutomatic": "requires local harmony/density validation",
+      "missing": "validated window-local harmony compatibility; finer instrument stems if a specific instrument must be isolated"
+    },
+    {
+      "name": "独立贝斯交接",
+      "controlledAudition": "implemented and tested in prior pair-specific auditions",
+      "unattendedAutomatic": "no universal activation rule established",
+      "missing": "local bass/kick compatibility and reliable perceptual trigger calibration"
+    },
+    {
+      "name": "节奏桥梁与鼓循环",
+      "controlledAudition": "whole-drum implemented; kick/snare/hihat/tom/cymbal assets now confirmed present",
+      "unattendedAutomatic": "subgroup artifacts and groove compatibility require validation",
+      "missing": "transient/offset checks, listener-calibrated groove matching; no standalone shaker/conga stem promised"
+    },
+    {
+      "name": "单声部回声或效果退出",
+      "controlledAudition": "source assets sufficient; separate FX trial needed",
+      "unattendedAutomatic": "requires protected next-vocal interval and tail budget",
+      "missing": "declared beat-synced tail length, gain/peak limits, tail-vocal overlap check"
+    },
+    {
+      "name": "人声切片与歌词接话",
+      "controlledAudition": "manual cue annotations required before implementation",
+      "unattendedAutomatic": "not supported by activity intervals alone",
+      "missing": "word/syllable timestamps, semantic phrase/hook annotation, pronunciation and cue verification"
+    },
+    {
+      "name": "多曲分轨组合",
+      "controlledAudition": "assets support manual prepared arrangement",
+      "unattendedAutomatic": "not established",
+      "missing": "explicit role ownership, simultaneous local harmony/rhythm compatibility and loudness/peak planning"
+    }
+  ],
+  "priorities": [
+    "P0: source identity, per-stem offset/duration, artifact/bleed and local loudness observations for selected clips; no all-library re-separation needed.",
+    "P0 for phrase-aware techniques: add versioned word/phrase annotations tied to exact vocal hash and reviewed phrase completeness; VAD/RMS is not a semantic boundary.",
+    "P1: publish validated segment-local harmony/chroma/pitch compatibility and onset/groove evidence; retain experimental labels until verified.",
+    "P2: semantic hook/wordplay labels and multi-track arrangement rules, only when those techniques are implemented."
+  ],
+  "firstTrial": {
+    "name": "人声保留、伴奏先交接",
+    "pair": [
+      "Attention",
+      "HIPHOP"
+    ],
+    "eligibilityCount": 1,
+    "candidateCount": 12,
+    "unchanged": [
+      "pair",
+      "cue positions",
+      "tempo mapping",
+      "native B takeover",
+      "EQ",
+      "bass strategy",
+      "no new detected vocal overlap"
+    ],
+    "limitation": "Activity-preserving vocal treatment; not certified complete lyrics. One pair is a functional audition, not evidence of generality."
+  },
+  "status": "First controlled audition implementation; remaining techniques proceed one at a time after appropriate data gate and listening.",
+  "independentReview": {
+    "schema": "harbeat.vocal-bed-final-review.v1",
+    "reviewedAt": "2026-10-18T04:17:14.774000+00:00",
+    "status": "pass",
+    "scope": "Independent read-only implementation review; final-review.json is the only reviewer-created file. No deployment.",
+    "implementation": {
+      "criticalIssues": [],
+      "importantIssues": [],
+      "resolvedFindings": [
+        "Blind intro no longer discloses the treatment or claims identical A vocal envelopes.",
+        "Footer now identifies VOCAL BED.",
+        "Saved rounds bind ordered rendered asset metadata; changed assets archive the previous round even when selection SHA is unchanged."
+      ],
+      "verified": [
+        "Natural and relay share clips, frozen bass, original EQ and wet/dry paths.",
+        "Master*bed + bass*(frozenBass-bed) + vocal*(voice-bed) graph matches approved design.",
+        "A voice holds until detected end+150ms, B vocal retains original envelope; native B takeover preserved.",
+        "Early voting, immutable heard snapshots, one-case support, cancellation and observed render-onset attribution covered."
+      ]
+    },
+    "sourceAudit": {
+      "candidateCount": 12,
+      "eligibleCount": 1,
+      "pair": [
+        "Attention",
+        "HIPHOP"
+      ],
+      "previousFormalChoice": "C → stem",
+      "previousFeedbackSha256Match": true,
+      "allPriorCaseFieldsPreserved": true,
+      "selectionSha256": "d197ea02c1a97de7eff17cf2d7d395eecc1e3e8bf964151fbe5f6dd4de3e58b0",
+      "selectionSha256Match": true,
+      "frozenSourceEvidenceMatch": true,
+      "aDetectedVoiceEndSec": 154.564,
+      "aOriginalExitSec": 155.887,
+      "aDetectedEndBeforeExitSec": 1.323
+    },
+    "assetAudit": {
+      "caseCount": 1,
+      "assetCount": 9,
+      "encodedBytes": 19954462,
+      "allEncodedHashesRecomputed": true,
+      "allByteCountsMatch": true,
+      "allAssetsIndependentlyDecoded": true,
+      "channels": 2,
+      "sampleRateHz": 44100,
+      "allDecodedFramesMatchMetadata": true,
+      "allScheduledFrameDeltas": 0,
+      "framesByPart": {
+        "a": 579984,
+        "bEntry": 403584,
+        "bBody": 352800
+      }
+    },
+    "validation": {
+      "vocalBedTests": 24,
+      "vocalBedTestsStatus": "passed",
+      "typecheck": "passed"
+    },
+    "limitations": [
+      "Review does not certify phrase-complete lyrics, separation bleed, source offset or subjective listening quality.",
+      "One eligible fixed pair supports a controlled smoke comparison, not generalization.",
+      "Final asset audit performed directly on transferred archive; installation/browser audition remains parent-agent verification."
+    ]
+  },
+  "auditionUrl": "http://127.0.0.1:5193/vocal-bed.html",
+  "validation": {
+    "newTypeScriptTestsPassed": 24,
+    "regressionSuitePassedBeforeFinalFingerprintTest": 226,
+    "optionalExternalCorpusSkipped": 1,
+    "existingPythonRendererTestsPassed": 12,
+    "typecheck": "pass",
+    "isolatedBuild": "pass",
+    "browser": {
+      "schema": "harbeat.vocal-bed-browser-qa.v1",
+      "status": "pass",
+      "completePlays": 2,
+      "audioObservations": 12,
+      "lateObservations": 0,
+      "counts": {
+        "bass_requested": 3,
+        "bass_stopped": 1,
+        "bass_started": 2,
+        "audio_observation": 12,
+        "bass_render_started": 2,
+        "bass_finished": 2
+      },
+      "earlyChoiceRetainsEmptyHeardSnapshot": true,
+      "loadingCancelDoesNotStart": true,
+      "postRevealEditPreservesInitialChoice": true,
+      "practiceReloadRestored": true,
+      "formalRoundAfterSecondReloadClean": true,
+      "practiceExcludedFromListenerPreferences": true,
+      "assetFingerprintBound": true,
+      "frozenPlansBassEqAndAssetsIdentical": true,
+      "voiceAndBedAutomationVerified": true,
+      "nativeTakeoverAtOriginalFrame": true,
+      "consoleErrorsAndWarnings": 0,
+      "formalRecommendedFirstLetter": "B",
+      "formalRoundId": "b23a8f95-869c-4a8f-8e0c-1581e78817be",
+      "screenshot": "/Users/jihaobi/Documents/New project/work/stems-readiness-20261018/vocal-bed.png"
+    }
+  },
+  "artifacts": {
+    "readOnlyFullAudit": "/Users/jihaobi/Documents/New project/work/stems-readiness-20261018/audit.json",
+    "auditionSelection": "/Users/jihaobi/Documents/New project/work/stems-readiness-20261018/selection.json",
+    "formalExport": "/Users/jihaobi/Documents/New project/work/stems-readiness-20261018/browser-formal.json",
+    "independentReview": "/Users/jihaobi/Documents/New project/work/stems-readiness-20261018/final-review.json"
+  }
+}
