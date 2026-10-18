@@ -1,0 +1,1251 @@
+{
+  "schema": "harbeat.vocal-echo-solo-evidence.v1",
+  "date": "2026-10-18",
+  "url": "http://127.0.0.1:5201/vocal-echo-solo.html",
+  "scope": "Independent finite vocal-only echo; original dry fades and frozen vocal rules, listener choices pending",
+  "selectionSha256": "1288c0b063d5182d0d950a7737584aa202bd146cf77f7b002fa45e953bb85058",
+  "sourcePackSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
+  "packSha256": "ba2b03ba4c596dca609e9810080c4f89ed6740ac146b734f0395ede69221a1e2",
+  "cases": [
+    {
+      "id": "vocal-echo-solo-01",
+      "sourceCaseId": "vocal-handover-01",
+      "aTitle": "Doin' It",
+      "bTitle": "Talgo",
+      "planSha256": "3d1bb43eed0e31ed7194219bac1aa69a6a391bbb91b77de66c70264505a0395e",
+      "pre": 4,
+      "post": 8,
+      "endpoint": {
+        "tailEnd": 6.095739229,
+        "nextOnset": 13.800000229,
+        "fadeStart": 6.403160229,
+        "fadeEnd": 6.603160229
+      },
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.493421052631579,
+        "sourceOrigin": 251.98826077097505,
+        "sendStart": 9.602318176393378,
+        "sendEnd": 10.095739229024957,
+        "wetStart": 9.849028702709168,
+        "wetEnd": 10.875870807972325,
+        "taps": [
+          {
+            "delaySeconds": 0.2467105263157895,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.493421052631579,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.7401315789473685,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          91.67365789765685,
+          92.69077923099019
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+            "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+            "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+            "sectionSource": "songformer",
+            "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+            "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+            "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+          },
+          "b": {
+            "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+            "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+            "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+            "sectionSource": "songformer",
+            "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+            "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+            "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+          }
+        },
+        "outgoingNextOnset": 269.788261,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      },
+      "fxEvidence": {
+        "inputVocalSha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+        "wetSha256": "47f17d395a87a710799ff0c2cdc098a39cd4a61f71677881144ecbb752b015d6",
+        "dryPolicy": "original-natural-v1",
+        "sendGainPolicy": "original-a-fade-before-delay-v1",
+        "isolatedWetPeak": 0.061602216213941574,
+        "isolatedWetRms": 0.002044805381194932,
+        "decodedSupport": [
+          9.849047619047619,
+          10.835873015873016
+        ],
+        "window": {
+          "schema": "harbeat.stem-fx-window.v1",
+          "kind": "finite-vocal-echo",
+          "beatSeconds": 0.493421052631579,
+          "sourceOrigin": 251.98826077097505,
+          "sendStart": 9.602318176393378,
+          "sendEnd": 10.095739229024957,
+          "wetStart": 9.849028702709168,
+          "wetEnd": 10.875870807972325,
+          "taps": [
+            {
+              "delaySeconds": 0.2467105263157895,
+              "gain": 0.26
+            },
+            {
+              "delaySeconds": 0.493421052631579,
+              "gain": 0.117
+            },
+            {
+              "delaySeconds": 0.7401315789473685,
+              "gain": 0.052
+            }
+          ],
+          "edgeSeconds": 0.01,
+          "highpassHz": 180,
+          "lowpassHz": 5000,
+          "incomingSourceWindow": [
+            91.67365789765685,
+            92.69077923099019
+          ],
+          "source": {
+            "a": {
+              "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+              "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+              "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+              "sectionSource": "songformer",
+              "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+              "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+              "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+            },
+            "b": {
+              "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+              "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+              "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+              "sectionSource": "songformer",
+              "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+              "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+              "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+            }
+          },
+          "outgoingNextOnset": 269.788261,
+          "nextOnsetObserved": false,
+          "status": "experimental-listening-review-required"
+        },
+        "outgoingGapBoundaryType": "observation-horizon-censored",
+        "outgoingCoverage": {
+          "start": 250.988261,
+          "end": 269.838261,
+          "frameSeconds": 0.05,
+          "modelStart": 250.98826077097505,
+          "modelEnd": 269.883,
+          "unobservedRemainder": 0.04473899999999276
+        },
+        "analysisSources": [
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+            "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+          },
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+            "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+          }
+        ],
+        "normalization": "none; unchanged common dry/EQ/output chain",
+        "status": "provisional-activity-window; no human lyric-end certification"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+          "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+          "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+          "sectionSource": "songformer",
+          "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+          "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+          "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+        },
+        "b": {
+          "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+          "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+          "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+          "sectionSource": "songformer",
+          "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+          "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+          "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-aMaster.wav",
+          "sha256": "97416f5ca00662c9430af1fb6095c55fda79f6ea99fdc94d84ba6d22ead260ae",
+          "bytes": 4196578,
+          "duration": 11.894739229024943,
+          "frames": 524558,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0169602632522583
+        },
+        "aBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-aBass.flac",
+          "sha256": "708860b8350c26547ca2684c516668d77a8b8f3a03c7147ab437357e50a1789c",
+          "bytes": 1657159,
+          "duration": 11.894739229024943,
+          "frames": 524558,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.40297436714172363
+        },
+        "aVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-aVocal.flac",
+          "sha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+          "bytes": 2027311,
+          "duration": 11.894739229024943,
+          "frames": 524558,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9770180583000183
+        },
+        "bEntryMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bEntryMaster.flac",
+          "sha256": "6f76c5ef2bf48f801ed1bf6aa444ff10d8cc7b08a4310932d71626836aa2abdc",
+          "bytes": 1543510,
+          "duration": 7.894739229024943,
+          "frames": 348158,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9859106540679932
+        },
+        "bEntryBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bEntryBass.flac",
+          "sha256": "ed494f30620872ecf8f7d7d59166d15d71e632d2081fc43b694ba6b93928c811",
+          "bytes": 1130480,
+          "duration": 7.894739229024943,
+          "frames": 348158,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.5864967703819275
+        },
+        "bEntryVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bEntryVocal.flac",
+          "sha256": "1d6c467143f8e88173270f65849fbf17c2a702cd4d923b6d56adffe614fdb4ae",
+          "bytes": 933990,
+          "duration": 7.894739229024943,
+          "frames": 348158,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.0020740714389830828
+        },
+        "bBodyMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bBodyMaster.wav",
+          "sha256": "12784271b8b28b680c1f0a2a1cfb5e75618b0f5c185774feb62a6a94cc7d719a",
+          "bytes": 2822514,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0006592273712158
+        },
+        "bBodyBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bBodyBass.flac",
+          "sha256": "54f387d6e5155c65b815e6c447293b9472514b9ad9c875a0be67bfd39f2f21f8",
+          "bytes": 1141559,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.6199988126754761
+        },
+        "bBodyVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-bBodyVocal.flac",
+          "sha256": "07d01e7dbb994316b1ffb1880392020fa884c60e0f50799cf0fc2d917204b120",
+          "bytes": 946449,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.0018915124237537384
+        },
+        "aEcho": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-01-aEcho.wav",
+          "sha256": "47f17d395a87a710799ff0c2cdc098a39cd4a61f71677881144ecbb752b015d6",
+          "bytes": 4196552,
+          "duration": 11.894739229024943,
+          "frames": 524558,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.061602216213941574
+        }
+      }
+    },
+    {
+      "id": "vocal-echo-solo-02",
+      "sourceCaseId": "vocal-handover-02",
+      "aTitle": "WANNABE",
+      "bTitle": "Tonight",
+      "planSha256": "366cdbb367936e8b6ea1fc8f8a5fa63b9ec6738e5cf972064660950bf7644fee",
+      "pre": 4,
+      "post": 8,
+      "endpoint": {
+        "tailEnd": 2.790938776,
+        "nextOnset": 5.949999776,
+        "fadeStart": 3.018674776,
+        "fadeEnd": 3.218674776
+      },
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.49586776859504134,
+        "sourceOrigin": 181.2130612244898,
+        "sendStart": 6.295071006915157,
+        "sendEnd": 6.790938775510199,
+        "wetStart": 6.543004891212678,
+        "wetEnd": 7.574740428402761,
+        "taps": [
+          {
+            "delaySeconds": 0.24793388429752067,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.49586776859504134,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.743801652892562,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          49.82573364965986,
+          50.850461982993195
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "d4bf4167b30c5979b616eba4ea1b17c69de5bb4d3e63fec9c0b8c8fd68ec3531",
+            "reportSha256": "83be9c1f68f651771fe3cac980eb175a7244b884f6e48942e6a9aadb87323604",
+            "runId": "run-track-d4bf4167b30c5979b616-d4bf4167b30c-a268a5c-f589093d",
+            "sectionSource": "songformer",
+            "vocalSha256": "9cfc9a50d4eeadd6906f4d16cb300577104da75c8ec336756be468951e7b2320",
+            "manifestSha256": "8defcc7dacd05307ba2686dd2ee50d57b74e9ae663cf2aec2e92c39422b6cc23",
+            "bassSha256": "188c1809c476ae7b7f0cba9291d389741ddd1234cab4d3a15b13d388a21ce35d"
+          },
+          "b": {
+            "masterSha256": "506d0d59407ac4c53c1af6bab9216b58d5dce51f7c922af9b7e65e87e8f5dc8b",
+            "reportSha256": "5ce3e2c845f21a9a1000dc002d24d4dc1982fa9d8aa5e7d296802e0134bc5209",
+            "runId": "run-track-506d0d59407ac4c53c1a-506d0d59407a-a268a5c-93a74f64",
+            "sectionSource": "songformer",
+            "vocalSha256": "ef8a5c54ae5fba0266b10c984cb45a19c9c5588c2d4eb29f8a858e806e9804f1",
+            "manifestSha256": "ca34ee1a14230fd3cf0522a5f31ae00213480394ddc0faba3d75f4b8307b5d92",
+            "bassSha256": "58d8e8ea5695ef26a883a82646c32803bcfc2410f46cdd3ef1bb423786e4c000"
+          }
+        },
+        "outgoingNextOnset": 191.163061,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      },
+      "fxEvidence": {
+        "inputVocalSha256": "bb7700032d5fe556bbefa12cb7ced9611827e33d6f4adec8182a2b69cd9e050d",
+        "wetSha256": "80ffd0681bf071d1868f263cf1bd2669c70b243592588a3eb3c8a792de278ae6",
+        "dryPolicy": "original-natural-v1",
+        "sendGainPolicy": "original-a-fade-before-delay-v1",
+        "isolatedWetPeak": 0.03323029354214668,
+        "isolatedWetRms": 0.0010536819287572006,
+        "decodedSupport": [
+          6.543015873015873,
+          7.534761904761905
+        ],
+        "window": {
+          "schema": "harbeat.stem-fx-window.v1",
+          "kind": "finite-vocal-echo",
+          "beatSeconds": 0.49586776859504134,
+          "sourceOrigin": 181.2130612244898,
+          "sendStart": 6.295071006915157,
+          "sendEnd": 6.790938775510199,
+          "wetStart": 6.543004891212678,
+          "wetEnd": 7.574740428402761,
+          "taps": [
+            {
+              "delaySeconds": 0.24793388429752067,
+              "gain": 0.26
+            },
+            {
+              "delaySeconds": 0.49586776859504134,
+              "gain": 0.117
+            },
+            {
+              "delaySeconds": 0.743801652892562,
+              "gain": 0.052
+            }
+          ],
+          "edgeSeconds": 0.01,
+          "highpassHz": 180,
+          "lowpassHz": 5000,
+          "incomingSourceWindow": [
+            49.82573364965986,
+            50.850461982993195
+          ],
+          "source": {
+            "a": {
+              "masterSha256": "d4bf4167b30c5979b616eba4ea1b17c69de5bb4d3e63fec9c0b8c8fd68ec3531",
+              "reportSha256": "83be9c1f68f651771fe3cac980eb175a7244b884f6e48942e6a9aadb87323604",
+              "runId": "run-track-d4bf4167b30c5979b616-d4bf4167b30c-a268a5c-f589093d",
+              "sectionSource": "songformer",
+              "vocalSha256": "9cfc9a50d4eeadd6906f4d16cb300577104da75c8ec336756be468951e7b2320",
+              "manifestSha256": "8defcc7dacd05307ba2686dd2ee50d57b74e9ae663cf2aec2e92c39422b6cc23",
+              "bassSha256": "188c1809c476ae7b7f0cba9291d389741ddd1234cab4d3a15b13d388a21ce35d"
+            },
+            "b": {
+              "masterSha256": "506d0d59407ac4c53c1af6bab9216b58d5dce51f7c922af9b7e65e87e8f5dc8b",
+              "reportSha256": "5ce3e2c845f21a9a1000dc002d24d4dc1982fa9d8aa5e7d296802e0134bc5209",
+              "runId": "run-track-506d0d59407ac4c53c1a-506d0d59407a-a268a5c-93a74f64",
+              "sectionSource": "songformer",
+              "vocalSha256": "ef8a5c54ae5fba0266b10c984cb45a19c9c5588c2d4eb29f8a858e806e9804f1",
+              "manifestSha256": "ca34ee1a14230fd3cf0522a5f31ae00213480394ddc0faba3d75f4b8307b5d92",
+              "bassSha256": "58d8e8ea5695ef26a883a82646c32803bcfc2410f46cdd3ef1bb423786e4c000"
+            }
+          },
+          "outgoingNextOnset": 191.163061,
+          "nextOnsetObserved": false,
+          "status": "experimental-listening-review-required"
+        },
+        "outgoingGapBoundaryType": "observation-horizon-censored",
+        "outgoingCoverage": {
+          "start": 181.213061,
+          "end": 191.213061,
+          "frameSeconds": 0.05,
+          "modelStart": 181.2130612244898,
+          "modelEnd": 191.2420612244898,
+          "unobservedRemainder": 0.029000224489777793
+        },
+        "analysisSources": [
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+            "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+          },
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+            "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+          }
+        ],
+        "normalization": "none; unchanged common dry/EQ/output chain",
+        "status": "provisional-activity-window; no human lyric-end certification"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "d4bf4167b30c5979b616eba4ea1b17c69de5bb4d3e63fec9c0b8c8fd68ec3531",
+          "reportSha256": "83be9c1f68f651771fe3cac980eb175a7244b884f6e48942e6a9aadb87323604",
+          "runId": "run-track-d4bf4167b30c5979b616-d4bf4167b30c-a268a5c-f589093d",
+          "sectionSource": "songformer",
+          "vocalSha256": "9cfc9a50d4eeadd6906f4d16cb300577104da75c8ec336756be468951e7b2320",
+          "manifestSha256": "8defcc7dacd05307ba2686dd2ee50d57b74e9ae663cf2aec2e92c39422b6cc23",
+          "bassSha256": "188c1809c476ae7b7f0cba9291d389741ddd1234cab4d3a15b13d388a21ce35d"
+        },
+        "b": {
+          "masterSha256": "506d0d59407ac4c53c1af6bab9216b58d5dce51f7c922af9b7e65e87e8f5dc8b",
+          "reportSha256": "5ce3e2c845f21a9a1000dc002d24d4dc1982fa9d8aa5e7d296802e0134bc5209",
+          "runId": "run-track-506d0d59407ac4c53c1a-506d0d59407a-a268a5c-93a74f64",
+          "sectionSource": "songformer",
+          "vocalSha256": "ef8a5c54ae5fba0266b10c984cb45a19c9c5588c2d4eb29f8a858e806e9804f1",
+          "manifestSha256": "ca34ee1a14230fd3cf0522a5f31ae00213480394ddc0faba3d75f4b8307b5d92",
+          "bassSha256": "58d8e8ea5695ef26a883a82646c32803bcfc2410f46cdd3ef1bb423786e4c000"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-aMaster.wav",
+          "sha256": "8f7a108866105fe68804d6c7fe99041b3442136fd60c3bebc2b6446e3e0b294d",
+          "bytes": 2810850,
+          "duration": 7.966938775510204,
+          "frames": 351342,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0325731039047241
+        },
+        "aBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-aBass.flac",
+          "sha256": "ecf7dee0f006c285d405eaea72b5c5dad2633dfc818ac3df38a517d014ca88b8",
+          "bytes": 1197932,
+          "duration": 7.966938775510204,
+          "frames": 351342,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.3440082371234894
+        },
+        "aVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-aVocal.flac",
+          "sha256": "bb7700032d5fe556bbefa12cb7ced9611827e33d6f4adec8182a2b69cd9e050d",
+          "bytes": 1480058,
+          "duration": 7.966938775510204,
+          "frames": 351342,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8857293725013733
+        },
+        "bEntryMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bEntryMaster.wav",
+          "sha256": "a5d12d2f71074a7bcf7949906305657171b75ed59d865ef3a150c65d84ced185",
+          "bytes": 1399650,
+          "duration": 3.966938775510204,
+          "frames": 174942,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0142269134521484
+        },
+        "bEntryBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bEntryBass.flac",
+          "sha256": "744471da3f9d3ce0f41caccf7c15fd0fe88cf7464406e78950460bb8093c9db9",
+          "bytes": 567107,
+          "duration": 3.966938775510204,
+          "frames": 174942,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.5263036489486694
+        },
+        "bEntryVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bEntryVocal.flac",
+          "sha256": "754a2fdbb9b4eec6aea5865655d02a8dd05b3cbf65057e035b6cc196bf2b791a",
+          "bytes": 508300,
+          "duration": 3.966938775510204,
+          "frames": 174942,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.02392168901860714
+        },
+        "bBodyMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bBodyMaster.wav",
+          "sha256": "80dff282d98e5633996e31b79cf6d71dd0b4deffef10dbf70a03ca8d3a66670f",
+          "bytes": 2822514,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0261332988739014
+        },
+        "bBodyBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bBodyBass.flac",
+          "sha256": "a767850190506abe1469537c34df3b567642d1d2b50c186042b6f1736d50bc2e",
+          "bytes": 1142182,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.5498262643814087
+        },
+        "bBodyVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-bBodyVocal.flac",
+          "sha256": "943c5f6007c6947a11be553fc0c0bed01b86a11416e120f27ecd445e2b9a227b",
+          "bytes": 1115971,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.598214864730835
+        },
+        "aEcho": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-02-aEcho.wav",
+          "sha256": "80ffd0681bf071d1868f263cf1bd2669c70b243592588a3eb3c8a792de278ae6",
+          "bytes": 2810824,
+          "duration": 7.966938775510204,
+          "frames": 351342,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.03323029354214668
+        }
+      }
+    },
+    {
+      "id": "vocal-echo-solo-03",
+      "sourceCaseId": "vocal-handover-03",
+      "aTitle": "GOOD BOY",
+      "bTitle": "Snake Gang",
+      "planSha256": "729366cc2bce66320e519e0635d53d8c2e6b015483049e5de2270d34fe8f89b3",
+      "pre": 4,
+      "post": 8,
+      "endpoint": {
+        "tailEnd": 8.144918367,
+        "nextOnset": 15.050000367,
+        "fadeStart": 8.849407367,
+        "fadeEnd": 9.049407367
+      },
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.6322444678609062,
+        "sourceOrigin": 201.07508163265305,
+        "sendStart": 11.51267389948604,
+        "sendEnd": 12.144918367346946,
+        "wetStart": 11.828796133416494,
+        "wetEnd": 13.133285069138305,
+        "taps": [
+          {
+            "delaySeconds": 0.3161222339304531,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.6322444678609062,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.9483667017913593,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          68.49048208949831,
+          69.79291917283165
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "75ff48d540fb05f6d1dd41bd26a206135cb02264d2049d4fa6051e9ec991c892",
+            "reportSha256": "8018c5dbcdf8f623970815a46949cb1e3ec09201d6bfe44c0e2033ee22c450d9",
+            "runId": "run-track-75ff48d540fb05f6d1dd-75ff48d540fb-a268a5c-ee9b4a4e",
+            "sectionSource": "songformer",
+            "vocalSha256": "91aa8be359a5d9fe0d99d856634b2b5d76a0ffb253351feee8315d3f7910240e",
+            "manifestSha256": "ee4fe2ad0953582533696b1089ffdd29c2e7c15bd4ba4afa7f5f0b2bcd938b7b",
+            "bassSha256": "12e866d68d28e48e4f14c036b8e1859ce717657b7d9c8735a565a8f6556d6f15"
+          },
+          "b": {
+            "masterSha256": "362a03ce8f8dd390df31c7ca9b73d1d25169beb289a53b201e7fb3f1d3dff34d",
+            "reportSha256": "d5858f34294aced56eec8146dc3a9530241bce74866f9c601abef39f4d8a49fb",
+            "runId": "run-track-362a03ce8f8dd390df31-362a03ce8f8d-a268a5c-e0c1e998",
+            "sectionSource": "songformer",
+            "vocalSha256": "76571ff5065ba30681d4970b7ad11fab22244d2b2819002bbabe24582fcbc852",
+            "manifestSha256": "698b74a1e2709be01e3e2cdc7636a1879aebb2c05a0cb4b4840c7866999e9c50",
+            "bassSha256": "f6c99da75c04dda3a161a3b3554cac120cfb79121cf9d22010a01d1a1ecb98d0"
+          }
+        },
+        "outgoingNextOnset": 220.125082,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      },
+      "fxEvidence": {
+        "inputVocalSha256": "5dd9d6e9b3a99d6e8db734fa7c94d0da581e5e8a9b9e42ff7cdb28db5626e082",
+        "wetSha256": "c8b0b0ebc1ea7726eebda877a771788396e8e27b472a0243be2be5988f3152fe",
+        "dryPolicy": "original-natural-v1",
+        "sendGainPolicy": "original-a-fade-before-delay-v1",
+        "isolatedWetPeak": 0.01874447800219059,
+        "isolatedWetRms": 0.0007728734400662136,
+        "decodedSupport": [
+          11.828798185941043,
+          13.09328798185941
+        ],
+        "window": {
+          "schema": "harbeat.stem-fx-window.v1",
+          "kind": "finite-vocal-echo",
+          "beatSeconds": 0.6322444678609062,
+          "sourceOrigin": 201.07508163265305,
+          "sendStart": 11.51267389948604,
+          "sendEnd": 12.144918367346946,
+          "wetStart": 11.828796133416494,
+          "wetEnd": 13.133285069138305,
+          "taps": [
+            {
+              "delaySeconds": 0.3161222339304531,
+              "gain": 0.26
+            },
+            {
+              "delaySeconds": 0.6322444678609062,
+              "gain": 0.117
+            },
+            {
+              "delaySeconds": 0.9483667017913593,
+              "gain": 0.052
+            }
+          ],
+          "edgeSeconds": 0.01,
+          "highpassHz": 180,
+          "lowpassHz": 5000,
+          "incomingSourceWindow": [
+            68.49048208949831,
+            69.79291917283165
+          ],
+          "source": {
+            "a": {
+              "masterSha256": "75ff48d540fb05f6d1dd41bd26a206135cb02264d2049d4fa6051e9ec991c892",
+              "reportSha256": "8018c5dbcdf8f623970815a46949cb1e3ec09201d6bfe44c0e2033ee22c450d9",
+              "runId": "run-track-75ff48d540fb05f6d1dd-75ff48d540fb-a268a5c-ee9b4a4e",
+              "sectionSource": "songformer",
+              "vocalSha256": "91aa8be359a5d9fe0d99d856634b2b5d76a0ffb253351feee8315d3f7910240e",
+              "manifestSha256": "ee4fe2ad0953582533696b1089ffdd29c2e7c15bd4ba4afa7f5f0b2bcd938b7b",
+              "bassSha256": "12e866d68d28e48e4f14c036b8e1859ce717657b7d9c8735a565a8f6556d6f15"
+            },
+            "b": {
+              "masterSha256": "362a03ce8f8dd390df31c7ca9b73d1d25169beb289a53b201e7fb3f1d3dff34d",
+              "reportSha256": "d5858f34294aced56eec8146dc3a9530241bce74866f9c601abef39f4d8a49fb",
+              "runId": "run-track-362a03ce8f8dd390df31-362a03ce8f8d-a268a5c-e0c1e998",
+              "sectionSource": "songformer",
+              "vocalSha256": "76571ff5065ba30681d4970b7ad11fab22244d2b2819002bbabe24582fcbc852",
+              "manifestSha256": "698b74a1e2709be01e3e2cdc7636a1879aebb2c05a0cb4b4840c7866999e9c50",
+              "bassSha256": "f6c99da75c04dda3a161a3b3554cac120cfb79121cf9d22010a01d1a1ecb98d0"
+            }
+          },
+          "outgoingNextOnset": 220.125082,
+          "nextOnsetObserved": false,
+          "status": "experimental-listening-review-required"
+        },
+        "outgoingGapBoundaryType": "observation-horizon-censored",
+        "outgoingCoverage": {
+          "start": 201.075082,
+          "end": 220.175082,
+          "frameSeconds": 0.05,
+          "modelStart": 201.07508163265305,
+          "modelEnd": 220.191,
+          "unobservedRemainder": 0.01591799999999921
+        },
+        "analysisSources": [
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+            "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+          },
+          {
+            "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+            "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+          }
+        ],
+        "normalization": "none; unchanged common dry/EQ/output chain",
+        "status": "provisional-activity-window; no human lyric-end certification"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "75ff48d540fb05f6d1dd41bd26a206135cb02264d2049d4fa6051e9ec991c892",
+          "reportSha256": "8018c5dbcdf8f623970815a46949cb1e3ec09201d6bfe44c0e2033ee22c450d9",
+          "runId": "run-track-75ff48d540fb05f6d1dd-75ff48d540fb-a268a5c-ee9b4a4e",
+          "sectionSource": "songformer",
+          "vocalSha256": "91aa8be359a5d9fe0d99d856634b2b5d76a0ffb253351feee8315d3f7910240e",
+          "manifestSha256": "ee4fe2ad0953582533696b1089ffdd29c2e7c15bd4ba4afa7f5f0b2bcd938b7b",
+          "bassSha256": "12e866d68d28e48e4f14c036b8e1859ce717657b7d9c8735a565a8f6556d6f15"
+        },
+        "b": {
+          "masterSha256": "362a03ce8f8dd390df31c7ca9b73d1d25169beb289a53b201e7fb3f1d3dff34d",
+          "reportSha256": "d5858f34294aced56eec8146dc3a9530241bce74866f9c601abef39f4d8a49fb",
+          "runId": "run-track-362a03ce8f8dd390df31-362a03ce8f8d-a268a5c-e0c1e998",
+          "sectionSource": "songformer",
+          "vocalSha256": "76571ff5065ba30681d4970b7ad11fab22244d2b2819002bbabe24582fcbc852",
+          "manifestSha256": "698b74a1e2709be01e3e2cdc7636a1879aebb2c05a0cb4b4840c7866999e9c50",
+          "bassSha256": "f6c99da75c04dda3a161a3b3554cac120cfb79121cf9d22010a01d1a1ecb98d0"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-aMaster.flac",
+          "sha256": "9fc7ba8e83bea06f33240f15bb2e438b61b06be45c45d28bcb0f6395d983443e",
+          "bytes": 3130611,
+          "duration": 14.11591836734694,
+          "frames": 622512,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9806748628616333
+        },
+        "aBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-aBass.flac",
+          "sha256": "c782de0932b5bf4b813fd612dec4a1949fe25c14f04b1df8583ea83f127f375f",
+          "bytes": 2070919,
+          "duration": 14.11591836734694,
+          "frames": 622512,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.6106369495391846
+        },
+        "aVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-aVocal.flac",
+          "sha256": "5dd9d6e9b3a99d6e8db734fa7c94d0da581e5e8a9b9e42ff7cdb28db5626e082",
+          "bytes": 2621436,
+          "duration": 14.11591836734694,
+          "frames": 622512,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.757563591003418
+        },
+        "bEntryMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bEntryMaster.wav",
+          "sha256": "1003bde628cc0682ae3baa6ba2417d8534f4346b77f911d66ee0c43705506d43",
+          "bytes": 3569010,
+          "duration": 10.11591836734694,
+          "frames": 446112,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0977346897125244
+        },
+        "bEntryBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bEntryBass.flac",
+          "sha256": "b865d555eab9c73dcb839f7c58254c14ad538874aaeb2cc072d866c36e77f9a9",
+          "bytes": 1444631,
+          "duration": 10.11591836734694,
+          "frames": 446112,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.4898480176925659
+        },
+        "bEntryVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bEntryVocal.flac",
+          "sha256": "59c2d560df361458c63daf18266e67e0f68ba6d7a49e836d87feab102c4931c2",
+          "bytes": 1226621,
+          "duration": 10.11591836734694,
+          "frames": 446112,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.005399273242801428
+        },
+        "bBodyMaster": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bBodyMaster.wav",
+          "sha256": "bf8afef0a1349c4637976421d6142347a103a6a6dc3abf5bae2cfa92adad1f0d",
+          "bytes": 2822514,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0808933973312378
+        },
+        "bBodyBass": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bBodyBass.flac",
+          "sha256": "957d187bb34504698886e09ac5903002c8ac04b0f0a058d4be249163cf906dec",
+          "bytes": 1138291,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.5396342873573303
+        },
+        "bBodyVocal": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-bBodyVocal.flac",
+          "sha256": "0e8b44a350f8d4e06f69b38497ca28c500d0a36349f2a74d143f2de3be68a6c4",
+          "bytes": 970092,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.006864630151540041
+        },
+        "aEcho": {
+          "url": "/vocal-echo-solo-audio/vocal-echo-solo-03-aEcho.wav",
+          "sha256": "c8b0b0ebc1ea7726eebda877a771788396e8e27b472a0243be2be5988f3152fe",
+          "bytes": 4980184,
+          "duration": 14.11591836734694,
+          "frames": 622512,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.01874447800219059
+        }
+      }
+    }
+  ],
+  "audit": [
+    {
+      "id": "vocal-handover-01",
+      "aTitle": "Doin' It",
+      "bTitle": "Talgo",
+      "planSha256": "3d1bb43eed0e31ed7194219bac1aa69a6a391bbb91b77de66c70264505a0395e",
+      "accepted": true,
+      "reason": "same original dry plan; finite vocal echo support checks passed",
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.493421052631579,
+        "sourceOrigin": 251.98826077097505,
+        "sendStart": 9.602318176393378,
+        "sendEnd": 10.095739229024957,
+        "wetStart": 9.849028702709168,
+        "wetEnd": 10.875870807972325,
+        "taps": [
+          {
+            "delaySeconds": 0.2467105263157895,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.493421052631579,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.7401315789473685,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          91.67365789765685,
+          92.69077923099019
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+            "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+            "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+            "sectionSource": "songformer",
+            "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+            "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+            "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+          },
+          "b": {
+            "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+            "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+            "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+            "sectionSource": "songformer",
+            "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+            "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+            "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+          }
+        },
+        "outgoingNextOnset": 269.788261,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      }
+    },
+    {
+      "id": "vocal-handover-02",
+      "aTitle": "WANNABE",
+      "bTitle": "Tonight",
+      "planSha256": "366cdbb367936e8b6ea1fc8f8a5fa63b9ec6738e5cf972064660950bf7644fee",
+      "accepted": true,
+      "reason": "same original dry plan; finite vocal echo support checks passed",
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.49586776859504134,
+        "sourceOrigin": 181.2130612244898,
+        "sendStart": 6.295071006915157,
+        "sendEnd": 6.790938775510199,
+        "wetStart": 6.543004891212678,
+        "wetEnd": 7.574740428402761,
+        "taps": [
+          {
+            "delaySeconds": 0.24793388429752067,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.49586776859504134,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.743801652892562,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          49.82573364965986,
+          50.850461982993195
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "d4bf4167b30c5979b616eba4ea1b17c69de5bb4d3e63fec9c0b8c8fd68ec3531",
+            "reportSha256": "83be9c1f68f651771fe3cac980eb175a7244b884f6e48942e6a9aadb87323604",
+            "runId": "run-track-d4bf4167b30c5979b616-d4bf4167b30c-a268a5c-f589093d",
+            "sectionSource": "songformer",
+            "vocalSha256": "9cfc9a50d4eeadd6906f4d16cb300577104da75c8ec336756be468951e7b2320",
+            "manifestSha256": "8defcc7dacd05307ba2686dd2ee50d57b74e9ae663cf2aec2e92c39422b6cc23",
+            "bassSha256": "188c1809c476ae7b7f0cba9291d389741ddd1234cab4d3a15b13d388a21ce35d"
+          },
+          "b": {
+            "masterSha256": "506d0d59407ac4c53c1af6bab9216b58d5dce51f7c922af9b7e65e87e8f5dc8b",
+            "reportSha256": "5ce3e2c845f21a9a1000dc002d24d4dc1982fa9d8aa5e7d296802e0134bc5209",
+            "runId": "run-track-506d0d59407ac4c53c1a-506d0d59407a-a268a5c-93a74f64",
+            "sectionSource": "songformer",
+            "vocalSha256": "ef8a5c54ae5fba0266b10c984cb45a19c9c5588c2d4eb29f8a858e806e9804f1",
+            "manifestSha256": "ca34ee1a14230fd3cf0522a5f31ae00213480394ddc0faba3d75f4b8307b5d92",
+            "bassSha256": "58d8e8ea5695ef26a883a82646c32803bcfc2410f46cdd3ef1bb423786e4c000"
+          }
+        },
+        "outgoingNextOnset": 191.163061,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      }
+    },
+    {
+      "id": "vocal-handover-03",
+      "aTitle": "GOOD BOY",
+      "bTitle": "Snake Gang",
+      "planSha256": "729366cc2bce66320e519e0635d53d8c2e6b015483049e5de2270d34fe8f89b3",
+      "accepted": true,
+      "reason": "same original dry plan; finite vocal echo support checks passed",
+      "fx": {
+        "schema": "harbeat.stem-fx-window.v1",
+        "kind": "finite-vocal-echo",
+        "beatSeconds": 0.6322444678609062,
+        "sourceOrigin": 201.07508163265305,
+        "sendStart": 11.51267389948604,
+        "sendEnd": 12.144918367346946,
+        "wetStart": 11.828796133416494,
+        "wetEnd": 13.133285069138305,
+        "taps": [
+          {
+            "delaySeconds": 0.3161222339304531,
+            "gain": 0.26
+          },
+          {
+            "delaySeconds": 0.6322444678609062,
+            "gain": 0.117
+          },
+          {
+            "delaySeconds": 0.9483667017913593,
+            "gain": 0.052
+          }
+        ],
+        "edgeSeconds": 0.01,
+        "highpassHz": 180,
+        "lowpassHz": 5000,
+        "incomingSourceWindow": [
+          68.49048208949831,
+          69.79291917283165
+        ],
+        "source": {
+          "a": {
+            "masterSha256": "75ff48d540fb05f6d1dd41bd26a206135cb02264d2049d4fa6051e9ec991c892",
+            "reportSha256": "8018c5dbcdf8f623970815a46949cb1e3ec09201d6bfe44c0e2033ee22c450d9",
+            "runId": "run-track-75ff48d540fb05f6d1dd-75ff48d540fb-a268a5c-ee9b4a4e",
+            "sectionSource": "songformer",
+            "vocalSha256": "91aa8be359a5d9fe0d99d856634b2b5d76a0ffb253351feee8315d3f7910240e",
+            "manifestSha256": "ee4fe2ad0953582533696b1089ffdd29c2e7c15bd4ba4afa7f5f0b2bcd938b7b",
+            "bassSha256": "12e866d68d28e48e4f14c036b8e1859ce717657b7d9c8735a565a8f6556d6f15"
+          },
+          "b": {
+            "masterSha256": "362a03ce8f8dd390df31c7ca9b73d1d25169beb289a53b201e7fb3f1d3dff34d",
+            "reportSha256": "d5858f34294aced56eec8146dc3a9530241bce74866f9c601abef39f4d8a49fb",
+            "runId": "run-track-362a03ce8f8dd390df31-362a03ce8f8d-a268a5c-e0c1e998",
+            "sectionSource": "songformer",
+            "vocalSha256": "76571ff5065ba30681d4970b7ad11fab22244d2b2819002bbabe24582fcbc852",
+            "manifestSha256": "698b74a1e2709be01e3e2cdc7636a1879aebb2c05a0cb4b4840c7866999e9c50",
+            "bassSha256": "f6c99da75c04dda3a161a3b3554cac120cfb79121cf9d22010a01d1a1ecb98d0"
+          }
+        },
+        "outgoingNextOnset": 220.125082,
+        "nextOnsetObserved": false,
+        "status": "experimental-listening-review-required"
+      }
+    }
+  ],
+  "rendering": "Exact original nine dry clips and natural dry curves; only finite wet-only vocal layer toggles0/1. Original gain weighting before delay; original A EQ at wet output time.",
+  "limitation": "Three frozen pairs, provisional source-bound activity endpoints. No protected vocal handover, dry vocal extension, independent bass/drum/melody treatment or per-arm normalization. No global rule or production activation.",
+  "postEqWetGate": "10msfade ends atwetEnd, then zero throughAend; both liveEQ andbypass gated",
+  "tests": {
+    "newFrontend": 28,
+    "newPython": 5,
+    "relatedPython": 22,
+    "typecheck": "passed",
+    "independentReview": "No remaining Important/Critical after explicit post-EQ finite wet gate and censored-gap wording fixes",
+    "relatedFrontend": 107,
+    "standaloneBuild": "passed"
+  },
+  "browser": {
+    "status": "passed; formal listener choices pending",
+    "practiceRoundId": "8f75c994-964c-4a06-ab90-3c1032d4a017",
+    "excludedPreFixPracticeRoundIds": [
+      "993d91de-044f-45e6-86c8-416b6dc9338a"
+    ],
+    "practiceExportSha256": "bb09a3d902f94206765f22d417aeb8a2cb028b10c512a239fbb376adb3dfb838",
+    "plays": [
+      {
+        "caseId": "vocal-echo-solo-01",
+        "mode": "natural",
+        "letter": "A",
+        "wetGain": 0,
+        "wetReturn": [
+          [
+            0,
+            0
+          ],
+          [
+            10.865870807972325,
+            0
+          ],
+          [
+            10.875870807972325,
+            0
+          ],
+          [
+            11.894739229024943,
+            0
+          ]
+        ],
+        "total": 19.894739229024943,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.7728897929191589,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "vocal-echo-solo-01",
+        "mode": "relay",
+        "letter": "B",
+        "wetGain": 1,
+        "wetReturn": [
+          [
+            0,
+            1
+          ],
+          [
+            10.865870807972325,
+            1
+          ],
+          [
+            10.875870807972325,
+            0
+          ],
+          [
+            11.894739229024943,
+            0
+          ]
+        ],
+        "total": 19.894739229024943,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.7728897929191589,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "vocal-echo-solo-02",
+        "mode": "natural",
+        "letter": "B",
+        "wetGain": 0,
+        "wetReturn": [
+          [
+            0,
+            0
+          ],
+          [
+            7.564740428402761,
+            0
+          ],
+          [
+            7.574740428402761,
+            0
+          ],
+          [
+            7.966938775510204,
+            0
+          ]
+        ],
+        "total": 15.966938775510204,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.7798612713813782,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "vocal-echo-solo-02",
+        "mode": "relay",
+        "letter": "A",
+        "wetGain": 1,
+        "wetReturn": [
+          [
+            0,
+            1
+          ],
+          [
+            7.564740428402761,
+            1
+          ],
+          [
+            7.574740428402761,
+            0
+          ],
+          [
+            7.966938775510204,
+            0
+          ]
+        ],
+        "total": 15.966938775510204,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.7798612713813782,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "vocal-echo-solo-03",
+        "mode": "natural",
+        "letter": "A",
+        "wetGain": 0,
+        "wetReturn": [
+          [
+            0,
+            0
+          ],
+          [
+            13.123285069138305,
+            0
+          ],
+          [
+            13.133285069138305,
+            0
+          ],
+          [
+            14.11591836734694,
+            0
+          ]
+        ],
+        "total": 22.11591836734694,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.8214789628982544,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "vocal-echo-solo-03",
+        "mode": "relay",
+        "letter": "B",
+        "wetGain": 1,
+        "wetReturn": [
+          [
+            0,
+            1
+          ],
+          [
+            13.123285069138305,
+            1
+          ],
+          [
+            13.133285069138305,
+            0
+          ],
+          [
+            14.11591836734694,
+            0
+          ]
+        ],
+        "total": 22.11591836734694,
+        "markerCount": 8,
+        "allMarkersOnTime": true,
+        "peak": 0.8214789628982544,
+        "minimumLimiterGain": 1
+      }
+    ],
+    "earlyPracticeChoice": {
+      "choice": "tie",
+      "at": "2026-10-18T14:48:36.974Z",
+      "heard": {}
+    },
+    "actualStopAndReplay": true,
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "identicalDryCurvesAssetsEqAndPlans": true,
+    "wetReturnZeroAtSafeEnd": true,
+    "formalRoundId": "73f1842c-e818-408e-95d3-e69edf43cc5e",
+    "formalChoicesAtDelivery": 0,
+    "formalStartsAtDelivery": 0,
+    "historyAndPlayerLogsPreservedAfterReload": true,
+    "formalExportSha256": "0c5e6f4cb0e644c50020bae74697fb5ea95ec71ca49aa97bf2347a4bcd159471",
+    "screenshotSha256": "71383127374ff799202de253b06aa880b9dfb99fe5b94dc50cabcfec7f63581c"
+  },
+  "dependencyNote": "Preparation verifies existing source-bound coverage-v2 working implementations; those preexisting tracked modifications remain hash-preserved and excluded from this change. Static audition includes all generated sources locally.",
+  "protectedExistingModifications": {
+    "files": 14,
+    "changed": []
+  },
+  "outputObservation": "All six final-graph complete plays had minimum limiter gain1; wet return gated to zero at wetEnd. Meter values are before common output gain0.7; no perceived loudness/quality conclusion."
+}
