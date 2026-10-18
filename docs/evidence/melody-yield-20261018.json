@@ -1,0 +1,508 @@
+{
+  "schema": "harbeat.melody-yield-evidence.v1",
+  "date": "2026-10-18",
+  "url": "http://127.0.0.1:5198/melody-yield.html",
+  "scope": "Local individual outgoing-other attenuation trial; formal preference pending; no production or combined-technique activation",
+  "selectionSha256": "589762acc5e9e2d05831b9cf0cc6a70ffc8947b22c178381d7ebaa280cef1ae8",
+  "packSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
+  "sourcePackSha256": "847eaf19f6706f3b516118ca1cd7ae515b9248bbd8b94fa5c532167a163f0686",
+  "methodReference": "https://blog.native-instruments.com/how-to-mix-stems/",
+  "cases": [
+    {
+      "id": "melody-yield-01",
+      "pair": [
+        "Meant To Be",
+        "HIPHOP"
+      ],
+      "planSha256": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+      "cue": [
+        150.75820861678005,
+        155.24
+      ],
+      "incomingWindow": [
+        72.5,
+        77.02
+      ],
+      "rate": 1.008524999999999,
+      "yieldEnd": 2.221791383219937,
+      "firstBar": {
+        "index": 67,
+        "start": 150.7,
+        "lastBeat": 152.4,
+        "end": 152.98,
+        "beats": [
+          150.7,
+          151.26,
+          151.84,
+          152.4
+        ],
+        "valid": true,
+        "reason": "four_observed_beats"
+      },
+      "features": {
+        "a": {
+          "otherRms": 0.15015202289208737,
+          "pitchClassPower": [
+            0.22938077526599887,
+            0.06461924905238003,
+            0.021808551640433858,
+            0.062229898791732456,
+            0.022305992269122735,
+            0.280716862077721,
+            0.009242184144313145,
+            0.02537278933071757,
+            0.14632381784961465,
+            0.058339352193368235,
+            0.05760602504526261,
+            0.022054502339334908
+          ],
+          "concentration": 0.280716862077721,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bEntry": {
+          "otherRms": 0.15258541749056034,
+          "pitchClassPower": [
+            0.0435256226418446,
+            0.08925999837941061,
+            0.06568590446787283,
+            0.12464236083738733,
+            0.03641372464509025,
+            0.05985747862113948,
+            0.09437318110604576,
+            0.10890188359441522,
+            0.03497079720347631,
+            0.05348425342027747,
+            0.2312252407130594,
+            0.05765955436998082
+          ],
+          "concentration": 0.2312252407130594,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bBody": {
+          "otherRms": 0.15086972051805067,
+          "pitchClassPower": [
+            0.04312061130192619,
+            0.08947636735911199,
+            0.07169606426871863,
+            0.1281022388057058,
+            0.037732083766078145,
+            0.06071229509340058,
+            0.09150389362940022,
+            0.0992209991216247,
+            0.032089343617071886,
+            0.05038540577099171,
+            0.2500104539901926,
+            0.04595024327577743
+          ],
+          "concentration": 0.2500104539901926,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "pitchClassCosine": 0.49125774617746754
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+          "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+          "runId": "run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194",
+          "sectionSource": "songformer",
+          "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db",
+          "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+          "manifestSha256": "524b104eea0cec7585d920edfc215798ea3c27aa51a6b84a671ba5aed5bda523",
+          "otherSha256": "b50d698f977a936321dfb01e17382446198d7fefc4f781cdf312613c0b481cd4",
+          "otherStorageKey": "published/tracks/track-274577b1e51f104f4658/runs/run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+          "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+        }
+      },
+      "assetSha256": {
+        "aMaster": "b1d817fd0262e2ae706e9b98893bdf32668e75c328b5210afae68a39e3e08e79",
+        "aOther": "534f5c296d2d039c0381eca4fb0fea9ba3dd0bd27bf30db03b23bb81731eda4a",
+        "bEntryMaster": "eb18cf678b609f39295aebb9dbea3d79d5fcd4c9a655b6b7dab2dde2107a5900",
+        "bEntryOther": "046082227428f0f99ba6a7aa756f43f4cb9d6972c6e58df3002e5e3f2ea00903",
+        "bBodyMaster": "fb8cb48b95accf42f38b5d023a815732b9d374cc8f1c3cf482e6a775d3ab9c5c",
+        "bBodyOther": "cef5df75ccc35b660ef4c54dc92d9c3d07c51f098a664cdc90bc604e0bd5ed67"
+      }
+    },
+    {
+      "id": "melody-yield-02",
+      "pair": [
+        "Attention",
+        "HIPHOP"
+      ],
+      "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+      "cue": [
+        146.73543537414966,
+        155.887
+      ],
+      "incomingWindow": [
+        27.22,
+        36.28
+      ],
+      "rate": 0.9899937500000003,
+      "yieldEnd": 2.3015646258503466,
+      "firstBar": {
+        "index": 52,
+        "start": 146.75,
+        "lastBeat": 148.468,
+        "end": 149.037,
+        "beats": [
+          146.75,
+          147.331,
+          147.9,
+          148.468
+        ],
+        "valid": true,
+        "reason": "four_observed_beats"
+      },
+      "features": {
+        "a": {
+          "otherRms": 0.13304832434726815,
+          "pitchClassPower": [
+            0.25639736732404117,
+            0.13720385815728453,
+            0.09826751949025675,
+            0.02550794569596994,
+            0.0280278345429586,
+            0.18724394302522757,
+            0.06039005394984017,
+            0.052199400438842684,
+            0.024405307910119762,
+            0.059188017865514565,
+            0.05328520227946363,
+            0.01788354932048046
+          ],
+          "concentration": 0.25639736732404117,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bEntry": {
+          "otherRms": 0.1481059790035225,
+          "pitchClassPower": [
+            0.04523347382003304,
+            0.08915229210999127,
+            0.06924557147704215,
+            0.12622350592607964,
+            0.038222406269682596,
+            0.05802943625033939,
+            0.08965920489614589,
+            0.10227653988363802,
+            0.03307849334199784,
+            0.05301144036623979,
+            0.23809902465249616,
+            0.057768611006314134
+          ],
+          "concentration": 0.23809902465249616,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bBody": {
+          "otherRms": 0.1503741710941203,
+          "pitchClassPower": [
+            0.04205301058183946,
+            0.08712762296507855,
+            0.0714856822250914,
+            0.15075255024300885,
+            0.0382146234047232,
+            0.055165158391218445,
+            0.10606736046106126,
+            0.09377583555490066,
+            0.03508811974644299,
+            0.050270522337334735,
+            0.22641340893651712,
+            0.043586105152783425
+          ],
+          "concentration": 0.22641340893651712,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "pitchClassCosine": 0.5686534529496479
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+          "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+          "runId": "run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab",
+          "sectionSource": "songformer",
+          "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e",
+          "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+          "manifestSha256": "c5636cb826726a4620434d426f03c11e03dde1615b420ddeef0d0b058f6fc8eb",
+          "otherSha256": "be570f9ab3f22a672da0efefc49e72258fe7ee7148805155ed9f8b891b17d652",
+          "otherStorageKey": "published/tracks/track-642bd1ac0da727a3b53b/runs/run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+          "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+        }
+      },
+      "assetSha256": {
+        "aMaster": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "aOther": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+        "bEntryMaster": "7bf5a510c66df7843174a09b0a496513eb9d97d062636cb90d0fda35ee5915f2",
+        "bEntryOther": "f20b77935b05db004e069edd153cb9c3fa64e54c57e87c19bd73a08385727018",
+        "bBodyMaster": "a5e31b276d5d4ee8fd589ad165b497fdb7d8682cdc93d2d01aefe074d2f23479",
+        "bBodyOther": "414771cf08bd6fc256ee971c0a20dca21d388443d6386712e5278ab1d504e0d4"
+      }
+    },
+    {
+      "id": "melody-yield-03",
+      "pair": [
+        "All Falls Down",
+        "GRILLZ (feat. Ilir808)"
+      ],
+      "planSha256": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+      "cue": [
+        167.44408163265308,
+        177.24
+      ],
+      "incomingWindow": [
+        60,
+        69.8
+      ],
+      "rate": 1.0004166666666663,
+      "yieldEnd": 2.4459183673469056,
+      "firstBar": {
+        "index": 84,
+        "start": 167.44,
+        "lastBeat": 169.27,
+        "end": 169.89,
+        "beats": [
+          167.44,
+          168.05,
+          168.66,
+          169.27
+        ],
+        "valid": true,
+        "reason": "four_observed_beats"
+      },
+      "features": {
+        "a": {
+          "otherRms": 0.08977522956384285,
+          "pitchClassPower": [
+            0.11252510946983209,
+            0.2235983007902814,
+            0.07221478348124571,
+            0.10298270084835993,
+            0.032236849728313886,
+            0.06902143848147005,
+            0.043735497816746315,
+            0.06017400275075577,
+            0.09003766702803434,
+            0.05788150321014824,
+            0.10831873949902761,
+            0.027273406895784724
+          ],
+          "concentration": 0.2235983007902814,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bEntry": {
+          "otherRms": 0.03412525617909857,
+          "pitchClassPower": [
+            0.05374445095978866,
+            0.375791999847256,
+            0.04845297317549339,
+            0.01539478087196701,
+            0.12740760295813044,
+            0.028832248339108312,
+            0.08377450682933266,
+            0.009355544237345168,
+            0.17024973722701311,
+            0.054784045827693154,
+            0.010258939221494012,
+            0.021953170505378122
+          ],
+          "concentration": 0.375791999847256,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "bBody": {
+          "otherRms": 0.03865388881562355,
+          "pitchClassPower": [
+            0.03747270997934443,
+            0.3125084765408319,
+            0.06125493882994309,
+            0.07390892873807622,
+            0.16805284366822956,
+            0.01254407011232107,
+            0.0556292188292075,
+            0.011058465992733578,
+            0.2035846633164978,
+            0.04422186787853391,
+            0.0053956956612728766,
+            0.014368120453008174
+          ],
+          "concentration": 0.3125084765408319,
+          "basis": "Uncalibrated FFT pitch-class power on local other excerpt; not harmonic-conflict or stem-bleed detection"
+        },
+        "pitchClassCosine": 0.8262684458214805
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+          "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+          "runId": "run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92",
+          "sectionSource": "songformer",
+          "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20",
+          "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+          "manifestSha256": "3f6dc726f0466aa1011c6c0becb0de8fef2776464f7e5ab6a9227087e93d58fb",
+          "otherSha256": "56f1ea12528c556b6950af3cb2e71a297ed7518e09a7a8b156591598f5b0caff",
+          "otherStorageKey": "published/tracks/track-0a1c8c54ff45b04f1568/runs/run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+          "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+          "runId": "run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d",
+          "sectionSource": "songformer",
+          "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8",
+          "reportId": "fa9350f33f41b643cf1e06f5238d65a1d5f5649581792b71618414e62075ae06",
+          "manifestSha256": "36b3e9eb52bae5fc97d475715848df45de928f663bc320441afd2a1ad475421f",
+          "otherSha256": "11c33c1ea4dfd5d7c5043c5ab19be349803d4f44cb0939f9ce11492cc9cda65e",
+          "otherStorageKey": "published/tracks/track-6bcba4d577699a35104c/runs/run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d/audio/stems/other.wav"
+        }
+      },
+      "assetSha256": {
+        "aMaster": "dbe9d47ddd0ed3d5bbf607a452bf16d9179c054dffac9149442944712fccd268",
+        "aOther": "191b22258b19a172028f31c048f299dd3f06c24ebe725952e94eb0d8511f33b8",
+        "bEntryMaster": "bb993b185072b050b93d96cc8b57f0f57068ad5bf9df27d2da29d77d893e26d4",
+        "bEntryOther": "3748f8ea8a4a131745ac2b8721e2a325095dd5dbe28f086b76a34fffcdac2928",
+        "bBodyMaster": "615bee9d3cbbb23803c29318a36a1be967da6869c9b0ea2a81397eefe9f600de",
+        "bBodyOther": "3ca97a2f91a8068105a30d56e7a1c83d61bfdcae5312fb774f78942e09274c25"
+      }
+    }
+  ],
+  "skipped": [],
+  "assetAudit": {
+    "count": 18,
+    "httpHashes": "passed",
+    "decodedFrames": "passed",
+    "receiptSha256": "9ff833acd33bdbc472a5d480309ecaf10f93cc53c5df40505282faea6ac17dac"
+  },
+  "tests": {
+    "python": 7,
+    "typescript": 72,
+    "newTypeScript": 21,
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "independentReview": "no important/critical findings; reviewer verified actual fixed inputs and18assets"
+  },
+  "browser": {
+    "practiceRoundId": "72526995-67b1-41cb-92d6-913dedc93ba3",
+    "plays": [
+      {
+        "caseId": "melody-yield-01",
+        "letter": "A",
+        "mode": "natural",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.77092444896698,
+        "minimumLimiterGain": 1,
+        "complete": true
+      },
+      {
+        "caseId": "melody-yield-01",
+        "letter": "B",
+        "mode": "relay",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.77092444896698,
+        "minimumLimiterGain": 1,
+        "complete": true
+      },
+      {
+        "caseId": "melody-yield-02",
+        "letter": "B",
+        "mode": "natural",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.8395315408706665,
+        "minimumLimiterGain": 1,
+        "complete": true
+      },
+      {
+        "caseId": "melody-yield-02",
+        "letter": "A",
+        "mode": "relay",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.8162351846694946,
+        "minimumLimiterGain": 1,
+        "complete": true
+      },
+      {
+        "caseId": "melody-yield-03",
+        "letter": "A",
+        "mode": "natural",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.8288238644599915,
+        "minimumLimiterGain": 1,
+        "complete": true
+      },
+      {
+        "caseId": "melody-yield-03",
+        "letter": "B",
+        "mode": "relay",
+        "markers": 5,
+        "allOnTime": true,
+        "peak": 0.8288238644599915,
+        "minimumLimiterGain": 1,
+        "complete": true
+      }
+    ],
+    "firstChoices": {
+      "melody-yield-01": {
+        "choice": "tie",
+        "at": "2026-10-18T10:48:51.135Z",
+        "heard": {}
+      },
+      "melody-yield-02": {
+        "choice": "tie",
+        "at": "2026-10-18T10:51:04.883Z",
+        "heard": {
+          "B": "2026-10-18T10:50:38.486Z"
+        }
+      },
+      "melody-yield-03": {
+        "choice": "tie",
+        "at": "2026-10-18T10:53:46.170Z",
+        "heard": {
+          "A": "2026-10-18T10:52:18.246Z",
+          "B": "2026-10-18T10:53:15.364Z"
+        }
+      }
+    },
+    "completeArms": 6,
+    "renderMarkers": 30,
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "earlyChoiceVerified": true,
+    "soloOtherPlayPause": true,
+    "practiceExportSha256": "95bf0bbf4c152f694037fd01b9eec3c5ce2511579f0634479e5cab3afd70716f",
+    "status": "passed",
+    "formalRoundId": "3ca314fe-7b2b-4b64-9317-74b653de6ff1",
+    "formalStarts": 0,
+    "formalChoices": 0,
+    "historyAndLogsPreservedAfterReload": true,
+    "reloadCount": 1,
+    "formalExportSha256": "c42299dd5a2c27b19fbbdb20a07ee92d1a7c570f93bff01f65786c2f66c794e8",
+    "screenshotSha256": "6e43530e33dfd2750203e91cef0b9d2a329ce9253808c05f1ace15a2ca1c5e39"
+  },
+  "limitations": [
+    "Actual other includes multiple instruments and separation bleed; no pure melody claim",
+    "Master/other joint WSOLA may differ from older six-channel comparison; both current arms share same assets",
+    "Local FFT observations do not certify harmonic conflict or technique suitability",
+    "Common limiter/output chain and unmatched perceived loudness; no per-arm normalization",
+    "Human preferences and failure symptoms remain pending"
+  ]
+}
