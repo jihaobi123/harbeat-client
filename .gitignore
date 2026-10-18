@@ -165,3 +165,8 @@ web/dist-vocal-bridge/
 /web/vocal-bed-audio/
 /web/vocal-bed-data.json
 /web/dist-vocal-bed/
+
+# Source-bound vocal endpoint experiment
+/web/vocal-endpoints-audio/
+/web/vocal-endpoints-data.json
+/web/dist-vocal-endpoints/

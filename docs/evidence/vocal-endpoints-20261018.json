@@ -1,0 +1,358 @@
+{
+  "schema": "harbeat.vocal-endpoints-evidence.v1",
+  "date": "2026-10-18",
+  "scope": "local research audition, not production; no universal accuracy/quality claim",
+  "originalContexts": [
+    {
+      "id": "track-d2d58531421de0eb9690",
+      "title": "HIPHOP",
+      "source": {
+        "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+        "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+        "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+        "sectionSource": "songformer",
+        "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+        "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce"
+      },
+      "contextSha256": "408bb8d833bf72f0748c4e2640d85737368cf419778b584b0dde669515b15d3c",
+      "framesSha256": "da510f427326227315328a9d0bccafcac7886d9497826e497adff9277a0d5a9e",
+      "modelSha256": "5eaf1dfa1c5287676c83ef77a4d2997e8531396e50730d2f38048a81ce3344a5",
+      "selected": null
+    },
+    {
+      "id": "track-95060500a263d21dc683",
+      "title": "After LIKE",
+      "source": {
+        "masterSha256": "95060500a263d21dc683743d5df9c1f2d97e813eb37673477c5b144ad8111993",
+        "reportSha256": "516a155e0c5fb75a977db27901d4b5138794af67254458e4a4f2c8348dc1bfb1",
+        "runId": "run-track-95060500a263d21dc683-95060500a263-a268a5c-5e137890",
+        "sectionSource": "songformer",
+        "vocalSha256": "417fcdb8e65a207ca76d1e767a83dd3e18e1b47ea066f91b0876b644ca0c0238",
+        "manifestSha256": "4706c2eabf8a160b739adfe6b15cba29a12d89f8a86aaecc823f0c37dc60e2f9"
+      },
+      "contextSha256": "d831a4ff361add198e48cf7065dbc589600f8dd28d6e10a3ca6210f8b11517a1",
+      "framesSha256": "79a60a0721704eaefaf60b3d2210805297e8253c9174eb9673a6194f065389b5",
+      "modelSha256": "f3d5d1b76cbd4b9e0910b2cbc255f508aa9075609389e4e2ce2e5c2bd16dc348",
+      "selected": null
+    },
+    {
+      "id": "track-49d4ac83da372eab5722",
+      "title": "24K Magic (1)",
+      "source": {
+        "masterSha256": "49d4ac83da372eab5722524cb71d732dca8d14bcd6eb5f21393026c8d0e2986f",
+        "reportSha256": "7ecf4191862d22f00edfc7d9abfbd2210953476024caf42e51b8b1160aa01d58",
+        "runId": "run-track-49d4ac83da372eab5722-49d4ac83da37-a268a5c-28012d49",
+        "sectionSource": "songformer",
+        "vocalSha256": "6457128367a15afe79f4be4ba369d9674103d23e44bcdbf9ade282ce1a41d43a",
+        "manifestSha256": "d082f435d01ed673ab50f140ecdbb103a6bb7675b3ce1ec33fedbaae278a1849"
+      },
+      "contextSha256": "5d18c9e17973b135a24c62269c4d4d0f59ac090dbce0e48c6db374466eb66733",
+      "framesSha256": "ede5c6e894cd4cf76befacad86ef36a8344d79320254a627536c1aaa69b71245",
+      "modelSha256": "684eaa67ffa761fb3b920b75695b214c210b9d54e6d6e9bb03bce34a1d26913d",
+      "selected": null
+    },
+    {
+      "id": "track-642bd1ac0da727a3b53b",
+      "title": "Attention",
+      "source": {
+        "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+        "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+        "runId": "run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab",
+        "sectionSource": "songformer",
+        "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e",
+        "manifestSha256": "c5636cb826726a4620434d426f03c11e03dde1615b420ddeef0d0b058f6fc8eb"
+      },
+      "contextSha256": "86e19b001f72305b8822a903d8d3bca2126d10e611b8f1d3ce7de9d4201e7a5a",
+      "framesSha256": "a49837fb918683ed278c7a61d0a55fdd251c35c8bed7bf4d60cef2f8b9f91001",
+      "modelSha256": "781422818c20c1cf85bf4fc7b1f2ed2e6134887d17662691792aae654be3717b",
+      "selected": null
+    }
+  ],
+  "finalContexts": [
+    {
+      "id": "track-246e6a03787422897e28",
+      "title": "Doin' It",
+      "source": {
+        "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+        "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+        "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+        "sectionSource": "songformer",
+        "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+        "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560"
+      },
+      "contextSha256": "73f9c9ca17edd1d62f3bbbd74e54f2bacbc027434298cb45546b08582d18381f",
+      "framesSha256": "c93c601fa02c3521f2892f255f9f56b0b029f8dd346bacb90061a0d4a9eaec49",
+      "modelSha256": "b33e29c858355e6398fbb33ce070f11c6d22fc2220280b55d3ecd25efdf45e47",
+      "selected": {
+        "start": 259.888261,
+        "seedEnd": 261.888261,
+        "tailEnd": 262.084,
+        "nextOnset": 269.788261,
+        "nextOnsetObserved": false,
+        "gap": 7.704260999999974,
+        "fadeStart": 262.391421,
+        "fadeEnd": 262.59142099999997,
+        "beatAligned": true
+      }
+    },
+    {
+      "id": "track-b8ffcc19b1cb7e0798a9",
+      "title": "Talgo",
+      "source": {
+        "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+        "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+        "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+        "sectionSource": "songformer",
+        "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+        "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad"
+      },
+      "contextSha256": "3cf9170dcab1af582c8722c073a3cd53c5e8d5060ae9f35fc58ee0fda98cf808",
+      "framesSha256": "b99fe964b3c44902b688320d44740336bc16f30de729e18a44b7dd594c0633b3",
+      "modelSha256": "7e71197afcbb30c3bb128a9922a477419c7ca4d693d89ebbab0922af10d175f0",
+      "selected": null
+    }
+  ],
+  "models": {
+    "license": "CC-BY-NC-SA-4.0; local research experiment",
+    "files": [
+      {
+        "url": "https://essentia.upf.edu/models/audio-event-recognition/yamnet/audioset-yamnet-1.json",
+        "file": "audioset-yamnet-1.json",
+        "bytes": 13662,
+        "sha256": "0c0499e4cedf01ba3012a1d0649e8fb9498106fb12fa74f0ea824d06f5e64f07"
+      },
+      {
+        "url": "https://essentia.upf.edu/models/audio-event-recognition/yamnet/audioset-yamnet-1.pb",
+        "file": "audioset-yamnet-1.pb",
+        "bytes": 15199348,
+        "sha256": "604dbd73c8552c4762b2e652ef69a45a46218c42c5fb3c292b16fd7940c2ca7f"
+      },
+      {
+        "url": "https://essentia.upf.edu/models/classification-heads/voice_instrumental/voice_instrumental-audioset-yamnet-1.json",
+        "file": "voice_instrumental-audioset-yamnet-1.json",
+        "bytes": 1987,
+        "sha256": "0a90c7a8bf57fa5c936085245747347f4f410849d36839defef59d244d56c710"
+      },
+      {
+        "url": "https://essentia.upf.edu/models/classification-heads/voice_instrumental/voice_instrumental-audioset-yamnet-1.pb",
+        "file": "voice_instrumental-audioset-yamnet-1.pb",
+        "bytes": 412058,
+        "sha256": "fe9140ce0d6ef70b3ebb746d064e7590289bc7c5e6ef8d1747e080ee53ff5b01"
+      }
+    ]
+  },
+  "packSha256": "5e464991459ffd63e35eb63374f84ae7c0b843cb13f72269169b63e19b60eb7a",
+  "selectionSha256": "cefd01885c145f12125df943f2ff96aa3c44aa7fbd4348690e7994f22ffc96ec",
+  "pair": [
+    "Doin' It",
+    "Talgo"
+  ],
+  "assets": {
+    "aMaster": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-aMaster.wav",
+      "sha256": "97416f5ca00662c9430af1fb6095c55fda79f6ea99fdc94d84ba6d22ead260ae",
+      "bytes": 4196578,
+      "duration": 11.894739229024943,
+      "frames": 524558,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 1.0169602632522583
+    },
+    "aBass": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-aBass.flac",
+      "sha256": "708860b8350c26547ca2684c516668d77a8b8f3a03c7147ab437357e50a1789c",
+      "bytes": 1657159,
+      "duration": 11.894739229024943,
+      "frames": 524558,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.40297436714172363
+    },
+    "aVocal": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-aVocal.flac",
+      "sha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+      "bytes": 2027311,
+      "duration": 11.894739229024943,
+      "frames": 524558,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.9770180583000183
+    },
+    "bEntryMaster": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bEntryMaster.flac",
+      "sha256": "6f76c5ef2bf48f801ed1bf6aa444ff10d8cc7b08a4310932d71626836aa2abdc",
+      "bytes": 1543510,
+      "duration": 7.894739229024943,
+      "frames": 348158,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.9859106540679932
+    },
+    "bEntryBass": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bEntryBass.flac",
+      "sha256": "ed494f30620872ecf8f7d7d59166d15d71e632d2081fc43b694ba6b93928c811",
+      "bytes": 1130480,
+      "duration": 7.894739229024943,
+      "frames": 348158,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.5864967703819275
+    },
+    "bEntryVocal": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bEntryVocal.flac",
+      "sha256": "1d6c467143f8e88173270f65849fbf17c2a702cd4d923b6d56adffe614fdb4ae",
+      "bytes": 933990,
+      "duration": 7.894739229024943,
+      "frames": 348158,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.0020740714389830828
+    },
+    "bBodyMaster": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bBodyMaster.wav",
+      "sha256": "12784271b8b28b680c1f0a2a1cfb5e75618b0f5c185774feb62a6a94cc7d719a",
+      "bytes": 2822514,
+      "duration": 8.0,
+      "frames": 352800,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 1.0006592273712158
+    },
+    "bBodyBass": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bBodyBass.flac",
+      "sha256": "54f387d6e5155c65b815e6c447293b9472514b9ad9c875a0be67bfd39f2f21f8",
+      "bytes": 1141559,
+      "duration": 8.0,
+      "frames": 352800,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.6199988126754761
+    },
+    "bBodyVocal": {
+      "url": "/vocal-endpoints-audio/endpoint-probe-01-bBodyVocal.flac",
+      "sha256": "07d01e7dbb994316b1ffb1880392020fa884c60e0f50799cf0fc2d917204b120",
+      "bytes": 946449,
+      "duration": 8.0,
+      "frames": 352800,
+      "sampleRate": 44100,
+      "channels": 2,
+      "peak": 0.0018915124237537384
+    }
+  },
+  "analysisRule": "Coarse voice/VAD corroboration + envelope/pitch; protect VAD spans and low pitched/model voice; breath merge .30s; reject unsettled tails; require quiet and original cue-safe source beat; 200ms fade",
+  "rejectedIncomingProbe": "Doin It → Tonight: actual incoming model tail/activity overlapped frozen entry; retained as rejected archive",
+  "expandedSelection": {
+    "expanded": true,
+    "reason": "All three original source contexts failed endpoint gate; new controlled exploratory pair from unchanged automatic planner; not a retest of the prior pair",
+    "candidateSources": [
+      "Shoot Your Shot",
+      "WANNABE",
+      "I Like",
+      "Doin' It",
+      "Jopping",
+      "Victory Lap Five",
+      "If I Saw You Again",
+      "Luv(sic.) Part 3 (feat. Shing02)",
+      "GOOD BOY",
+      "Kill This Love",
+      "첫 눈 (初雪)",
+      "Let Me Be Your Fantasy - Original Mix"
+    ],
+    "scan": [
+      {
+        "source": "Shoot Your Shot",
+        "plans": 16970,
+        "eligible": 46
+      },
+      {
+        "source": "WANNABE",
+        "plans": 5864,
+        "eligible": 18
+      },
+      {
+        "source": "I Like",
+        "plans": 5914,
+        "eligible": 55
+      },
+      {
+        "source": "Doin' It",
+        "plans": 11616,
+        "eligible": 42
+      },
+      {
+        "source": "Jopping",
+        "plans": 3347,
+        "eligible": 0
+      },
+      {
+        "source": "Victory Lap Five",
+        "plans": 0,
+        "eligible": 0
+      },
+      {
+        "source": "If I Saw You Again",
+        "plans": 5078,
+        "eligible": 0
+      },
+      {
+        "source": "Luv(sic.) Part 3 (feat. Shing02)",
+        "plans": 10486,
+        "eligible": 16
+      },
+      {
+        "source": "GOOD BOY",
+        "plans": 7670,
+        "eligible": 16
+      },
+      {
+        "source": "Kill This Love",
+        "plans": 1553,
+        "eligible": 0
+      },
+      {
+        "source": "첫 눈 (初雪)",
+        "plans": 898,
+        "eligible": 0
+      },
+      {
+        "source": "Let Me Be Your Fantasy - Original Mix",
+        "plans": 14401,
+        "eligible": 0
+      }
+    ],
+    "eligible": 193
+  },
+  "comparisonInvariant": "New exploratory pair from unchanged automatic planning rules. Both arms same source clips, rate, EQ, bed, reference bass, incoming vocal curves and native B takeover. Only outgoing vocal gain timing changes.",
+  "tests": {
+    "python": 18,
+    "typescriptNew": 24,
+    "typescriptTotal": 170,
+    "typecheck": "passed",
+    "build": "passed",
+    "independentReview": "all important findings fixed and reviewed"
+  },
+  "browser": {
+    "url": "http://127.0.0.1:5194/vocal-endpoints.html",
+    "currentFormalRoundId": "4508a2b7-0871-44fd-80e8-b4861f1d3cbd",
+    "practiceRoundId": "325012bf-ac7e-48c7-824f-21d617b2ac91",
+    "completeArms": 2,
+    "renderMarkers": 12,
+    "allMarkersOnTime": true,
+    "logs": {
+      "bass_requested": 2,
+      "bass_started": 2,
+      "audio_observation": 12,
+      "bass_render_started": 2,
+      "bass_finished": 2
+    },
+    "earlyVoteHeard": {},
+    "reloads": 2,
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "soloVocalPlayback": "verified Play/Pause/Stop",
+    "finalFormalChoices": 0,
+    "practiceExcluded": true,
+    "exportSha256": "d3e20c914230d41ab8a62fcf3e708863650810b9ddc48e27ee52f3a1614c3bd4",
+    "screenshotSha256": "d9c62266839ae5405562a6cfa4fb1d40cd65dbc8c3ceacdbe3a549a075969ab4"
+  }
+}
