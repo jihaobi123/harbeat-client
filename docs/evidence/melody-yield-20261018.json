@@ -2,7 +2,7 @@
   "schema": "harbeat.melody-yield-evidence.v1",
   "date": "2026-10-18",
   "url": "http://127.0.0.1:5198/melody-yield.html",
-  "scope": "Local individual outgoing-other attenuation trial; formal preference pending; no production or combined-technique activation",
+  "scope": "Local individual outgoing-other attenuation trial;3formal initial choices collected, Attention final takeover remains incompletely compared; no production/combined activation",
   "selectionSha256": "589762acc5e9e2d05831b9cf0cc6a70ffc8947b22c178381d7ebaa280cef1ae8",
   "packSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
   "sourcePackSha256": "847eaf19f6706f3b516118ca1cd7ae515b9248bbd8b94fa5c532167a163f0686",
@@ -504,5 +504,210 @@
     "Local FFT observations do not certify harmonic conflict or technique suitability",
     "Common limiter/output chain and unmatched perceived loudness; no per-arm normalization",
     "Human preferences and failure symptoms remain pending"
-  ]
+  ],
+  "listenerFeedback": {
+    "roundId": "3ca314fe-7b2b-4b64-9317-74b653de6ff1",
+    "feedbackSha256": "9ceaef7e1ab1d6cb1b29202314af980201e8f1b9f4bc55dc80e002152b02ad66",
+    "analysisSha256": "d44b2889abd6301413e162dc10a2fdb83162e129430949dc23ae581491bd52ae",
+    "practiceExcluded": [
+      "72526995-67b1-41cb-92d6-913dedc93ba3"
+    ],
+    "counts": {
+      "relay": 1,
+      "natural": 1,
+      "tie": 1,
+      "none": 0
+    },
+    "cases": [
+      {
+        "caseId": "melody-yield-01",
+        "pair": [
+          "Meant To Be",
+          "HIPHOP"
+        ],
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-18T11:13:01.708Z",
+          "heard": {}
+        },
+        "currentChoice": "tie",
+        "selectedMethod": "tie",
+        "symptoms": [],
+        "notes": "",
+        "coverageBeforeVote": {
+          "A": {
+            "method": "natural",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": true,
+            "nativeTakeoverObservedByExport": true,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [],
+            "peak": 0.7662205100059509,
+            "minimumLimiterGain": 1
+          },
+          "B": {
+            "method": "relay",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": true,
+            "nativeTakeoverObservedByExport": true,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [
+              {
+                "at": "2026-10-18T11:12:50.742Z",
+                "position": 10.566666666666666,
+                "remainingToNativeTakeover": 0
+              }
+            ],
+            "peak": 0.7662205100059509,
+            "minimumLimiterGain": 1
+          }
+        },
+        "overlapSeconds": 4.481791383219955,
+        "yieldEndSeconds": 2.221791383219937,
+        "features": {
+          "outgoingOtherRms": 0.15015202289208737,
+          "incomingOtherRms": 0.15258541749056034,
+          "incomingToOutgoingRmsRatio": 1.016206205894554,
+          "incomingOtherRelativeRmsDb": 0.13963685571955461,
+          "pitchClassCosine": 0.49125774617746754,
+          "basis": "Raw aligned source-excerpt observations before gain/EQ, not perceived mixed loudness or verified harmonic conflict"
+        }
+      },
+      {
+        "caseId": "melody-yield-02",
+        "pair": [
+          "Attention",
+          "HIPHOP"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-18T11:13:30.442Z",
+          "heard": {}
+        },
+        "currentChoice": "B",
+        "selectedMethod": "natural",
+        "symptoms": [],
+        "notes": "",
+        "coverageBeforeVote": {
+          "A": {
+            "method": "relay",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": false,
+            "nativeTakeoverObservedByExport": false,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [
+              {
+                "at": "2026-10-18T11:13:17.325Z",
+                "position": 12.110793650793646,
+                "remainingToNativeTakeover": 1.0407709750566951
+              }
+            ],
+            "peak": 0.8162351250648499,
+            "minimumLimiterGain": 1
+          },
+          "B": {
+            "method": "natural",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": false,
+            "nativeTakeoverObservedByExport": true,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [],
+            "peak": 0.8395315408706665,
+            "minimumLimiterGain": 1
+          }
+        },
+        "overlapSeconds": 9.151564625850341,
+        "yieldEndSeconds": 2.3015646258503466,
+        "features": {
+          "outgoingOtherRms": 0.13304832434726815,
+          "incomingOtherRms": 0.1481059790035225,
+          "incomingToOutgoingRmsRatio": 1.1131743276747514,
+          "incomingOtherRelativeRmsDb": 0.9312636392308233,
+          "pitchClassCosine": 0.5686534529496479,
+          "basis": "Raw aligned source-excerpt observations before gain/EQ, not perceived mixed loudness or verified harmonic conflict"
+        }
+      },
+      {
+        "caseId": "melody-yield-03",
+        "pair": [
+          "All Falls Down",
+          "GRILLZ (feat. Ilir808)"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-18T11:14:05.525Z",
+          "heard": {}
+        },
+        "currentChoice": "A",
+        "selectedMethod": "relay",
+        "symptoms": [],
+        "notes": "",
+        "coverageBeforeVote": {
+          "A": {
+            "method": "relay",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": true,
+            "nativeTakeoverObservedByExport": true,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [],
+            "peak": 0.8288238644599915,
+            "minimumLimiterGain": 1
+          },
+          "B": {
+            "method": "natural",
+            "yieldBoundaryObservedBeforeVote": true,
+            "nativeTakeoverObservedBeforeVote": true,
+            "nativeTakeoverObservedByExport": true,
+            "finishedBeforeVote": false,
+            "stopsBeforeVote": [
+              {
+                "at": "2026-10-18T11:13:49.541Z",
+                "position": 14.894285714285715,
+                "remainingToNativeTakeover": 0
+              }
+            ],
+            "peak": 0.8288238644599915,
+            "minimumLimiterGain": 1
+          }
+        },
+        "overlapSeconds": 9.795918367346939,
+        "yieldEndSeconds": 2.4459183673469056,
+        "features": {
+          "outgoingOtherRms": 0.08977522956384285,
+          "incomingOtherRms": 0.03412525617909857,
+          "incomingToOutgoingRmsRatio": 0.3801188406299836,
+          "incomingOtherRelativeRmsDb": -8.401612080242382,
+          "pitchClassCosine": 0.8262684458214805,
+          "basis": "Raw aligned source-excerpt observations before gain/EQ, not perceived mixed loudness or verified harmonic conflict"
+        }
+      }
+    ],
+    "interpretation": {
+      "supported": "All Falls Down→GRILLZ relay preferred and Meant To Be→HIPHOP tie after both native takeovers were observed before vote. Attention→HIPHOP natural preferred after both yield boundaries, but relay stopped ~1.04s before original takeover and reference vote ~0.16s before original takeover; reference later crossed takeover, relay never did in formal run.",
+      "hypotheses": [
+        "Available overlap length alone is insufficient: relay-preferred All Falls Down has9.80s and natural-preferred Attention9.15s, with the latter coverage limitation.",
+        "Relay-preferred case has much lighter incoming other raw RMS (~0.38of outgoing), while tie/natural-preferred cases are near equal. This is a replication lead only, not a gate or causal explanation.",
+        "The preferred relay case has the highest coarse chroma-profile cosine of these three; do not assume dissimilar profiles or key mismatch imply benefit."
+      ],
+      "limits": [
+        "Three exploratory cases from one listener; no general effectiveness or calibrated thresholds.",
+        "No symptom selections or notes; cannot infer hollowness, harmonic collision, hook importance, stem bleed, exact cause or artifact-free status.",
+        "No formal limiter attenuation; source RMS and pitch-class summaries are not perceived loudness matching or conflict ground truth.",
+        "Attention final takeover remains incompletely compared."
+      ],
+      "policy": "Keep original default. Archive All Falls Down benefit, Meant To Be no clear improvement, Attention provisional original preference pending final-takeover review. Do not enable a duration/RMS/chroma threshold or start a combined effect."
+    }
+  }
 }

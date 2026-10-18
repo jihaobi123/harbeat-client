@@ -26,3 +26,13 @@ Method reference: https://blog.native-instruments.com/how-to-mix-stems/ (officia
 ## Browser acceptance
 
 Practice round72526995-67b1-41cb-92d6-913dedc93ba3 completed all6arms with30on-time audio observations. Both masters/incoming correction/EQ/assets/relative native takeover times match; only outgoing other correction changes. No browser errors, playback failures or per-play limiter attenuation. Early choices, solo other Play/Pause, archive, reload and export passed. Blank formal round3ca314fe-7b2b-4b64-9317-74b653de6ff1 has0starts/choices/heard/reveals at export. Practice choices are excluded. Screenshot and raw exports are in the separate work directory; formal listener results remain pending.
+
+## Formal listener feedback — 2026-10-18
+
+Round3ca314fe-7b2b-4b64-9317-74b653de6ff1 collected3initial blind choices with no reveals, changes, symptoms or notes. Meant To Be → HIPHOP:tie; Attention → HIPHOP:B/natural; All Falls Down → GRILLZ:A/yield. Practice72526995 is excluded. Source export and per-letter coverage analysis are retained in the work directory with hashes in evidence.
+
+Meant To Be and All Falls Down both crossed the yield boundary and native B takeover in both arms before voting. Attention crossed the yield boundary in both arms, but yield/A stopped1.04077sbefore native takeover; natural/B voted about0.16sbefore its native observation and crossed it after the vote. This supports the heard portion preference, not a fully compared final handoff. No forced complete-clip requirement is introduced; final takeover merits targeted review.
+
+Conclusions: one benefit, one no clear improvement, one provisional original preference. Similar long durations9.15/9.80syield different choices, so duration alone cannot choose the technique. The favored-yield case has incoming other RMS0.38of outgoing, while other cases are near equal; this is an uncalibrated source observation and replication hypothesis, not an automatic trigger or causal explanation. Coarse pitch-profile cosine is highest in the yield-preferred case, so dissimilarity/key mismatch is not established as the trigger. No explicit failure symptom or artifact-free judgment can be inferred from empty checkboxes.
+
+Keep original defaults and these case-level records. Attention final takeover remains a limited-coverage item before calling every prepared transition fully reviewed. Do not advance to combined techniques or encode a duration/RMS/chroma threshold from this sample.
