@@ -1,0 +1,5 @@
+@import url('../bass-generalization/style.css');
+.vocal-bed .arms{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vocal-bed .order-hint{padding:12px 16px;background:#eeefe5;border-radius:6px;font-size:14px;line-height:1.8}
+@media(max-width:700px){.vocal-bed .arms{grid-template-columns:1fr}}
+.vocal-bed audio{width:100%;margin:12px 0}.vocal-bed .reveal p{line-height:1.8}
