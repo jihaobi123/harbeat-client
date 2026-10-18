@@ -2,7 +2,7 @@
   "schema": "harbeat.vocal-echo-solo-evidence.v1",
   "date": "2026-10-18",
   "url": "http://127.0.0.1:5201/vocal-echo-solo.html",
-  "scope": "Independent finite vocal-only echo; original dry fades and frozen vocal rules, listener choices pending",
+  "scope": "Standalone finite vocal echo formal listener round complete:2original/1tie/0echo; original default retained",
   "selectionSha256": "1288c0b063d5182d0d950a7737584aa202bd146cf77f7b002fa45e953bb85058",
   "sourcePackSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
   "packSha256": "ba2b03ba4c596dca609e9810080c4f89ed6740ac146b734f0395ede69221a1e2",
@@ -1043,7 +1043,7 @@
     "standaloneBuild": "passed"
   },
   "browser": {
-    "status": "passed; formal listener choices pending",
+    "status": "Delivery playback and persistence passed; formal listener choices archived below",
     "practiceRoundId": "8f75c994-964c-4a06-ab90-3c1032d4a017",
     "excludedPreFixPracticeRoundIds": [
       "993d91de-044f-45e6-86c8-416b6dc9338a"
@@ -1247,5 +1247,503 @@
     "files": 14,
     "changed": []
   },
-  "outputObservation": "All six final-graph complete plays had minimum limiter gain1; wet return gated to zero at wetEnd. Meter values are before common output gain0.7; no perceived loudness/quality conclusion."
+  "outputObservation": "All six final-graph complete plays had minimum limiter gain1; wet return gated to zero at wetEnd. Meter values are before common output gain0.7; no perceived loudness/quality conclusion.",
+  "listener": {
+    "schema": "harbeat.vocal-echo-solo-choice-analysis.v1",
+    "roundId": "73f1842c-e818-408e-95d3-e69edf43cc5e",
+    "feedbackSha256": "43bd14926635b907eb6f2131c83bfaf81ab82cb75bfc99be8d2ad242b2db420d",
+    "selectionSha256": "1288c0b063d5182d0d950a7737584aa202bd146cf77f7b002fa45e953bb85058",
+    "excludedPracticeRoundIds": [
+      "993d91de-044f-45e6-86c8-416b6dc9338a",
+      "8f75c994-964c-4a06-ab90-3c1032d4a017"
+    ],
+    "counts": {
+      "natural": 2,
+      "relay": 0,
+      "tie": 1,
+      "none": 0
+    },
+    "cases": [
+      {
+        "id": "vocal-echo-solo-01",
+        "aTitle": "Doin' It",
+        "bTitle": "Talgo",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "B",
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-18T15:16:52.660Z",
+          "heard": {
+            "B": "2026-10-18T15:16:40.186Z"
+          }
+        },
+        "preferredMethod": "natural",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-18T15:16:20.175Z"
+        },
+        "preVoteEffectCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteNativeCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "vocal-echo-solo-1792336579997-1",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-18T15:16:20.062Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stopPosition": 19.894739229024943,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:16:20.175Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:16:24.180Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:16:29.781Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:16:30.025Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:16:30.271Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:16:31.050Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:16:32.073Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-18T15:16:40.073Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "vocal-echo-solo-1792336600610-2",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-18T15:16:40.634Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stopPosition": null,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:16:40.729Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:16:44.735Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:16:50.335Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:16:50.581Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:16:50.831Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:16:51.604Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:16:52.628Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "wetWindow": [
+          9.849028702709168,
+          10.875870807972325
+        ],
+        "isolatedWetPeak": 0.061602216213941574,
+        "limitation": "Echo/native takeover marker was32msbefore first vote, while wet end was1.056sbefore vote; effect covered but post-takeover listening very brief."
+      },
+      {
+        "id": "vocal-echo-solo-02",
+        "aTitle": "WANNABE",
+        "bTitle": "Tonight",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "tie",
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-18T15:17:22.841Z",
+          "heard": {
+            "A": "2026-10-18T15:17:12.506Z"
+          }
+        },
+        "preferredMethod": "tie",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "A",
+          "B"
+        ],
+        "firstPlayed": {
+          "letter": "A",
+          "at": "2026-10-18T15:16:56.425Z"
+        },
+        "preVoteEffectCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteNativeCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "vocal-echo-solo-1792336616276-4",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-18T15:16:56.328Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stopPosition": 15.966938775510204,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:16:56.425Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:17:00.430Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:17:02.723Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:17:02.974Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:17:03.225Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:17:04.003Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:17:04.398Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-18T15:17:12.398Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "vocal-echo-solo-1792336632842-5",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-18T15:17:12.863Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stopPosition": null,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:17:12.963Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:17:16.969Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:17:19.262Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:17:19.507Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:17:19.753Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:17:20.542Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:17:20.931Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "wetWindow": [
+          6.543004891212678,
+          7.574740428402761
+        ],
+        "isolatedWetPeak": 0.03323029354214668,
+        "limitation": "Both wet windows/native takeovers covered before vote; whole-clip completion not required."
+      },
+      {
+        "id": "vocal-echo-solo-03",
+        "aTitle": "GOOD BOY",
+        "bTitle": "Snake Gang",
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "choice": "A",
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-18T15:18:16.074Z",
+          "heard": {
+            "B": "2026-10-18T15:17:48.345Z"
+          }
+        },
+        "preferredMethod": "natural",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-18T15:17:26.131Z"
+        },
+        "preVoteEffectCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteNativeCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "vocal-echo-solo-1792336645958-7",
+            "method": "relay",
+            "letter": "B",
+            "startedAt": "2026-10-18T15:17:26.031Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stopPosition": 22.11591836734694,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:17:26.130Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:17:30.131Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:17:37.645Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:17:37.961Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:17:38.275Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:17:39.267Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:17:40.248Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-18T15:17:48.248Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "vocal-echo-solo-1792336669008-8",
+            "method": "natural",
+            "letter": "A",
+            "startedAt": "2026-10-18T15:17:49.037Z",
+            "wetStartCovered": true,
+            "wetEndCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stopPosition": 14.412471655328801,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:17:49.133Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:17:53.139Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:18:00.643Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:18:00.958Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:18:01.283Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "wallTime": "2026-10-18T15:18:02.269Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 6",
+                "wallTime": "2026-10-18T15:18:03.251Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "vocal-echo-solo-1792336683625-9",
+            "method": "relay",
+            "letter": "B",
+            "startedAt": "2026-10-18T15:18:03.653Z",
+            "wetStartCovered": true,
+            "wetEndCovered": false,
+            "nativeTakeoverCovered": false,
+            "completedBeforeVote": false,
+            "stopPosition": null,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T15:18:03.752Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T15:18:07.758Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T15:18:15.267Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "wallTime": "2026-10-18T15:18:15.581Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T15:18:15.901Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "wetWindow": [
+          11.828796133416494,
+          13.133285069138305
+        ],
+        "isolatedWetPeak": 0.01874447800219059,
+        "limitation": "Original stopped about0.297safter native takeover; echo had an earlier complete pass before vote. Latest replay had not reached wetEnd at vote and is not used to claim effect coverage."
+      }
+    ],
+    "conclusion": "At this fixed original-gain send,3finite taps and one global setting, no pair preferred echo:2original/1tie. No positive eligibility pattern established; retain original default and do not add this echo to later combinations merely because vocal handover was preferred separately. Not a general rejection of all echo settings or vocal FX.",
+    "limitations": [
+      "One listener/3fixed pairs; preferences do not measure effect size.",
+      "No symptoms, notes, reveal or formal playback failures; do not invent perceptual failure mechanisms.",
+      "All intended wet windows and native takeovers covered before first votes across prior plays, despite some incomplete heard flags; later passage coverage is limited for first/third pairs.",
+      "Outgoing gaps remain model-derived and censored; no human lyric-completeness or separation-quality judgment inferred."
+    ]
+  }
 }
