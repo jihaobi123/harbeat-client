@@ -1,0 +1,97 @@
+{
+  "schema": "harbeat.melody-tail-review-evidence.v1",
+  "date": "2026-10-18",
+  "url": "http://127.0.0.1:5199/melody-tail-review.html",
+  "scope": "Focused Attention final takeover supplement; formal listener choice pending; no next effect or combination",
+  "selectionSha256": "440762048472ab3be6ff93003dce28a6387deb39f2316358e0283b20fdd00357",
+  "parentPackSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
+  "graphSha256": "09928f4b75b2384ad42752bd795c7383f20b043f5d781240ce62ec7373685529",
+  "originalClockSha256": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5",
+  "case": {
+    "id": "melody-tail-review-attention",
+    "parentCaseId": "melody-yield-02",
+    "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+    "sourceAssets": {
+      "aMaster": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+      "aOther": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+      "bEntryMaster": "7bf5a510c66df7843174a09b0a496513eb9d97d062636cb90d0fda35ee5915f2",
+      "bEntryOther": "f20b77935b05db004e069edd153cb9c3fa64e54c57e87c19bd73a08385727018",
+      "bBodyMaster": "a5e31b276d5d4ee8fd589ad165b497fdb7d8682cdc93d2d01aefe074d2f23479",
+      "bBodyOther": "414771cf08bd6fc256ee971c0a20dca21d388443d6386712e5278ab1d504e0d4"
+    }
+  },
+  "tests": {
+    "typescript": 47,
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "independentReview": "no important or critical findings; case differs from parent only in id/parent id"
+  },
+  "browser": {
+    "practiceRoundId": "89c6fd63-7d41-40d3-a850-669a0bb9e37d",
+    "plays": [
+      {
+        "mode": "natural",
+        "letter": "A",
+        "fullRenderPeak": 0.8395315408706665,
+        "priorRealtimePeak": 0.8395315408706665,
+        "peakDifference": 0.0,
+        "fullPcmSha256": "e8e46ad7079769f6cd5a3b13e31e1606a8f03f3a0c05035456f84ce82e787361",
+        "excerptPcmSha256": "2c55eae91846b4b0e31374b45a95225703deff5e4a4d97da3c907d7e3a983a96",
+        "offlineObservations": 4,
+        "playbackObservations": 3,
+        "total": 7,
+        "window": {
+          "startFrame": 408215,
+          "frames": 308700,
+          "takeoverFrame": 176400,
+          "delayFrames": 221,
+          "sampleRate": 44100
+        }
+      },
+      {
+        "mode": "relay",
+        "letter": "B",
+        "fullRenderPeak": 0.8162351846694946,
+        "priorRealtimePeak": 0.8162351846694946,
+        "peakDifference": 0.0,
+        "fullPcmSha256": "848a530e6e6d9d615014e01f9718d6d1913d424a4355e931689511d883b41dfd",
+        "excerptPcmSha256": "cf3de93857c345349bd798e0fdfde35eccfdf8fc1d251019506a663af190ddcb",
+        "offlineObservations": 4,
+        "playbackObservations": 3,
+        "total": 7,
+        "window": {
+          "startFrame": 408215,
+          "frames": 308700,
+          "takeoverFrame": 176400,
+          "delayFrames": 221,
+          "sampleRate": 44100
+        }
+      }
+    ],
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "firstBlindChoice": {
+      "choice": "tie",
+      "at": "2026-10-18T12:17:05.454Z",
+      "heard": {
+        "A": "2026-10-18T12:15:18.094Z"
+      }
+    },
+    "practiceExportSha256": "e7499dd492fe9ac525c8f967d585aa446d7e640a327a039c67596e2176cf4664",
+    "status": "passed",
+    "formalRoundId": "6dd03770-edbc-4f02-b3ba-c5dad8a9b789",
+    "formalChoices": 0,
+    "formalStarts": 0,
+    "historyLogsPreservedAfterReload": true,
+    "reloadCount": 1,
+    "originalThreeChoicesUnchanged": true,
+    "formalExportSha256": "92ffc2e2e923632100264a1704ec60cf099f8ad312892e9d47b474266bf74f1b",
+    "screenshotSha256": "6d2ac5645d6a319631fcf91a55b228adc75a36a2de79c7bcba9e889a702b97de"
+  },
+  "limitations": [
+    "Focused7swindow does not repeat the whole original blind trial",
+    "Prior and current full render peaks match exactly; this does not establish bit-for-bit equality to a previously unrecorded realtime PCM stream",
+    "Five millisecond outer excerpt edges and original221frame limiter latency explicitly accounted for",
+    "Previous formal preferences unchanged; no inference from practice or unfilled symptoms"
+  ]
+}

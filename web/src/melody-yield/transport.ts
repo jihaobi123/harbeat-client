@@ -1,9 +1,7 @@
 import {AudioCache,AudioBufferPool} from '../realtime/cache'
-import {scheduleV30Eq} from '../v30/eq'
-import {referenceCurves,schedule} from '../vocal-bridge/automation'
 import {yieldCurves,type Mode} from './policy'
 import type {Asset,Plan} from '../realtime/planner'
-import type {Points} from '../melody-overlap/policy'
+import {makeYieldGraph} from './graph'
 export type MelodyYieldCase={id:string;aTitle:string;bTitle:string;pre:number;post:number;yieldEnd:number;firstBar:unknown;plan:Plan;planSha256:string;bpm:[number,number];assets:Record<string,Asset>;sourceVerification:unknown;features:any}
 export type State={status:'idle'|'loading'|'playing'|'complete'|'error';message:string;position:number;caseId:string;mode:Mode;roundId?:string;letter?:string}
 const assetKeys=['aMaster','aOther','bEntryMaster','bEntryOther','bBodyMaster','bBodyOther'] as const
@@ -62,30 +60,8 @@ export class MelodyYieldPlayer{
    if(token!==this.revision||this.dead)return
    for(const key of assetKeys){const buffer=decoded[key],duration=key.startsWith('a')?c.pre+c.plan.duration:key.startsWith('bEntry')?c.plan.duration:c.post;if(buffer.numberOfChannels!==2||Math.abs(buffer.length-Math.round(duration*this.ctx!.sampleRate))>1)throw Error('旋律分轨与固定播放时间轴不一致')}
    const ctx=this.ctx!,at=this.at=ctx.currentTime+.1,end=c.pre+c.plan.duration;this.total=end+c.post
-   const policy=yieldCurves(c.pre,c.plan.duration,c.yieldEnd,mode),ref=referenceCurves(c.pre,c.plan.duration,end-Math.min(c.plan.duration,120/c.bpm[0]))
-   const bus=ctx.createGain();bus.connect(this.monitor!);this.nodes.push(bus);schedule(bus.gain,[[0,0],[.02,1],[this.total-.04,1],[this.total,0]],at)
-   const filters:{a:any[];b:any[]}={a:[],b:[]}
-   for(const side of ['a','b'] as const){
-    const x=policy[side],layers=['Master','Other']
-    const gains=[x.master,x.correction]
-    for(const [j,layer] of layers.entries()){
-     const input=ctx.createGain(),low=ctx.createBiquadFilter(),high=ctx.createBiquadFilter(),mid=ctx.createBiquadFilter(),wet=ctx.createGain(),dry=ctx.createGain(),gain=ctx.createGain()
-     low.type='lowshelf';low.frequency.value=140;high.type='highshelf';high.frequency.value=3600;mid.type='peaking';mid.frequency.value=1200;mid.Q.value=1.05
-     input.connect(low);low.connect(high);high.connect(mid);mid.connect(wet);input.connect(dry);wet.connect(gain);dry.connect(gain);gain.connect(bus)
-     const wetPoints=side==='a'?ref.aWet:ref.bWet;schedule(wet.gain,wetPoints,at);schedule(dry.gain,wetPoints.map(([t,v])=>[t,1-v]),at);schedule(gain.gain,gains[j],at,.76)
-     this.nodes.push(input,low,high,mid,wet,dry,gain);filters[side].push({low,high,mid})
-     const source=(key:string,start:number,duration:number,body=false)=>{
-      const s=ctx.createBufferSource(),edge=ctx.createGain();s.buffer=decoded[key];s.connect(edge);edge.connect(input)
-      const points:Points=body?[[0,0],[.004,1]]:[[0,1]]
-      if(side==='b'&&!body)points.push([Math.max(.004,duration-.004),1],[duration,0])
-      schedule(edge.gain,points,at+start);s.start(at+start,0,duration);this.sources.push(s);this.nodes.push(edge)
-     }
-     if(side==='a')source('a'+layer,0,end)
-     else{source('bEntry'+layer,c.pre,c.plan.duration);source('bBody'+layer,end,c.post,true)}
-    }
-   }
-   // Both master and other correction receive identical original EQ.
-   for(let j=0;j<2;j++)scheduleV30Eq(filters.a[j],filters.b[j],at+c.pre,c.plan.v30Eq!)
+   const policy=yieldCurves(c.pre,c.plan.duration,c.yieldEnd,mode)
+   const graph=makeYieldGraph(ctx,this.monitor!,decoded,c,mode,at);this.nodes.push(...graph.nodes);this.sources.push(...graph.sources)
    this.log('melody_started',{plan:c.plan,planSha256:c.planSha256,treatment:policy,yieldEnd:c.yieldEnd,eq:c.plan.v30Eq,actualStartContext:at,nativeHandoffContext:at+end,total:this.total,assets:c.assets,sourceVerification:c.sourceVerification,referenceRendering:'Four-channel master/other; only outgoing other correction differs'})
    const markers=[{t:0,name:'试听开始'},{t:c.pre,name:'位置 1'},{t:c.pre+c.yieldEnd,name:'位置 2'},{t:end,name:'位置 3'},{t:this.total,name:'试听结束'}]
    this.onset={revision:token,frame:Math.round(at*ctx.sampleRate)}

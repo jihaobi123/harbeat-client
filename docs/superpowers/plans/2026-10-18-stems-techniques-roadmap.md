@@ -48,3 +48,5 @@ Wait for all prepared5198formal initial choices, inspect transition coverage and
 ### Melody-yield formal feedback
 
 All3formal choices collected at5198: All Falls Down → GRILLZ prefers yield; Meant To Be → HIPHOP tie; Attention → HIPHOP prefers original for the heard portion. First and third cases covered both native takeovers before vote. Attention yield stopped about1.04sbefore takeover, leaving final-handoff comparison incomplete. Preserve the preference with this limitation and review that portion before treating all prepared cases as fully covered. No symptoms were reported; do not invent a failure mechanism. Raw source energy/available space are replication leads only. Original defaults remain; no mixed technique enabled.
+
+The current remaining item is focused Attention final-handover review at5199:7sper arm, full original graph rendered before cropping, separate durable preference, old three choices unchanged. After the user compares this supplement, update the limited-coverage record before the next independent technique. No next effect or combination is introduced by this supplement.
