@@ -1,0 +1,439 @@
+{
+  "schema": "harbeat.drum-loop-evidence.v1",
+  "createdAt": "2026-10-18T03:54:41.115589+00:00",
+  "url": "http://127.0.0.1:5192/drum-loop.html",
+  "scope": "Three fixed pairs, natural drums versus one earlier A drum bar repeated over the final two measured bars. Each prior formal user bass choice, plan, cues, vocal conflict policy, EQ and other gains remain frozen. No production deployment.",
+  "selectionSha256": "2b24fb324af670a94340d17c8c91dc371f642f456b1b57e4f315e4b04971d67b",
+  "packSha256": "931ed42b0fe43595adefd0d854d0d7f7ba4a55dc16fc8b4ac81f2dbaf8792e37",
+  "assetReview": {
+    "schema": "harbeat.drum-loop-asset-review.v1",
+    "reviewedAt": "2026-10-18T03:50:33.108437+00:00",
+    "status": "pass",
+    "selectionSha256": "2b24fb324af670a94340d17c8c91dc371f642f456b1b57e4f315e4b04971d67b",
+    "packSha256": "931ed42b0fe43595adefd0d854d0d7f7ba4a55dc16fc8b4ac81f2dbaf8792e37",
+    "assetCount": 24,
+    "allAssetHashesBytesFormatsAndDecodedFramesValid": true,
+    "allFixedPlansAndFormalBassChoicesPreserved": true,
+    "allLoopTargetsEndAtOriginalAExit": true,
+    "scope": "Independent local artifact integrity audit; does not substitute for listening or browser playback QA."
+  },
+  "cases": [
+    {
+      "id": "drum-loop-01",
+      "originalCaseId": "neighbor-funk-2",
+      "pair": [
+        "If I Saw You Again",
+        "Hamba Nobani"
+      ],
+      "baselineBass": "stem",
+      "planSha256": "f456d397ae2ff0b4c7a7273df67872a1cd21cb72a1f6a9135d32efc1da34d3a0",
+      "category": "thinning",
+      "sourceBar": [
+        165.38,
+        167.52
+      ],
+      "applyWindow": [
+        4.2756462585034,
+        8.695646258503402
+      ],
+      "metrics": {
+        "ratio": 0.32639174313205593,
+        "earlyActive": 1.0,
+        "targetActive": 0.25,
+        "targetBeatCv": 1.4792030419141182,
+        "loopBeatMappingErrorSec": [
+          0.014766355140181986,
+          0.020186915887848045
+        ]
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-cbd413e0e1c43d7e419f-cbd413e0e1c4-a268a5c-381fa2d8",
+          "manifestSha256": "f6fa13e8c6d7048e86c6d34935aa6b82ba108f2689fac7c0215449bb7dc73822",
+          "masterSha256": "cbd413e0e1c43d7e419f4f23797b25598f59570880815d2b9c33d5b2f1744269",
+          "bassSha256": "2392466a124193dd23799062f8d6cdc50e3c202dfa1cbf950a88e4e651c90f26",
+          "drumSha256": "6aefe630bcf6f2197492407734bd08ecb9995af9c2e8907ccdd63a3d6cc24295"
+        },
+        "b": {
+          "runId": "run-track-19dd6399e3f1caa0a9fa-19dd6399e3f1-a268a5c-fafb4c8c",
+          "manifestSha256": "6254c420597abeec854c097ce7dcc8590574a38aea4bf83ba61fd98a79132de4",
+          "masterSha256": "19dd6399e3f1caa0a9fad6aa7e05011eb08f992decf83808273eba58a16ff90b",
+          "bassSha256": "492fa37f98d1fc24549f6a0f22779cb6530d3850e16ed17ed4cf59176fcd8958"
+        }
+      },
+      "drumRendering": {
+        "sourceFrames": [
+          175326,
+          269700
+        ],
+        "targetFrames": [
+          [
+            364956,
+            463740
+          ],
+          [
+            463740,
+            559878
+          ]
+        ],
+        "entryFadeFrames": 221,
+        "internalSeamBridgeFrames": 32,
+        "sameSourceBarEachTarget": true,
+        "outsideTargetRawPcmIdentical": true,
+        "outsideTargetDecodedMaxError": 0.0,
+        "naturalTargetRms": 0.034011253178281214,
+        "loopTargetRms": 0.09916628354822167,
+        "method": "each copy uses same source bar with WSOLA ratio sourceFrames/targetFrames; no arm-specific normalization"
+      },
+      "assets": [
+        {
+          "key": "aMaster",
+          "frames": 559878,
+          "bytes": 4479138,
+          "sha256": "8eaa85130c3196715d4c5da762aa3eeb79e6c9743276f9ae9c3aeb867e296246"
+        },
+        {
+          "key": "aBass",
+          "frames": 559878,
+          "bytes": 1782159,
+          "sha256": "b8d82df2a7a5ba0448aef1411a6c313c1305958c93b955530ab3bb0f6278691b"
+        },
+        {
+          "key": "aDrum",
+          "frames": 559878,
+          "bytes": 2313840,
+          "sha256": "402e1e34f02bc0d016b427553251ff1e74ee5e5f71e73a703ca34dee2c081786"
+        },
+        {
+          "key": "aLoopDrum",
+          "frames": 559878,
+          "bytes": 2453427,
+          "sha256": "dc5a3bd645a4cf59b644e83d12b9143268a327136c1cb3b3f2c59aca1023695c"
+        },
+        {
+          "key": "bEntryMaster",
+          "frames": 383478,
+          "bytes": 1743262,
+          "sha256": "9c92a37e6ab2dee6ef23ac713745f244acfda58e6594375b08468588fe22ffdf"
+        },
+        {
+          "key": "bEntryBass",
+          "frames": 383478,
+          "bytes": 1165843,
+          "sha256": "3f2ca5d59f737359bad1d43da27ee312b8158cc5cdead9ae02c82d6cda48d27c"
+        },
+        {
+          "key": "bBodyMaster",
+          "frames": 352800,
+          "bytes": 1612770,
+          "sha256": "f128b3c559a32e414ebba6b23a0b62c8197faee5c44d895c839e6eaedfa32386"
+        },
+        {
+          "key": "bBodyBass",
+          "frames": 352800,
+          "bytes": 1075928,
+          "sha256": "3b925887ab7313684f21398274f5ee413136b6c19ede0deecb62da7b0d75967a"
+        }
+      ]
+    },
+    {
+      "id": "drum-loop-02",
+      "originalCaseId": "coverage-edm",
+      "pair": [
+        "Nevada",
+        "SOMETHING AIN'T RIGHT"
+      ],
+      "baselineBass": "stem",
+      "planSha256": "a1d51f30490f3cb1cb357e69f92e8d672468dde2a203fd0dc5f29de196d49ba8",
+      "category": "thinning",
+      "sourceBar": [
+        180.04,
+        181.98
+      ],
+      "applyWindow": [
+        3.819999999999993,
+        7.68
+      ],
+      "metrics": {
+        "ratio": 0.6955397309442966,
+        "earlyActive": 1.0,
+        "targetActive": 0.5,
+        "targetBeatCv": 0.7611507354931676,
+        "loopBeatMappingErrorSec": [
+          0.01484536082472232,
+          2.842170943040401e-14
+        ]
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76",
+          "manifestSha256": "bde69d3063ea1deb14a2a2eeeaf511933e8dda273ad5474d9fcee832ded28978",
+          "masterSha256": "aab34351ca8529caf4f243c13c5e62cea10178bab9a057f996235b4015decf54",
+          "bassSha256": "b83f118f359dc1f61636f775505bd1dc08cce6050498e230d7e982574a474427",
+          "drumSha256": "a5c840aca0bc141e465bdbf9de0c4105a58eab65882555a3ca431f68ae76f67c"
+        },
+        "b": {
+          "runId": "run-track-ec77d16b9f1c0372f326-ec77d16b9f1c-a268a5c-ee2a05ea",
+          "manifestSha256": "d21b5088f77fbcbf3c93340bda651f40b1a5de69a4324c8457f2ece660fa5a61",
+          "masterSha256": "ec77d16b9f1c0372f32608aa535f06d2b9739ba574e909c20d6d58c3514e11a1",
+          "bassSha256": "d7d28353d03c271f2ec70eb233d69a1032a904b284e80cc61cba5174074d3ba7"
+        }
+      },
+      "drumRendering": {
+        "sourceFrames": [
+          173754,
+          259308
+        ],
+        "targetFrames": [
+          [
+            344862,
+            429534
+          ],
+          [
+            429534,
+            515088
+          ]
+        ],
+        "entryFadeFrames": 221,
+        "internalSeamBridgeFrames": 32,
+        "sameSourceBarEachTarget": true,
+        "outsideTargetRawPcmIdentical": true,
+        "outsideTargetDecodedMaxError": 0.0,
+        "naturalTargetRms": 0.14131150985332996,
+        "loopTargetRms": 0.20181436412630965,
+        "method": "each copy uses same source bar with WSOLA ratio sourceFrames/targetFrames; no arm-specific normalization"
+      },
+      "assets": [
+        {
+          "key": "aMaster",
+          "frames": 515088,
+          "bytes": 4120818,
+          "sha256": "0044c8ae4a4ae4ee04c9823e9d5e0fdacde2bda69ec032bc7df4c88ae8737849"
+        },
+        {
+          "key": "aBass",
+          "frames": 515088,
+          "bytes": 1837564,
+          "sha256": "329463bebd77933ad3149cabb04d664818d16ae705e1f29c952a430c342822cb"
+        },
+        {
+          "key": "aDrum",
+          "frames": 515088,
+          "bytes": 2373359,
+          "sha256": "edd44f4e92ab724ae400c323abe35b6da4c46d604946e89ca1f6ee9de2e2ed7b"
+        },
+        {
+          "key": "aLoopDrum",
+          "frames": 515088,
+          "bytes": 2394818,
+          "sha256": "28c1aca79e420746272ec595d37d12119a14e03a376dd04805e512ea7ef8f4fb"
+        },
+        {
+          "key": "bEntryMaster",
+          "frames": 338688,
+          "bytes": 2709618,
+          "sha256": "9c97987e25d07302de225acbed76bd48461c1ac58c4c2a76f423f8c593acb641"
+        },
+        {
+          "key": "bEntryBass",
+          "frames": 338688,
+          "bytes": 1099794,
+          "sha256": "349818992ad4970453869f148fb5eea51b495e47a3136fff25a2632a7d25904d"
+        },
+        {
+          "key": "bBodyMaster",
+          "frames": 352800,
+          "bytes": 2822514,
+          "sha256": "d0a90054407641691c07073b93da36be3a80d22e0c978e6efcb3fac9adac37a8"
+        },
+        {
+          "key": "bBodyBass",
+          "frames": 352800,
+          "bytes": 1146952,
+          "sha256": "2b30912a32ed487e59b5efbb243cfa4e4816ca12d584f2bfa8aae2c7bff741c4"
+        }
+      ]
+    },
+    {
+      "id": "drum-loop-03",
+      "originalCaseId": "coverage-jazz",
+      "pair": [
+        "Love Note (Original Instrumental)",
+        "Feather"
+      ],
+      "baselineBass": "stem",
+      "planSha256": "fddc94b9da8e61415ab8a57ba753ea524eaefb45aa711b066f7a11383b83e521",
+      "category": "stable",
+      "sourceBar": [
+        203.24,
+        205.91
+      ],
+      "applyWindow": [
+        5.336666666666673,
+        10.666666666666666
+      ],
+      "metrics": {
+        "ratio": 1.0231029244190433,
+        "earlyActive": 1.0,
+        "targetActive": 1.0,
+        "targetBeatCv": 0.3901274072888548,
+        "loopBeatMappingErrorSec": [
+          0.004981273408247944,
+          0.010000000000019327
+        ]
+      },
+      "sourceVerification": {
+        "a": {
+          "runId": "run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d",
+          "manifestSha256": "b29535b682d88db67103ffd01a69ea169f681ccf38c7e3dc1d1e51f9abd2a460",
+          "masterSha256": "1f5e732a369cc1becc273b4587ae50abbec5d5dee185fcf35db7aedca62f8f15",
+          "bassSha256": "bf56515a80a73d2cd240bb3dd739d0998c389f29cf19d2fc130ec6b189e65467",
+          "drumSha256": "117bcd4ce0994cc456932fe546483f87505da04a12918a417b41dffb95833608"
+        },
+        "b": {
+          "runId": "run-track-800c87e20dd333ab44b4-800c87e20dd3-a268a5c-77dd857c",
+          "manifestSha256": "145afa50fb793db4eaa5e57ce23489f1691caa3a9516ab60848cd8d1f373804d",
+          "masterSha256": "800c87e20dd333ab44b48aace7ddf657eb5c070e8a1bcce5071d6ec0985e297c",
+          "bassSha256": "c6d027db5b24a79692fbb1f7d14e5dee4efee5b7ec47964e777e891a30aec784"
+        }
+      },
+      "drumRendering": {
+        "sourceFrames": [
+          176253,
+          294000
+        ],
+        "targetFrames": [
+          [
+            411747,
+            529053
+          ],
+          [
+            529053,
+            646800
+          ]
+        ],
+        "entryFadeFrames": 221,
+        "internalSeamBridgeFrames": 32,
+        "sameSourceBarEachTarget": true,
+        "outsideTargetRawPcmIdentical": true,
+        "outsideTargetDecodedMaxError": 0.0,
+        "naturalTargetRms": 0.13337768274024137,
+        "loopTargetRms": 0.1345652997600206,
+        "method": "each copy uses same source bar with WSOLA ratio sourceFrames/targetFrames; no arm-specific normalization"
+      },
+      "assets": [
+        {
+          "key": "aMaster",
+          "frames": 646800,
+          "bytes": 5174514,
+          "sha256": "513cde1bc89e9adb7c0630067aef047c6f913b1c707b7b215dcad29e0e56e771"
+        },
+        {
+          "key": "aBass",
+          "frames": 646800,
+          "bytes": 1904907,
+          "sha256": "0b75e63188241ef366d7ad2fd49d63a85831c169f617557b34993d7a495528fc"
+        },
+        {
+          "key": "aDrum",
+          "frames": 646800,
+          "bytes": 2764866,
+          "sha256": "a2b3cca2a24583d45dd05d1cd5522f371938c0b80af8782b7e74cbd185cced2b"
+        },
+        {
+          "key": "aLoopDrum",
+          "frames": 646800,
+          "bytes": 2765631,
+          "sha256": "78592a1883d1e527928ffe3b8d09ec4724c0b9cc6ad025f45c5b44b4e6b4a746"
+        },
+        {
+          "key": "bEntryMaster",
+          "frames": 470400,
+          "bytes": 1888014,
+          "sha256": "6120b132a7eff7688e3c49a1436b0effe612b0fd2fc9a28d6c2797f203b967cd"
+        },
+        {
+          "key": "bEntryBass",
+          "frames": 470400,
+          "bytes": 1539648,
+          "sha256": "43495dcc110c793f4e617d6fec265fc11220b12e31a71a58d93c0e5a482c4465"
+        },
+        {
+          "key": "bBodyMaster",
+          "frames": 352800,
+          "bytes": 2822514,
+          "sha256": "3d65f9b59e214ad5a18ce6e996a438af83524ffb715ec964c669c685c7d0f45d"
+        },
+        {
+          "key": "bBodyBass",
+          "frames": 352800,
+          "bytes": 1164871,
+          "sha256": "dbe4b2efcb9b7ef2e25993fce549adb149e1fbd78e69fc2f9a08a96c4ce791e5"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "typescriptTestsPassed": 203,
+    "optionalCorpusTestSkipped": 1,
+    "newPythonDrumTestsPassed": 7,
+    "previousRendererTestsPassed": 12,
+    "typescriptTypeCheck": "pass",
+    "isolatedProductionBuild": "pass",
+    "independentCodeReview": "pass; first-render timing and stable-control reservation findings fixed before final review",
+    "browser": {
+      "schema": "harbeat.drum-loop-browser-qa.v1",
+      "status": "pass",
+      "counts": {
+        "bass_requested": 7,
+        "bass_stopped": 1,
+        "bass_started": 6,
+        "audio_observation": 36,
+        "bass_render_started": 6,
+        "bass_finished": 6
+      },
+      "observationLateCount": 0,
+      "completeArms": 6,
+      "observationCount": 36,
+      "earlyChoiceWithoutPlayback": true,
+      "canceledLoadingNotCountedAsPlayed": true,
+      "postRevealEditsRetainFirstChoice": true,
+      "practiceRestoredAfterReload": true,
+      "priorLogsRetainedAfterReload": true,
+      "formalRoundRestoredAfterSecondReload": true,
+      "formalRoundClean": true,
+      "practiceExcludedFromListenerRoundIds": true,
+      "actualFirstLetters": [
+        "A",
+        "B",
+        "A"
+      ],
+      "formalRecommendedFirstLetters": [
+        "B",
+        "A",
+        "B"
+      ],
+      "sameFrozenNonDrumConditions": true,
+      "drumCorrectionVerified": true,
+      "consoleErrorsOrWarnings": 0,
+      "currentFormalRoundId": "623e2c05-1b0c-4af0-86ce-1b2c46622512",
+      "practiceRoundId": "cd6f5605-ce61-44b8-bf0f-edcbda1560ef"
+    }
+  },
+  "artifacts": {
+    "screenshot": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/drum-loop.png",
+    "assetAudit": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/final-asset-review.json",
+    "practiceExport": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/browser-practice.json",
+    "restoredExport": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/browser-restored.json",
+    "formalExport": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/browser-formal.json"
+  },
+  "limitations": [
+    "Three specific paired examples cannot establish universal effectiveness.",
+    "RMS/activity measurements select candidates; they do not validate groove or perceptual improvement.",
+    "Drums include cymbals/percussion; no isolated percussion-only stem exists. Separation bleed may remain.",
+    "Both arms share the newly rendered clips; texture may differ from earlier auditions.",
+    "No per-arm loudness normalization; perceived loudness is recorded separately.",
+    "First votes may be partial-listening judgements; immutable heard snapshots distinguish them.",
+    "Render-quantum observations verify scheduling, not speaker latency or subjective audio quality."
+  ]
+}

@@ -155,3 +155,8 @@ web/dist-vocal-bridge/
 /web/neighbor-audio/
 /web/bass-neighbors-data.json
 /web/dist-bass-neighbors/
+
+# Isolated conditional drum loop audition assets and build
+/web/drum-loop-audio/
+/web/drum-loop-data.json
+/web/dist-drum-loop/
