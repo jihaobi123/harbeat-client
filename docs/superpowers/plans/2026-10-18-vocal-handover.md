@@ -31,3 +31,11 @@ Independent review found one important anchor-binding gap, fixed with a failing-
 ## Browser acceptance
 
 Practice round4d87aa05-c030-4e4b-ac50-6f11a2397c7e completed all six arms with36on-time render observations, no playback failures or browser errors/warnings. All frozen plans/EQ/bass/assets/incoming-vocal curves and relative native takeover times match; natural/relay accompaniment and outgoing-vocal curves differ as designed. Early votes, solo vocal Play/Pause, archive and reload/export passed. Practice choices are excluded. Blank formal round0d0abe4b-3203-4f22-a943-769dc9e1a740 remains with zero starts/heard/choices/reveals. Common limiter reached minimum0.9398021 in GOOD BOY relay (~0.54dB attenuation); all other arms1. This is an observed output-chain difference, not a loudness-equivalence claim. Formal listener review is still pending.
+
+## Formal listener results — 2026-10-18
+
+Round0d0abe4b-3203-4f22-a943-769dc9e1a740 completed all three initial blind choices. Doin’ It → Talgo:A/relay; WANNABE → Tonight:B/natural; GOOD BOY → Snake Gang:B/relay. Both versions of all three cases had rendered the protected-end position and original native takeover before the first vote, including the earlier GOOD BOY relay pass before its repeat. No complete-clip requirement is imposed. Practice round4d87aa05 is excluded. Raw export and coverage analysis are retained under the vocal-handover work directory, with hashes in evidence.
+
+Two relay preferences and one natural preference establish mixed case-specific usefulness. There are no tie or neither choices, no reported symptoms or notes, and no basis to label an artifact, incomplete lyric or exact cause. The preferred relay cases have7.895/10.116soverlaps and2.938/4.099sof outgoing voice after early bed transfer; natural-preferred WANNABE has3.967soverlap and1.204sof voice after bed transfer. Available handover space is a hypothesis for further replication, not a duration threshold or causal conclusion. GOOD BOY relay mild limiter attenuation and unmatched perceived loudness remain limitations.
+
+This prepared round's listener choices are complete and archived. Keep original defaults; no universal activation, automatic threshold, new effect or combined-method experiment was added when reading these results.

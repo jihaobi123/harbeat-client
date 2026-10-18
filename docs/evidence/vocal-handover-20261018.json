@@ -1,7 +1,7 @@
 {
   "schema": "harbeat.vocal-handover-evidence.v1",
   "date": "2026-10-18",
-  "scope": "local individual vocal-handover audition; no echo, no production changes, awaiting listener choices",
+  "scope": "local individual vocal-handover audition; formal3-case choices complete; no echo or production changes",
   "url": "http://127.0.0.1:5197/vocal-handover.html",
   "packSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
   "selectionSha256": "de6f0380ee088c7fe4329bcfcbb19230bae0c18d5a6f7f2fa6fe7b1a9fd0c221",
@@ -328,5 +328,83 @@
     "Anchor explicit binding recorded after new inference began but matches earlier delivered frozen snapshot",
     "Depends on pre-existing local coverage-v2 reporter/validator working changes; generated audio and model results are separate artifacts",
     "User preferences and general applicability remain unknown until formal audition feedback"
-  ]
+  ],
+  "listenerFeedback": {
+    "roundId": "0d0abe4b-3203-4f22-a943-769dc9e1a740",
+    "feedbackSha256": "9cfa7774121251353e0814f423ae6a1b32fa92d6003a524d36b9b9536d8a6090",
+    "analysisSha256": "a33f8db17a0cdda553432f9241381ce53a77f098e69b5e5166e9aa3d54d9c4ff",
+    "results": [
+      {
+        "caseId": "vocal-handover-01",
+        "pair": [
+          "Doin' It",
+          "Talgo"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "A",
+        "selectedMethod": "relay",
+        "initialBlind": true,
+        "bothTransitionsCoveredBeforeVote": true,
+        "symptoms": [],
+        "notes": ""
+      },
+      {
+        "caseId": "vocal-handover-02",
+        "pair": [
+          "WANNABE",
+          "Tonight"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "B",
+        "selectedMethod": "natural",
+        "initialBlind": true,
+        "bothTransitionsCoveredBeforeVote": true,
+        "symptoms": [],
+        "notes": ""
+      },
+      {
+        "caseId": "vocal-handover-03",
+        "pair": [
+          "GOOD BOY",
+          "Snake Gang"
+        ],
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "choice": "B",
+        "selectedMethod": "relay",
+        "initialBlind": true,
+        "bothTransitionsCoveredBeforeVote": true,
+        "symptoms": [],
+        "notes": ""
+      }
+    ],
+    "resultCounts": {
+      "relay": 2,
+      "natural": 1,
+      "tie": 0,
+      "none": 0
+    },
+    "interpretation": {
+      "supported": "Prefer relay for these Doin It and GOOD BOY frozen examples; retain natural for this WANNABE example. No universal activation.",
+      "hypothesis": "The two preferred relay cases have longer overlaps (~7.9 and10.1s) and more outgoing vocal remaining after early bed transfer (~2.94 and4.10s), compared with the natural-preferred short3.97s case (~1.20s). Treat available vocal/bed handover space as a replication hypothesis, not a threshold or causal explanation.",
+      "limits": [
+        "Three exploratory cases, single listener; no significance or universal claim",
+        "No symptom selections or notes; cannot attribute preference to truncation, genre, vocal clarity or absence of artifacts",
+        "All incoming windows passed conservative activity gates; no evidence for using this method with two simultaneous vocals",
+        "GOOD BOY relay had mild common-limiter attenuation, and perceived loudness was not independently matched",
+        "Acoustic endpoint candidates are not certified lyric boundaries"
+      ]
+    },
+    "practiceExcluded": [
+      "4d87aa05-c030-4e4b-ac50-6f11a2397c7e"
+    ]
+  }
 }
