@@ -2,7 +2,7 @@
   "schema": "harbeat.rhythm-bridge-evidence.v1",
   "date": "2026-10-18",
   "url": "http://127.0.0.1:5200/rhythm-bridge.html",
-  "scope": "Single independent complementary natural drum handover; listener preferences pending",
+  "scope": "Independent natural drum bridge listener round completed:1bridge/2original; no automatic activation",
   "selectionSha256": "eeff2ad89b2e3448a0281f45ca7dc40c34f081c23707863e6fc22111d18da99d",
   "packSha256": "e92197d0a31e00b62ef7544c4d2b2d54a962366c693f1d0907d7e1916c8c78be",
   "sourcePackSha256": "589762acc5e9e2d05831b9cf0cc6a70ffc8947b22c178381d7ebaa280cef1ae8",
@@ -390,7 +390,7 @@
     "newPythonTests": 9
   },
   "browser": {
-    "status": "passed; formal listener pending",
+    "status": "Practice and blank-formal delivery checks passed; completed listener results archived below",
     "practiceRoundId": "cd6afdbb-7b0e-4d75-bf82-79bf31d6a7da",
     "practiceExportSha256": "7536c097edb4f351f45db6d9034a66a96776e04516e964f96781ad2ab0a85662",
     "plays": [
@@ -463,15 +463,505 @@
       "heard": {}
     },
     "formalRoundId": "335b4639-46b0-4276-a213-de6788e0b6cb",
-    "formalChoices": 0,
-    "formalStarts": 0,
     "historyAndPlayerLogsPreservedAfterReload": true,
     "formalExportSha256": "3a696b2b6de5ae4c35e6874e18a174194d717d8bd88dacab403065528254473c",
-    "screenshotSha256": "9f15fc44ebdf987d66f70b0787df4b1de5d20b9d804371ca1949c68260416940"
+    "screenshotSha256": "9f15fc44ebdf987d66f70b0787df4b1de5d20b9d804371ca1949c68260416940",
+    "formalChoicesAtDelivery": 0,
+    "formalStartsAtDelivery": 0
   },
   "protectedExistingModifications": {
     "files": 14,
     "changed": []
   },
-  "outputObservation": "All six play minimum limiter gains were1; no limiter gain reduction observed. Peaks are measured before shared output gain0.7, not listening judgments."
+  "outputObservation": "All six play minimum limiter gains were1; no limiter gain reduction observed. Peaks are measured before shared output gain0.7, not listening judgments.",
+  "listener": {
+    "schema": "harbeat.rhythm-bridge-choice-analysis.v1",
+    "roundId": "335b4639-46b0-4276-a213-de6788e0b6cb",
+    "feedbackSha256": "9ff0d3bd9f004015e356d60dc17d8d372c6d64e01cfde7bd4f34c1658eb3b682",
+    "selectionSha256": "eeff2ad89b2e3448a0281f45ca7dc40c34f081c23707863e6fc22111d18da99d",
+    "excludedPracticeRoundIds": [
+      "cd6afdbb-7b0e-4d75-bf82-79bf31d6a7da"
+    ],
+    "counts": {
+      "natural": 2,
+      "relay": 1
+    },
+    "cases": [
+      {
+        "id": "rhythm-bridge-01",
+        "aTitle": "Meant To Be",
+        "bTitle": "HIPHOP",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "B",
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-18T14:33:19.327Z",
+          "heard": {
+            "A": "2026-10-18T13:17:48.859Z"
+          }
+        },
+        "preferredMethod": "natural",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-18T13:17:21.085Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "preVoteCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "rhythm-bridge-1792329440903-1",
+            "letter": "B",
+            "method": "natural",
+            "startedAt": "2026-10-18T13:17:20.962Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T13:17:21.085Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T13:17:25.091Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T13:17:27.309Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T13:17:29.571Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 11.054285714285713,
+            "nativeTakeoverPosition": 8.481791383219955
+          },
+          {
+            "sessionId": "rhythm-bridge-1792329452187-2",
+            "letter": "A",
+            "method": "relay",
+            "startedAt": "2026-10-18T13:17:32.198Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T13:17:32.301Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T13:17:36.301Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T13:17:38.526Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T13:17:40.781Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-18T13:17:48.781Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 16.481791383219957,
+            "nativeTakeoverPosition": 8.481791383219955
+          },
+          {
+            "sessionId": "rhythm-bridge-1792333964309-3",
+            "letter": "B",
+            "method": "natural",
+            "startedAt": "2026-10-18T14:32:44.323Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:32:44.424Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:32:48.458Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:32:50.677Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:32:52.939Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 16.13074829931884,
+            "nativeTakeoverPosition": 8.481791383219955
+          },
+          {
+            "sessionId": "rhythm-bridge-1792333980610-4",
+            "letter": "A",
+            "method": "relay",
+            "startedAt": "2026-10-18T14:33:00.632Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:33:00.730Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:33:04.730Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:33:06.955Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:33:09.210Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 9.295374149660347,
+            "nativeTakeoverPosition": 8.481791383219955
+          },
+          {
+            "sessionId": "rhythm-bridge-1792333990109-5",
+            "letter": "B",
+            "method": "natural",
+            "startedAt": "2026-10-18T14:33:10.124Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:33:10.223Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:33:14.223Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:33:16.448Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:33:18.703Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": null,
+            "nativeTakeoverPosition": 8.481791383219955
+          }
+        ],
+        "features": {
+          "a": {
+            "rms": 0.08376690751451092,
+            "beforeBridgeRms": 0.10891297692694696,
+            "bridgeRms": 0.047472805668060475,
+            "bridgeToEarlierRatio": 0.4358783223775319,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bEntry": {
+            "rms": 0.20310925666279492,
+            "beforeBridgeRms": 0.26375915706066,
+            "bridgeRms": 0.11582988741932747,
+            "bridgeToEarlierRatio": 0.4391502032010537,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bBody": {
+            "rms": 0.2285639449772262,
+            "beforeBridgeRms": 0.2741755388768424,
+            "bridgeRms": 0.20838504125003066,
+            "bridgeToEarlierRatio": 0.7600424242938597,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          }
+        },
+        "limitation": "Early voting allowed; full-clip completion is not required"
+      },
+      {
+        "id": "rhythm-bridge-02",
+        "aTitle": "Attention",
+        "bTitle": "HIPHOP",
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "choice": "B",
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-18T14:34:55.310Z",
+          "heard": {}
+        },
+        "preferredMethod": "relay",
+        "recommendedOrder": [
+          "A",
+          "B"
+        ],
+        "firstPlayed": {
+          "letter": "A",
+          "at": "2026-10-18T14:34:23.821Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "preVoteCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "rhythm-bridge-1792334063676-7",
+            "letter": "A",
+            "method": "natural",
+            "startedAt": "2026-10-18T14:34:23.720Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:34:23.821Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:34:27.854Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:34:34.728Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:34:37.006Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 14.978458049886285,
+            "nativeTakeoverPosition": 13.151564625850341
+          },
+          {
+            "sessionId": "rhythm-bridge-1792334078843-8",
+            "letter": "B",
+            "method": "relay",
+            "startedAt": "2026-10-18T14:34:38.870Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:34:38.968Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:34:42.969Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:34:49.843Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:34:52.115Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": null,
+            "nativeTakeoverPosition": 13.151564625850341
+          }
+        ],
+        "features": {
+          "a": {
+            "rms": 0.10598924463140089,
+            "beforeBridgeRms": 0.10613985518477524,
+            "bridgeRms": 0.10553269554372109,
+            "bridgeToEarlierRatio": 0.9942796262535203,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bEntry": {
+            "rms": 0.24193864070659687,
+            "beforeBridgeRms": 0.2449562963884115,
+            "bridgeRms": 0.232579425383111,
+            "bridgeToEarlierRatio": 0.9494731460763299,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bBody": {
+            "rms": 0.2429776548109559,
+            "beforeBridgeRms": 0.24679090896480266,
+            "bridgeRms": 0.21818935371902784,
+            "bridgeToEarlierRatio": 0.8841061230101714,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          }
+        },
+        "limitation": "Early voting allowed; full-clip completion is not required"
+      },
+      {
+        "id": "rhythm-bridge-03",
+        "aTitle": "All Falls Down",
+        "bTitle": "GRILLZ (feat. Ilir808)",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "B",
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-18T14:35:29.909Z",
+          "heard": {}
+        },
+        "preferredMethod": "natural",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-18T14:35:00.072Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "preVoteCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "rhythm-bridge-1792334099925-10",
+            "letter": "B",
+            "method": "natural",
+            "startedAt": "2026-10-18T14:34:59.973Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:35:00.072Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:35:04.073Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:35:11.432Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:35:13.870Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 14.27895691609956,
+            "nativeTakeoverPosition": 13.795918367346939
+          },
+          {
+            "sessionId": "rhythm-bridge-1792334114426-11",
+            "letter": "A",
+            "method": "relay",
+            "startedAt": "2026-10-18T14:35:14.446Z",
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-18T14:35:14.547Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-18T14:35:18.547Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-18T14:35:25.902Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-18T14:35:28.340Z",
+                "lateFrames": 0
+              }
+            ],
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": null,
+            "nativeTakeoverPosition": 13.795918367346939
+          }
+        ],
+        "features": {
+          "a": {
+            "rms": 0.1586119752640275,
+            "beforeBridgeRms": 0.1829516781376194,
+            "bridgeRms": 0.009731612245954962,
+            "bridgeToEarlierRatio": 0.0531922546161871,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bEntry": {
+            "rms": 0.16669709410371217,
+            "beforeBridgeRms": 0.15183126809689426,
+            "bridgeRms": 0.2050931198557591,
+            "bridgeToEarlierRatio": 1.3507963308643032,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          },
+          "bBody": {
+            "rms": 0.15833665821709306,
+            "beforeBridgeRms": 0.15156383813458485,
+            "bridgeRms": 0.22145335433790028,
+            "bridgeToEarlierRatio": 1.4611226336275234,
+            "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+          }
+        },
+        "limitation": "Original was stopped about0.48safter native takeover; later passage not fully evaluated before vote"
+      }
+    ],
+    "overallUserComment": {
+      "quote": "但是我觉得整体没有上一个混音效果最后带来的结果好但是要比什么都不加好一点点",
+      "comparisonTarget": "上一种效果未明确命名；本轮没有把该效果与鼓桥接放在同一轮直接对照",
+      "interpretation": "Overall subjective impression: slightly above no added treatment, less satisfying than previous effect. Preserve separately from categorical per-pair preferences; does not imply a universal improvement or measured effect size."
+    },
+    "findings": [
+      "Attention preferred natural drum bridge; outgoing raw stem RMS stays nearly steady into final bar (ratio0.994). Replication lead only.",
+      "Meant To Be preferred original; outgoing final-bar raw drum RMS ratio0.436.",
+      "All Falls Down preferred original; outgoing final-bar raw drum RMS ratio0.053. Holding a thinning natural drum stem while withholding incoming drums is a possible loss-of-energy risk, not a listener-confirmed failure diagnosis.",
+      "All three covered both native takeovers before first blind votes. No symptoms, notes, reveals or formal playback failures reported.",
+      "Only3fixed pairs /1listener. Do not use ratios as thresholds or infer cross-effect ranking from separate rounds; retain original defaults."
+    ]
+  }
 }
