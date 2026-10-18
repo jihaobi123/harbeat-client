@@ -1,0 +1,477 @@
+{
+  "schema": "harbeat.rhythm-bridge-evidence.v1",
+  "date": "2026-10-18",
+  "url": "http://127.0.0.1:5200/rhythm-bridge.html",
+  "scope": "Single independent complementary natural drum handover; listener preferences pending",
+  "selectionSha256": "eeff2ad89b2e3448a0281f45ca7dc40c34f081c23707863e6fc22111d18da99d",
+  "packSha256": "e92197d0a31e00b62ef7544c4d2b2d54a962366c693f1d0907d7e1916c8c78be",
+  "sourcePackSha256": "589762acc5e9e2d05831b9cf0cc6a70ffc8947b22c178381d7ebaa280cef1ae8",
+  "cases": [
+    {
+      "id": "rhythm-bridge-01",
+      "parentCaseId": "melody-yield-01",
+      "aTitle": "Meant To Be",
+      "bTitle": "HIPHOP",
+      "bpm": [
+        107.1,
+        106.6
+      ],
+      "planSha256": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+      "bridgeStart": 2.221791383219937,
+      "lastBarSourceStart": 152.98,
+      "bridgeEnd": 4.481791383219955,
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+          "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+          "runId": "run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194",
+          "sectionSource": "songformer",
+          "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db",
+          "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+          "manifestSha256": "524b104eea0cec7585d920edfc215798ea3c27aa51a6b84a671ba5aed5bda523",
+          "drumSha256": "908360567de4c7b902c3a41136111dc902ce69fe881b320cc494ccf03f164fb6",
+          "drumStorageKey": "published/tracks/track-274577b1e51f104f4658/runs/run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194/audio/stems/drums.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "drumSha256": "4bde3b0e0790f264bc25d131fb9bc912dc5e67d87f7d2556748e80710c63821d",
+          "drumStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/drums.wav"
+        }
+      },
+      "features": {
+        "a": {
+          "rms": 0.08376690751451092,
+          "beforeBridgeRms": 0.10891297692694696,
+          "bridgeRms": 0.047472805668060475,
+          "bridgeToEarlierRatio": 0.4358783223775319,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bEntry": {
+          "rms": 0.20310925666279492,
+          "beforeBridgeRms": 0.26375915706066,
+          "bridgeRms": 0.11582988741932747,
+          "bridgeToEarlierRatio": 0.4391502032010537,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bBody": {
+          "rms": 0.2285639449772262,
+          "beforeBridgeRms": 0.2741755388768424,
+          "bridgeRms": 0.20838504125003066,
+          "bridgeToEarlierRatio": 0.7600424242938597,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-aMaster.wav",
+          "sha256": "85a78a3d776dbaacac1ada389a920973d54236e3e16a30e2a5de9b31c1769e0e",
+          "bytes": 2992490,
+          "duration": 8.481791383219955,
+          "frames": 374047,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0081912279129028
+        },
+        "aDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-aDrums.flac",
+          "sha256": "dbc1b75c020e3b9167d7c44336f81b1e071645cd416debf5ff47251fc0c18231",
+          "bytes": 1403012,
+          "duration": 8.481791383219955,
+          "frames": 374047,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8977978229522705
+        },
+        "bEntryMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-bEntryMaster.wav",
+          "sha256": "57a0e6f1eb744a728929b260cf4b4872bee5d90ff3d27eda59e2a9ac6ac23684",
+          "bytes": 1581290,
+          "duration": 4.481791383219955,
+          "frames": 197647,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0072883367538452
+        },
+        "bEntryDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-bEntryDrums.flac",
+          "sha256": "ca54e0b6e2b52ba9a33f41f125d297777668241415feff0efbcd5defc20559ea",
+          "bytes": 816782,
+          "duration": 4.481791383219955,
+          "frames": 197647,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9503675103187561
+        },
+        "bBodyMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-bBodyMaster.wav",
+          "sha256": "0ba92cab24c30e36c8017d01315ccf843122bcba0165a16d6288a3a512e26627",
+          "bytes": 2822514,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.014320731163025
+        },
+        "bBodyDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-01-bBodyDrums.flac",
+          "sha256": "4510b90384e9c7d9e7ba602df0f2cdde27beb57b6a2b811f5108bc056f00ebac",
+          "bytes": 1418349,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9900416135787964
+        }
+      }
+    },
+    {
+      "id": "rhythm-bridge-02",
+      "parentCaseId": "melody-yield-02",
+      "aTitle": "Attention",
+      "bTitle": "HIPHOP",
+      "bpm": [
+        104.9,
+        106.6
+      ],
+      "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+      "bridgeStart": 6.876564625850335,
+      "lastBarSourceStart": 153.612,
+      "bridgeEnd": 9.151564625850341,
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+          "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+          "runId": "run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab",
+          "sectionSource": "songformer",
+          "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e",
+          "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+          "manifestSha256": "c5636cb826726a4620434d426f03c11e03dde1615b420ddeef0d0b058f6fc8eb",
+          "drumSha256": "9241333ceb0561bfed8a7a423cc310b0169ba5e34a0e73172664d5f18cbf96e2",
+          "drumStorageKey": "published/tracks/track-642bd1ac0da727a3b53b/runs/run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab/audio/stems/drums.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "drumSha256": "4bde3b0e0790f264bc25d131fb9bc912dc5e67d87f7d2556748e80710c63821d",
+          "drumStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/drums.wav"
+        }
+      },
+      "features": {
+        "a": {
+          "rms": 0.10598924463140089,
+          "beforeBridgeRms": 0.10613985518477524,
+          "bridgeRms": 0.10553269554372109,
+          "bridgeToEarlierRatio": 0.9942796262535203,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bEntry": {
+          "rms": 0.24193864070659687,
+          "beforeBridgeRms": 0.2449562963884115,
+          "bridgeRms": 0.232579425383111,
+          "bridgeToEarlierRatio": 0.9494731460763299,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bBody": {
+          "rms": 0.2429776548109559,
+          "beforeBridgeRms": 0.24679090896480266,
+          "bridgeRms": 0.21818935371902784,
+          "bridgeToEarlierRatio": 0.8841061230101714,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-aMaster.wav",
+          "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+          "bytes": 4639986,
+          "duration": 13.151564625850341,
+          "frames": 579984,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.050370693206787
+        },
+        "aDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-aDrums.flac",
+          "sha256": "80ce3af5f38cbc816389b41f399b9c0305d75ffe5392d53e2927bbdffb1e0df4",
+          "bytes": 2420425,
+          "duration": 13.151564625850341,
+          "frames": 579984,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.867772102355957
+        },
+        "bEntryMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-bEntryMaster.wav",
+          "sha256": "1854d8c5b7825bbcd887b60664d0747a381d391e9aae5ff7b55f22c5b5ababed",
+          "bytes": 3228786,
+          "duration": 9.151564625850341,
+          "frames": 403584,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0167741775512695
+        },
+        "bEntryDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-bEntryDrums.flac",
+          "sha256": "a3d0c8c7cfd4e1023d6bca05304424c2865f3f01c3ddfaed8fe7cdc5084e94c4",
+          "bytes": 1642000,
+          "duration": 9.151564625850341,
+          "frames": 403584,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9259412288665771
+        },
+        "bBodyMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-bBodyMaster.wav",
+          "sha256": "173e67010349c43ebf6dc4991aadbcaaa90eda0f5e81d84b356abfc60cabb4e5",
+          "bytes": 2822514,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0109995603561401
+        },
+        "bBodyDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-02-bBodyDrums.flac",
+          "sha256": "d171cfdcce71158cb8a7122331a92f9234466371b8840c089359f60f5ddaf807",
+          "bytes": 1507600,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9539926648139954
+        }
+      }
+    },
+    {
+      "id": "rhythm-bridge-03",
+      "parentCaseId": "melody-yield-03",
+      "aTitle": "All Falls Down",
+      "bTitle": "GRILLZ (feat. Ilir808)",
+      "bpm": [
+        98,
+        98
+      ],
+      "planSha256": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+      "bridgeStart": 7.355918367346931,
+      "lastBarSourceStart": 174.8,
+      "bridgeEnd": 9.795918367346939,
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+          "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+          "runId": "run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92",
+          "sectionSource": "songformer",
+          "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20",
+          "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+          "manifestSha256": "3f6dc726f0466aa1011c6c0becb0de8fef2776464f7e5ab6a9227087e93d58fb",
+          "drumSha256": "584af0268218e785eaebe93750edc8ed72e0ded176909d9707b2eb77bfca1938",
+          "drumStorageKey": "published/tracks/track-0a1c8c54ff45b04f1568/runs/run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92/audio/stems/drums.wav"
+        },
+        "b": {
+          "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+          "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+          "runId": "run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d",
+          "sectionSource": "songformer",
+          "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8",
+          "reportId": "fa9350f33f41b643cf1e06f5238d65a1d5f5649581792b71618414e62075ae06",
+          "manifestSha256": "36b3e9eb52bae5fc97d475715848df45de928f663bc320441afd2a1ad475421f",
+          "drumSha256": "876bbdc27185b9db78b1dc5e7935b6e6a5097fe0ddafe0c7e41823f08b3ac7ff",
+          "drumStorageKey": "published/tracks/track-6bcba4d577699a35104c/runs/run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d/audio/stems/drums.wav"
+        }
+      },
+      "features": {
+        "a": {
+          "rms": 0.1586119752640275,
+          "beforeBridgeRms": 0.1829516781376194,
+          "bridgeRms": 0.009731612245954962,
+          "bridgeToEarlierRatio": 0.0531922546161871,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bEntry": {
+          "rms": 0.16669709410371217,
+          "beforeBridgeRms": 0.15183126809689426,
+          "bridgeRms": 0.2050931198557591,
+          "bridgeToEarlierRatio": 1.3507963308643032,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        },
+        "bBody": {
+          "rms": 0.15833665821709306,
+          "beforeBridgeRms": 0.15156383813458485,
+          "bridgeRms": 0.22145335433790028,
+          "bridgeToEarlierRatio": 1.4611226336275234,
+          "basis": "Natural decoded drum stem RMS only; not perceived mixed loudness, groove quality or validated suitability"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-aMaster.wav",
+          "sha256": "dbe9d47ddd0ed3d5bbf607a452bf16d9179c054dffac9149442944712fccd268",
+          "bytes": 4867314,
+          "duration": 13.795918367346939,
+          "frames": 608400,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.1136194467544556
+        },
+        "aDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-aDrums.flac",
+          "sha256": "abfb75508b2c324f32fda37efb40cf3a9d302a07d55b2add48ecfd7f9b7d3430",
+          "bytes": 2610465,
+          "duration": 13.795918367346939,
+          "frames": 608400,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9428701996803284
+        },
+        "bEntryMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-bEntryMaster.flac",
+          "sha256": "ad5db8cf771c6eff11001db9eb997e57f5bb6a50cf7c8fee36f3e254f4f3c7dc",
+          "bytes": 1532666,
+          "duration": 9.795918367346939,
+          "frames": 432000,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9057812094688416
+        },
+        "bEntryDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-bEntryDrums.flac",
+          "sha256": "957c6f1da85ac96c45d801b06c7e12cd9b299634982c0cf957859b9990842e7e",
+          "bytes": 1612505,
+          "duration": 9.795918367346939,
+          "frames": 432000,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8813868761062622
+        },
+        "bBodyMaster": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-bBodyMaster.flac",
+          "sha256": "29fd7faacc2be5dcff2026c21bd06bf43a842a9a51f0f86b48cead7ae00d2903",
+          "bytes": 1262261,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8933106064796448
+        },
+        "bBodyDrums": {
+          "url": "/rhythm-bridge-audio/rhythm-bridge-03-bBodyDrums.flac",
+          "sha256": "dac4f38c48244dff5203fb9882793e8d00b286c3a7265634b78fba0d6aeacc34",
+          "bytes": 1295898,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9558656215667725
+        }
+      }
+    }
+  ],
+  "skipped": [],
+  "rendering": "Master and actual natural drums jointly stretched as four channels; reference=master; treatment changes only complementary drum correction.",
+  "limitation": "Whole drums may contain separation bleed. No repeated audio or per-arm normalization. Original master non-drum fades, cues, rate, vocal checks and EQ unchanged. Shared four-channel WSOLA can differ from prior other-stem or single-master rendering; both current arms share assets. No universal eligibility rule.",
+  "tests": {
+    "typescript": 66,
+    "python": 11,
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "independentReview": "No Critical/Important after manifest freezing; minor names cleaned and three forged report/manifest/drum rejection tests added",
+    "newFrontendTests": 21,
+    "newPythonTests": 9
+  },
+  "browser": {
+    "status": "passed; formal listener pending",
+    "practiceRoundId": "cd6afdbb-7b0e-4d75-bf82-79bf31d6a7da",
+    "practiceExportSha256": "7536c097edb4f351f45db6d9034a66a96776e04516e964f96781ad2ab0a85662",
+    "plays": [
+      {
+        "caseId": "rhythm-bridge-01",
+        "mode": "natural",
+        "letter": "A",
+        "total": 16.481791383219957,
+        "observations": 5,
+        "peak": 0.7708837389945984,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      },
+      {
+        "caseId": "rhythm-bridge-01",
+        "mode": "relay",
+        "letter": "B",
+        "total": 16.481791383219957,
+        "observations": 5,
+        "peak": 0.7708837389945984,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      },
+      {
+        "caseId": "rhythm-bridge-02",
+        "mode": "relay",
+        "letter": "B",
+        "total": 21.15156462585034,
+        "observations": 5,
+        "peak": 0.8868745565414429,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      },
+      {
+        "caseId": "rhythm-bridge-02",
+        "mode": "natural",
+        "letter": "A",
+        "total": 21.15156462585034,
+        "observations": 5,
+        "peak": 0.8395315408706665,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      },
+      {
+        "caseId": "rhythm-bridge-03",
+        "mode": "relay",
+        "letter": "A",
+        "total": 21.79591836734694,
+        "observations": 5,
+        "peak": 0.8288238644599915,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      },
+      {
+        "caseId": "rhythm-bridge-03",
+        "mode": "natural",
+        "letter": "B",
+        "total": 21.79591836734694,
+        "observations": 5,
+        "peak": 0.8288238644599915,
+        "minimumLimiterGain": 1,
+        "allMarkersOnTime": true
+      }
+    ],
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "earlyPracticeChoice": {
+      "choice": "tie",
+      "at": "2026-10-18T13:06:09.908Z",
+      "heard": {}
+    },
+    "formalRoundId": "335b4639-46b0-4276-a213-de6788e0b6cb",
+    "formalChoices": 0,
+    "formalStarts": 0,
+    "historyAndPlayerLogsPreservedAfterReload": true,
+    "formalExportSha256": "3a696b2b6de5ae4c35e6874e18a174194d717d8bd88dacab403065528254473c",
+    "screenshotSha256": "9f15fc44ebdf987d66f70b0787df4b1de5d20b9d804371ca1949c68260416940"
+  },
+  "protectedExistingModifications": {
+    "files": 14,
+    "changed": []
+  },
+  "outputObservation": "All six play minimum limiter gains were1; no limiter gain reduction observed. Peaks are measured before shared output gain0.7, not listening judgments."
+}
