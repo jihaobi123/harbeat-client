@@ -36,3 +36,7 @@ Meant To Be and All Falls Down both crossed the yield boundary and native B take
 Conclusions: one benefit, one no clear improvement, one provisional original preference. Similar long durations9.15/9.80syield different choices, so duration alone cannot choose the technique. The favored-yield case has incoming other RMS0.38of outgoing, while other cases are near equal; this is an uncalibrated source observation and replication hypothesis, not an automatic trigger or causal explanation. Coarse pitch-profile cosine is highest in the yield-preferred case, so dissimilarity/key mismatch is not established as the trigger. No explicit failure symptom or artifact-free judgment can be inferred from empty checkboxes.
 
 Keep original defaults and these case-level records. Attention final takeover remains a limited-coverage item before calling every prepared transition fully reviewed. Do not advance to combined techniques or encode a duration/RMS/chroma threshold from this sample.
+
+## Listener completion
+
+Attention focused review formal6dd03770-edbc-4f02-b3ba-c5dad8a9b789 selected B/original at2026-10-18T12:56:07.999Z, after both modes had completed multiple seven-second passes. No reveal, symptoms or notes. This corroborates the initial original preference and closes the missing final takeover coverage; it is not another independent full-pair observation. Final melody yield round: one yield preference, one original preference, one tie. Keep original as default; proceed to standalone natural drum rhythm bridge.

@@ -10,3 +10,7 @@ The user authorized continuing the one-technique-at-a-time sequence. Attention's
 ## Acceptance
 
 47TypeScript tests, typecheck and standalone build passed. Independent reviewer found no important/critical issue. Actual full-plan offline worklet rendering succeeded for both modes, each with4on-time observations; full render maxima exactly matched prior realtime practice maxima0.8395315409/natural and0.8162351847/yield. Each focused7sbuffer completed with3on-time playback observations, no second DSP via bitwise-tested pass-through review clock, and no console errors/warnings. Early selection, unique-player log retention across refresh, archive/reload/export passed. Practice89c6fd63-7d41-40d3-a850-669a0bb9e37d excluded; blank formal6dd03770-edbc-4f02-b3ba-c5dad8a9b789 retained. Original5198formal cases exactly equal their earlier exported records. Raw render/PCM hashes, receipts and screenshot retained in work/melody-tail-review-20261018. Formal listener review remains pending.
+
+## Listener completion
+
+Attention focused review formal6dd03770-edbc-4f02-b3ba-c5dad8a9b789 selected B/original at2026-10-18T12:56:07.999Z, after both modes had completed multiple seven-second passes. No reveal, symptoms or notes. This corroborates the initial original preference and closes the missing final takeover coverage; it is not another independent full-pair observation. Final melody yield round: one yield preference, one original preference, one tie. Keep original as default; proceed to standalone natural drum rhythm bridge.

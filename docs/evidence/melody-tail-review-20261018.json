@@ -2,7 +2,7 @@
   "schema": "harbeat.melody-tail-review-evidence.v1",
   "date": "2026-10-18",
   "url": "http://127.0.0.1:5199/melody-tail-review.html",
-  "scope": "Focused Attention final takeover supplement; formal listener choice pending; no next effect or combination",
+  "scope": "Focused Attention final takeover supplement completed; original preferred with both arms fully covered before first blind vote",
   "selectionSha256": "440762048472ab3be6ff93003dce28a6387deb39f2316358e0283b20fdd00357",
   "parentPackSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
   "graphSha256": "09928f4b75b2384ad42752bd795c7383f20b043f5d781240ce62ec7373685529",
@@ -93,5 +93,36 @@
     "Prior and current full render peaks match exactly; this does not establish bit-for-bit equality to a previously unrecorded realtime PCM stream",
     "Five millisecond outer excerpt edges and original221frame limiter latency explicitly accounted for",
     "Previous formal preferences unchanged; no inference from practice or unfilled symptoms"
-  ]
+  ],
+  "listener": {
+    "schema": "harbeat.melody-tail-choice-analysis.v1",
+    "roundId": "6dd03770-edbc-4f02-b3ba-c5dad8a9b789",
+    "feedbackSha256": "c141324e124a2388cb11847e6e055fe9c35d5520501bc56d19f2aa70e6581f28",
+    "firstBlindChoice": {
+      "choice": "B",
+      "at": "2026-10-18T12:56:07.999Z",
+      "heard": {
+        "B": "2026-10-18T12:54:29.220Z",
+        "A": "2026-10-18T12:54:49.219Z"
+      }
+    },
+    "mapping": {
+      "A": "relay",
+      "B": "natural"
+    },
+    "preferredMethod": "natural",
+    "bothCompletedBeforeVote": true,
+    "symptoms": [],
+    "notes": "",
+    "conclusion": "Focused final takeover supplement corroborates the original Attention preference; not a second independent full-pair trial. Melody yield round remains relay1/original1/tie1; no universal trigger.",
+    "preVoteCompletedPasses": {
+      "natural": 4,
+      "relay": 4
+    },
+    "preVoteNativeTakeoverObserved": {
+      "natural": 6,
+      "relay": 6
+    },
+    "revealBeforeVote": false
+  }
 }
