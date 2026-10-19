@@ -2,7 +2,7 @@
   "schema": "harbeat.bed-gap-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5203/bed-gap.html",
-  "scope": "Standalone final-halfbeat accompaniment gap prepared; no formal listener choices yet",
+  "scope": "Standalone halfbeat accompaniment-gap listener review complete with exposure limitations; low priority by user request",
   "selectionSha256": "3fdc6b9d685df1ec662749c2741de2242050169ea91e7f8b9900f8749c88b998",
   "sourcePackSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
   "packSha256": "8e49ec53fd7817c38f52e38018cc1aa892c4928ec064a8a335cc3297e0eabb20",
@@ -1047,5 +1047,999 @@
   "workDirectory": "/Users/jihaobi/Documents/New project/work/bed-gap-20261019",
   "screenshot": "/Users/jihaobi/Documents/New project/work/bed-gap-20261019/bed-gap.png",
   "runtime": "Vite preview of fixed build on127.0.0.1:5203; no HMR",
-  "productionChanged": false
+  "productionChanged": false,
+  "listenerFeedback": {
+    "schema": "harbeat.bed-gap-choice-analysis.v1",
+    "date": "2026-10-19",
+    "roundId": "95a0f3e4-326e-4fad-815c-2b938b543a0d",
+    "selectionSha256": "3fdc6b9d685df1ec662749c2741de2242050169ea91e7f8b9900f8749c88b998",
+    "feedbackSha256": "9abac5b88a997d7f39a9eac3ded37729dbe1e882f6650868a2f22a0ef4030b74",
+    "practiceExcluded": [
+      "bfdb733c-f56d-48b7-a969-e94767254ae8"
+    ],
+    "initialCounts": {
+      "relay": 1,
+      "natural": 2
+    },
+    "currentCounts": {
+      "natural": 3
+    },
+    "cases": [
+      {
+        "id": "bed-gap-01",
+        "pair": [
+          "Doin' It",
+          "Talgo"
+        ],
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T04:24:56.340Z",
+          "heard": {}
+        },
+        "firstPreferredMethod": "relay",
+        "currentChoice": "A",
+        "currentPreferredMethod": "natural",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-19T04:24:56.340Z",
+            "afterReveal": false,
+            "heard": {}
+          },
+          {
+            "choice": "A",
+            "at": "2026-10-19T04:25:18.737Z",
+            "afterReveal": false,
+            "heard": {}
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeInitialVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:44.236Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:48.237Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:55.874Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:55.884Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:56.135Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:56.140Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:29.138Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:33.143Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:40.786Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:40.791Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:41.036Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:41.041Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              0,
+              14.949433106575963
+            ]
+          }
+        },
+        "coverageBeforeLastVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:44.236Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:48.237Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:55.874Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:55.884Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:56.135Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:56.140Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:12.897Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              13.29501133786848,
+              1.830158730158729
+            ]
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:29.138Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:33.143Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:40.786Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:40.791Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:41.036Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:41.041Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:57.725Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:01.724Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:09.367Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:09.372Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:09.618Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:09.623Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              0,
+              14.949433106575963,
+              15.007482993197275
+            ]
+          }
+        },
+        "coverageByExport": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:44.236Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:48.237Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:55.874Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:55.884Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:56.135Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:56.140Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:12.897Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              13.29501133786848,
+              1.830158730158729
+            ]
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:29.138Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:24:33.143Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:24:40.786Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:24:40.791Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:24:41.036Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:24:41.041Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:24:57.725Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:01.724Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:09.367Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:09.372Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:09.618Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:09.623Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              0,
+              14.949433106575963,
+              15.007482993197275
+            ]
+          }
+        },
+        "pauseSeconds": 0.2467105263157895
+      },
+      {
+        "id": "bed-gap-02",
+        "pair": [
+          "WANNABE",
+          "Tonight"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T04:26:13.581Z",
+          "heard": {
+            "A": "2026-10-19T04:25:38.092Z",
+            "B": "2026-10-19T04:25:57.531Z"
+          }
+        },
+        "firstPreferredMethod": "natural",
+        "currentChoice": "B",
+        "currentPreferredMethod": "natural",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-19T04:26:13.581Z",
+            "afterReveal": false,
+            "heard": {
+              "A": "2026-10-19T04:25:38.092Z",
+              "B": "2026-10-19T04:25:57.531Z"
+            }
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeInitialVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:41.447Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:45.454Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:49.415Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:49.420Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:57.420Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:22.023Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:26.028Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:29.740Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:29.741Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:29.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:29.996Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:37.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:03.180Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:07.181Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:10.897Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:10.898Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:11.148Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:11.153Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          }
+        },
+        "coverageBeforeLastVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:41.447Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:45.454Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:49.415Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:49.420Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:57.420Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:22.023Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:26.028Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:29.740Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:29.741Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:29.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:29.996Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:37.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:03.180Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:07.181Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:10.897Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:10.898Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:11.148Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:11.153Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          }
+        },
+        "coverageByExport": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:41.447Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:45.454Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:49.164Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:49.415Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:49.420Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:57.420Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:25:22.023Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:25:26.028Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:25:29.740Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:25:29.741Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:25:29.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:25:29.996Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:25:37.991Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:03.180Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:07.181Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:10.897Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:10.898Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:11.148Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:11.153Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              11.707346938775515
+            ]
+          }
+        },
+        "pauseSeconds": 0.24793388429752067
+      },
+      {
+        "id": "bed-gap-03",
+        "pair": [
+          "GOOD BOY",
+          "Snake Gang"
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T04:26:35.498Z",
+          "heard": {}
+        },
+        "firstPreferredMethod": "natural",
+        "currentChoice": "B",
+        "currentPreferredMethod": "natural",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-19T04:26:35.498Z",
+            "afterReveal": false,
+            "heard": {}
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeInitialVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:17.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:21.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:31.628Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:31.633Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:31.947Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:31.953Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": false,
+            "gapAndRecoveryCovered": false,
+            "completed": false,
+            "markers": [],
+            "stopPositions": []
+          }
+        },
+        "coverageBeforeLastVote": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:17.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:21.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:31.628Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:31.633Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:31.947Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:31.953Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          },
+          "relay": {
+            "renderStarted": false,
+            "gapAndRecoveryCovered": false,
+            "completed": false,
+            "markers": [],
+            "stopPositions": []
+          }
+        },
+        "coverageByExport": {
+          "natural": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:17.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:21.836Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:31.628Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:31.633Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:31.947Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:31.953Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": [
+              18.574648526077098
+            ]
+          },
+          "relay": {
+            "renderStarted": true,
+            "gapAndRecoveryCovered": true,
+            "completed": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T04:26:36.582Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T04:26:40.587Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T04:26:50.380Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T04:26:50.385Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T04:26:50.699Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T04:26:50.704Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T04:26:58.699Z",
+                "lateFrames": 0
+              }
+            ],
+            "stopPositions": []
+          }
+        },
+        "pauseSeconds": 0.3161222339304531
+      }
+    ],
+    "formalFailures": [],
+    "userOverallComment": "半拍留白好像都不太行，风险有点高，但是我确实见过使用半拍留白的混音手法",
+    "priority": "low-deferred",
+    "policy": "Keep original default; deprioritize gap replication and omit it from initial combination candidates. Retain as a conditional future idea rather than reject all pause/stop transitions.",
+    "interpretation": "Current selections all original. Initial choices1gap/2original; first case changed to original before reveal. Third original choice was made before gap arm started, then gap completed without a later recorded vote. Cannot label these as3fully exposed independent blind rejections.",
+    "limits": [
+      "One listener/3near-tempo frozen raw-bar exits; not human-certified semantic section endings or distant-style transitions.",
+      "One global halfbeat accompaniment-only gap at original takeover; does not test other gap lengths/positions, full-mix stop, FX tail or planned arrangement.",
+      "No symptom checkbox selections or notes. User overall risk impression is archived; no fabricated failure mechanism or probability.",
+      "First2pairs covered both gaps/native/recovery markers before initial choice; third gap only after vote.",
+      "No formal failure events; early votes permitted. Practice excluded."
+    ]
+  },
+  "listenerAnalysisSha256": "6e74b0e56ab9fa0fe87bdba6b7925f6cce3bcf888cc7304f43a40fb7f26100f7",
+  "priority": "low-deferred"
 }
