@@ -1,0 +1,17 @@
+# Half/Double Fixed-Cue Audition Implementation Plan
+
+> Execute inline with executing-plans; requesting-code-review at integration. User has authorized the next standalone audition with unchanged cues/vocal rules.
+
+**Goal:** Deliver up to3blind comparisons of native gradual blend versus endpoint-preserving2:1/1:2local Bentry alignment.
+
+**Architecture:** Source-bound148track snapshot → deterministic frozen paired cues/observed beat maps → verified native clips + joint WSOLA mapped Bentry → same original gradual/EQ graph → isolated5204player.
+
+**Tech Stack:** Python/numpy/soundfile/ffmpeg; TypeScript/WebAudio/React/Vite.
+
+- [x] Observe failing tests tests/test_half_double_audio.py and web/src/half-double/policy.test.ts. Implement scripts/half_double_audio.py validate_map(input,output,duration), warp_shared(pcm,sr,input,output); implement entryKeys/validateMetric. Verify synthetic timing, identity/coherence/fixed edges and invalid maps.
+- [x] Create scripts/prepare_half_double.ts with source-bound VAD validation, original dynamic EQ, matched slow/fast bar counts and conservative native/mapped simultaneous-vocal rejection. Freeze3distinct exploratory pairs/cues before source rendering. Store selection, track bindings, rejection/audit and preexisting dirty hashes in work/half-double-20261019. No cue retuning after audio.
+- [x] Render original six master/vocal clips with scripts/render_half_double_sources.py on Jetson: no atempo, absolute-origin decode/resample then sample slicing, verified Bentry/body continuity; copy selected source hashes, manifest/report bindings and exact clips. Create scripts/package_half_double.py to validate/copy originals, run joint4channel map, create two aligned Bentry layers, format/source/map audits and pack.
+- [x] Add half-double policy/graph/player/rounds/UI tests from established audition patterns. Only selected Bentry buffer keys change; source clocks/voice gains/EQ identical. Isolated namespace, immutable first choices, early voting, durable logs, practice archive/export and startup failure recovery. Add web/half-double.html and web/vite.half-double.config.ts port5204.
+- [x] Native-source bug fixes: observe failing pulse and48k clock tests, implement absolute-origin decode/slicing; observe failing anti-phase tonal guard and implement stereo-vector WSOLA with12.5ms search. Run targeted/related regressions, typecheck/build, independent review. Actual6completed practice plays with map/native/end markers and output stats; early vote, stop/replay, persistence/archive/reload/export checks. Leave blank formal, show/save screenshot, evidence and roadmap, scoped commit preserving existing dirty files. No human-quality claim, deployment or combinations.
+
+Completed2026-10-19:3distinct fixed pairs/5tracks (first2shareA),24assets verified. Native source continuity0.0for all3;6new/25related Python tests,22new/144related TS tests, typecheck/build passed. Independent review issue resolved and actual files re-reviewed. All6browser practice arms complete with7on-time markers and minimum limiter gain1. Practice 2b405f12-a1e0-4032-8ea2-341028f1b763 excluded/archived; blank formal 60c67024-df70-4422-8670-8c7e4ed79005 survives refresh/export with all previous player logs and zero formal choices/plays/reveals. Source0clock and tonal fixes passed observed RED/GREEN regressions. Listener validation pending; no semantic phrase-length/global tempo-conversion conclusion, no production or combination activation.

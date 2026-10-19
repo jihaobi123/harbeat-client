@@ -1,0 +1,2306 @@
+{
+  "schema": "harbeat.half-double-evidence.v1",
+  "date": "2026-10-19",
+  "url": "http://127.0.0.1:5204/half-double.html",
+  "scope": "Standalone endpoint-preserving2:1/1:2local phase correction prepared; listener choices pending",
+  "selectionSha256": "f0f0863dc7d8d310118fe9da9064604b9bde9e8c6246070a46479c7bb458053e",
+  "packSha256": "77d2c1875add422a3ffd7582935039dd3cfea763b1712147644f5bd92e6d3018",
+  "cases": [
+    {
+      "id": "half-double-01",
+      "aTitle": "Old Town Road",
+      "bTitle": "Let Me Be Your Fantasy - Original Mix",
+      "bpm": [
+        68.2,
+        136
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "25f44798059bf5f345a6652456d3ddf7d579426c9d1fb0e9a0b41aae4f47cb00",
+      "metric": {
+        "relation": 2,
+        "input": [
+          0,
+          0.4200000000000017,
+          0.8599999999999994,
+          1.3200000000000003,
+          1.7700000000000031,
+          2.219999999999999,
+          2.6499999999999986,
+          3.1000000000000014,
+          3.5600000000000023,
+          3.990000000000002,
+          4.43,
+          4.880000000000003,
+          5.329999999999998,
+          5.770000000000003,
+          6.200000000000003,
+          6.649999999999999,
+          7.109999999999999
+        ],
+        "output": [
+          0,
+          0.46999999999999176,
+          0.9099999999999966,
+          1.3499999999999943,
+          1.789999999999992,
+          2.239999999999995,
+          2.6899999999999977,
+          3.1299999999999955,
+          3.569999999999993,
+          4.029999999999994,
+          4.489999999999995,
+          4.919999999999995,
+          5.349999999999994,
+          5.789999999999992,
+          6.22999999999999,
+          6.669999999999995,
+          7.109999999999999
+        ],
+        "aBars": 2,
+        "bBars": 4,
+        "maxShiftSeconds": 0.05999999999999517,
+        "voicePolicy": "original-linear-fades",
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection",
+        "aGridSource": {
+          "reportId": "f7f8b598ac40c9020f224329f92996b6e63acfdd33f9c91df428b0868d7a3c84",
+          "reportSha256": "8e5475ac09566fb716acf20a614d853b9fd18ac99bb881fd5aaa9bfecd8ec9aa",
+          "masterSha256": "eeab700d2f17b14f5c6ba8296c52c026cfc0ad4a0f0067783fd078060a49707f",
+          "vocalSha256": "c205d4e27bda83976e6221ddee0cc0830586afd802ebbb0956ffe2b11b9de8f9"
+        },
+        "bGridSource": {
+          "reportId": "5c2656e7dd40ab16ef1fafc8582fcee78f24b4254b01feb7d5338b4ef46df91b",
+          "reportSha256": "0cacebefd784905b95fa3200944ab1c8039370bd74b0869c2c7bb91a8759d4af",
+          "masterSha256": "f73c75305b8a88de4dfb66ff61805d98c7955cbce4e69111132785996b6468cb",
+          "vocalSha256": "18ce7a0d9d513c1e6da4e83e885e6676f0a6a0494192b82078eca87a76db70d9"
+        },
+        "renderAudit": {
+          "id": "half-double-01",
+          "nativeFrames": 313551,
+          "mappedFrames": 313551,
+          "inputBeatSeconds": [
+            0.0,
+            0.4200000000000017,
+            0.8599999999999994,
+            1.3200000000000003,
+            1.7700000000000031,
+            2.219999999999999,
+            2.6499999999999986,
+            3.1000000000000014,
+            3.5600000000000023,
+            3.990000000000002,
+            4.43,
+            4.880000000000003,
+            5.329999999999998,
+            5.770000000000003,
+            6.200000000000003,
+            6.649999999999999,
+            7.109999999999999
+          ],
+          "outputBeatSeconds": [
+            0.0,
+            0.46999999999999176,
+            0.9099999999999966,
+            1.3499999999999943,
+            1.789999999999992,
+            2.239999999999995,
+            2.6899999999999977,
+            3.1299999999999955,
+            3.569999999999993,
+            4.029999999999994,
+            4.489999999999995,
+            4.919999999999995,
+            5.349999999999994,
+            5.789999999999992,
+            6.22999999999999,
+            6.669999999999995,
+            7.109999999999999
+          ],
+          "localRates": [
+            0.893617021276615,
+            0.9999999999999839,
+            1.0454545454545527,
+            1.0227272727272845,
+            0.9999999999999842,
+            0.9555555555555489,
+            1.0227272727272845,
+            1.0454545454545527,
+            0.9347826086956498,
+            0.956521739130428,
+            1.0465116279069842,
+            1.0465116279069675,
+            1.0000000000000162,
+            0.9772727272727316,
+            1.0227272727272518,
+            1.0454545454545359
+          ],
+          "nominalMaximumGridCorrection": 0.05999999999999517,
+          "wsolaSearchRadiusSeconds": 0.0125,
+          "phaseGridEvidence": "nominal input/output map, not independently observed musical attacks",
+          "waveformRelativeDifference": 1.3977650909086807,
+          "nativeRms": 0.04454636603005123,
+          "mappedRms": 0.04185926171976032,
+          "first8SamplesExact": true,
+          "last8SamplesExact": true,
+          "boundarySamples": "same source frames at both ends; common10ms boundary ramps",
+          "gainPolicy": "same original linear curves, same EQ, same output, no per-arm normalization",
+          "originalAssets": {
+            "aMaster": "ae61be092425b70a7d48f68cf5ac2b9da7ece18ea4457ab34e3f05690915476d",
+            "aVocal": "5bed2acf07a6f4af996c3bcf92d9cc7baed1d8f0e50a5b044bc99716d12512e1",
+            "bEntryMaster": "71962a3f2508aa6ec7bfc9ef92ab9f45b746f8d27531da6e510abb351e59fe39",
+            "bEntryVocal": "d3828fd6455b67698334bef79d62fdb077e5613d46c3d0517fa22b8b4099dcb0",
+            "bBodyMaster": "eca6e12dc1301204c4e4b6d4f4e55aa6878bd31da1f155e4139450774cf745ab",
+            "bBodyVocal": "5ba404a0958eb64f9a58bfc0f04d5486d16775eb01331d4ecc2518f4b6276bf3"
+          }
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "e0ccc2ea745f1dc08db6592c6d82de97d72b0abdc966568ca9e4179f4d551f36",
+        "continuousSourcePcmSha256": "e0ccc2ea745f1dc08db6592c6d82de97d72b0abdc966568ca9e4179f4d551f36",
+        "rendererSha256": "9cf6d5a5658a1bbe80a404ed261930d6b9763c6aacc5764f5820ba5d8f596f50"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "eeab700d2f17b14f5c6ba8296c52c026cfc0ad4a0f0067783fd078060a49707f",
+          "reportSha256": "8e5475ac09566fb716acf20a614d853b9fd18ac99bb881fd5aaa9bfecd8ec9aa",
+          "runId": "run-track-eeab700d2f17b14f5c6b-eeab700d2f17-a268a5c-5db3deb9",
+          "sectionSource": "songformer",
+          "vocalSha256": "c205d4e27bda83976e6221ddee0cc0830586afd802ebbb0956ffe2b11b9de8f9",
+          "manifestSha256": "d456d9f595dc5f261aa0014fc0d713cbe70012af2e5b08b245a5746df413042c"
+        },
+        "b": {
+          "masterSha256": "f73c75305b8a88de4dfb66ff61805d98c7955cbce4e69111132785996b6468cb",
+          "reportSha256": "0cacebefd784905b95fa3200944ab1c8039370bd74b0869c2c7bb91a8759d4af",
+          "runId": "run-track-f73c75305b8a88de4dfb-f73c75305b8a-a268a5c-a22f3b1a",
+          "sectionSource": "songformer",
+          "vocalSha256": "18ce7a0d9d513c1e6da4e83e885e6676f0a6a0494192b82078eca87a76db70d9",
+          "manifestSha256": "d2c290375df513265f4e795a81c6c6bfd2a70889a309d8e2e58f32f25f42a12d"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/half-double-audio/half-double-01-aMaster.wav",
+          "sha256": "ae61be092425b70a7d48f68cf5ac2b9da7ece18ea4457ab34e3f05690915476d",
+          "bytes": 3919696,
+          "duration": 11.11,
+          "frames": 489951,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0704433917999268
+        },
+        "aVocal": {
+          "url": "/half-double-audio/half-double-01-aVocal.wav",
+          "sha256": "5bed2acf07a6f4af996c3bcf92d9cc7baed1d8f0e50a5b044bc99716d12512e1",
+          "bytes": 3919696,
+          "duration": 11.11,
+          "frames": 489951,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.345947265625
+        },
+        "bEntryMaster": {
+          "url": "/half-double-audio/half-double-01-bEntryMaster.wav",
+          "sha256": "71962a3f2508aa6ec7bfc9ef92ab9f45b746f8d27531da6e510abb351e59fe39",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.36201319098472595
+        },
+        "bEntryVocal": {
+          "url": "/half-double-audio/half-double-01-bEntryVocal.wav",
+          "sha256": "d3828fd6455b67698334bef79d62fdb077e5613d46c3d0517fa22b8b4099dcb0",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.000946044921875
+        },
+        "bBodyMaster": {
+          "url": "/half-double-audio/half-double-01-bBodyMaster.wav",
+          "sha256": "eca6e12dc1301204c4e4b6d4f4e55aa6878bd31da1f155e4139450774cf745ab",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.756085991859436
+        },
+        "bBodyVocal": {
+          "url": "/half-double-audio/half-double-01-bBodyVocal.wav",
+          "sha256": "5ba404a0958eb64f9a58bfc0f04d5486d16775eb01331d4ecc2518f4b6276bf3",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.001556396484375
+        },
+        "bAlignedMaster": {
+          "url": "/half-double-audio/half-double-01-bAlignedMaster.wav",
+          "sha256": "d6f923b5c3863355cad74edd4cee4516e56e61e678f1246c0d861f46a8070b6d",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.3366807699203491
+        },
+        "bAlignedVocal": {
+          "url": "/half-double-audio/half-double-01-bAlignedVocal.wav",
+          "sha256": "64ff4ce32b6448274c603f253239fa1c462982947a6e01b855a7d9995167b3d3",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.000946044921875
+        }
+      },
+      "fixedPlan": {
+        "id": "half-double:track-eeab700d2f17b14f5c6b:track-f73c75305b8a88de4dfb:w0-4:107.68",
+        "from": "track-eeab700d2f17b14f5c6b",
+        "to": "track-f73c75305b8a88de4dfb",
+        "start": 100.57000000000001,
+        "end": 107.68,
+        "duration": 7.109999999999999,
+        "rate": 1,
+        "restore": 105.92046920821114,
+        "midDuck": false,
+        "gridError": 0.029999999999986926,
+        "aVocal": 0,
+        "bVocal": 0,
+        "window": {
+          "id": "w0-4",
+          "start": 43.79,
+          "end": 50.9,
+          "bars": 4,
+          "role": "intro"
+        },
+        "v30Eq": {
+          "version": "v30-eq-only-v1",
+          "a": [
+            {
+              "t": 0,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.24517241379310342,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.49034482758620684,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.7355172413793103,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.9806896551724137,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.225862068965517,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.4710344827586206,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.716206896551724,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.9613793103448274,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.2065517241379307,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.451724137931034,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.6968965517241377,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.942068965517241,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.1872413793103447,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.432413793103448,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.6775862068965512,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.9227586206896548,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.167931034482758,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.413103448275861,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.658275862068964,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.903448275862068,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.148620689655172,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.393793103448275,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.638965517241378,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.884137931034482,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.129310344827586,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.374482758620689,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.619655172413792,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.864827586206896,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 7.11,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            }
+          ],
+          "b": [
+            {
+              "t": 0,
+              "low": -7,
+              "mid": 0,
+              "high": 1.2
+            },
+            {
+              "t": 0.24517241379310342,
+              "low": -7.24250518811195,
+              "mid": 0,
+              "high": 0.887753356327218
+            },
+            {
+              "t": 0.49034482758620684,
+              "low": -7.7705112960761,
+              "mid": 0,
+              "high": 0.42948870392390004
+            },
+            {
+              "t": 0.7355172413793103,
+              "low": -7.765940628357936,
+              "mid": 0,
+              "high": 0.6589691107929976
+            },
+            {
+              "t": 0.9806896551724137,
+              "low": -7.64566134516921,
+              "mid": 0,
+              "high": -0.0765481305863126
+            },
+            {
+              "t": 1.225862068965517,
+              "low": -8.38117858654852,
+              "mid": 0,
+              "high": -0.5122473246135553
+            },
+            {
+              "t": 1.4710344827586206,
+              "low": -8.969084423305588,
+              "mid": 0,
+              "high": -0.7690844233055887
+            },
+            {
+              "t": 1.716206896551724,
+              "low": -9.197384066587396,
+              "mid": 0,
+              "high": -0.9973840665873956
+            },
+            {
+              "t": 1.9613793103448274,
+              "low": -9.397146254458978,
+              "mid": 0,
+              "high": -1.1971462544589777
+            },
+            {
+              "t": 2.2065517241379307,
+              "low": -9.568370986920332,
+              "mid": 0,
+              "high": -1.3683709869203329
+            },
+            {
+              "t": 2.451724137931034,
+              "low": -9.711058263971463,
+              "mid": 0,
+              "high": -1.5110582639714625
+            },
+            {
+              "t": 2.6968965517241377,
+              "low": -8.975541022592152,
+              "mid": 0,
+              "high": -1.625208085612366
+            },
+            {
+              "t": 2.942068965517241,
+              "low": -8.43784751483864,
+              "mid": 0,
+              "high": -1.710820451843044
+            },
+            {
+              "t": 3.1872413793103447,
+              "low": -9.173364756217952,
+              "mid": 0,
+              "high": -1.7678953626634957
+            },
+            {
+              "t": 3.432413793103448,
+              "low": -9.908881997597263,
+              "mid": 0,
+              "high": -1.7964328180737212
+            },
+            {
+              "t": 3.6775862068965512,
+              "low": -9.173364756217953,
+              "mid": 0,
+              "high": -1.7964328180737217
+            },
+            {
+              "t": 3.9227586206896548,
+              "low": -9.212364459032415,
+              "mid": 0,
+              "high": -1.7678953626634957
+            },
+            {
+              "t": 4.167931034482758,
+              "low": -9.910820451843044,
+              "mid": 0,
+              "high": -1.710820451843044
+            },
+            {
+              "t": 4.413103448275861,
+              "low": -9.825208085612367,
+              "mid": 0,
+              "high": -1.6252080856123665
+            },
+            {
+              "t": 4.658275862068964,
+              "low": -9.711058263971463,
+              "mid": 0,
+              "high": -1.511058263971463
+            },
+            {
+              "t": 4.903448275862068,
+              "low": -9.568370986920334,
+              "mid": 0,
+              "high": -1.3683709869203333
+            },
+            {
+              "t": 5.148620689655172,
+              "low": -8.832853745541023,
+              "mid": 0,
+              "high": -0.6328537455410215
+            },
+            {
+              "t": 5.393793103448275,
+              "low": -8.197193153925255,
+              "mid": 0,
+              "high": 0.10266349583828771
+            },
+            {
+              "t": 5.638965517241378,
+              "low": -8.322717450519141,
+              "mid": 0,
+              "high": -0.48538064619294263
+            },
+            {
+              "t": 5.884137931034482,
+              "low": -8.712247324613555,
+              "mid": 0,
+              "high": -0.5122473246135553
+            },
+            {
+              "t": 6.129310344827586,
+              "low": -8.192437528248668,
+              "mid": 0,
+              "high": 0.19457356920340185
+            },
+            {
+              "t": 6.374482758620689,
+              "low": -7.808220258794093,
+              "mid": 0,
+              "high": 0.49484080987218704
+            },
+            {
+              "t": 6.619655172413792,
+              "low": -7.7705112960761,
+              "mid": 0,
+              "high": 0.42948870392389993
+            },
+            {
+              "t": 6.864827586206896,
+              "low": -7.399524375743162,
+              "mid": 0,
+              "high": 0.8004756242568376
+            },
+            {
+              "t": 7.11,
+              "low": -6.999999999999997,
+              "mid": 0,
+              "high": 1.2000000000000026
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "half-double-02",
+      "aTitle": "Old Town Road",
+      "bTitle": "I Like",
+      "bpm": [
+        68.2,
+        136
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "19e7bfba1daa50cf208c0637011113420c2dbbf7202f136a6bd8a415a124b88c",
+      "metric": {
+        "relation": 2,
+        "input": [
+          0,
+          0.4399999999999995,
+          0.879999999999999,
+          1.3399999999999999,
+          1.7799999999999994,
+          2.2200000000000006,
+          2.6599999999999984,
+          3.0999999999999996,
+          3.5600000000000005,
+          3.9999999999999982,
+          4.4399999999999995,
+          4.9,
+          5.33,
+          5.779999999999999,
+          6.209999999999999,
+          6.67,
+          7.109999999999998
+        ],
+        "output": [
+          0,
+          0.46999999999999176,
+          0.9099999999999966,
+          1.3499999999999943,
+          1.789999999999992,
+          2.239999999999995,
+          2.6899999999999977,
+          3.1299999999999955,
+          3.569999999999993,
+          4.029999999999994,
+          4.489999999999995,
+          4.919999999999995,
+          5.349999999999994,
+          5.789999999999992,
+          6.22999999999999,
+          6.669999999999994,
+          7.109999999999998
+        ],
+        "aBars": 2,
+        "bBars": 4,
+        "maxShiftSeconds": 0.04999999999999538,
+        "voicePolicy": "original-linear-fades",
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection",
+        "aGridSource": {
+          "reportId": "f7f8b598ac40c9020f224329f92996b6e63acfdd33f9c91df428b0868d7a3c84",
+          "reportSha256": "8e5475ac09566fb716acf20a614d853b9fd18ac99bb881fd5aaa9bfecd8ec9aa",
+          "masterSha256": "eeab700d2f17b14f5c6ba8296c52c026cfc0ad4a0f0067783fd078060a49707f",
+          "vocalSha256": "c205d4e27bda83976e6221ddee0cc0830586afd802ebbb0956ffe2b11b9de8f9"
+        },
+        "bGridSource": {
+          "reportId": "2e2fd8591a87cd101b547c9259c3d26b4004aea33a9d7b639925d078257749e9",
+          "reportSha256": "9b634d256807c71fb52f1a94cf2775c7f8753bcd61de8ed6618af5d2988bd240",
+          "masterSha256": "79b8034c69bfb4de05c891b560f24bc3ca763880b79a26ea8b8c07bfaeae3cb8",
+          "vocalSha256": "f40c956c3dd34379fdd13bcb1568cd9304355c110d3a91644eeec03ad18e44cf"
+        },
+        "renderAudit": {
+          "id": "half-double-02",
+          "nativeFrames": 313551,
+          "mappedFrames": 313551,
+          "inputBeatSeconds": [
+            0.0,
+            0.4399999999999995,
+            0.879999999999999,
+            1.3399999999999999,
+            1.7799999999999994,
+            2.2200000000000006,
+            2.6599999999999984,
+            3.0999999999999996,
+            3.5600000000000005,
+            3.9999999999999982,
+            4.4399999999999995,
+            4.9,
+            5.33,
+            5.779999999999999,
+            6.209999999999999,
+            6.67,
+            7.109999999999998
+          ],
+          "outputBeatSeconds": [
+            0.0,
+            0.46999999999999176,
+            0.9099999999999966,
+            1.3499999999999943,
+            1.789999999999992,
+            2.239999999999995,
+            2.6899999999999977,
+            3.1299999999999955,
+            3.569999999999993,
+            4.029999999999994,
+            4.489999999999995,
+            4.919999999999995,
+            5.349999999999994,
+            5.789999999999992,
+            6.22999999999999,
+            6.669999999999994,
+            7.109999999999998
+          ],
+          "localRates": [
+            0.9361702127659728,
+            0.9999999999999879,
+            1.0454545454545527,
+            1.000000000000004,
+            0.9777777777777744,
+            0.9777777777777665,
+            1.000000000000008,
+            1.0454545454545527,
+            0.956521739130428,
+            0.9565217391304358,
+            1.069767441860468,
+            1.0,
+            1.0227272727272765,
+            0.9772727272727316,
+            1.045454545454538,
+            0.9999999999999859
+          ],
+          "nominalMaximumGridCorrection": 0.04999999999999538,
+          "wsolaSearchRadiusSeconds": 0.0125,
+          "phaseGridEvidence": "nominal input/output map, not independently observed musical attacks",
+          "waveformRelativeDifference": 1.4398670470989008,
+          "nativeRms": 0.27109659004261333,
+          "mappedRms": 0.2614287951142433,
+          "first8SamplesExact": true,
+          "last8SamplesExact": true,
+          "boundarySamples": "same source frames at both ends; common10ms boundary ramps",
+          "gainPolicy": "same original linear curves, same EQ, same output, no per-arm normalization",
+          "originalAssets": {
+            "aMaster": "21c24666e5990e4a11f27ba65e752e29b4560cc5e0f166a010cbbfbaf1db20e3",
+            "aVocal": "617360db0e0cdbaf7d21ade95da3b72db2e962ad001af87418ca7aa008551163",
+            "bEntryMaster": "2cd14c610f304e4d960b04940ab11d9d0dce6cfa53e2da37e6fcefe0b6f55a2c",
+            "bEntryVocal": "c097aa931120c66b66e96a82ce8e865294b94f42f5f8d9e62d535aef4c55728c",
+            "bBodyMaster": "430de920e7c2de3e3911e354bef72dc77099a497d806aad27475a44fe9f48127",
+            "bBodyVocal": "d783f16d57868f3c910e489424ec4adc0f4b62fdecf7c693cd5192068ca84a25"
+          }
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "74e7d5f01b2453a3ca4b775446280f573f377cf8043a97961735a3f926177635",
+        "continuousSourcePcmSha256": "74e7d5f01b2453a3ca4b775446280f573f377cf8043a97961735a3f926177635",
+        "rendererSha256": "9cf6d5a5658a1bbe80a404ed261930d6b9763c6aacc5764f5820ba5d8f596f50"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "eeab700d2f17b14f5c6ba8296c52c026cfc0ad4a0f0067783fd078060a49707f",
+          "reportSha256": "8e5475ac09566fb716acf20a614d853b9fd18ac99bb881fd5aaa9bfecd8ec9aa",
+          "runId": "run-track-eeab700d2f17b14f5c6b-eeab700d2f17-a268a5c-5db3deb9",
+          "sectionSource": "songformer",
+          "vocalSha256": "c205d4e27bda83976e6221ddee0cc0830586afd802ebbb0956ffe2b11b9de8f9",
+          "manifestSha256": "d456d9f595dc5f261aa0014fc0d713cbe70012af2e5b08b245a5746df413042c"
+        },
+        "b": {
+          "masterSha256": "79b8034c69bfb4de05c891b560f24bc3ca763880b79a26ea8b8c07bfaeae3cb8",
+          "reportSha256": "9b634d256807c71fb52f1a94cf2775c7f8753bcd61de8ed6618af5d2988bd240",
+          "runId": "run-track-79b8034c69bfb4de05c8-79b8034c69bf-a268a5c-ad483b6b",
+          "sectionSource": "songformer",
+          "vocalSha256": "f40c956c3dd34379fdd13bcb1568cd9304355c110d3a91644eeec03ad18e44cf",
+          "manifestSha256": "fd790ba49a2ec7ef256d249cb1083cefb3f6264659f1e8e3e859d7e13b6e88cb"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/half-double-audio/half-double-02-aMaster.wav",
+          "sha256": "21c24666e5990e4a11f27ba65e752e29b4560cc5e0f166a010cbbfbaf1db20e3",
+          "bytes": 3919696,
+          "duration": 11.11,
+          "frames": 489951,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0704433917999268
+        },
+        "aVocal": {
+          "url": "/half-double-audio/half-double-02-aVocal.wav",
+          "sha256": "617360db0e0cdbaf7d21ade95da3b72db2e962ad001af87418ca7aa008551163",
+          "bytes": 3919696,
+          "duration": 11.11,
+          "frames": 489951,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.345947265625
+        },
+        "bEntryMaster": {
+          "url": "/half-double-audio/half-double-02-bEntryMaster.wav",
+          "sha256": "2cd14c610f304e4d960b04940ab11d9d0dce6cfa53e2da37e6fcefe0b6f55a2c",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.1013152599334717
+        },
+        "bEntryVocal": {
+          "url": "/half-double-audio/half-double-02-bEntryVocal.wav",
+          "sha256": "c097aa931120c66b66e96a82ce8e865294b94f42f5f8d9e62d535aef4c55728c",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.769439697265625
+        },
+        "bBodyMaster": {
+          "url": "/half-double-audio/half-double-02-bBodyMaster.wav",
+          "sha256": "430de920e7c2de3e3911e354bef72dc77099a497d806aad27475a44fe9f48127",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.077256679534912
+        },
+        "bBodyVocal": {
+          "url": "/half-double-audio/half-double-02-bBodyVocal.wav",
+          "sha256": "d783f16d57868f3c910e489424ec4adc0f4b62fdecf7c693cd5192068ca84a25",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.78228759765625
+        },
+        "bAlignedMaster": {
+          "url": "/half-double-audio/half-double-02-bAlignedMaster.wav",
+          "sha256": "1a63e4851be1f42cd4568480dcd1aeb47c60096bf2652b6c7d8230bdf167c383",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0491836071014404
+        },
+        "bAlignedVocal": {
+          "url": "/half-double-audio/half-double-02-bAlignedVocal.wav",
+          "sha256": "cc01b71e6b50cf720c9981c950226dd17465c0ab85766568e6b847067eef36f7",
+          "bytes": 2508496,
+          "duration": 7.11,
+          "frames": 313551,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.76800537109375
+        }
+      },
+      "fixedPlan": {
+        "id": "half-double:track-eeab700d2f17b14f5c6b:track-79b8034c69bfb4de05c8:w8-4:107.68",
+        "from": "track-eeab700d2f17b14f5c6b",
+        "to": "track-79b8034c69bfb4de05c8",
+        "start": 100.57000000000001,
+        "end": 107.68,
+        "duration": 7.109999999999998,
+        "rate": 1,
+        "restore": 105.92046920821114,
+        "midDuck": false,
+        "gridError": 0.029999999999986926,
+        "aVocal": 0,
+        "bVocal": 1,
+        "window": {
+          "id": "w8-4",
+          "start": 14.22,
+          "end": 21.33,
+          "bars": 4,
+          "role": "chorus"
+        },
+        "v30Eq": {
+          "version": "v30-eq-only-v1",
+          "a": [
+            {
+              "t": 0,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.24517241379310337,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.49034482758620673,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.7355172413793101,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.9806896551724135,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.2258620689655169,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.4710344827586201,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.7162068965517234,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 1.961379310344827,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.20655172413793,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.4517241379310337,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.6968965517241372,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 2.9420689655172403,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.187241379310344,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.432413793103447,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.6775862068965504,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 3.922758620689654,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.167931034482757,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.41310344827586,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.6582758620689635,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.903448275862067,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.1486206896551705,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.3937931034482745,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.6389655172413775,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.884137931034481,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.1293103448275845,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.374482758620688,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.6196551724137915,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 6.864827586206894,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 7.109999999999998,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            }
+          ],
+          "b": [
+            {
+              "t": 0,
+              "low": -7,
+              "mid": 0,
+              "high": 1.2
+            },
+            {
+              "t": 0.24517241379310337,
+              "low": -7.399524375743163,
+              "mid": 0,
+              "high": 0.800475624256837
+            },
+            {
+              "t": 0.49034482758620673,
+              "low": -7.7705112960761,
+              "mid": 0,
+              "high": 0.42948870392390004
+            },
+            {
+              "t": 0.7355172413793101,
+              "low": -8.11296076099881,
+              "mid": 0,
+              "high": 0.08703923900118915
+            },
+            {
+              "t": 0.9806896551724135,
+              "low": -8.426872770511295,
+              "mid": 0,
+              "high": -0.22687277051129606
+            },
+            {
+              "t": 1.2258620689655169,
+              "low": -8.712247324613555,
+              "mid": 0,
+              "high": -0.5122473246135553
+            },
+            {
+              "t": 1.4710344827586201,
+              "low": -8.969084423305588,
+              "mid": 0,
+              "high": -0.7690844233055887
+            },
+            {
+              "t": 1.7162068965517234,
+              "low": -9.197384066587396,
+              "mid": 0,
+              "high": -0.9973840665873956
+            },
+            {
+              "t": 1.961379310344827,
+              "low": -9.397146254458978,
+              "mid": 0,
+              "high": -1.1971462544589777
+            },
+            {
+              "t": 2.20655172413793,
+              "low": -9.568370986920334,
+              "mid": 0,
+              "high": -1.3683709869203333
+            },
+            {
+              "t": 2.4517241379310337,
+              "low": -9.711058263971463,
+              "mid": 0,
+              "high": -1.511058263971463
+            },
+            {
+              "t": 2.6968965517241372,
+              "low": -9.825208085612367,
+              "mid": 0,
+              "high": -1.625208085612366
+            },
+            {
+              "t": 2.9420689655172403,
+              "low": -9.910820451843044,
+              "mid": 0,
+              "high": -1.710820451843044
+            },
+            {
+              "t": 3.187241379310344,
+              "low": -9.967895362663496,
+              "mid": 0,
+              "high": -1.7678953626634957
+            },
+            {
+              "t": 3.432413793103447,
+              "low": -9.996432818073721,
+              "mid": 0,
+              "high": -1.7964328180737217
+            },
+            {
+              "t": 3.6775862068965504,
+              "low": -9.996432818073721,
+              "mid": 0,
+              "high": -1.7964328180737217
+            },
+            {
+              "t": 3.922758620689654,
+              "low": -9.967895362663496,
+              "mid": 0,
+              "high": -1.7678953626634957
+            },
+            {
+              "t": 4.167931034482757,
+              "low": -9.910820451843044,
+              "mid": 0,
+              "high": -1.710820451843044
+            },
+            {
+              "t": 4.41310344827586,
+              "low": -9.825208085612367,
+              "mid": 0,
+              "high": -1.625208085612366
+            },
+            {
+              "t": 4.6582758620689635,
+              "low": -9.711058263971463,
+              "mid": 0,
+              "high": -1.511058263971463
+            },
+            {
+              "t": 4.903448275862067,
+              "low": -9.568370986920332,
+              "mid": 0,
+              "high": -1.3683709869203329
+            },
+            {
+              "t": 5.1486206896551705,
+              "low": -9.397146254458978,
+              "mid": 0,
+              "high": -1.1971462544589777
+            },
+            {
+              "t": 5.3937931034482745,
+              "low": -9.197384066587396,
+              "mid": 0,
+              "high": -0.9973840665873956
+            },
+            {
+              "t": 5.6389655172413775,
+              "low": -8.969084423305588,
+              "mid": 0,
+              "high": -0.7690844233055885
+            },
+            {
+              "t": 5.884137931034481,
+              "low": -8.712247324613555,
+              "mid": 0,
+              "high": -0.5122473246135553
+            },
+            {
+              "t": 6.1293103448275845,
+              "low": -8.426872770511295,
+              "mid": 0,
+              "high": -0.22687277051129562
+            },
+            {
+              "t": 6.374482758620688,
+              "low": -8.11296076099881,
+              "mid": 0,
+              "high": 0.08703923900118915
+            },
+            {
+              "t": 6.6196551724137915,
+              "low": -7.7705112960761,
+              "mid": 0,
+              "high": 0.4294887039239008
+            },
+            {
+              "t": 6.864827586206894,
+              "low": -7.399524375743164,
+              "mid": 0,
+              "high": 0.8004756242568363
+            },
+            {
+              "t": 7.109999999999998,
+              "low": -7,
+              "mid": 0,
+              "high": 1.2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "half-double-03",
+      "aTitle": "What is Love？",
+      "bTitle": "Lazarus",
+      "bpm": [
+        166.7,
+        85.4
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "8a801eb84db564f3aaf7d0bb48441b604a57413aa02a08b5581524874890df9a",
+      "metric": {
+        "relation": 0.5,
+        "input": [
+          0,
+          0.7000000000000028,
+          1.4200000000000017,
+          2.1400000000000006,
+          2.84,
+          3.5400000000000027,
+          4.239999999999998,
+          4.940000000000001,
+          5.66
+        ],
+        "output": [
+          0,
+          0.7400000000000091,
+          1.4399999999999977,
+          2.140000000000015,
+          2.8400000000000034,
+          3.5600000000000023,
+          4.260000000000019,
+          4.960000000000008,
+          5.66
+        ],
+        "aBars": 4,
+        "bBars": 2,
+        "maxShiftSeconds": 0.04000000000000625,
+        "voicePolicy": "original-linear-fades",
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection",
+        "aGridSource": {
+          "reportId": "0e6a73f813d05fce3df8648be64aa2e5ddf879012ed30595934b3ea393e32b43",
+          "reportSha256": "2c0d7826f29eeb5283d9ab5f96722913cf3da39362cb4155cd52d318aef1c7a4",
+          "masterSha256": "43a24f6f8d1350598166a87b137e35dd12dcec2abac59aa3e3dc2b524ab43f39",
+          "vocalSha256": "d64e5cfeb67aba108ac7c76362a3912e7c33515f2a86b79a5ad754f33575086b"
+        },
+        "bGridSource": {
+          "reportId": "bbe12aad0c239181b8e814be5de968eda942bc4b4bfeedd60fc80b04040e7a0f",
+          "reportSha256": "98a6d128c9a0573d56416702366c086d3594b0f88196f19140243316167bd830",
+          "masterSha256": "6f1731cc39ec867d2f231c673c49f13fe94d710971149c0d1dac95cb71f25d0a",
+          "vocalSha256": "50e9e4921d87efdd6dbdc826f4e3ec2433568353089fa39d47b8c8684aa16042"
+        },
+        "renderAudit": {
+          "id": "half-double-03",
+          "nativeFrames": 249606,
+          "mappedFrames": 249606,
+          "inputBeatSeconds": [
+            0.0,
+            0.7000000000000028,
+            1.4200000000000017,
+            2.1400000000000006,
+            2.84,
+            3.5400000000000027,
+            4.239999999999998,
+            4.940000000000001,
+            5.66
+          ],
+          "outputBeatSeconds": [
+            0.0,
+            0.7400000000000091,
+            1.4399999999999977,
+            2.140000000000015,
+            2.8400000000000034,
+            3.5600000000000023,
+            4.260000000000019,
+            4.960000000000008,
+            5.66
+          ],
+          "localRates": [
+            0.9459459459459382,
+            1.0285714285714436,
+            1.0285714285714018,
+            1.0000000000000153,
+            0.9722222222222276,
+            0.9999999999999696,
+            1.0000000000000202,
+            1.0285714285714385
+          ],
+          "nominalMaximumGridCorrection": 0.04000000000000625,
+          "wsolaSearchRadiusSeconds": 0.0125,
+          "phaseGridEvidence": "nominal input/output map, not independently observed musical attacks",
+          "waveformRelativeDifference": 1.471957507170727,
+          "nativeRms": 0.18200402541578775,
+          "mappedRms": 0.17956997434027905,
+          "first8SamplesExact": true,
+          "last8SamplesExact": true,
+          "boundarySamples": "same source frames at both ends; common10ms boundary ramps",
+          "gainPolicy": "same original linear curves, same EQ, same output, no per-arm normalization",
+          "originalAssets": {
+            "aMaster": "a997672cfd12d53eec311f2314a40d6ee9e103a34b864dd9d181200844ac698d",
+            "aVocal": "9d09cad27f2856a3bf4fad918b2e42d224cb90e2a5dfab3313f877f9ffa0d123",
+            "bEntryMaster": "4cef69f15670ecadd971c9402472a8f5829cd9eb1d0ea75db324bab413ceaf99",
+            "bEntryVocal": "22c9f14c064e41dea800865277ee00561025e8f1a68d10af0ba2cc28099b5758",
+            "bBodyMaster": "249a16edaec0d6b0d55cead9a67ddb0cc780d7c2b5d72999ee2875a1557e0f37",
+            "bBodyVocal": "f9a6ae1b6a7ec0a9dd9af5bcb64efde78fb5a9bd35ab7d9a6a070e281dbb7ef8"
+          }
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "baf9e94187ff151d7e51b99484a71ce24429d65aa2bbbb2deb127587d0d679d5",
+        "continuousSourcePcmSha256": "baf9e94187ff151d7e51b99484a71ce24429d65aa2bbbb2deb127587d0d679d5",
+        "rendererSha256": "9cf6d5a5658a1bbe80a404ed261930d6b9763c6aacc5764f5820ba5d8f596f50"
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "43a24f6f8d1350598166a87b137e35dd12dcec2abac59aa3e3dc2b524ab43f39",
+          "reportSha256": "2c0d7826f29eeb5283d9ab5f96722913cf3da39362cb4155cd52d318aef1c7a4",
+          "runId": "run-track-43a24f6f8d1350598166-43a24f6f8d13-a268a5c-0d037cb5",
+          "sectionSource": "songformer",
+          "vocalSha256": "d64e5cfeb67aba108ac7c76362a3912e7c33515f2a86b79a5ad754f33575086b",
+          "manifestSha256": "49d292dbf9bce374069fd8e6f2af944a1dd31ffd004404c300acc67fe68e110d"
+        },
+        "b": {
+          "masterSha256": "6f1731cc39ec867d2f231c673c49f13fe94d710971149c0d1dac95cb71f25d0a",
+          "reportSha256": "98a6d128c9a0573d56416702366c086d3594b0f88196f19140243316167bd830",
+          "runId": "run-track-6f1731cc39ec867d2f23-6f1731cc39ec-a268a5c-b3bed7f3",
+          "sectionSource": "songformer",
+          "vocalSha256": "50e9e4921d87efdd6dbdc826f4e3ec2433568353089fa39d47b8c8684aa16042",
+          "manifestSha256": "474189e15e73bf78949c84b0b0875b48699cc937b482c76ea7c67e75522c652d"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/half-double-audio/half-double-03-aMaster.wav",
+          "sha256": "a997672cfd12d53eec311f2314a40d6ee9e103a34b864dd9d181200844ac698d",
+          "bytes": 3408136,
+          "duration": 9.66,
+          "frames": 426006,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.1423637866973877
+        },
+        "aVocal": {
+          "url": "/half-double-audio/half-double-03-aVocal.wav",
+          "sha256": "9d09cad27f2856a3bf4fad918b2e42d224cb90e2a5dfab3313f877f9ffa0d123",
+          "bytes": 3408136,
+          "duration": 9.66,
+          "frames": 426006,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8822021484375
+        },
+        "bEntryMaster": {
+          "url": "/half-double-audio/half-double-03-bEntryMaster.wav",
+          "sha256": "4cef69f15670ecadd971c9402472a8f5829cd9eb1d0ea75db324bab413ceaf99",
+          "bytes": 1996936,
+          "duration": 5.66,
+          "frames": 249606,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.98345947265625
+        },
+        "bEntryVocal": {
+          "url": "/half-double-audio/half-double-03-bEntryVocal.wav",
+          "sha256": "22c9f14c064e41dea800865277ee00561025e8f1a68d10af0ba2cc28099b5758",
+          "bytes": 1996936,
+          "duration": 5.66,
+          "frames": 249606,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.68524169921875
+        },
+        "bBodyMaster": {
+          "url": "/half-double-audio/half-double-03-bBodyMaster.wav",
+          "sha256": "249a16edaec0d6b0d55cead9a67ddb0cc780d7c2b5d72999ee2875a1557e0f37",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0057244300842285
+        },
+        "bBodyVocal": {
+          "url": "/half-double-audio/half-double-03-bBodyVocal.wav",
+          "sha256": "f9a6ae1b6a7ec0a9dd9af5bcb64efde78fb5a9bd35ab7d9a6a070e281dbb7ef8",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.745513916015625
+        },
+        "bAlignedMaster": {
+          "url": "/half-double-audio/half-double-03-bAlignedMaster.wav",
+          "sha256": "0f8ffa7d854ad6ebb131f9107f0134829d8e84798746360be1431a4fd9fcbcdc",
+          "bytes": 1996936,
+          "duration": 5.66,
+          "frames": 249606,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9742063879966736
+        },
+        "bAlignedVocal": {
+          "url": "/half-double-audio/half-double-03-bAlignedVocal.wav",
+          "sha256": "b11e95bd27c436d11faafc382bb28d291cd563fe26bc77f1069b2811beb7a643",
+          "bytes": 1996936,
+          "duration": 5.66,
+          "frames": 249606,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.6610777378082275
+        }
+      },
+      "fixedPlan": {
+        "id": "half-double:track-43a24f6f8d1350598166:track-6f1731cc39ec867d2f23:w0-2:196.92",
+        "from": "track-43a24f6f8d1350598166",
+        "to": "track-6f1731cc39ec867d2f23",
+        "start": 191.26,
+        "end": 196.92,
+        "duration": 5.66,
+        "rate": 1,
+        "restore": 196.20014397120573,
+        "midDuck": false,
+        "gridError": 0.020000000000010232,
+        "aVocal": 0,
+        "bVocal": 1,
+        "window": {
+          "id": "w0-2",
+          "start": 28.24,
+          "end": 33.9,
+          "bars": 2,
+          "role": "verse"
+        },
+        "v30Eq": {
+          "version": "v30-eq-only-v1",
+          "a": [
+            {
+              "t": 0,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 0.24608695652173915,
+              "low": -9,
+              "mid": 0,
+              "high": -1.6486614986307055
+            },
+            {
+              "t": 0.4921739130434783,
+              "low": -9,
+              "mid": 0,
+              "high": -1.8230678419081223
+            },
+            {
+              "t": 0.7382608695652174,
+              "low": -9,
+              "mid": 0,
+              "high": -2.279197940170331
+            },
+            {
+              "t": 0.9843478260869566,
+              "low": -9,
+              "mid": 0,
+              "high": -2.993939482477831
+            },
+            {
+              "t": 1.2304347826086957,
+              "low": -9,
+              "mid": 0,
+              "high": -3.0398462676834317
+            },
+            {
+              "t": 1.4765217391304348,
+              "low": -9,
+              "mid": 0,
+              "high": -2.3197862732207675
+            },
+            {
+              "t": 1.722608695652174,
+              "low": -9,
+              "mid": 0,
+              "high": -2.000438948612514
+            },
+            {
+              "t": 1.9686956521739132,
+              "low": -9.572717916593287,
+              "mid": 0,
+              "high": -2.414773396913467
+            },
+            {
+              "t": 2.214782608695652,
+              "low": -9.700319874065894,
+              "mid": 0,
+              "high": -2.3297450625382647
+            },
+            {
+              "t": 2.4608695652173913,
+              "low": -9,
+              "mid": 0,
+              "high": -1.5914841929730472
+            },
+            {
+              "t": 2.7069565217391305,
+              "low": -9,
+              "mid": 0,
+              "high": -2.3297450625382647
+            },
+            {
+              "t": 2.9530434782608697,
+              "low": -9,
+              "mid": 0,
+              "high": -3.0680059321034823
+            },
+            {
+              "t": 3.199130434782609,
+              "low": -9,
+              "mid": 0,
+              "high": -2.3297450625382647
+            },
+            {
+              "t": 3.445217391304348,
+              "low": -9,
+              "mid": 0,
+              "high": -1.7519457660433269
+            },
+            {
+              "t": 3.691304347826087,
+              "low": -9,
+              "mid": 0,
+              "high": -1.752847874475144
+            },
+            {
+              "t": 3.9373913043478264,
+              "low": -9,
+              "mid": 0,
+              "high": -2.020823476805585
+            },
+            {
+              "t": 4.183478260869565,
+              "low": -9,
+              "mid": 0,
+              "high": -1.6703185075046132
+            },
+            {
+              "t": 4.429565217391304,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.675652173913043,
+              "low": -9.032324959459391,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 4.921739130434783,
+              "low": -9.163516827441498,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.167826086956522,
+              "low": -9.01459460338508,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.413913043478261,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            },
+            {
+              "t": 5.66,
+              "low": -9,
+              "mid": 0,
+              "high": -1.4
+            }
+          ],
+          "b": [
+            {
+              "t": 0,
+              "low": -7,
+              "mid": 0,
+              "high": 1.2
+            },
+            {
+              "t": 0.24608695652173915,
+              "low": -7,
+              "mid": -0.15296766508335957,
+              "high": 1.2
+            },
+            {
+              "t": 0.4921739130434783,
+              "low": -7,
+              "mid": -0.6023532505958712,
+              "high": 1.2
+            },
+            {
+              "t": 0.7382608695652174,
+              "low": -7,
+              "mid": -0.9073724007561437,
+              "high": 1.2
+            },
+            {
+              "t": 0.9843478260869566,
+              "low": -7,
+              "mid": -1.1493383742911152,
+              "high": 1.2
+            },
+            {
+              "t": 1.2304347826086957,
+              "low": -7,
+              "mid": -1.3610586011342156,
+              "high": 1.2
+            },
+            {
+              "t": 1.4765217391304348,
+              "low": -7,
+              "mid": -1.542533081285444,
+              "high": 1.2
+            },
+            {
+              "t": 1.722608695652174,
+              "low": -7,
+              "mid": -1.6937618147448015,
+              "high": 1.2
+            },
+            {
+              "t": 1.9686956521739132,
+              "low": -7,
+              "mid": -1.8147448015122873,
+              "high": 1.2
+            },
+            {
+              "t": 2.214782608695652,
+              "low": -7,
+              "mid": -1.9054820415879017,
+              "high": 1.2
+            },
+            {
+              "t": 2.4608695652173913,
+              "low": -7,
+              "mid": -1.9659735349716447,
+              "high": 1.2
+            },
+            {
+              "t": 2.7069565217391305,
+              "low": -7,
+              "mid": -1.2498068546067655,
+              "high": 1.2
+            },
+            {
+              "t": 2.9530434782608697,
+              "low": -7.311604244436619,
+              "mid": -0.519017013232496,
+              "high": 1.2
+            },
+            {
+              "t": 3.199130434782609,
+              "low": -7,
+              "mid": -1.215484507273693,
+              "high": 1.2
+            },
+            {
+              "t": 3.445217391304348,
+              "low": -7,
+              "mid": -1.9054820415879017,
+              "high": 1.2
+            },
+            {
+              "t": 3.691304347826087,
+              "low": -7,
+              "mid": -1.8147448015122873,
+              "high": 1.2
+            },
+            {
+              "t": 3.9373913043478264,
+              "low": -7,
+              "mid": -1.6937618147448015,
+              "high": 1.2
+            },
+            {
+              "t": 4.183478260869565,
+              "low": -7,
+              "mid": -1.5425330812854445,
+              "high": 1.2
+            },
+            {
+              "t": 4.429565217391304,
+              "low": -7,
+              "mid": -1.3610586011342158,
+              "high": 1.2
+            },
+            {
+              "t": 4.675652173913043,
+              "low": -7,
+              "mid": -1.1493383742911152,
+              "high": 1.2
+            },
+            {
+              "t": 4.921739130434783,
+              "low": -7,
+              "mid": -0.9073724007561438,
+              "high": 1.2
+            },
+            {
+              "t": 5.167826086956522,
+              "low": -7,
+              "mid": -0.5744061806526248,
+              "high": 1.2
+            },
+            {
+              "t": 5.413913043478261,
+              "low": -7,
+              "mid": -0.13821325438338683,
+              "high": 1.2
+            },
+            {
+              "t": 5.66,
+              "low": -7,
+              "mid": 0,
+              "high": 1.2
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "selectionAudit": {
+    "candidateWindows": 11,
+    "distinctPairs": 3,
+    "sourceTracks": 5,
+    "selection": "highest observed native phase RMS among fixed eligible windows per distinct pair, before audio; first2share OldTownRoad",
+    "cuePolicy": "existing B windows and late A raw bars; same65ms original tolerance and bound vocal/phrase protections. No per-arm search or source-cue movement.",
+    "limitation": "New exploratory ratio pairs; cannot reuse prior near-tempo pairs. Numerical grid relation is provisional, not human-confirmed half-time groove/semantic phrase truth.",
+    "snapshotHashes": [
+      {
+        "id": "track-eeab700d2f17b14f5c6b",
+        "sha256": "2b393f60677c05e22829f2d1734a70f475260322e5d837f26400e6d07f6393c4"
+      },
+      {
+        "id": "track-f73c75305b8a88de4dfb",
+        "sha256": "c5f4f2ac249b7a436845f78004a46e941aaf0013022cfb2d9e60a212cbcb75a7"
+      },
+      {
+        "id": "track-79b8034c69bfb4de05c8",
+        "sha256": "ccebaded50eb5855c56a71d74c09ccaa487e99eb94e5b3e1e79e8768494cf5c8"
+      },
+      {
+        "id": "track-43a24f6f8d1350598166",
+        "sha256": "e6f47162debbf20a0b7834a44598c1e55c5cf12394e7d1c14c0846083990483e"
+      },
+      {
+        "id": "track-6f1731cc39ec867d2f23",
+        "sha256": "8c102641b5bec96691b325c24bcf286aeff9bb3d1f1f27cdeb2dcc94dec870f4"
+      }
+    ]
+  },
+  "sourceAudit": {
+    "assets": [
+      {
+        "caseId": "half-double-01",
+        "key": "aMaster",
+        "sha256": "ae61be092425b70a7d48f68cf5ac2b9da7ece18ea4457ab34e3f05690915476d"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "aVocal",
+        "sha256": "5bed2acf07a6f4af996c3bcf92d9cc7baed1d8f0e50a5b044bc99716d12512e1"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bEntryMaster",
+        "sha256": "71962a3f2508aa6ec7bfc9ef92ab9f45b746f8d27531da6e510abb351e59fe39"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bEntryVocal",
+        "sha256": "d3828fd6455b67698334bef79d62fdb077e5613d46c3d0517fa22b8b4099dcb0"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bBodyMaster",
+        "sha256": "eca6e12dc1301204c4e4b6d4f4e55aa6878bd31da1f155e4139450774cf745ab"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bBodyVocal",
+        "sha256": "5ba404a0958eb64f9a58bfc0f04d5486d16775eb01331d4ecc2518f4b6276bf3"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bAlignedMaster",
+        "sha256": "d6f923b5c3863355cad74edd4cee4516e56e61e678f1246c0d861f46a8070b6d"
+      },
+      {
+        "caseId": "half-double-01",
+        "key": "bAlignedVocal",
+        "sha256": "64ff4ce32b6448274c603f253239fa1c462982947a6e01b855a7d9995167b3d3"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "aMaster",
+        "sha256": "21c24666e5990e4a11f27ba65e752e29b4560cc5e0f166a010cbbfbaf1db20e3"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "aVocal",
+        "sha256": "617360db0e0cdbaf7d21ade95da3b72db2e962ad001af87418ca7aa008551163"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bEntryMaster",
+        "sha256": "2cd14c610f304e4d960b04940ab11d9d0dce6cfa53e2da37e6fcefe0b6f55a2c"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bEntryVocal",
+        "sha256": "c097aa931120c66b66e96a82ce8e865294b94f42f5f8d9e62d535aef4c55728c"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bBodyMaster",
+        "sha256": "430de920e7c2de3e3911e354bef72dc77099a497d806aad27475a44fe9f48127"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bBodyVocal",
+        "sha256": "d783f16d57868f3c910e489424ec4adc0f4b62fdecf7c693cd5192068ca84a25"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bAlignedMaster",
+        "sha256": "1a63e4851be1f42cd4568480dcd1aeb47c60096bf2652b6c7d8230bdf167c383"
+      },
+      {
+        "caseId": "half-double-02",
+        "key": "bAlignedVocal",
+        "sha256": "cc01b71e6b50cf720c9981c950226dd17465c0ab85766568e6b847067eef36f7"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "aMaster",
+        "sha256": "a997672cfd12d53eec311f2314a40d6ee9e103a34b864dd9d181200844ac698d"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "aVocal",
+        "sha256": "9d09cad27f2856a3bf4fad918b2e42d224cb90e2a5dfab3313f877f9ffa0d123"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bEntryMaster",
+        "sha256": "4cef69f15670ecadd971c9402472a8f5829cd9eb1d0ea75db324bab413ceaf99"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bEntryVocal",
+        "sha256": "22c9f14c064e41dea800865277ee00561025e8f1a68d10af0ba2cc28099b5758"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bBodyMaster",
+        "sha256": "249a16edaec0d6b0d55cead9a67ddb0cc780d7c2b5d72999ee2875a1557e0f37"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bBodyVocal",
+        "sha256": "f9a6ae1b6a7ec0a9dd9af5bcb64efde78fb5a9bd35ab7d9a6a070e281dbb7ef8"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bAlignedMaster",
+        "sha256": "0f8ffa7d854ad6ebb131f9107f0134829d8e84798746360be1431a4fd9fcbcdc"
+      },
+      {
+        "caseId": "half-double-03",
+        "key": "bAlignedVocal",
+        "sha256": "b11e95bd27c436d11faafc382bb28d291cd563fe26bc77f1069b2811beb7a643"
+      }
+    ],
+    "count": 24,
+    "sourceContinuityZero": true,
+    "builtPackMatches": true,
+    "protectedDirtyFiles": 14
+  },
+  "browserPractice": {
+    "schema": "harbeat.half-double-browser-practice.v1",
+    "roundId": "2b405f12-a1e0-4032-8ea2-341028f1b763",
+    "feedbackSha256": "2c47c35e41a06b617ff4b088c16431eb8dc52ef3d48f121ff7b82e8a6a17428c",
+    "completedArms": [
+      {
+        "caseId": "half-double-01",
+        "mode": "natural",
+        "letter": "A",
+        "sessionId": "half-double-1792389080800-3",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 1240378,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 1416778,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 1437505,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 1574215,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 1710925,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 1730329,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 2083129,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8135369420051575,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "half-double-01",
+        "mode": "relay",
+        "letter": "B",
+        "sessionId": "half-double-1792389232133-4",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 7914298,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 8090698,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 8111425,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 8248135,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 8384845,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 8404249,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 8757049,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8135369420051575,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "half-double-02",
+        "mode": "relay",
+        "letter": "B",
+        "sessionId": "half-double-1792389394531-6",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 15075898,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 15252298,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 15273025,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 15409735,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 15546445,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 15565849,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 15918649,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8187150955200195,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "half-double-02",
+        "mode": "natural",
+        "letter": "A",
+        "sessionId": "half-double-1792389501513-7",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 19788858,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 19965258,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 19985985,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 20122695,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 20259405,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 20278809,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 20631609,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8187150955200195,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "half-double-03",
+        "mode": "relay",
+        "letter": "A",
+        "sessionId": "half-double-1792389639682-9",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 25881658,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 26058058,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 26090692,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 26183302,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 26276794,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 26307664,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 26660464,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8974399566650391,
+        "minimumLimiterGain": 1
+      },
+      {
+        "caseId": "half-double-03",
+        "mode": "natural",
+        "letter": "B",
+        "sessionId": "half-double-1792389759860-10",
+        "markers": [
+          {
+            "name": "试听开始",
+            "frame": 31177274,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 1",
+            "frame": 31353674,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 2",
+            "frame": 31386308,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 3",
+            "frame": 31478918,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 4",
+            "frame": 31572410,
+            "lateFrames": 0
+          },
+          {
+            "name": "位置 5",
+            "frame": 31603280,
+            "lateFrames": 0
+          },
+          {
+            "name": "试听结束",
+            "frame": 31956080,
+            "lateFrames": 0
+          }
+        ],
+        "peakBeforeOutputGain": 0.8965497016906738,
+        "minimumLimiterGain": 1
+      }
+    ],
+    "distinctCompletedArms": 6,
+    "allMarkersOnTime": true,
+    "sameSourceScheduleGainVoiceEQ": true,
+    "onlyBentryBuffersDiffer": true,
+    "earlyChoiceVerified": true,
+    "stoppingVerified": true,
+    "practiceExcluded": true,
+    "limitation": "Audio-thread/playback/record verification only; no subjective listening judgment. Frame maps are nominal grid controls, not certified musical attacks."
+  },
+  "formal": {
+    "id": "60c67024-df70-4422-8670-8c7e4ed79005",
+    "choices": 0,
+    "plays": 0,
+    "reveals": 0,
+    "historyRetained": true,
+    "allPlayerLogsRetained": true,
+    "formalFeedbackSha256": "684b2f9682089c66c8f2735fc7f7be28de26d10a3bd41f1224cdd11a8d7798f2"
+  },
+  "validation": {
+    "newPythonTests": 6,
+    "relatedPythonTests": 25,
+    "newTypescriptTests": 22,
+    "relatedTypescriptTests": 144,
+    "typecheck": "passed",
+    "build": "passed",
+    "independentReview": "Original atempo native-reference issue found and resolved; direct absolute-origin source decode/slice, actual3continuity audits0.0,24assets and native/mapped edge/source hashes independently verified; no remaining important findings",
+    "tonalProbe": "220Hz original and mapped peak220Hz at44.1kHz; mapped/native RMS0.999895. Synthetic guard is not a human musical quality judgment.",
+    "regressionFixes": [
+      "Original rate1 now bypasses atempo in new source renderer; previous shared renderers untouched",
+      "Full decode/resample from origin before absolute slicing; independently sought clips can restart resampler sampling phase",
+      "Shared-channel WSOLA stereo-vector correlation with12.5ms search and anti-phase tonal guard; nominal grid controls not certified actual attacks"
+    ]
+  },
+  "limitation": "Both original songs already have near2:1or1:2metrical relation; trial tests local phase correction, not BPM labels, global speed conversion or new semantic phrase alignment. Only3pairs/5tracks, first2shareA, existing grids/proxies provisional. No combined effects or production change.",
+  "workDirectory": "/Users/jihaobi/Documents/New project/work/half-double-20261019",
+  "screenshot": "/Users/jihaobi/Documents/New project/work/half-double-20261019/half-double.png",
+  "productionChanged": false,
+  "combinationsEnabled": false,
+  "completeFrozenPlanLocation": "/Users/jihaobi/Documents/New project/work/half-double-20261019/pack.json (full original plans, preprocessing/EQ evidence and assets; exact packSHA256 above)"
+}
