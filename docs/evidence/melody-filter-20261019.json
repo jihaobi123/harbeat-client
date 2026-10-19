@@ -1,0 +1,1548 @@
+{
+  "schema": "harbeat.melody-filter-evidence.v1",
+  "date": "2026-10-19",
+  "url": "http://127.0.0.1:5206/melody-filter.html",
+  "status": "Six current-parameter browser practice arms passed; blank formal listener round awaits choices",
+  "selectionSha256": "084314f86700d852e7d048a60d39dbb08bdeb5781a251cfd02d8c0ba65c4bbe5",
+  "packSha256": "91379b278146423968f048de6112a378f0e031da065f0d397c2a41aa3dccb8fe",
+  "sourcePackSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
+  "cases": [
+    {
+      "id": "melody-filter-01",
+      "aTitle": "Meant To Be",
+      "bTitle": "HIPHOP",
+      "bpm": [
+        107.1,
+        106.6
+      ],
+      "sourceCaseId": "melody-yield-01",
+      "planSha256": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+      "planExcerpt": {
+        "from": "track-274577b1e51f104f4658",
+        "to": "track-d2d58531421de0eb9690",
+        "start": 150.75820861678005,
+        "end": 155.24,
+        "duration": 4.481791383219955,
+        "rate": 1.008524999999999,
+        "restore": 154.1195518207283,
+        "aVocal": 1,
+        "bVocal": 0,
+        "midDuck": false
+      },
+      "windowExcerpt": {
+        "id": "w28-2",
+        "start": 72.5,
+        "end": 77.02,
+        "bars": 2
+      },
+      "filter": {
+        "type": "highpass",
+        "startHz": 20,
+        "endHz": 1800,
+        "Q": 0.7071067811865476,
+        "edgeSeconds": 0.02,
+        "sourceStart": 152.98,
+        "sourceBar": {
+          "index": 68,
+          "start": 152.98,
+          "lastBeat": 154.68,
+          "end": 155.24,
+          "beats": [
+            152.98,
+            153.52,
+            154.1,
+            154.68
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "gridSource": {
+          "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+          "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+          "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+          "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db"
+        },
+        "endOffsetFromObservedBar": 0
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+          "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+          "runId": "run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194",
+          "sectionSource": "songformer",
+          "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db",
+          "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+          "manifestSha256": "524b104eea0cec7585d920edfc215798ea3c27aa51a6b84a671ba5aed5bda523",
+          "otherSha256": "b50d698f977a936321dfb01e17382446198d7fefc4f781cdf312613c0b481cd4",
+          "otherStorageKey": "published/tracks/track-274577b1e51f104f4658/runs/run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+          "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/melody-filter-audio/melody-filter-01-aMaster.wav",
+          "sha256": "b1d817fd0262e2ae706e9b98893bdf32668e75c328b5210afae68a39e3e08e79",
+          "bytes": 2992490,
+          "duration": 8.481791383219955,
+          "frames": 374047,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0081849098205566
+        },
+        "aOther": {
+          "url": "/melody-filter-audio/melody-filter-01-aOther.flac",
+          "sha256": "534f5c296d2d039c0381eca4fb0fea9ba3dd0bd27bf30db03b23bb81731eda4a",
+          "bytes": 1583849,
+          "duration": 8.481791383219955,
+          "frames": 374047,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.7981463670730591
+        },
+        "bEntryMaster": {
+          "url": "/melody-filter-audio/melody-filter-01-bEntryMaster.wav",
+          "sha256": "eb18cf678b609f39295aebb9dbea3d79d5fcd4c9a655b6b7dab2dde2107a5900",
+          "bytes": 1581290,
+          "duration": 4.481791383219955,
+          "frames": 197647,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0072952508926392
+        },
+        "bEntryOther": {
+          "url": "/melody-filter-audio/melody-filter-01-bEntryOther.flac",
+          "sha256": "046082227428f0f99ba6a7aa756f43f4cb9d6972c6e58df3002e5e3f2ea00903",
+          "bytes": 872644,
+          "duration": 4.481791383219955,
+          "frames": 197647,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9383926391601562
+        },
+        "bBodyMaster": {
+          "url": "/melody-filter-audio/melody-filter-01-bBodyMaster.wav",
+          "sha256": "fb8cb48b95accf42f38b5d023a815732b9d374cc8f1c3cf482e6a775d3ab9c5c",
+          "bytes": 2822514,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0143742561340332
+        },
+        "bBodyOther": {
+          "url": "/melody-filter-audio/melody-filter-01-bBodyOther.flac",
+          "sha256": "cef5df75ccc35b660ef4c54dc92d9c3d07c51f098a664cdc90bc604e0bd5ed67",
+          "bytes": 1548496,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9563904404640198
+        }
+      },
+      "originalVocalConflictPreserved": true,
+      "legacyActiveFieldsRemoved": [
+        "yieldEnd",
+        "firstBar",
+        "shortStart",
+        "lastBarSourceStart"
+      ]
+    },
+    {
+      "id": "melody-filter-02",
+      "aTitle": "Attention",
+      "bTitle": "HIPHOP",
+      "bpm": [
+        104.9,
+        106.6
+      ],
+      "sourceCaseId": "melody-yield-02",
+      "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+      "planExcerpt": {
+        "from": "track-642bd1ac0da727a3b53b",
+        "to": "track-d2d58531421de0eb9690",
+        "start": 146.73543537414966,
+        "end": 155.887,
+        "duration": 9.151564625850341,
+        "rate": 0.9899937500000003,
+        "restore": 154.7430533841754,
+        "aVocal": 0.8880448679828775,
+        "bVocal": 0,
+        "midDuck": false
+      },
+      "windowExcerpt": {
+        "id": "w8-4",
+        "start": 27.22,
+        "end": 36.28,
+        "bars": 4
+      },
+      "filter": {
+        "type": "highpass",
+        "startHz": 20,
+        "endHz": 1800,
+        "Q": 0.7071067811865476,
+        "edgeSeconds": 0.02,
+        "sourceStart": 153.612,
+        "sourceBar": {
+          "index": 55,
+          "start": 153.612,
+          "lastBeat": 155.318,
+          "end": 155.887,
+          "beats": [
+            153.612,
+            154.18,
+            154.749,
+            155.318
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "gridSource": {
+          "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+          "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+          "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+          "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e"
+        },
+        "endOffsetFromObservedBar": 0
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+          "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+          "runId": "run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab",
+          "sectionSource": "songformer",
+          "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e",
+          "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+          "manifestSha256": "c5636cb826726a4620434d426f03c11e03dde1615b420ddeef0d0b058f6fc8eb",
+          "otherSha256": "be570f9ab3f22a672da0efefc49e72258fe7ee7148805155ed9f8b891b17d652",
+          "otherStorageKey": "published/tracks/track-642bd1ac0da727a3b53b/runs/run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+          "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+          "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+          "sectionSource": "songformer",
+          "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+          "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+          "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+          "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+          "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/melody-filter-audio/melody-filter-02-aMaster.wav",
+          "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+          "bytes": 4639986,
+          "duration": 13.151564625850341,
+          "frames": 579984,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.050370693206787
+        },
+        "aOther": {
+          "url": "/melody-filter-audio/melody-filter-02-aOther.flac",
+          "sha256": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+          "bytes": 2476798,
+          "duration": 13.151564625850341,
+          "frames": 579984,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.7440828680992126
+        },
+        "bEntryMaster": {
+          "url": "/melody-filter-audio/melody-filter-02-bEntryMaster.wav",
+          "sha256": "7bf5a510c66df7843174a09b0a496513eb9d97d062636cb90d0fda35ee5915f2",
+          "bytes": 3228786,
+          "duration": 9.151564625850341,
+          "frames": 403584,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0167686939239502
+        },
+        "bEntryOther": {
+          "url": "/melody-filter-audio/melody-filter-02-bEntryOther.flac",
+          "sha256": "f20b77935b05db004e069edd153cb9c3fa64e54c57e87c19bd73a08385727018",
+          "bytes": 1756445,
+          "duration": 9.151564625850341,
+          "frames": 403584,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.920527458190918
+        },
+        "bBodyMaster": {
+          "url": "/melody-filter-audio/melody-filter-02-bBodyMaster.wav",
+          "sha256": "a5e31b276d5d4ee8fd589ad165b497fdb7d8682cdc93d2d01aefe074d2f23479",
+          "bytes": 2822514,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0110077857971191
+        },
+        "bBodyOther": {
+          "url": "/melody-filter-audio/melody-filter-02-bBodyOther.flac",
+          "sha256": "414771cf08bd6fc256ee971c0a20dca21d388443d6386712e5278ab1d504e0d4",
+          "bytes": 1605864,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9725807905197144
+        }
+      },
+      "originalVocalConflictPreserved": true,
+      "legacyActiveFieldsRemoved": [
+        "yieldEnd",
+        "firstBar",
+        "shortStart",
+        "lastBarSourceStart"
+      ]
+    },
+    {
+      "id": "melody-filter-03",
+      "aTitle": "All Falls Down",
+      "bTitle": "GRILLZ (feat. Ilir808)",
+      "bpm": [
+        98,
+        98
+      ],
+      "sourceCaseId": "melody-yield-03",
+      "planSha256": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+      "planExcerpt": {
+        "from": "track-0a1c8c54ff45b04f1568",
+        "to": "track-6bcba4d577699a35104c",
+        "start": 167.44408163265308,
+        "end": 177.24,
+        "duration": 9.795918367346939,
+        "rate": 1.0004166666666663,
+        "restore": 176.01551020408164,
+        "aVocal": 0.4638666666666712,
+        "bVocal": 0,
+        "midDuck": false
+      },
+      "windowExcerpt": {
+        "id": "w24-4",
+        "start": 60,
+        "end": 69.8,
+        "bars": 4
+      },
+      "filter": {
+        "type": "highpass",
+        "startHz": 20,
+        "endHz": 1800,
+        "Q": 0.7071067811865476,
+        "edgeSeconds": 0.02,
+        "sourceStart": 174.8,
+        "sourceBar": {
+          "index": 87,
+          "start": 174.8,
+          "lastBeat": 176.62,
+          "end": 177.21,
+          "beats": [
+            174.8,
+            175.4,
+            176.02,
+            176.62
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "gridSource": {
+          "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+          "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+          "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+          "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20"
+        },
+        "endOffsetFromObservedBar": 0.030000000000001137
+      },
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+          "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+          "runId": "run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92",
+          "sectionSource": "songformer",
+          "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20",
+          "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+          "manifestSha256": "3f6dc726f0466aa1011c6c0becb0de8fef2776464f7e5ab6a9227087e93d58fb",
+          "otherSha256": "56f1ea12528c556b6950af3cb2e71a297ed7518e09a7a8b156591598f5b0caff",
+          "otherStorageKey": "published/tracks/track-0a1c8c54ff45b04f1568/runs/run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92/audio/stems/other.wav"
+        },
+        "b": {
+          "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+          "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+          "runId": "run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d",
+          "sectionSource": "songformer",
+          "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8",
+          "reportId": "fa9350f33f41b643cf1e06f5238d65a1d5f5649581792b71618414e62075ae06",
+          "manifestSha256": "36b3e9eb52bae5fc97d475715848df45de928f663bc320441afd2a1ad475421f",
+          "otherSha256": "11c33c1ea4dfd5d7c5043c5ab19be349803d4f44cb0939f9ce11492cc9cda65e",
+          "otherStorageKey": "published/tracks/track-6bcba4d577699a35104c/runs/run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d/audio/stems/other.wav"
+        }
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/melody-filter-audio/melody-filter-03-aMaster.wav",
+          "sha256": "dbe9d47ddd0ed3d5bbf607a452bf16d9179c054dffac9149442944712fccd268",
+          "bytes": 4867314,
+          "duration": 13.795918367346939,
+          "frames": 608400,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.1136194467544556
+        },
+        "aOther": {
+          "url": "/melody-filter-audio/melody-filter-03-aOther.flac",
+          "sha256": "191b22258b19a172028f31c048f299dd3f06c24ebe725952e94eb0d8511f33b8",
+          "bytes": 3027181,
+          "duration": 13.795918367346939,
+          "frames": 608400,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.6205294132232666
+        },
+        "bEntryMaster": {
+          "url": "/melody-filter-audio/melody-filter-03-bEntryMaster.flac",
+          "sha256": "bb993b185072b050b93d96cc8b57f0f57068ad5bf9df27d2da29d77d893e26d4",
+          "bytes": 1532628,
+          "duration": 9.795918367346939,
+          "frames": 432000,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9057940244674683
+        },
+        "bEntryOther": {
+          "url": "/melody-filter-audio/melody-filter-03-bEntryOther.flac",
+          "sha256": "3748f8ea8a4a131745ac2b8721e2a325095dd5dbe28f086b76a34fffcdac2928",
+          "bytes": 1556126,
+          "duration": 9.795918367346939,
+          "frames": 432000,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.48433440923690796
+        },
+        "bBodyMaster": {
+          "url": "/melody-filter-audio/melody-filter-03-bBodyMaster.flac",
+          "sha256": "615bee9d3cbbb23803c29318a36a1be967da6869c9b0ea2a81397eefe9f600de",
+          "bytes": 1263357,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8933418989181519
+        },
+        "bBodyOther": {
+          "url": "/melody-filter-audio/melody-filter-03-bBodyOther.flac",
+          "sha256": "3ca97a2f91a8068105a30d56e7a1c83d61bfdcae5312fb774f78942e09274c25",
+          "bytes": 1283917,
+          "duration": 8,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.47165918350219727
+        }
+      },
+      "originalVocalConflictPreserved": true,
+      "legacyActiveFieldsRemoved": [
+        "yieldEnd",
+        "firstBar",
+        "shortStart",
+        "lastBarSourceStart"
+      ]
+    }
+  ],
+  "preparationIdentity": {
+    "frozenInputSha256": "acd8397ff3bba4db00886095cd6ddd030e1ea0f2a379a27c930d025d018efdb0",
+    "selectionSha256": "86ce2e62615ab73cf6d6260ff6fb5f22b606c2e307bc5ca74eebd1438ed23ad6",
+    "freshSourceProofSha256": "4c4ed178ab22d85a055867b06c8cfd39f24377ce8c2df0cffa5f4d101ab36763",
+    "packagerSha256": "a6e45206ed5ca7fa31b4a6691c6d9fdf27d311f3f477fec110f5f3398d2f4b63",
+    "playbackSourceSha256": {
+      "policy.ts": "3bb64c2eb6792493de87c783fd2ab84c35f9bbcecb260d92a85cc5308c866f39",
+      "graph.ts": "4eda40b7cee4628cc26906317239e9bbccd2f7d8d7b6109076d63d3805259271",
+      "transport.ts": "9c0abbab827262e10ea71c09e40362cf808002b216483b0d9a737362de529f01",
+      "src/vocal-bridge/automation.ts": "a957be05ab5b74277baf5867a87b25e3e8db4ec7a86fe56f08e14afa13a83dd9",
+      "src/vocal-bridge/policy.ts": "747d060b36c5755c8b20c3fd1e39b58181894a82779420629872b669528f77d0",
+      "src/v30/eq.ts": "837cafaa4d17a29db8e69093b70ba65961a5e6beddd0aa2c289c9aaaf697ca37",
+      "src/melody-overlap/policy.ts": "f2b3150d30286ddde2bfc0513ef344c91913fd374bb1e5a8ca273d74d53ca3e8"
+    },
+    "clockWorkletSha256": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5",
+    "cases": [
+      {
+        "id": "melody-filter-01",
+        "planSha256": "dcbd6f9b3a255666cfebb6f0d34130d62c4544620203d7a19afbf9e83ea3a655",
+        "assets": {
+          "aMaster": {
+            "url": "/melody-filter-audio/melody-filter-01-aMaster.wav",
+            "sha256": "b1d817fd0262e2ae706e9b98893bdf32668e75c328b5210afae68a39e3e08e79",
+            "bytes": 2992490,
+            "duration": 8.481791383219955,
+            "frames": 374047,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0081849098205566
+          },
+          "aOther": {
+            "url": "/melody-filter-audio/melody-filter-01-aOther.flac",
+            "sha256": "534f5c296d2d039c0381eca4fb0fea9ba3dd0bd27bf30db03b23bb81731eda4a",
+            "bytes": 1583849,
+            "duration": 8.481791383219955,
+            "frames": 374047,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.7981463670730591
+          },
+          "bEntryMaster": {
+            "url": "/melody-filter-audio/melody-filter-01-bEntryMaster.wav",
+            "sha256": "eb18cf678b609f39295aebb9dbea3d79d5fcd4c9a655b6b7dab2dde2107a5900",
+            "bytes": 1581290,
+            "duration": 4.481791383219955,
+            "frames": 197647,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0072952508926392
+          },
+          "bEntryOther": {
+            "url": "/melody-filter-audio/melody-filter-01-bEntryOther.flac",
+            "sha256": "046082227428f0f99ba6a7aa756f43f4cb9d6972c6e58df3002e5e3f2ea00903",
+            "bytes": 872644,
+            "duration": 4.481791383219955,
+            "frames": 197647,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9383926391601562
+          },
+          "bBodyMaster": {
+            "url": "/melody-filter-audio/melody-filter-01-bBodyMaster.wav",
+            "sha256": "fb8cb48b95accf42f38b5d023a815732b9d374cc8f1c3cf482e6a775d3ab9c5c",
+            "bytes": 2822514,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0143742561340332
+          },
+          "bBodyOther": {
+            "url": "/melody-filter-audio/melody-filter-01-bBodyOther.flac",
+            "sha256": "cef5df75ccc35b660ef4c54dc92d9c3d07c51f098a664cdc90bc604e0bd5ed67",
+            "bytes": 1548496,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9563904404640198
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 152.98,
+          "sourceBar": {
+            "index": 68,
+            "start": 152.98,
+            "lastBeat": 154.68,
+            "end": 155.24,
+            "beats": [
+              152.98,
+              153.52,
+              154.1,
+              154.68
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+            "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+            "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+            "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db"
+          },
+          "endOffsetFromObservedBar": 0
+        }
+      },
+      {
+        "id": "melody-filter-02",
+        "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+        "assets": {
+          "aMaster": {
+            "url": "/melody-filter-audio/melody-filter-02-aMaster.wav",
+            "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+            "bytes": 4639986,
+            "duration": 13.151564625850341,
+            "frames": 579984,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.050370693206787
+          },
+          "aOther": {
+            "url": "/melody-filter-audio/melody-filter-02-aOther.flac",
+            "sha256": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+            "bytes": 2476798,
+            "duration": 13.151564625850341,
+            "frames": 579984,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.7440828680992126
+          },
+          "bEntryMaster": {
+            "url": "/melody-filter-audio/melody-filter-02-bEntryMaster.wav",
+            "sha256": "7bf5a510c66df7843174a09b0a496513eb9d97d062636cb90d0fda35ee5915f2",
+            "bytes": 3228786,
+            "duration": 9.151564625850341,
+            "frames": 403584,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0167686939239502
+          },
+          "bEntryOther": {
+            "url": "/melody-filter-audio/melody-filter-02-bEntryOther.flac",
+            "sha256": "f20b77935b05db004e069edd153cb9c3fa64e54c57e87c19bd73a08385727018",
+            "bytes": 1756445,
+            "duration": 9.151564625850341,
+            "frames": 403584,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.920527458190918
+          },
+          "bBodyMaster": {
+            "url": "/melody-filter-audio/melody-filter-02-bBodyMaster.wav",
+            "sha256": "a5e31b276d5d4ee8fd589ad165b497fdb7d8682cdc93d2d01aefe074d2f23479",
+            "bytes": 2822514,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0110077857971191
+          },
+          "bBodyOther": {
+            "url": "/melody-filter-audio/melody-filter-02-bBodyOther.flac",
+            "sha256": "414771cf08bd6fc256ee971c0a20dca21d388443d6386712e5278ab1d504e0d4",
+            "bytes": 1605864,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9725807905197144
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 153.612,
+          "sourceBar": {
+            "index": 55,
+            "start": 153.612,
+            "lastBeat": 155.318,
+            "end": 155.887,
+            "beats": [
+              153.612,
+              154.18,
+              154.749,
+              155.318
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+            "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+            "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+            "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e"
+          },
+          "endOffsetFromObservedBar": 0
+        }
+      },
+      {
+        "id": "melody-filter-03",
+        "planSha256": "f626d27e63677b2ec0d789b508b28a75d0235782276b7a206b049b88d2580068",
+        "assets": {
+          "aMaster": {
+            "url": "/melody-filter-audio/melody-filter-03-aMaster.wav",
+            "sha256": "dbe9d47ddd0ed3d5bbf607a452bf16d9179c054dffac9149442944712fccd268",
+            "bytes": 4867314,
+            "duration": 13.795918367346939,
+            "frames": 608400,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.1136194467544556
+          },
+          "aOther": {
+            "url": "/melody-filter-audio/melody-filter-03-aOther.flac",
+            "sha256": "191b22258b19a172028f31c048f299dd3f06c24ebe725952e94eb0d8511f33b8",
+            "bytes": 3027181,
+            "duration": 13.795918367346939,
+            "frames": 608400,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.6205294132232666
+          },
+          "bEntryMaster": {
+            "url": "/melody-filter-audio/melody-filter-03-bEntryMaster.flac",
+            "sha256": "bb993b185072b050b93d96cc8b57f0f57068ad5bf9df27d2da29d77d893e26d4",
+            "bytes": 1532628,
+            "duration": 9.795918367346939,
+            "frames": 432000,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9057940244674683
+          },
+          "bEntryOther": {
+            "url": "/melody-filter-audio/melody-filter-03-bEntryOther.flac",
+            "sha256": "3748f8ea8a4a131745ac2b8721e2a325095dd5dbe28f086b76a34fffcdac2928",
+            "bytes": 1556126,
+            "duration": 9.795918367346939,
+            "frames": 432000,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.48433440923690796
+          },
+          "bBodyMaster": {
+            "url": "/melody-filter-audio/melody-filter-03-bBodyMaster.flac",
+            "sha256": "615bee9d3cbbb23803c29318a36a1be967da6869c9b0ea2a81397eefe9f600de",
+            "bytes": 1263357,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.8933418989181519
+          },
+          "bBodyOther": {
+            "url": "/melody-filter-audio/melody-filter-03-bBodyOther.flac",
+            "sha256": "3ca97a2f91a8068105a30d56e7a1c83d61bfdcae5312fb774f78942e09274c25",
+            "bytes": 1283917,
+            "duration": 8,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.47165918350219727
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 174.8,
+          "sourceBar": {
+            "index": 87,
+            "start": 174.8,
+            "lastBeat": 176.62,
+            "end": 177.21,
+            "beats": [
+              174.8,
+              175.4,
+              176.02,
+              176.62
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+            "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+            "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+            "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20"
+          },
+          "endOffsetFromObservedBar": 0.030000000000001137
+        }
+      }
+    ]
+  },
+  "browser": {
+    "schema": "harbeat.melody-filter-browser-audit.v1",
+    "selectionSha256": "084314f86700d852e7d048a60d39dbb08bdeb5781a251cfd02d8c0ba65c4bbe5",
+    "practiceRoundId": "b68d851a-cdfa-4e02-b61e-eede76304d6b",
+    "formalRoundId": "967c093a-f440-4eb6-9a52-03cd99ce51e5",
+    "excludedPracticeIds": [
+      "87c3f839-9418-4249-8b03-e87db3a2b06e",
+      "b68d851a-cdfa-4e02-b61e-eede76304d6b"
+    ],
+    "completedArms": 6,
+    "renderObservations": 36,
+    "renderMarkersOnTime": true,
+    "playFailures": 0,
+    "earlyPracticeVote": {
+      "choice": "tie",
+      "at": "2026-10-19T07:55:10.109Z",
+      "heard": {}
+    },
+    "cancelRequests": 1,
+    "practiceArchived": true,
+    "reloadedFormalBlank": true,
+    "practiceExportSha256": "5dc8c661665721e9865ebf0101dcfeeb6358f0158d48a345fa1afdb963b61126",
+    "formalExportSha256": "dbd4f5d5d34b6dc60476ba5458295c4a8ba0c688afe9954e513389465a5072dd",
+    "cases": [
+      {
+        "id": "melody-filter-01",
+        "arms": [
+          {
+            "mode": "relay",
+            "letter": "A",
+            "sessionId": "melody-filter-1792396510956-3",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                8.481791383219955,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                8.481791383219955,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ],
+              [
+                6.221791383219937,
+                20
+              ],
+              [
+                8.481791383219955,
+                1800
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ],
+              [
+                6.221791383219937,
+                0
+              ],
+              [
+                6.241791383219937,
+                1
+              ],
+              [
+                8.481791383219955,
+                1
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 27066,
+                "observedFrame": 27136,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 203466,
+                "observedFrame": 203520,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 301447,
+                "observedFrame": 301568,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 351280,
+                "observedFrame": 351360,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 401113,
+                "observedFrame": 401152,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 753913,
+                "observedFrame": 753920,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6086245775222778
+          },
+          {
+            "mode": "natural",
+            "letter": "B",
+            "sessionId": "melody-filter-1792396601004-4",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                8.481791383219955,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                8.481791383219955,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 3979834,
+                "observedFrame": 3979904,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 4156234,
+                "observedFrame": 4156288,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 4254215,
+                "observedFrame": 4254336,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 4304048,
+                "observedFrame": 4304128,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 4353881,
+                "observedFrame": 4353920,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 4706681,
+                "observedFrame": 4706688,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6086245775222778
+          }
+        ]
+      },
+      {
+        "id": "melody-filter-02",
+        "arms": [
+          {
+            "mode": "natural",
+            "letter": "B",
+            "sessionId": "melody-filter-1792396762689-6",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                13.151564625850341,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                13.151564625850341,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 11108538,
+                "observedFrame": 11108608,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 11284938,
+                "observedFrame": 11284992,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 11588194,
+                "observedFrame": 11588224,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 11638358,
+                "observedFrame": 11638400,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 11688522,
+                "observedFrame": 11688576,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 12041322,
+                "observedFrame": 12041344,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6627880334854126
+          },
+          {
+            "mode": "relay",
+            "letter": "A",
+            "sessionId": "melody-filter-1792396887291-7",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                13.151564625850341,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                13.151564625850341,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ],
+              [
+                10.876564625850335,
+                20
+              ],
+              [
+                13.151564625850341,
+                1800
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ],
+              [
+                10.876564625850335,
+                0
+              ],
+              [
+                10.896564625850335,
+                1
+              ],
+              [
+                13.151564625850341,
+                1
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 16595770,
+                "observedFrame": 16595840,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 16772170,
+                "observedFrame": 16772224,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 17075427,
+                "observedFrame": 17075456,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 17125590,
+                "observedFrame": 17125632,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 17175754,
+                "observedFrame": 17175808,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 17528554,
+                "observedFrame": 17528576,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6627880334854126
+          }
+        ]
+      },
+      {
+        "id": "melody-filter-03",
+        "arms": [
+          {
+            "mode": "relay",
+            "letter": "A",
+            "sessionId": "melody-filter-1792396986239-9",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                13.795918367346939,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                13.795918367346939,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ],
+              [
+                11.35591836734693,
+                20
+              ],
+              [
+                13.795918367346939,
+                1800
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ],
+              [
+                11.35591836734693,
+                0
+              ],
+              [
+                11.37591836734693,
+                1
+              ],
+              [
+                13.795918367346939,
+                1
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 20924474,
+                "observedFrame": 20924544,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 21100874,
+                "observedFrame": 21100928,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 21425270,
+                "observedFrame": 21425280,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 21479072,
+                "observedFrame": 21479168,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 21532874,
+                "observedFrame": 21532928,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 21885674,
+                "observedFrame": 21885696,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6543346643447876
+          },
+          {
+            "mode": "natural",
+            "letter": "B",
+            "sessionId": "melody-filter-1792397124885-10",
+            "originalGainA": [
+              [
+                0,
+                1
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                13.795918367346939,
+                0
+              ]
+            ],
+            "originalGainB": [
+              [
+                0,
+                0
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                13.795918367346939,
+                1
+              ]
+            ],
+            "filterFrequency": [
+              [
+                0,
+                20
+              ]
+            ],
+            "filterMix": [
+              [
+                0,
+                0
+              ]
+            ],
+            "linearQ": 0.7071067811865476,
+            "webAudioQdB": -3.0102999566398116,
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 27009210,
+                "observedFrame": 27009280,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 27185610,
+                "observedFrame": 27185664,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 27510006,
+                "observedFrame": 27510016,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 27563808,
+                "observedFrame": 27563904,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 27617610,
+                "observedFrame": 27617664,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 27970410,
+                "observedFrame": 27970432,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.6543346643447876
+          }
+        ]
+      }
+    ],
+    "limitation": "Audio-thread coverage, not speaker latency or subjective quality; prior Q-unit prototype practice excluded."
+  },
+  "tests": {
+    "frontendScoped": 23,
+    "frontendRelated": 115,
+    "pythonScoped": 2,
+    "pythonRelated": 17,
+    "typecheck": "passed",
+    "fixedBuild": "passed; inherited Browserslist age advisory only",
+    "review": "Q finite/missing validation and WebAudioQ-dB correction rechecked; no remaining blockers"
+  },
+  "effect": {
+    "scope": "Only Aother highpass filtered-minus-dry correction in frozen finalbar",
+    "formula": "masterOriginalFade + (HP(originalEQ(other))-originalEQ(other))*originalAFade*activationMix",
+    "cutoffHz": [
+      20,
+      1800
+    ],
+    "cutoffInterpolation": "exponential",
+    "linearQ": 0.7071067811865476,
+    "webAudioQdB": -3.0102999566398116,
+    "activationSeconds": 0.02,
+    "graphGain": 0.6,
+    "outputGain": 0.7,
+    "normalization": "No per-arm normalization; identical shared headroom and existing lookaheadlimiter",
+    "wordBoundaryOrSemanticPhraseCertification": false
+  },
+  "sourceValidation": {
+    "freshSourceCheck": {
+      "schema": "harbeat.melody-filter-source-check.v1",
+      "sourcePackSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
+      "verifiedAt": "2026-10-19T07:37:14.507424+00:00",
+      "sourceTracks": 5,
+      "cases": [
+        {
+          "id": "melody-yield-01",
+          "fromTrack": "track-274577b1e51f104f4658",
+          "toTrack": "track-d2d58531421de0eb9690",
+          "bindings": {
+            "a": {
+              "masterSha256": "274577b1e51f104f46581712d7842ec1ecb5ded853e63d5ad149719acd094c8e",
+              "reportSha256": "55dc09fe27c8e8f4ccd0d22a3ed4ad8916404546fcfa48fb9ad64684bb8d6886",
+              "runId": "run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194",
+              "sectionSource": "songformer",
+              "vocalSha256": "d905c39d9df09f36c4b67f615598e792d59fafc61bdb452402a0482b25dab6db",
+              "reportId": "82f679172a2a343b017527a25caced5e0e3fdbe4fad87eab77870aea24d76cd4",
+              "manifestSha256": "524b104eea0cec7585d920edfc215798ea3c27aa51a6b84a671ba5aed5bda523",
+              "otherSha256": "b50d698f977a936321dfb01e17382446198d7fefc4f781cdf312613c0b481cd4",
+              "otherStorageKey": "published/tracks/track-274577b1e51f104f4658/runs/run-track-274577b1e51f104f4658-274577b1e51f-a268a5c-a1e46194/audio/stems/other.wav"
+            },
+            "b": {
+              "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+              "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+              "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+              "sectionSource": "songformer",
+              "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+              "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+              "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+              "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+              "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+            }
+          }
+        },
+        {
+          "id": "melody-yield-02",
+          "fromTrack": "track-642bd1ac0da727a3b53b",
+          "toTrack": "track-d2d58531421de0eb9690",
+          "bindings": {
+            "a": {
+              "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+              "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+              "runId": "run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab",
+              "sectionSource": "songformer",
+              "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e",
+              "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+              "manifestSha256": "c5636cb826726a4620434d426f03c11e03dde1615b420ddeef0d0b058f6fc8eb",
+              "otherSha256": "be570f9ab3f22a672da0efefc49e72258fe7ee7148805155ed9f8b891b17d652",
+              "otherStorageKey": "published/tracks/track-642bd1ac0da727a3b53b/runs/run-track-642bd1ac0da727a3b53b-642bd1ac0da7-a268a5c-4dc329ab/audio/stems/other.wav"
+            },
+            "b": {
+              "masterSha256": "d2d58531421de0eb96906bc3e26e237c7831c2a5c6245e34e1c11d8fe74aed60",
+              "reportSha256": "a30beac59e0223694bf60796adf1e4d85caa36f4d062ae9910db64fed3d61e5b",
+              "runId": "run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5",
+              "sectionSource": "songformer",
+              "vocalSha256": "8903b18fa5f150f069f37092de04dea20bd345a4d0ca37afd512bdcdce3b4082",
+              "reportId": "a3e9323af1e6bd186a09e4ebb0f62aed41e946e21fda664f09b8beb9403bfdc1",
+              "manifestSha256": "759716fa118d55120e6a89d1ed681de33a91e4d7ba89a671ae0956d32c6c0cce",
+              "otherSha256": "9e4ecc26482aca45ff4c23473bedf80c2626de27591973fe8794106a80899df7",
+              "otherStorageKey": "published/tracks/track-d2d58531421de0eb9690/runs/run-track-d2d58531421de0eb9690-d2d58531421d-a268a5c-59628fd5/audio/stems/other.wav"
+            }
+          }
+        },
+        {
+          "id": "melody-yield-03",
+          "fromTrack": "track-0a1c8c54ff45b04f1568",
+          "toTrack": "track-6bcba4d577699a35104c",
+          "bindings": {
+            "a": {
+              "masterSha256": "0a1c8c54ff45b04f15687bce5615c5e30d9bf56025a10d415d027c4f7c1d4a6c",
+              "reportSha256": "c35157196a7f22b5f0542d2aefeaebca6a256dd2083ce84549ad48e2040232ac",
+              "runId": "run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92",
+              "sectionSource": "songformer",
+              "vocalSha256": "0067cc6be1e1e7624efefa70fe587c96f3ba4f5a9bcbffd14d36f45039a84a20",
+              "reportId": "d3882baa1a80332243650f9e1fc5db62fa2de6db4f4ff5fe99303e84e860ee85",
+              "manifestSha256": "3f6dc726f0466aa1011c6c0becb0de8fef2776464f7e5ab6a9227087e93d58fb",
+              "otherSha256": "56f1ea12528c556b6950af3cb2e71a297ed7518e09a7a8b156591598f5b0caff",
+              "otherStorageKey": "published/tracks/track-0a1c8c54ff45b04f1568/runs/run-track-0a1c8c54ff45b04f1568-0a1c8c54ff45-a268a5c-64de2a92/audio/stems/other.wav"
+            },
+            "b": {
+              "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+              "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+              "runId": "run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d",
+              "sectionSource": "songformer",
+              "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8",
+              "reportId": "fa9350f33f41b643cf1e06f5238d65a1d5f5649581792b71618414e62075ae06",
+              "manifestSha256": "36b3e9eb52bae5fc97d475715848df45de928f663bc320441afd2a1ad475421f",
+              "otherSha256": "11c33c1ea4dfd5d7c5043c5ab19be349803d4f44cb0939f9ce11492cc9cda65e",
+              "otherStorageKey": "published/tracks/track-6bcba4d577699a35104c/runs/run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d/audio/stems/other.wav"
+            }
+          }
+        }
+      ]
+    },
+    "exactCachedAssets": 18,
+    "recomputedTempoOrCues": false,
+    "sourceVerifierSha256": "7d1ec66ef71f2c09df4d17e2b39524a15abb27efb53b1c69b195c035d5c4d2bc"
+  },
+  "workFiles": {
+    "frozen-input.json": "acd8397ff3bba4db00886095cd6ddd030e1ea0f2a379a27c930d025d018efdb0",
+    "selection.json": "86ce2e62615ab73cf6d6260ff6fb5f22b606c2e307bc5ca74eebd1438ed23ad6",
+    "source-check.json": "4c4ed178ab22d85a055867b06c8cfd39f24377ce8c2df0cffa5f4d101ab36763",
+    "pack.json": "91379b278146423968f048de6112a378f0e031da065f0d397c2a41aa3dccb8fe",
+    "asset-audit.json": "1f42da637f55b2e537d548ce0eecd1872b1922c4f0691fa388e2f962a97835d7",
+    "preparation-identity.json": "f728ca11be3bd275de3cb8db45c560557f981c973ce08ec72ac3cfe7b1903f6c",
+    "browser-practice-before-q-fix.json": "7559616dec400e5f1c0c3a4f891a06154cf02f8787746a77ab0fb52e896a01c2",
+    "browser-practice.json": "5dc8c661665721e9865ebf0101dcfeeb6358f0158d48a345fa1afdb963b61126",
+    "browser-formal.json": "dbd4f5d5d34b6dc60476ba5458295c4a8ba0c688afe9954e513389465a5072dd",
+    "browser-audit.json": "9ac1a9b277d73af3f79ec1392a3fa82e96dae403d84a1423bd8184ef101e7bcc",
+    "melody-filter.png": "c127d94366af9fe9391723cda7534d2f2fe55eedb47fa3ee71fd901d04f720f0"
+  },
+  "referenceSources": [
+    {
+      "title": "Web Audio highpass Q uses dB; linear Q converted by20log10",
+      "url": "https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-q"
+    },
+    {
+      "title": "NI DJ effects: filters, delay, turntable FX",
+      "url": "https://blog.native-instruments.com/best-dj-effects/"
+    }
+  ],
+  "limitations": [
+    "Other is a mixed instrumental residual, with possible voice/drum/bass bleed; no pure melody claim.3pairs/5tracks, first2shareB. Inherited cached master/other atempo/source-edge rendering shared in both arms; not newly native-bitexact or source-continuity-certified. No genre trigger, combined technique or production change.",
+    "Exact6cachedclips shared within each pair; sourceNAS hashes reverified. Existing cached atempo/source-edge rendering not relabeled as native-bitexact or continuous-source-certified.",
+    "Aobservedfinalbar ends177.210 vsfrozenexit177.240 inthirdcase;30ms offset with existing65mstolerance recorded, no cue shift.",
+    "Correction can affect other-stem bleed; original separate vocal/drum/bass gain rules remain unchanged, not an acoustically pure melody guarantee.",
+    "Before-Q-unit-fix practice is excluded and archived. No listener preference has been filled for new formal round.",
+    "Long-blend duration/lowfrequency timing, semantic half/double phrase mapping, vocalchop/loops/hotcue, multi-song arrangements and genuine distanttempoexit variants remain separate future work; no compound technique activated."
+  ],
+  "preexistingDirtyFilesPreserved": 14
+}
