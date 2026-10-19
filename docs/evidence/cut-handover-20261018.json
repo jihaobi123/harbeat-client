@@ -2,7 +2,7 @@
   "schema": "harbeat.cut-handover-evidence.v1",
   "date": "2026-10-18",
   "url": "http://127.0.0.1:5202/cut-handover.html",
-  "scope": "Independent fixed-bar accompaniment5ms exchange; original vocal curves retained, listener choices pending",
+  "scope": "Standalone accompaniment short exchange listener round completed2026-10-19:2short-exchange/1tie/0original; replication candidates only",
   "selectionSha256": "4d09286a6b2b0e55c59647ca46b9ed09f5a805732a21126869928feb13153a10",
   "sourcePackSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
   "packSha256": "439ed32e499069b67a68f879cd376581c8a81ef249f0faba6ee049933ce30a58",
@@ -622,7 +622,7 @@
     "independentReview": "No actionable findings; reviewer independently passed21tests and verified18audiohashes"
   },
   "browser": {
-    "status": "passed; formal listener choices pending",
+    "status": "Delivery playback/persistence passed; formal listener results archived below",
     "practiceRoundId": "c8d078d0-a0c2-4f23-b547-dd5eafd08ce1",
     "practiceExportSha256": "51e325f3ae0d4be4c21035c220b9c86e020a6a87b8a4801eab8083976138e5cd",
     "plays": [
@@ -714,5 +714,638 @@
     "files": 14,
     "changed": []
   },
-  "outputObservation": "All six final complete plays had minimum limiter gain1. Cut-to-native markers differ220/221frames at44100Hz. Meter peak before common output gain0.7; no perceived loudness or quality inference. Reference maxima match previous original nine-source practice maxima, not proof of unrecorded PCM bit equality."
+  "outputObservation": "All six final complete plays had minimum limiter gain1. Cut-to-native markers differ220/221frames at44100Hz. Meter peak before common output gain0.7; no perceived loudness or quality inference. Reference maxima match previous original nine-source practice maxima, not proof of unrecorded PCM bit equality.",
+  "listener": {
+    "schema": "harbeat.cut-handover-choice-analysis.v1",
+    "reviewDate": "2026-10-19",
+    "roundId": "69a78055-b048-47c4-8d83-bf5de810ff23",
+    "feedbackSha256": "ee69b672b7551ed164e748c66d126d4a123bf93a7e5a1f1d2db355607afa6612",
+    "selectionSha256": "4d09286a6b2b0e55c59647ca46b9ed09f5a805732a21126869928feb13153a10",
+    "excludedPracticeRoundIds": [
+      "c8d078d0-a0c2-4f23-b547-dd5eafd08ce1"
+    ],
+    "counts": {
+      "natural": 0,
+      "relay": 2,
+      "tie": 1,
+      "none": 0
+    },
+    "cases": [
+      {
+        "id": "cut-handover-01",
+        "aTitle": "Doin' It",
+        "bTitle": "Talgo",
+        "bpm": [
+          121.6,
+          125
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "tie",
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-19T02:59:50.040Z",
+          "heard": {
+            "B": "2026-10-19T02:53:29.532Z",
+            "A": "2026-10-19T02:54:19.852Z"
+          }
+        },
+        "preferredMethod": "tie",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-19T02:52:52.705Z"
+        },
+        "preVoteCoreCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "cut-handover-1792378372460-1",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-19T02:52:52.517Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 15.120680272108844,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:52:52.705Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:52:56.767Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T02:53:06.060Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T02:53:06.066Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378389341-2",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-19T02:53:09.351Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 19.894739229024943,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:53:09.447Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:53:13.442Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T02:53:21.335Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T02:53:21.340Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-19T02:53:29.412Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378439707-3",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-19T02:53:59.722Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 19.894739229024943,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:53:59.820Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:54:03.824Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T02:54:11.712Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T02:54:11.717Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-19T02:54:19.717Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378755224-4",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-19T02:59:15.245Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 13.698458049886653,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:59:15.345Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:59:19.674Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T02:59:27.566Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T02:59:27.572Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378769424-5",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-19T02:59:29.444Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 19.894739229024943,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:59:29.545Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:59:33.545Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T02:59:41.439Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T02:59:41.444Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-19T02:59:49.438Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "cutEvidence": {
+          "rawBoundary": {
+            "rawBarIndex": 117,
+            "sourceSec": 263.883,
+            "distanceSec": 0
+          },
+          "nearestModelSectionBoundary": {
+            "sectionIndex": 14,
+            "label": "chorus",
+            "edge": "end",
+            "sourceSec": 261.73,
+            "distanceSec": 2.152999999999963
+          },
+          "vocalTailSource": 262.084,
+          "vocalTailGapSeconds": 1.799000000024943,
+          "outgoingGapBoundaryType": "observation-horizon-censored",
+          "outgoingCoverage": {
+            "start": 250.988261,
+            "end": 269.838261,
+            "frameSeconds": 0.05,
+            "modelStart": 250.98826077097505,
+            "modelEnd": 269.883,
+            "unobservedRemainder": 0.04473899999999276
+          },
+          "incomingCoverage": {
+            "start": 83.88,
+            "end": 96.67999999999999,
+            "frameSeconds": 0.05,
+            "modelStart": 83.88,
+            "modelEnd": 96.7,
+            "unobservedRemainder": 0.020000000000010232
+          },
+          "analysisSources": [
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+              "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+            },
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+              "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+            }
+          ],
+          "voicePolicy": "original-linear-fades",
+          "accompanimentPolicy": "complementary5ms-at-original-native-takeover",
+          "sourceScheduling": "Original Bentry begins atpre and advances while accompaniment muted; last5ms is audible, original Bbody starts at unchanged native takeover. Original4ms entry/body edges retained.",
+          "interpretation": "Raw beat-grid bar boundary, not confirmed phrase or section ending. Provisional vocal activity evidence, not certified lyric completeness."
+        },
+        "limitation": "Both complete clips were heard before initial vote; additional repeats retained."
+      },
+      {
+        "id": "cut-handover-02",
+        "aTitle": "WANNABE",
+        "bTitle": "Tonight",
+        "bpm": [
+          121,
+          121
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "choice": "A",
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-19T03:00:55.672Z",
+          "heard": {
+            "A": "2026-10-19T03:00:23.292Z",
+            "B": "2026-10-19T03:00:51.611Z"
+          }
+        },
+        "preferredMethod": "relay",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "A",
+          "B"
+        ],
+        "firstPlayed": {
+          "letter": "A",
+          "at": "2026-10-19T02:59:53.732Z"
+        },
+        "preVoteCoreCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "cut-handover-1792378793574-7",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-19T02:59:53.626Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 13.402403628117895,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T02:59:53.732Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T02:59:57.727Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T03:00:01.695Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T03:00:01.700Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378807140-8",
+            "method": "relay",
+            "letter": "A",
+            "startedAt": "2026-10-19T03:00:07.155Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 15.966938775510204,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T03:00:07.252Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T03:00:11.252Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T03:00:15.214Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T03:00:15.220Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-19T03:00:23.220Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378835439-9",
+            "method": "natural",
+            "letter": "B",
+            "startedAt": "2026-10-19T03:00:35.454Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": true,
+            "stoppedPosition": 15.966938775510204,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T03:00:35.556Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T03:00:39.561Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T03:00:43.519Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T03:00:43.524Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "wallTime": "2026-10-19T03:00:51.524Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "cutEvidence": {
+          "rawBoundary": {
+            "rawBarIndex": 87,
+            "sourceSec": 189.18,
+            "distanceSec": 0
+          },
+          "nearestModelSectionBoundary": {
+            "sectionIndex": 10,
+            "label": "chorus",
+            "edge": "end",
+            "sourceSec": 189.728,
+            "distanceSec": 0.5480000000000018
+          },
+          "vocalTailSource": 188.004,
+          "vocalTailGapSeconds": 1.175999999510204,
+          "outgoingGapBoundaryType": "observation-horizon-censored",
+          "outgoingCoverage": {
+            "start": 181.213061,
+            "end": 191.213061,
+            "frameSeconds": 0.05,
+            "modelStart": 181.2130612244898,
+            "modelEnd": 191.2420612244898,
+            "unobservedRemainder": 0.029000224489777793
+          },
+          "incomingCoverage": {
+            "start": 46.3,
+            "end": 53.199999999999996,
+            "frameSeconds": 0.05,
+            "modelStart": 46.3,
+            "modelEnd": 53.24,
+            "unobservedRemainder": 0.04000000000000625
+          },
+          "analysisSources": [
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+              "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+            },
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+              "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+            }
+          ],
+          "voicePolicy": "original-linear-fades",
+          "accompanimentPolicy": "complementary5ms-at-original-native-takeover",
+          "sourceScheduling": "Original Bentry begins atpre and advances while accompaniment muted; last5ms is audible, original Bbody starts at unchanged native takeover. Original4ms entry/body edges retained.",
+          "interpretation": "Raw beat-grid bar boundary, not confirmed phrase or section ending. Provisional vocal activity evidence, not certified lyric completeness."
+        },
+        "limitation": "Both complete clips were heard before initial vote; additional repeats retained."
+      },
+      {
+        "id": "cut-handover-03",
+        "aTitle": "GOOD BOY",
+        "bTitle": "Snake Gang",
+        "bpm": [
+          94.9,
+          95
+        ],
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "choice": "B",
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T03:02:07.155Z",
+          "heard": {}
+        },
+        "preferredMethod": "relay",
+        "symptoms": [],
+        "notes": "",
+        "recommendedOrder": [
+          "B",
+          "A"
+        ],
+        "firstPlayed": {
+          "letter": "B",
+          "at": "2026-10-19T03:01:33.175Z"
+        },
+        "preVoteCoreCoverage": {
+          "natural": true,
+          "relay": true
+        },
+        "preVoteSessions": [
+          {
+            "sessionId": "cut-handover-1792378893022-11",
+            "method": "relay",
+            "letter": "B",
+            "startedAt": "2026-10-19T03:01:33.074Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": 18.847482993197332,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T03:01:33.175Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T03:01:37.407Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T03:01:47.514Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T03:01:47.519Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          {
+            "sessionId": "cut-handover-1792378912273-12",
+            "method": "natural",
+            "letter": "A",
+            "startedAt": "2026-10-19T03:01:52.301Z",
+            "cutStartCovered": true,
+            "nativeTakeoverCovered": true,
+            "completedBeforeVote": false,
+            "stoppedPosition": null,
+            "observations": [
+              {
+                "name": "试听开始",
+                "wallTime": "2026-10-19T03:01:52.399Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "wallTime": "2026-10-19T03:01:56.404Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "wallTime": "2026-10-19T03:02:06.511Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "wallTime": "2026-10-19T03:02:06.516Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        ],
+        "cutEvidence": {
+          "rawBoundary": {
+            "rawBarIndex": 79,
+            "sourceSec": 215.191,
+            "distanceSec": 0
+          },
+          "nearestModelSectionBoundary": {
+            "sectionIndex": 10,
+            "label": "bridge",
+            "edge": "end",
+            "sourceSec": 222.609,
+            "distanceSec": 7.418000000000006
+          },
+          "vocalTailSource": 213.22,
+          "vocalTailGapSeconds": 1.9710000003469386,
+          "outgoingGapBoundaryType": "observation-horizon-censored",
+          "outgoingCoverage": {
+            "start": 201.075082,
+            "end": 220.175082,
+            "frameSeconds": 0.05,
+            "modelStart": 201.07508163265305,
+            "modelEnd": 220.191,
+            "unobservedRemainder": 0.01591799999999921
+          },
+          "incomingCoverage": {
+            "start": 59.674,
+            "end": 72.774,
+            "frameSeconds": 0.05,
+            "modelStart": 59.674,
+            "modelEnd": 72.774,
+            "unobservedRemainder": 0
+          },
+          "analysisSources": [
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018",
+              "sha256": "3616760d46d7ce0a408a414b0b61e94186f1ec9f5d5bd4c5d4ef708b98658984"
+            },
+            {
+              "path": "/Users/jihaobi/Documents/New project/work/vocal-endpoint-coverage-20261018-v2/probe-talgo",
+              "sha256": "1a75416d9ba9296c12f167caa1457babec832a9a5164bd39d5d42577b029aa8f"
+            }
+          ],
+          "voicePolicy": "original-linear-fades",
+          "accompanimentPolicy": "complementary5ms-at-original-native-takeover",
+          "sourceScheduling": "Original Bentry begins atpre and advances while accompaniment muted; last5ms is audible, original Bbody starts at unchanged native takeover. Original4ms entry/body edges retained.",
+          "interpretation": "Raw beat-grid bar boundary, not confirmed phrase or section ending. Provisional vocal activity evidence, not certified lyric completeness."
+        },
+        "limitation": "Original native takeover marker preceded first vote by~0.639s; short-exchange arm was heard~4.73safter takeover. Later original-body passage not completely heard before vote."
+      }
+    ],
+    "userOverallComment": {
+      "quote": "我已经测试完了我发现加入一些小的短伴奏在有些音乐里确实比较合适",
+      "interpretation": "Positive conditional impression recorded alongside per-pair preferences. This implemented treatment shortens the exchange of existing accompaniment; it did not insert a new backing excerpt."
+    },
+    "conclusion": "Two positive short-exchange cases and one tie; no original preference. Preserve WANNABE/Tonight and GOODBOY/SnakeGang as replication candidates, not universal activation or automatic combination. No condition classifier or causal explanation is established without symptoms/notes or new-pair replication.",
+    "limitations": [
+      "One listener/3fixed near-tempo pairs; preference counts do not measure improvement size or universality.",
+      "No symptom checkboxes or notes, reveal or formal playback failures; do not infer that clearer phrasing, less masking or stronger beats caused the preference.",
+      "Positive cases have different original blend durations (~3.97s and10.12s); duration alone cannot define a supported trigger.",
+      "Raw bar-grid exits are not certified semantic section/phrase endings; no distant-style or newly inserted accompaniment fragment test.",
+      "Both cut/native markers observed before every initial vote; later original-body listening limited for GOODBOY."
+    ]
+  }
 }
