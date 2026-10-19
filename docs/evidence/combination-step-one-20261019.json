@@ -1,0 +1,421 @@
+{
+  "schema": "harbeat.combination-step-one-evidence.v1",
+  "date": "2026-10-19",
+  "url": "http://127.0.0.1:5210/combination-step-one.html",
+  "status": "Prepared and verified; blank formal listener round awaiting preferences",
+  "selectionSha256": "95e531c3b8d3b264efc731f7629b2499069af3b82e19eb65d319b8a70617638f",
+  "packSha256": "c79a6fd7005535bd17308ed56d798db6f2b25af0a48fbc8d2482afb486810ce8",
+  "case": {
+    "id": "combination-01",
+    "aTitle": "Attention",
+    "bTitle": "HIPHOP",
+    "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+    "sourceStart": 146.73543537414966,
+    "sourceEnd": 155.887,
+    "bSource": [
+      27.22,
+      36.28
+    ],
+    "pre": 4,
+    "post": 8,
+    "rate": 0.9899937500000003,
+    "timing": {
+      "duckStart": 4.588564625850353,
+      "swapStart": 6.307564625850347,
+      "swapEnd": 6.876564625850335
+    },
+    "filter": {
+      "type": "highpass",
+      "startHz": 20,
+      "endHz": 1800,
+      "Q": 0.7071067811865476,
+      "edgeSeconds": 0.02,
+      "sourceStart": 153.612,
+      "sourceBar": {
+        "index": 55,
+        "start": 153.612,
+        "lastBeat": 155.318,
+        "end": 155.887,
+        "beats": [
+          153.612,
+          154.18,
+          154.749,
+          155.318
+        ],
+        "valid": true,
+        "reason": "four_observed_beats"
+      },
+      "gridSource": {
+        "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+        "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+        "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+        "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e"
+      },
+      "endOffsetFromObservedBar": 0
+    },
+    "assets": {
+      "aMaster": {
+        "url": "/combination-step-one-audio/combination-01-aMaster.wav",
+        "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "bytes": 4639986,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.050370693206787
+      },
+      "aBass": {
+        "url": "/combination-step-one-audio/combination-01-aBass.flac",
+        "sha256": "a9eaaa1c24ec8aeaa6e43f6e04e8f9b05e40399af73956800106a4fd821f5035",
+        "bytes": 1956279,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.7179491519927979
+      },
+      "bEntryMaster": {
+        "url": "/combination-step-one-audio/combination-01-bEntryMaster.wav",
+        "sha256": "8eb64462020817ec0f23e39825b292d7467be618d6f439ff54ad4b7b75144ddf",
+        "bytes": 3228786,
+        "duration": 9.151564625850341,
+        "frames": 403584,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0167322158813477
+      },
+      "bEntryBass": {
+        "url": "/combination-step-one-audio/combination-01-bEntryBass.flac",
+        "sha256": "8a210c216d8e42622f44d3db5dba8f55e395b43bf3448127373b86f2022234d9",
+        "bytes": 1211899,
+        "duration": 9.151564625850341,
+        "frames": 403584,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.17901450395584106
+      },
+      "bBodyMaster": {
+        "url": "/combination-step-one-audio/combination-01-bBodyMaster.wav",
+        "sha256": "f63370f1a0fe2bb87b851337f146c3e35746168cecd69874004f285be7894798",
+        "bytes": 2822514,
+        "duration": 8.0,
+        "frames": 352800,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0110077857971191
+      },
+      "aOther": {
+        "url": "/combination-step-one-audio/combination-01-aOther.flac",
+        "sha256": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+        "bytes": 2476798,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.7440828680992126
+      }
+    },
+    "originalPlanAndVocalConflictEqualBothParents": true
+  },
+  "arms": {
+    "original": "Frozen5190master reference fades/EQ",
+    "single": "Identical5190bassCurves and master rendering, common headroom0.60instead of legacy0.76",
+    "combined": "Identical single bass plus only5206Aother filtered-minus-dry correction"
+  },
+  "singleSelection": "Previously preferred bass arm, not proven best of all single techniques. Pair also preferred filter separately.",
+  "sourceIdentity": {
+    "bassParentPackSha256": "9eeae172eef933fb92f0d24151c13c0f7b426a113d0a2532c44ae89eb779bcc6",
+    "filterParentPackSha256": "91379b278146423968f048de6112a378f0e031da065f0d397c2a41aa3dccb8fe",
+    "planSha256": "ef280908fa7bd5db6b73a8b1b9cb62c445f4450560f87df0335dd0046d14c7e3",
+    "timing": {
+      "duckStart": 4.588564625850353,
+      "swapStart": 6.307564625850347,
+      "swapEnd": 6.876564625850335
+    },
+    "filter": {
+      "type": "highpass",
+      "startHz": 20,
+      "endHz": 1800,
+      "Q": 0.7071067811865476,
+      "edgeSeconds": 0.02,
+      "sourceStart": 153.612,
+      "sourceBar": {
+        "index": 55,
+        "start": 153.612,
+        "lastBeat": 155.318,
+        "end": 155.887,
+        "beats": [
+          153.612,
+          154.18,
+          154.749,
+          155.318
+        ],
+        "valid": true,
+        "reason": "four_observed_beats"
+      },
+      "gridSource": {
+        "reportId": "47c5a6452feb6014c190eaac5e03be03be20713bb6839bc669a4802b70dbd80d",
+        "reportSha256": "3814809b55437bfeb82eb598e5a916912658bd2db22b804c7a7b4948ece1eda3",
+        "masterSha256": "642bd1ac0da727a3b53b501a6e6c0ba7e1f62a55020a2250fe8c0f0729c87aa9",
+        "vocalSha256": "4a768beb814184d481e8a66eb9d11cf94a704c3c14dabffadbcdb8a48977700e"
+      },
+      "endOffsetFromObservedBar": 0
+    },
+    "assets": {
+      "aMaster": {
+        "url": "/combination-step-one-audio/combination-01-aMaster.wav",
+        "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "bytes": 4639986,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.050370693206787
+      },
+      "aBass": {
+        "url": "/combination-step-one-audio/combination-01-aBass.flac",
+        "sha256": "a9eaaa1c24ec8aeaa6e43f6e04e8f9b05e40399af73956800106a4fd821f5035",
+        "bytes": 1956279,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.7179491519927979
+      },
+      "bEntryMaster": {
+        "url": "/combination-step-one-audio/combination-01-bEntryMaster.wav",
+        "sha256": "8eb64462020817ec0f23e39825b292d7467be618d6f439ff54ad4b7b75144ddf",
+        "bytes": 3228786,
+        "duration": 9.151564625850341,
+        "frames": 403584,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0167322158813477
+      },
+      "bEntryBass": {
+        "url": "/combination-step-one-audio/combination-01-bEntryBass.flac",
+        "sha256": "8a210c216d8e42622f44d3db5dba8f55e395b43bf3448127373b86f2022234d9",
+        "bytes": 1211899,
+        "duration": 9.151564625850341,
+        "frames": 403584,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.17901450395584106
+      },
+      "bBodyMaster": {
+        "url": "/combination-step-one-audio/combination-01-bBodyMaster.wav",
+        "sha256": "f63370f1a0fe2bb87b851337f146c3e35746168cecd69874004f285be7894798",
+        "bytes": 2822514,
+        "duration": 8.0,
+        "frames": 352800,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0110077857971191
+      },
+      "aOther": {
+        "url": "/combination-step-one-audio/combination-01-aOther.flac",
+        "sha256": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+        "bytes": 2476798,
+        "duration": 13.151564625850341,
+        "frames": 579984,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.7440828680992126
+      }
+    },
+    "playbackSourceSha256": {
+      "src/combination-step-one/audit.ts": "e8144f7e57b6de8fcfb3365a62d4819fce7e34408fb2387ffc032501f27b1d6a",
+      "src/combination-step-one/graph.ts": "43916f2ea634455dacccad4c1214310f80940a76fdff9210ed2940957ae6322a",
+      "src/combination-step-one/legacy-reference.ts": "0886a3ef3c51144a2ad0eb7674c8941f98bce4c454de277f177b318868c80d62",
+      "src/combination-step-one/policy.ts": "174799e00d2d7f309b766f23b584ae5b12443febfc03375741d66f421f2526af",
+      "src/combination-step-one/rounds.ts": "ab0f0b37c67d89af73f2c5f194b2242e4eda0f33c27dfac303b608c8c4d8b182",
+      "src/combination-step-one/transport.ts": "8dbe1af40f077c85862efe1fc788492d1abbd14c44566db6bda6dcf3dabb88f9",
+      "src/bass-swap/policy.ts": "92b972267b7177bb545ec8d801e4e7d6b5a38ba70bd02f0592b8c2a00452f570",
+      "src/melody-filter/policy.ts": "3bb64c2eb6792493de87c783fd2ab84c35f9bbcecb260d92a85cc5308c866f39",
+      "src/vocal-bridge/automation.ts": "a957be05ab5b74277baf5867a87b25e3e8db4ec7a86fe56f08e14afa13a83dd9",
+      "src/v30/eq.ts": "837cafaa4d17a29db8e69093b70ba65961a5e6beddd0aa2c289c9aaaf697ca37",
+      "src/melody-overlap/policy.ts": "f2b3150d30286ddde2bfc0513ef344c91913fd374bb1e5a8ca273d74d53ca3e8",
+      "public/vocal-echo-clock.js": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5"
+    },
+    "packagerSha256": "cb978a4c9932de67b00861fc23f610e594993ff30faaae2d9e8f1b0cae449ced"
+  },
+  "assetAudit": {
+    "assets": [
+      {
+        "key": "aMaster",
+        "sha256": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "frames": 579984,
+        "unchangedCachedSource": true
+      },
+      {
+        "key": "aBass",
+        "sha256": "a9eaaa1c24ec8aeaa6e43f6e04e8f9b05e40399af73956800106a4fd821f5035",
+        "frames": 579984,
+        "unchangedCachedSource": true
+      },
+      {
+        "key": "bEntryMaster",
+        "sha256": "8eb64462020817ec0f23e39825b292d7467be618d6f439ff54ad4b7b75144ddf",
+        "frames": 403584,
+        "unchangedCachedSource": true
+      },
+      {
+        "key": "bEntryBass",
+        "sha256": "8a210c216d8e42622f44d3db5dba8f55e395b43bf3448127373b86f2022234d9",
+        "frames": 403584,
+        "unchangedCachedSource": true
+      },
+      {
+        "key": "bBodyMaster",
+        "sha256": "f63370f1a0fe2bb87b851337f146c3e35746168cecd69874004f285be7894798",
+        "frames": 352800,
+        "unchangedCachedSource": true
+      },
+      {
+        "key": "aOther",
+        "sha256": "c3114c14f509c773e14e6b9c5d7a7c9dab69dd2f9cdb7a392d5406ea615c73da",
+        "frames": 579984,
+        "unchangedCachedSource": true
+      }
+    ],
+    "parentRenderComparison": {
+      "aMaster": {
+        "maxDecodedDifference": 0.0,
+        "decision": "Use entire5190master/bass rendering; borrow only Aother from5206"
+      },
+      "bEntryMaster": {
+        "maxDecodedDifference": 1.7590198516845703,
+        "decision": "Use entire5190master/bass rendering; borrow only Aother from5206"
+      },
+      "bBodyMaster": {
+        "maxDecodedDifference": 0.6520105004310608,
+        "decision": "Use entire5190master/bass rendering; borrow only Aother from5206"
+      }
+    },
+    "sourceProof": "Existing frozen source/run/report bindings and exact cached SHA; no new NAS proof. SSH192.168.10.2 closed before authentication."
+  },
+  "sourceLimits": [
+    "Fresh NAS SSH192.168.10.2closed before authentication; no new NAS原文件verification claimed. Existing source/run/manifest/report bindings retained with exact cached asset SHA recheck.",
+    "Frozen plan/vocalConflict identical across parents but B cached master rendering differs; all5190masters and bass preserved. Only5206Aother reused, whose Aparent master is sample-exact.",
+    "Source edges/time-stretch inherited from existing preferred bass trial; not relabeled as newly native bit-exact source joins."
+  ],
+  "offlineAudioAudit": {
+    "schema": "harbeat.combination-offline-audit.v1",
+    "selectionSha256": "95e531c3b8d3b264efc731f7629b2499069af3b82e19eb65d319b8a70617638f",
+    "sampleRate": 44100,
+    "frames": 981295,
+    "at": 1,
+    "total": 21.15156462585034,
+    "pass": true,
+    "measures": {
+      "originalVsLegacyPlain": 0,
+      "singleVsLegacyBass": 5.960464477539063e-08,
+      "addedDifferenceVsOnlyFilter": 8.940696716308594e-08,
+      "beforeFilterSingleVsCombined": 5.960464477539063e-08,
+      "postHandoffAllSame": 0,
+      "originalVsSingle": 0.15004748106002808,
+      "singleVsCombined": 0.025495832785964012
+    },
+    "stats": {
+      "original": {
+        "peak": 0.6627880334854126,
+        "rms": 0.1698929930330743
+      },
+      "single": {
+        "peak": 0.658833920955658,
+        "rms": 0.171235294358013
+      },
+      "combined": {
+        "peak": 0.658833920955658,
+        "rms": 0.17123044968663484
+      },
+      "plain-reference": {
+        "peak": 0.6627880334854126,
+        "rms": 0.1698929930330743
+      },
+      "filter-reference": {
+        "peak": 0.6627880334854126,
+        "rms": 0.16988676924637908
+      },
+      "bass-reference": {
+        "peak": 0.658833920955658,
+        "rms": 0.17123529435774526
+      }
+    },
+    "scope": "Real OfflineAudioContext, pre-limiter graph; equal0.60headroom; no perceived loudness matching or subjective judgement."
+  },
+  "browser": {
+    "formalRoundId": "7d8afe74-0307-4bff-ab90-9fddfdabc9fb",
+    "formalBlank": true,
+    "excludedPracticeRoundId": "801184c8-6868-490a-bcba-c50e39362a16",
+    "excludedEmptyArchivedRoundIds": [
+      "a5705a05-11cc-4363-b74d-7e686f4de88c"
+    ],
+    "completePasses": [
+      {
+        "mode": "single",
+        "letter": "A",
+        "sessionId": "combination-1792421167406-1",
+        "observations": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.658833920955658,
+        "position": 21.15156462585034
+      },
+      {
+        "mode": "original",
+        "letter": "B",
+        "sessionId": "combination-1792421260344-4",
+        "observations": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.6627880334854126,
+        "position": 21.15156462585034
+      },
+      {
+        "mode": "combined",
+        "letter": "C",
+        "sessionId": "combination-1792421391843-5",
+        "observations": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.6588339805603027,
+        "position": 21.15156462585034
+      }
+    ],
+    "allPracticeObservations": 35,
+    "failed": 0,
+    "interruptedPlays": 1,
+    "earlyVoteWithoutCompletion": true,
+    "symptomAttributionSaved": true,
+    "refreshRestoredFormalBlankAndPracticeHistory": true,
+    "consoleErrorsWarnings": [],
+    "screenshot": "/Users/jihaobi/Documents/New project/work/combination-step-one-20261019/combination-cards.jpg"
+  },
+  "tests": {
+    "scoped": 14,
+    "relatedIncludingScoped": 56,
+    "typescript": "pass",
+    "viteBuild": "pass; informational stale Browserslist database notice only",
+    "review": "Independent review: no material blockers. Stale source/eight-asset wording corrected to final six assets."
+  },
+  "formalListenerResults": null,
+  "productionActivation": false,
+  "subjectiveSoundQualityJudgedByAgent": false,
+  "limits": [
+    "Single reused pair; no generalization or universal combination benefit claim.",
+    "Common graph0.60/output0.7/no per-arm normalization; no perceived loudness matching.",
+    "Original vocal gain/conflict rules preserved; bass/other stem bleed may change residual vocal content.",
+    "Practice choices/symptoms are automated UI checks and excluded from listener preferences. Empty historical pre-build round also excluded."
+  ],
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/combination-step-one-20261019",
+  "artifactHashes": {
+    "browser-formal.json": "b811203ed4366cb9cd0a403418db96d9c36b6d9436e1505428f9487f97f6cb6a",
+    "browser-practice.json": "6b4a1d6e69062ca3134992dccff044e9394e72e4cb2562ad84c9ec01f28b62fd",
+    "offline-audit.json": "62edc06ab0612048bcc7276be8f34351a41c2363bdaaaee730dd7a79724f10b0",
+    "asset-audit.json": "eaf417063c5f2e73fd1e43da120f0b868bd3edd6dfa3895ca968fb0e13bc73ae",
+    "preparation-identity.json": "762348db841febf796f6305aa61751f121546090c07965ac310e600d9d6fbd4f",
+    "protected-dirty.json": "e23b7981863a5388f5d930a5a5e67a3bdfe95b46c709aa6173ae4ac02b0e3f24",
+    "combination-cards.jpg": "e44ee4c8f18f0442a18c0422cf195e607c8abe9856d28ecf672420cb8c99f81f"
+  }
+}

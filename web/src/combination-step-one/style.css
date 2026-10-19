@@ -1,0 +1,3 @@
+@import '../vocal-handover/style.css';
+.vocal-bed .arms{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){.vocal-bed .arms{grid-template-columns:1fr}.vocal-bed .arms article+article{border-left:0;border-top:1px solid #cbd1c4}}
