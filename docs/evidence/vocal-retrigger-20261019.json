@@ -1,0 +1,425 @@
+{
+  "schema": "harbeat.vocal-retrigger-evidence.v1",
+  "date": "2026-10-19",
+  "url": "http://127.0.0.1:5207/vocal-retrigger.html",
+  "status": "One candidate prepared; human source cut review and listener preference pending",
+  "selectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33",
+  "packSha256": "ee197445b6e61159044ac5e8eb17fd7df264c475931cce763e995f08fd6a929b",
+  "sourceSelectionSha256": "57dba13629e9792f7e85aecb5c820ada93fa4a33b98a3893c35e87d365b711ce",
+  "sourceCheckSha256": "27105cdfd3fd04331183948695490e92bf4e30d2f368ed96d31269a82037a1c4",
+  "preparationIdentity": {
+    "selectionSha256": "57dba13629e9792f7e85aecb5c820ada93fa4a33b98a3893c35e87d365b711ce",
+    "sourceCheckSha256": "27105cdfd3fd04331183948695490e92bf4e30d2f368ed96d31269a82037a1c4",
+    "preparerSha256": "c96f4762e2b1f055c971e1c3a779f534700900224e02b9c3a358fdb90b38bc37",
+    "plannerSha256": "883dcf7b29b7cb23f44be612616671b842c8bcfb64141ce8e01f93dea43d7c94",
+    "playbackSourceSha256": {
+      "policy.ts": "ae38236a429708ae15c1523decddc117bd6770621e72da2c5095e1deab5e8816",
+      "graph.ts": "7344e6b4440dc9aff6c40c0a1702735ebf4f3c4c55fababf9592644267ac2915",
+      "transport.ts": "1a79674c5fe90a68e5d22c5d356c5d34c542c9cd91b9c687dc2db25af0ab5de2",
+      "rounds.ts": "7561d5ac62fc793a8f79d8305e1bb33ea29708cf6c2e9008a93098e0941c334b"
+    },
+    "imports": {
+      "src/vocal-bridge/automation.ts": "a957be05ab5b74277baf5867a87b25e3e8db4ec7a86fe56f08e14afa13a83dd9",
+      "src/v30/eq.ts": "837cafaa4d17a29db8e69093b70ba65961a5e6beddd0aa2c289c9aaaf697ca37",
+      "src/realtime/cache.ts": "aa89c95c327ea2184c86e3974790b097b19789f6a46ea1f361ab527e4429ad3b",
+      "public/vocal-echo-clock.js": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5"
+    },
+    "cases": [
+      {
+        "id": "vocal-retrigger-01",
+        "planSha256": "cb9bd3578a67570105b954e39f72fa7ea1525e9e8665272fdb3aa39c73a96ea2",
+        "assets": {
+          "aMaster": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-aMaster.wav",
+            "sha256": "97416f5ca00662c9430af1fb6095c55fda79f6ea99fdc94d84ba6d22ead260ae",
+            "bytes": 4196578,
+            "duration": 11.894739229024943,
+            "frames": 524558,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0169602632522583
+          },
+          "aVocal": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-aVocal.flac",
+            "sha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+            "bytes": 2027311,
+            "duration": 11.894739229024943,
+            "frames": 524558,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9770180583000183
+          },
+          "bEntryMaster": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-bEntryMaster.flac",
+            "sha256": "6f76c5ef2bf48f801ed1bf6aa444ff10d8cc7b08a4310932d71626836aa2abdc",
+            "bytes": 1543510,
+            "duration": 7.894739229024943,
+            "frames": 348158,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9859106540679932
+          },
+          "bEntryVocal": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-bEntryVocal.flac",
+            "sha256": "1d6c467143f8e88173270f65849fbf17c2a702cd4d923b6d56adffe614fdb4ae",
+            "bytes": 933990,
+            "duration": 7.894739229024943,
+            "frames": 348158,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.0020740714389830828
+          },
+          "bBodyMaster": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-bBodyMaster.wav",
+            "sha256": "12784271b8b28b680c1f0a2a1cfb5e75618b0f5c185774feb62a6a94cc7d719a",
+            "bytes": 2822514,
+            "duration": 8.0,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0006592273712158
+          },
+          "bBodyVocal": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-bBodyVocal.flac",
+            "sha256": "07d01e7dbb994316b1ffb1880392020fa884c60e0f50799cf0fc2d917204b120",
+            "bytes": 946449,
+            "duration": 8.0,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.0018915124237537384
+          },
+          "aOneShot": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-aOneShot.wav",
+            "sha256": "0a1cc18525b70addbc2bb5fa1cba3b749d86d8c57aaeec8d34ea9513b368ebfa",
+            "bytes": 795912,
+            "duration": 2.2557369614512472,
+            "frames": 99478,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.3746471405029297
+          },
+          "aReviewContext": {
+            "url": "/vocal-retrigger-audio/vocal-retrigger-01-aReviewContext.wav",
+            "sha256": "3b538a5b3a4a7496c8fee3f9069d62ee2aa2fbbd670343c4a431e0843db40033",
+            "bytes": 1148712,
+            "duration": 3.2557369614512472,
+            "frames": 143578,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9057778120040894
+          }
+        },
+        "fx": {
+          "schema": "harbeat.vocal-retrigger-window.v1",
+          "sourceStart": 259.858261,
+          "sourceEnd": 262.114,
+          "duration": 2.2557389999999486,
+          "sourceOrigin": 251.98826077097505,
+          "contextStart": 259.358261,
+          "contextEnd": 262.614,
+          "trigger": 11.894739229024943,
+          "replayEnd": 14.150478229024891,
+          "count": 1,
+          "edgeSeconds": 0.005,
+          "quietPadSeconds": 0.3,
+          "incomingSupport": [
+            93.7,
+            95.95573899999995
+          ],
+          "outgoingSupport": [
+            263.883,
+            266.13873899999993
+          ],
+          "captureGainPolicy": "original-a-linear-at-source",
+          "status": "requires-human-cut-review",
+          "source": {
+            "a": {
+              "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+              "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+              "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+              "sectionSource": "songformer",
+              "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+              "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+              "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+            },
+            "b": {
+              "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+              "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+              "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+              "sectionSource": "songformer",
+              "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+              "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+              "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+            }
+          },
+          "outgoingCoverage": {
+            "start": 250.988261,
+            "end": 269.838261,
+            "frameSeconds": 0.05,
+            "modelStart": 250.98826077097505,
+            "modelEnd": 269.883,
+            "unobservedRemainder": 0.04473899999999276
+          },
+          "incomingCoverage": {
+            "start": 83.88,
+            "end": 96.67999999999999,
+            "frameSeconds": 0.05,
+            "modelStart": 83.88,
+            "modelEnd": 96.7,
+            "unobservedRemainder": 0.020000000000010232
+          }
+        }
+      }
+    ]
+  },
+  "case": {
+    "id": "vocal-retrigger-01",
+    "pair": [
+      "Doin' It",
+      "Talgo"
+    ],
+    "bpm": [
+      121.6,
+      125
+    ],
+    "originalPlanSha256": "3d1bb43eed0e31ed7194219bac1aa69a6a391bbb91b77de66c70264505a0395e",
+    "planSha256": "cb9bd3578a67570105b954e39f72fa7ea1525e9e8665272fdb3aa39c73a96ea2",
+    "fx": {
+      "schema": "harbeat.vocal-retrigger-window.v1",
+      "sourceStart": 259.858261,
+      "sourceEnd": 262.114,
+      "duration": 2.2557389999999486,
+      "sourceOrigin": 251.98826077097505,
+      "contextStart": 259.358261,
+      "contextEnd": 262.614,
+      "trigger": 11.894739229024943,
+      "replayEnd": 14.150478229024891,
+      "count": 1,
+      "edgeSeconds": 0.005,
+      "quietPadSeconds": 0.3,
+      "incomingSupport": [
+        93.7,
+        95.95573899999995
+      ],
+      "outgoingSupport": [
+        263.883,
+        266.13873899999993
+      ],
+      "captureGainPolicy": "original-a-linear-at-source",
+      "status": "requires-human-cut-review",
+      "source": {
+        "a": {
+          "masterSha256": "246e6a03787422897e28ee1544aa63bccd45bc75b0299cc0c75f1aee259732a4",
+          "reportSha256": "54af0f89459073d33ff7131610ad0ce5604f72217e0a79d54d1ced8c7a16d944",
+          "runId": "run-track-246e6a03787422897e28-246e6a037874-a268a5c-095126af",
+          "sectionSource": "songformer",
+          "vocalSha256": "a4100a0e7a2dff7afd4f54284a4415b1c94e5852312a10ff6498ef78868f7f22",
+          "manifestSha256": "a640755bcf2e012e6d33a8f7f31e511ab9d34b4d5b820669f0a50052eac57560",
+          "bassSha256": "fd343c36d2b152cfa9295b847eae7e4323986318df153b54359d6cc63210dc72"
+        },
+        "b": {
+          "masterSha256": "b8ffcc19b1cb7e0798a9e29b6d0b29811bae76c0fda845d630afc88c94c440be",
+          "reportSha256": "ae4834b4092c30957b753a5dceefacf6578c5bd9bf9c70c1bcaff93253848efb",
+          "runId": "run-track-b8ffcc19b1cb7e0798a9-b8ffcc19b1cb-a268a5c-16d5a904",
+          "sectionSource": "songformer",
+          "vocalSha256": "a25e13e2fe06a23a95798f152e6813704da3853eb7c568fa5b999ab0dd222db5",
+          "manifestSha256": "9d0752eb2a2198bbc9685eeadb9c302be75152d49d9b89468adb145becff3fad",
+          "bassSha256": "21e7796b80bf6ab76a5134e334a0aeb1fbd43337e958e7783918f74d8e123a6c"
+        }
+      },
+      "outgoingCoverage": {
+        "start": 250.988261,
+        "end": 269.838261,
+        "frameSeconds": 0.05,
+        "modelStart": 250.98826077097505,
+        "modelEnd": 269.883,
+        "unobservedRemainder": 0.04473899999999276
+      },
+      "incomingCoverage": {
+        "start": 83.88,
+        "end": 96.67999999999999,
+        "frameSeconds": 0.05,
+        "modelStart": 83.88,
+        "modelEnd": 96.7,
+        "unobservedRemainder": 0.020000000000010232
+      }
+    },
+    "captureEvidence": {
+      "inputVocalSha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+      "oneShotSha256": "0a1cc18525b70addbc2bb5fa1cba3b749d86d8c57aaeec8d34ea9513b368ebfa",
+      "contextSha256": "3b538a5b3a4a7496c8fee3f9069d62ee2aa2fbbd670343c4a431e0843db40033",
+      "captureGainPolicy": "original-a-linear-at-source",
+      "sourceSamples": [
+        347067,
+        446545
+      ],
+      "humanCutStatus": "pending",
+      "normalization": "none"
+    },
+    "assets": {
+      "aMaster": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-aMaster.wav",
+        "sha256": "97416f5ca00662c9430af1fb6095c55fda79f6ea99fdc94d84ba6d22ead260ae",
+        "bytes": 4196578,
+        "duration": 11.894739229024943,
+        "frames": 524558,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0169602632522583
+      },
+      "aVocal": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-aVocal.flac",
+        "sha256": "1e7cac2417ed905158ce0bf0ff7297030667d79d2c780b36debd672535acdffc",
+        "bytes": 2027311,
+        "duration": 11.894739229024943,
+        "frames": 524558,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.9770180583000183
+      },
+      "bEntryMaster": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-bEntryMaster.flac",
+        "sha256": "6f76c5ef2bf48f801ed1bf6aa444ff10d8cc7b08a4310932d71626836aa2abdc",
+        "bytes": 1543510,
+        "duration": 7.894739229024943,
+        "frames": 348158,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.9859106540679932
+      },
+      "bEntryVocal": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-bEntryVocal.flac",
+        "sha256": "1d6c467143f8e88173270f65849fbf17c2a702cd4d923b6d56adffe614fdb4ae",
+        "bytes": 933990,
+        "duration": 7.894739229024943,
+        "frames": 348158,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.0020740714389830828
+      },
+      "bBodyMaster": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-bBodyMaster.wav",
+        "sha256": "12784271b8b28b680c1f0a2a1cfb5e75618b0f5c185774feb62a6a94cc7d719a",
+        "bytes": 2822514,
+        "duration": 8.0,
+        "frames": 352800,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 1.0006592273712158
+      },
+      "bBodyVocal": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-bBodyVocal.flac",
+        "sha256": "07d01e7dbb994316b1ffb1880392020fa884c60e0f50799cf0fc2d917204b120",
+        "bytes": 946449,
+        "duration": 8.0,
+        "frames": 352800,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.0018915124237537384
+      },
+      "aOneShot": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-aOneShot.wav",
+        "sha256": "0a1cc18525b70addbc2bb5fa1cba3b749d86d8c57aaeec8d34ea9513b368ebfa",
+        "bytes": 795912,
+        "duration": 2.2557369614512472,
+        "frames": 99478,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.3746471405029297
+      },
+      "aReviewContext": {
+        "url": "/vocal-retrigger-audio/vocal-retrigger-01-aReviewContext.wav",
+        "sha256": "3b538a5b3a4a7496c8fee3f9069d62ee2aa2fbbd670343c4a431e0843db40033",
+        "bytes": 1148712,
+        "duration": 3.2557369614512472,
+        "frames": 143578,
+        "sampleRate": 44100,
+        "channels": 2,
+        "peak": 0.9057778120040894
+      }
+    }
+  },
+  "skips": [
+    {
+      "sourceCaseId": "vocal-handover-02",
+      "pair": [
+        "WANNABE",
+        "Tonight"
+      ],
+      "accepted": false,
+      "reason": "whole candidate too long or outside cached context"
+    },
+    {
+      "sourceCaseId": "vocal-handover-03",
+      "pair": [
+        "GOOD BOY",
+        "Snake Gang"
+      ],
+      "accepted": false,
+      "reason": "whole candidate too long or outside cached context"
+    }
+  ],
+  "scopeCaveat": "Selected endpoint candidate259.888261–262.084, padded30ms, lies inside continuous VAD255.612–262.084 and overlapping rejected endpoint255.688261–262.084(tail-unsettled). Frozen selection audit calls this complete provisional activity; that means the selected candidate only, not whole vocal activity or certified lyrics. Human context and exact sample review required. May be rejected as cut.",
+  "browser": {
+    "practiceRoundId": "e9c6dddc-0aa7-4a6c-b4d8-2774079d6b85",
+    "formalRoundId": "a8144449-58a9-4f81-8913-0eb139aa87af",
+    "completeArms": [
+      {
+        "letter": "A",
+        "mode": "natural",
+        "sessionId": "vocal-retrigger-1792402082594-5",
+        "position": 19.894739229024943
+      },
+      {
+        "letter": "B",
+        "mode": "relay",
+        "sessionId": "vocal-retrigger-1792402197276-6",
+        "position": 19.894739229024943
+      }
+    ],
+    "renderMarkers": 12,
+    "allMarkersLateZero": true,
+    "minimumLimiterGain": 1,
+    "peak": 0.6750710010528564,
+    "errors": 0,
+    "sourceExposureLoggedOn": "HTMLMediaElement playing, not play request",
+    "sourceReviewHistory": [
+      "complete",
+      "cut",
+      "complete"
+    ],
+    "earlyPreferenceSnapshotHeard": {},
+    "practiceExcluded": true,
+    "formalBlank": true,
+    "reloadRetainsHistory": true,
+    "consoleWarningsErrors": 0,
+    "metadataUpdate": "Initial practice retained separately. Final rebuilt source-bound pack was replayed in a separate practice round, both arms complete. Current formal matches final pack."
+  },
+  "tests": {
+    "frontend": 132,
+    "backend": 10,
+    "typecheck": "passed",
+    "build": "passed",
+    "independentReview": "P2 source gate repaired: context+sample actual playing onsets required in UI/state/restore; reviewer confirmed closed",
+    "protectedDirtyFilesUnchanged": 14
+  },
+  "sources": [
+    {
+      "title": "Native Instruments cue points",
+      "url": "https://blog.native-instruments.com/cue-points-djing/"
+    },
+    {
+      "title": "Serato sampler play modes",
+      "url": "https://support.serato.com/hc/en-us/articles/227629728-Sampler-Play-Modes"
+    }
+  ],
+  "limits": [
+    "One pair only; no listener benefit result yet.",
+    "Source cut review may reject candidate; VAD and energy boundaries cannot certify words.",
+    "Repeated loops, word chopping and live hotkeys remain untested.",
+    "Inherited cached atempo and source edges are shared, no native bit-exact continuity claim.",
+    "No automatic online strategy or technique combinations enabled."
+  ],
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/vocal-retrigger-20261019"
+}

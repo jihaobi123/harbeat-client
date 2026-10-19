@@ -108,3 +108,6 @@ After5205all3neither and user request to defer distanttempo, next standalone is 
 ### Melodyfilterfeedbackcomplete; nextvocaloneshot2026-10-19
 
 5206formal967c093a-f440-4eb6-9a52-03cd99ce51e5:2filter(MeantToBe,Attention)/1original(AllFallsDown).Allcorefilter/nativehandoffmarkerscoveredbeforevotes;onlythirdfullclipscomplete.Case01bleedandcase02/03cleanercheckboxeslackarmattribution.Noautomatedtriggerinferred.ThirdvoteBsupplieddirectlyinhumanasyncanswerandrecordedvisibly;mappingunrevealed. Nextsinglemethod:oneoutgoingvocalphraseadditionaloneshotatfixednativehandoff,originalmix/cues/voicefadesunchanged.ProvisionalsourcecutmustbereviewedinhumanUIbeforeformalAB;preserve300msquiet/conflictchecksanddo not fabricatewordcertification.Skipfixedcaseswithoutwholephraseandsource-boundquietcoverage.Finalcross-techniquecatalogueafterremainingcorestandalonereviews,combinationtrialslater.
+
+
+2026-10-19: Prepared5207 source-reviewed vocal one-shot, Doin It / Talgo only; two fixed-cue source-ineligible skips. No formal cue approval or listener preference yet. See docs/evidence/vocal-retrigger-20261019.json and docs/mixing-catalogue-completion-plan.md. Word chopping, repeated loops and live hotkeys remain distinct unverified variants.

@@ -1,0 +1,13 @@
+# Source-reviewed vocal one-shot
+
+After melody-filter listener review2treatment/1original, user authorizes the next independent technique and a final catalogue after remaining testing. Keep all components separate before combinations.
+
+Reuse the three original5197pairs/cues and original dry fades, EQ, speed, voice-conflict protections and reference bass. For each, consider the selected final A endpoint candidate padded30ms per side, maximum3seconds. Candidate is provisional, not a certified word/lyric boundary. Doin’ It’s selected candidate overlaps a longer continuous VAD interval and rejected endpoint; it is not the whole vocal activity interval. Human context review can reject it, and no listener benefit is inferred before that review. Reject when the segment cannot fit or the300ms-padded repeat support exceeds validated A/B quiet coverage. Repeat exactly once at the unchanged native handoff; Bbody has resumed native speed there. No loop, echo, scratch, filter or changed original vocal envelope.
+
+Capture the exact cached A vocal samples weighted by the original A fade at their original time, with5ms de-click edges. Replay the captured phrase as one finite sample with no gain normalization. Original dry graph remains identical in both arms; only the replay is muted/enabled. Apply identical original A EQ to the replay at output time. Common headroom0.60 and output0.7.
+
+Doin' It→Talgo has a2.26s candidate; WANNABE and GOOD BOY fail duration/coverage and remain documented skips. Reverify source report/manifest/master/vocal/bass hashes and frozen local endpoint evidence; copy unchanged dry clips, derive review context and exact replay sample.
+
+The5207page requires a source-quality review before A/B playback or preference: listen to voice context and the exact captured sample, then mark complete/cut/uncertain. Only complete enables A/B. This is a necessary cut-point judgment, not a request for action permission. Any review change is recorded; revoking complete stops playback. Votes retain review-at-vote snapshots. Review does not reveal the A/B assignment. Practice QA approvals are explicitly excluded; formal review/preferences start blank. Early preference remains allowed after source review without completing A/B playback.
+
+This round tests a single finite phrase retrigger only. It does not establish word chopping, repeated phrase loops, live hotkey performance, automatic lyric understanding or universal suitability. The final catalogue must preserve these distinctions, cited literature, per-case results, failures, preprocessing requirements and deferred methods before combinations.
