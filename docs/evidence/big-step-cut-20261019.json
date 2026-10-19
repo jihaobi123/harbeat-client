@@ -1968,7 +1968,8 @@
     ],
     "failures": [],
     "userOverall": "BPM跨度太大其实会非常难混；若无更合适方案可降低优先级，先做其他尚未独立测试手法",
-    "interpretation": "All3votedneither, both shortexchange/pre+5ms and referencefadeendpoint were covered. Shortarms didnot reachBnativebodyorfulloriginalvoicefade endpoint, so this is not3fullycompletedarmcomparisons. No symptom/notes, no inferred cause. Defer distanttempo per overalluserfeedback; do not generalize to all transition methods.",
-    "exportSha256": "25379fe0306389ff56fe5fa3eac714846198e579131365aefdc5beb20d694c39"
+    "interpretation": "All3votedneither, both shortexchange/pre+5ms and referencefadeendpoint were covered. Beforeinitialvotes,shortarms hadnot reachedBnativebodyorfulloriginalvoicefade endpoint, so this is not3fullycompletedarmcomparisons. No symptom/notes, no inferred cause. Defer distanttempo per overalluserfeedback; do not generalize to all transition methods.",
+    "exportSha256": "25379fe0306389ff56fe5fa3eac714846198e579131365aefdc5beb20d694c39",
+    "afterInitialVoteNote": "Case02short reached native takeover marker at07:23:46.282Z,after initial07:23:45.073Zvote; no revised vote. Cases01/03short didnot reach native takeover. All3short arms incomplete before initial vote."
   }
 }
