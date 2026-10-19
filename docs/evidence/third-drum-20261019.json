@@ -2,7 +2,7 @@
   "schema": "harbeat.third-drum-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5209/third-drum.html",
-  "status": "Three original/additive-Cdrum pairs prepared; formal listener preferences pending",
+  "status": "Formal listener review complete: 2 original, 1 tie, 0 additive drum; catalogue assembled before combinations",
   "selectionSha256": "a070f11a59d58c66949a8f69fbf6256bc1562fcdb9b37d8e4278fe0131559783",
   "packSha256": "b6e6689ce0e3c6890d8a555630003d8413a40477af4e0c4b8f7577f50b005cdc",
   "sourceSelectionSha256": "1207b04cde8a3df9169aaa2b80d556573ecebdeeb089561d16d638a6220df3f5",
@@ -1040,5 +1040,177 @@
     "Inherited original dry clip source edges/atempo remain shared, no native bit-exact continuity claim.",
     "No effect combinations or automated production activation."
   ],
-  "workEvidence": "/Users/jihaobi/Documents/New project/work/third-drum-20261019"
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/third-drum-20261019",
+  "listenerReview": {
+    "schema": "harbeat.third-drum-choice-analysis.v1",
+    "roundId": "133b4cf3-6041-4bf9-b5ca-847b5c637856",
+    "practice": false,
+    "selectionSha256": "a070f11a59d58c66949a8f69fbf6256bc1562fcdb9b37d8e4278fe0131559783",
+    "feedbackSha256": "b82ef270693109320890222d5e806ee64f136eac77ce22a8858a4c149c4296a3",
+    "excludedPracticeRoundIds": [
+      "f96f505d-cc30-42f6-aa54-75012a9f3949"
+    ],
+    "counts": {
+      "natural": 2,
+      "tie": 1
+    },
+    "cases": [
+      {
+        "id": "third-drum-01",
+        "aTitle": "Doin’ It",
+        "bTitle": "Talgo",
+        "donorTitle": "Nevada",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": "B",
+        "firstVoteAt": "2026-10-19T14:10:10.255Z",
+        "finalChoice": "B",
+        "preferredMethod": "natural",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-19T14:10:10.255Z",
+            "afterReveal": false,
+            "heard": {
+              "B": "2026-10-19T14:09:37.365Z"
+            }
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "coverage": {
+          "A": {
+            "method": "relay",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:09:49.848Z",
+            "completeBeforeFirstVote": false,
+            "completeByExport": false,
+            "completedAt": [],
+            "roundHeardAt": null
+          },
+          "B": {
+            "method": "natural",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:09:29.278Z",
+            "completeBeforeFirstVote": true,
+            "completeByExport": true,
+            "completedAt": [
+              "2026-10-19T14:09:37.365Z"
+            ],
+            "roundHeardAt": "2026-10-19T14:09:37.365Z"
+          }
+        }
+      },
+      {
+        "id": "third-drum-02",
+        "aTitle": "WANNABE",
+        "bTitle": "Tonight",
+        "donorTitle": "Nevada",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": "B",
+        "firstVoteAt": "2026-10-19T14:10:44.392Z",
+        "finalChoice": "B",
+        "preferredMethod": "natural",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-19T14:10:44.392Z",
+            "afterReveal": false,
+            "heard": {
+              "A": "2026-10-19T14:10:32.005Z"
+            }
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "coverage": {
+          "A": {
+            "method": "relay",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:10:23.880Z",
+            "completeBeforeFirstVote": true,
+            "completeByExport": true,
+            "completedAt": [
+              "2026-10-19T14:10:32.004Z"
+            ],
+            "roundHeardAt": "2026-10-19T14:10:32.005Z"
+          },
+          "B": {
+            "method": "natural",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:10:40.541Z",
+            "completeBeforeFirstVote": false,
+            "completeByExport": false,
+            "completedAt": [],
+            "roundHeardAt": null
+          }
+        }
+      },
+      {
+        "id": "third-drum-03",
+        "aTitle": "GOOD BOY",
+        "bTitle": "Snake Gang",
+        "donorTitle": "Love Note",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": "tie",
+        "firstVoteAt": "2026-10-19T14:11:26.154Z",
+        "finalChoice": "tie",
+        "preferredMethod": "tie",
+        "votes": [
+          {
+            "choice": "tie",
+            "at": "2026-10-19T14:11:26.154Z",
+            "afterReveal": false,
+            "heard": {
+              "B": "2026-10-19T14:11:10.324Z"
+            }
+          }
+        ],
+        "symptoms": [],
+        "notes": "",
+        "coverage": {
+          "A": {
+            "method": "relay",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:11:24.946Z",
+            "completeBeforeFirstVote": false,
+            "completeByExport": true,
+            "completedAt": [
+              "2026-10-19T14:11:33.044Z"
+            ],
+            "roundHeardAt": "2026-10-19T14:11:33.045Z"
+          },
+          "B": {
+            "method": "natural",
+            "coreHandoffAndAddedBarEndBeforeFirstVote": true,
+            "firstCoreObservedAt": "2026-10-19T14:11:02.189Z",
+            "completeBeforeFirstVote": true,
+            "completeByExport": true,
+            "completedAt": [
+              "2026-10-19T14:11:10.324Z"
+            ],
+            "roundHeardAt": "2026-10-19T14:11:10.324Z"
+          }
+        }
+      }
+    ],
+    "conclusion": "Two original preferences, one tie, zero additive-C-drum preferences. No demonstrated benefit from this fixed one-bar gain-0.25 addition.",
+    "limitations": [
+      "Single listener, three pairs, eight unique tracks; first two share Nevada donor.",
+      "Both arms passed native handoff/addition end before all first votes, but no pair had both full clips completed before first vote. Third added version completed after vote, with no new vote.",
+      "No symptoms or notes; crowding, loudness and bleed are possible confounds, not identified failure causes.",
+      "This additive drum-layer setting does not validate or invalidate full multi-role mashups; no combination or production activation."
+    ],
+    "analysisPath": "/Users/jihaobi/Documents/New project/work/third-drum-20261019/user-choice-analysis-20261019.json",
+    "analysisSha256": "54363e80fed8394c8106f9a4361324dbda4108676a95a180c46c14ee1411981c",
+    "feedbackPath": "/Users/jihaobi/Documents/New project/work/third-drum-20261019/user-feedback-20261019.json"
+  }
 }

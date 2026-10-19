@@ -15,3 +15,9 @@ Remaining review queue:
 Do not expand this into every possible filter/effect setting. Archive source-ineligible/skipped material, collect the listener's case outcomes, and close each defined experiment before another. Final catalogue can be complete as an evidence inventory while clearly retaining deferred/unverified methods. Actual combinations wait until that inventory is reviewed.
 
 After5209listener review, assemble the requested catalogue for the current fixed-cue core queue. Preserve deferred/unverified variants in explicit rows; do not invent more parameter rounds or label the whole DJ technique space complete. The catalogue precedes any combined-effect trial.
+
+## Completion2026-10-19
+
+5209formal133b4cf3-6041-4bf9-b5ca-847b5c637856 reviewed:2original/1tie/0added drum. All six native-handoff/addition-end markers occurred before initial votes; no pair had both full clips complete before initial vote. No symptoms/notes or cause attribution. Narrow additive setting deprioritized; full multi-role mashup unverified.
+
+The current fixed-cue core inventory is assembled in docs/stems-mixing-catalogue-20261019.md, with primary-source tutorials, all existing experiment scopes and listener outcomes, sample reuse/exposure limits, preprocessing gaps and explicit deferred variants. docs/stems-listening-status-20261019.md now reflects current completed reviews instead of old preparation states. No additional audition, combination or production rule was activated. This closes the defined evidence-inventory work, not the space of all DJ techniques.

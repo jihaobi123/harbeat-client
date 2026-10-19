@@ -1,0 +1,211 @@
+{
+  "schema": "harbeat.mixing-catalogue-evidence.v1",
+  "date": "2026-10-19",
+  "cataloguePath": "docs/stems-mixing-catalogue-20261019.md",
+  "catalogueSha256": "02cf23b0644442b4fe1203c380d329364f42625f2f2d29a6d4c1ad1f667927ed",
+  "scope": "Current fixed-cue experiment inventory; not exhaustive validation of all DJ techniques. No combinations or production activation.",
+  "sourceAnalyses": [
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/bass-generalization-20261017/user-choice-analysis.json",
+      "sha256": "c07d4ac0f731d9587afb8158c5b4b7d09d667aef59d72dbee6d4930ab2be0566",
+      "roundId": "9ad01f92-72bc-40df-85ac-cc62992adb2f",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/bass-neighbors-20261017/user-choice-analysis-20261018.json",
+      "sha256": "a68ef58ba79a79138e778ad14e7473f24b3848a834517f71320dbb2af30b6451",
+      "roundId": "2fc01fb9-2c9e-4578-af37-b436316b62e5",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "reference": 2,
+        "tie": 2,
+        "stem": 2
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/bed-gap-20261019/user-choice-analysis-20261019.json",
+      "sha256": "6e74b0e56ab9fa0fe87bdba6b7925f6cce3bcf888cc7304f43a40fb7f26100f7",
+      "roundId": "95a0f3e4-326e-4fad-815c-2b938b543a0d",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/big-step-cut-20261019/user-choice-analysis-20261019.json",
+      "sha256": "c4437e31d7a44c83a2440744fc7f0c8b72af8557e8621156cadaeb758390f36a",
+      "roundId": "dd90ba44-c146-4163-b1e1-6449830fe25e",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/cut-handover-20261018/user-choice-analysis-20261019.json",
+      "sha256": "b6c9e0b1174f7169c201a56e63babda87547b4a01a9733a141da81871dd7c0d1",
+      "roundId": "69a78055-b048-47c4-8d83-bf5de810ff23",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "natural": 0,
+        "relay": 2,
+        "tie": 1,
+        "none": 0
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/drum-loop-20261018/user-choice-analysis-20261018.json",
+      "sha256": "7f965b6047fbf8b7b6a2e17c8eece39ae9d92b69e70434132554306bccf006b6",
+      "roundId": "623e2c05-1b0c-4af0-86ce-1b2c46622512",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "loop": 1,
+        "natural": 1,
+        "tie": 1,
+        "none": 0
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/half-double-20261019/user-choice-analysis-20261019.json",
+      "sha256": "6fdb149820d0e9e206e5e59b3561a75e32c9b7d150da5f10bab6b5f1fa660c80",
+      "roundId": "60c67024-df70-4422-8670-8c7e4ed79005",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "tie": 2,
+        "relay": 1
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/low-handoff-20261019/user-choice-analysis-20261019.json",
+      "sha256": "f8565bcdd6948003db0c59a547dd8f9333e8533814b641c5fdbcdd0db7e9c188",
+      "roundId": "0495998c-3a1e-436f-9352-e0229c0844f0",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "count": {
+        "tie": 2,
+        "earlier": 1,
+        "later": 0
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/melody-filter-20261019/user-choice-analysis-20261019.json",
+      "sha256": "c61fca2e9953b6bb60751b1969bf469ce0ecf96ebd0ae94ce06b234e49f47f22",
+      "roundId": "967c093a-f440-4eb6-9a52-03cd99ce51e5",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/melody-tail-review-20261018/user-choice-analysis-20261018.json",
+      "sha256": "8bbcf1fdbcc68963d855ec5348cbf43668c3b5bd2c45722ab28e8bdc6b7d9226",
+      "roundId": "6dd03770-edbc-4f02-b3ba-c5dad8a9b789",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "preferredMethod": "natural"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/melody-yield-20261018/user-choice-analysis-20261018.json",
+      "sha256": "d44b2889abd6301413e162dc10a2fdb83162e129430949dc23ae581491bd52ae",
+      "roundId": "3ca314fe-7b2b-4b64-9317-74b653de6ff1",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "relay": 1,
+        "natural": 1,
+        "tie": 1,
+        "none": 0
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/rhythm-bridge-20261018/user-choice-analysis-20261018.json",
+      "sha256": "d8da3b31f0c3d3436fd3ba17f401f8c51e3851e6f7f1bcc3dc93275b00f7be64",
+      "roundId": "335b4639-46b0-4276-a213-de6788e0b6cb",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "natural": 2,
+        "relay": 1
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/stems-vocal-echo-20261018/user-choice-analysis-20261018.json",
+      "sha256": "eb3b7534c9e96a185205465775782879ed897adbb0451a81c67b7d9a4f83384e",
+      "roundId": "233c61d0-446c-410b-a078-acfb5d59204f",
+      "interpretation": "Prior conditional echo comparison; not counted as independent echo validation"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/third-drum-20261019/user-choice-analysis-20261019.json",
+      "sha256": "54363e80fed8394c8106f9a4361324dbda4108676a95a180c46c14ee1411981c",
+      "roundId": "133b4cf3-6041-4bf9-b5ca-847b5c637856",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "natural": 2,
+        "tie": 1
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/vocal-echo-solo-20261018/user-choice-analysis-20261018.json",
+      "sha256": "005af216ddf1189a5816c83435ee1f7bac8422dd070e9b8767e6304e6ec02450",
+      "roundId": "73f1842c-e818-408e-95d3-e69edf43cc5e",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits",
+      "counts": {
+        "natural": 2,
+        "relay": 0,
+        "tie": 1,
+        "none": 0
+      }
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/vocal-handover-20261018/user-choice-analysis-20261018.json",
+      "sha256": "a33f8db17a0cdda553432f9241381ce53a77f098e69b5e5166e9aa3d54d9c4ff",
+      "roundId": "0d0abe4b-3203-4f22-a943-769dc9e1a740",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/vocal-retrigger-20261019/user-choice-analysis-20261019.json",
+      "sha256": "57f3ec26350fc79a4defa639fa49adb594261b12edf43bdbdeff97d3784eb9c8",
+      "roundId": "a8144449-58a9-4f81-8913-0eb139aa87af",
+      "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    }
+  ],
+  "qualitativeConversationFeedback": [
+    "Harmonic preference:02 smoother,01 also good. No invented numeric win count.",
+    "Early melody/bass short overlap:two versions similar.",
+    "User requested halfbeat gap and distant-tempo work lower priority."
+  ],
+  "preprocessingAudit": {
+    "path": "/Users/jihaobi/Documents/New project/work/third-drum-20261019/semantic-coverage-audit.json",
+    "sha256": "dfa30eccfdc59cfecd2111699a144df1eee361e3bc3ed5fcef3794ab1da38190",
+    "scope": "Five frozen half/double source tracks;60unverified semantic phrase entries, not a claim about every library track."
+  },
+  "primarySources": [
+    {
+      "title": "NI Stems",
+      "url": "https://blog.native-instruments.com/how-to-mix-stems/",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "NI DJ transitions",
+      "url": "https://blog.native-instruments.com/dj-transitions/",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "NI phrase mixing",
+      "url": "https://blog.native-instruments.com/phrase-mixing/",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "NI live remixing",
+      "url": "https://blog.native-instruments.com/live-remixing/",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "Serato Using Stems",
+      "url": "https://support.serato.com/hc/en-us/articles/5700921209615-Using-Stems",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "Serato Sampler Play Modes",
+      "url": "https://support.serato.com/hc/en-us/articles/227629728-Sampler-Play-Modes",
+      "consultedOn": "2026-10-19"
+    },
+    {
+      "title": "VirtualDJ Effects",
+      "url": "https://virtualdj.com/manuals/virtualdj/interface/decks/decksadvanced/effects.html",
+      "consultedOn": "2026-10-19"
+    }
+  ],
+  "limitations": [
+    "One listener; repeated tracks/anchor/tail-review not independent new cases.",
+    "Early votes allowed; some core/native-body exposure incomplete.",
+    "No unified perceived-loudness matching or validated automatic eligibility thresholds.",
+    "Symptoms lacking arm attribution are not assigned to treatment."
+  ]
+}

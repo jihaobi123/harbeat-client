@@ -117,3 +117,10 @@ After5205all3neither and user request to defer distanttempo, next standalone is 
 
 
 2026-10-19:5208formal final2ties/1earlier(GOODBOY);Doin firstlater changed to tie without reveal;no symptoms/notes. Both low-exchange-end markers before all initial votes; thirdpair did not reach nativebodybeforevote. No overall EQ benefit claim. Next5209originalblend vs one additional third-track drum bar, all5197cues/voice/EQfixed. Nevada donor first2,LoveNote third;8unique tracks, no prior effects inherited. Source/target4beatbar/rate/offset protections; frozen parent+8richsnapshots regenerate full selection, freshNAS8tracks. Semantic phrase mapping deferred because all frozen phrase semanticStatus values are unverified. After this listener round, produce current evidence catalogue with deferred variants before combinations.
+
+
+### Third-track drum feedback and catalogue assembled2026-10-19
+
+5209formal133b4cf3-6041-4bf9-b5ca-847b5c637856: Doin It/Talgo+Nevada original; WANNABE/Tonight+Nevada original; GOOD BOY/Snake Gang+Love Note tie.2original/1tie/0addition, one listener/three pairs/eight tracks, shared Nevada donor. Both arms passed addition-end/native-handoff before all initial votes; no pair both fully completed before initial vote; final added third arm completed after vote without re-vote. No symptoms/notes; do not infer cause. Preserve original default; fixed gain0.25one-bar additive method deprioritized, full multi-role mashup unverified.
+
+Final current-scope catalogue: docs/stems-mixing-catalogue-20261019.md, with archived-analysis hashes in docs/evidence/mixing-catalogue-20261019.json. Combines NI/Serato/VirtualDJ primary tutorials with actual local outcomes and repeated-sample/exposure limitations. Includes conditional promising methods, weak/deferred results, preprocessing gaps, untested variants and future original/single/combination comparison design. Current status rewritten for completed reviews. No new audition, cue/voice rule change, combination or production activation.
