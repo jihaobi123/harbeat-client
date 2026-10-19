@@ -21,7 +21,7 @@ def native_layers(paths,start,duration,rate):
     if rate!=1 or not np.isfinite([start,duration]).all() or start<0 or duration<=0:raise ValueError('native source clock required')
     # Decode/resample once from source origin. Independent seeks restart the
     # resampler and can move the sampling phase, breaking fixed source cues.
-    full=decoded_native(tuple(paths));first=round(start*SR);n=round(duration*SR);pcm=full[first:first+n]
+    full=decoded_native(tuple(paths));first=round(start*SR);n=round((start+duration)*SR)-first;pcm=full[first:first+n]
     if len(pcm)!=n:raise ValueError('incomplete native source')
     return pcm.copy()
 

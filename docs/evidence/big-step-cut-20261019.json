@@ -1,0 +1,1813 @@
+{
+  "schema": "harbeat.big-step-cut-evidence.v1",
+  "date": "2026-10-19",
+  "url": "http://127.0.0.1:5205/big-step-cut.html",
+  "status": "Prepared;6browser practice arms complete; formal listener choices pending",
+  "packSha256": "491b6184d603d8ffa272980a54c7c648da415611afc4f593249b0761881feeb5",
+  "selectionSha256": "38212152dd9bceb6746103dcede9f1c9d4b006b8549eb9e789447375ea60193e",
+  "cases": [
+    {
+      "id": "big-step-cut-01",
+      "aTitle": "GRILLZ (feat. Ilir808)",
+      "bTitle": "I Like",
+      "bpm": [
+        98,
+        136
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "cebcddaeaf883dc7df58aeb2dbd48bf085a21e86ca668b1370e53e834176d6be",
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+          "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+          "runId": "run-track-6bcba4d577699a35104c-6bcba4d57769-a268a5c-e77feb2d",
+          "sectionSource": "songformer",
+          "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8",
+          "manifestSha256": "36b3e9eb52bae5fc97d475715848df45de928f663bc320441afd2a1ad475421f"
+        },
+        "b": {
+          "masterSha256": "79b8034c69bfb4de05c891b560f24bc3ca763880b79a26ea8b8c07bfaeae3cb8",
+          "reportSha256": "9b634d256807c71fb52f1a94cf2775c7f8753bcd61de8ed6618af5d2988bd240",
+          "runId": "run-track-79b8034c69bfb4de05c8-79b8034c69bf-a268a5c-ad483b6b",
+          "sectionSource": "songformer",
+          "vocalSha256": "f40c956c3dd34379fdd13bcb1568cd9304355c110d3a91644eeec03ad18e44cf",
+          "manifestSha256": "fd790ba49a2ec7ef256d249cb1083cefb3f6264659f1e8e3e859d7e13b6e88cb"
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "17d1ab8129f2bb4aa69a331a1c40eba5b447399e704494a46704a58e89271c4d",
+        "continuousSourcePcmSha256": "17d1ab8129f2bb4aa69a331a1c40eba5b447399e704494a46704a58e89271c4d",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-01-aMaster.wav",
+          "sha256": "226c530ef7128a448d66cd83b43e9e183ee23da048888d815ed632cca2820e7a",
+          "bytes": 2663728,
+          "duration": 7.55,
+          "frames": 332955,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8894782066345215
+        },
+        "aVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-01-aVocal.wav",
+          "sha256": "3961096351ed1fc1e851fabaa1900b963370166f8dced00fbb4163506b668615",
+          "bytes": 2663728,
+          "duration": 7.55,
+          "frames": 332955,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.0035400390625
+        },
+        "bEntryMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-01-bEntryMaster.wav",
+          "sha256": "a1712b89df0250449091a5e447d4c6140dcfe397889b73aff72c8979e5b3ad48",
+          "bytes": 1252528,
+          "duration": 3.55,
+          "frames": 156555,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.1314518451690674
+        },
+        "bEntryVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-01-bEntryVocal.wav",
+          "sha256": "c59df957e136f47b8243ca4eeefbbdacd5c9bf320a547e05939a26cd644d5755",
+          "bytes": 1252528,
+          "duration": 3.55,
+          "frames": 156555,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.7808837890625
+        },
+        "bBodyMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-01-bBodyMaster.wav",
+          "sha256": "8b1d332ccc83d6f3e1bbf5870120206d4d32c7a8becf9112d770db2b4e322d29",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.148273229598999
+        },
+        "bBodyVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-01-bBodyVocal.wav",
+          "sha256": "6059de40fa279525a255d6ce95110b81cb6bd3d3164f02a9c1895d591c3b2d1f",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.78717041015625
+        }
+      },
+      "boundary": {
+        "aSection": {
+          "start": 100.324,
+          "end": 120.005,
+          "label": "verse"
+        },
+        "bSection": {
+          "start": 0,
+          "end": 14.161,
+          "label": "chorus"
+        },
+        "aDownbeat": 120.01,
+        "aObservedBar": {
+          "index": 49,
+          "start": 120.01,
+          "lastBeat": 121.85,
+          "end": 122.45,
+          "beats": [
+            120.01,
+            120.63,
+            121.24,
+            121.85
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "aAnchorPolicy": "frozen raw downbeat within65ms of valid observed bar; offset recorded, no cue shift",
+        "bDownbeat": 0,
+        "aBoundaryDistance": 0.005000000000009663,
+        "bBoundaryDistance": 0,
+        "bBars": [
+          {
+            "index": 0,
+            "start": 0,
+            "lastBeat": 1.33,
+            "end": 1.77,
+            "beats": [
+              0,
+              0.44,
+              0.9,
+              1.33
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          {
+            "index": 1,
+            "start": 1.77,
+            "lastBeat": 3.1,
+            "end": 3.55,
+            "beats": [
+              1.77,
+              2.22,
+              2.66,
+              3.1
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          }
+        ],
+        "voicePolicy": "original-linear-fades",
+        "sectionTruth": "model-candidate",
+        "aGridSource": {
+          "reportId": "fa9350f33f41b643cf1e06f5238d65a1d5f5649581792b71618414e62075ae06",
+          "reportSha256": "1c4c256a5ee6264cbf967ea641be968841e8e219aa7b550581e9b30bd0e335a3",
+          "masterSha256": "6bcba4d577699a35104c55c815d869068206bd514901800855d3d9864aeddd0b",
+          "vocalSha256": "ce88d36dc64802f919bfe7cfad33026ae81bee5c0e6445350d7ca804a9b2e0b8"
+        },
+        "bGridSource": {
+          "reportId": "2e2fd8591a87cd101b547c9259c3d26b4004aea33a9d7b639925d078257749e9",
+          "reportSha256": "9b634d256807c71fb52f1a94cf2775c7f8753bcd61de8ed6618af5d2988bd240",
+          "masterSha256": "79b8034c69bfb4de05c891b560f24bc3ca763880b79a26ea8b8c07bfaeae3cb8",
+          "vocalSha256": "f40c956c3dd34379fdd13bcb1568cd9304355c110d3a91644eeec03ad18e44cf"
+        },
+        "protection": "A: padded300ms VAD union existing RMS/tail phrases through entire reference overlap; B: raw VAD union tail phrases, no mid-phrase entry"
+      },
+      "cutEdgeSeconds": 0.005,
+      "protectionCounts": {
+        "aProtected": 6,
+        "bProtected": 21
+      },
+      "planExcerpt": {
+        "id": "big-step-cut:track-6bcba4d577699a35104c:track-79b8034c69bfb4de05c8:section-native-0:120.01",
+        "from": "track-6bcba4d577699a35104c",
+        "to": "track-79b8034c69bfb4de05c8",
+        "start": 120.01,
+        "end": 123.56,
+        "duration": 3.55,
+        "rate": 1,
+        "window": {
+          "id": "section-native-0",
+          "start": 0,
+          "end": 3.55,
+          "bars": 2,
+          "role": "chorus",
+          "energy": 0.6273827868852458,
+          "variants": {}
+        },
+        "restore": 122.33551020408163,
+        "aVocal": 0,
+        "bVocal": 0.9774647887323944,
+        "midDuck": false,
+        "gridError": 0,
+        "aEnergy": 0.5280114084507042,
+        "bEnergy": 0.6273827868852458
+      },
+      "eqExcerpt": {
+        "version": "v30-eq-only-v1",
+        "a": [
+          {
+            "t": 0,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.23666666666666666,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.47333333333333333,
+            "low": -9.71,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.7099999999999999,
+            "low": -9.000000000000002,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.9466666666666667,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.1833333333333333,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.4199999999999997,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.6566666666666665,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.8933333333333333,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.13,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.3666666666666667,
+            "low": -9.2272641950403,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.603333333333333,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.8399999999999994,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.0766666666666667,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.313333333333333,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.55,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          }
+        ],
+        "b": [
+          {
+            "t": 0,
+            "low": -7,
+            "mid": 0,
+            "high": 1.2
+          },
+          {
+            "t": 0.23666666666666666,
+            "low": -7,
+            "mid": 0,
+            "high": 0.49
+          },
+          {
+            "t": 0.47333333333333333,
+            "low": -7,
+            "mid": 0,
+            "high": -0.18666666666666676
+          },
+          {
+            "t": 0.7099999999999999,
+            "low": -7.709999999999999,
+            "mid": 0,
+            "high": -0.7199999999999998
+          },
+          {
+            "t": 0.9466666666666667,
+            "low": -8.42,
+            "mid": 0,
+            "high": -1.1466666666666667
+          },
+          {
+            "t": 1.1833333333333333,
+            "low": -9.13,
+            "mid": 0,
+            "high": -1.466666666666667
+          },
+          {
+            "t": 1.4199999999999997,
+            "low": -9.84,
+            "mid": 0,
+            "high": -1.68
+          },
+          {
+            "t": 1.6566666666666665,
+            "low": -9.986666666666666,
+            "mid": 0,
+            "high": -1.7866666666666668
+          },
+          {
+            "t": 1.8933333333333333,
+            "low": -9.986666666666666,
+            "mid": 0,
+            "high": -1.7866666666666664
+          },
+          {
+            "t": 2.13,
+            "low": -9.879999999999999,
+            "mid": 0,
+            "high": -1.68
+          },
+          {
+            "t": 2.3666666666666667,
+            "low": -9.169999999999998,
+            "mid": 0,
+            "high": -1.4666666666666666
+          },
+          {
+            "t": 2.603333333333333,
+            "low": -8.459999999999999,
+            "mid": 0,
+            "high": -1.1466666666666672
+          },
+          {
+            "t": 2.8399999999999994,
+            "low": -8.920000000000002,
+            "mid": 0,
+            "high": -0.4366666666666681
+          },
+          {
+            "t": 3.0766666666666667,
+            "low": -8.386666666666667,
+            "mid": 0,
+            "high": -0.18666666666666654
+          },
+          {
+            "t": 3.313333333333333,
+            "low": -7.746666666666668,
+            "mid": 0,
+            "high": 0.45333333333333226
+          },
+          {
+            "t": 3.55,
+            "low": -7.036666666666667,
+            "mid": 0,
+            "high": 1.1633333333333327
+          }
+        ]
+      },
+      "eqCanonicalSnapshotSha256": "ceb6cd1bf055de0a7373a30c2417b8422792b6420975e4fe2890600ee7429ec4"
+    },
+    {
+      "id": "big-step-cut-02",
+      "aTitle": "Let Me Be Your Fantasy - Original Mix",
+      "bTitle": "Playback (feat. Ine)",
+      "bpm": [
+        136,
+        91.9
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "a584111e9f09a08569d100e72ac7d2e5f66f9c7c1f57a546ca08c3bde0f9df4c",
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "f73c75305b8a88de4dfb66ff61805d98c7955cbce4e69111132785996b6468cb",
+          "reportSha256": "0cacebefd784905b95fa3200944ab1c8039370bd74b0869c2c7bb91a8759d4af",
+          "runId": "run-track-f73c75305b8a88de4dfb-f73c75305b8a-a268a5c-a22f3b1a",
+          "sectionSource": "songformer",
+          "vocalSha256": "18ce7a0d9d513c1e6da4e83e885e6676f0a6a0494192b82078eca87a76db70d9",
+          "manifestSha256": "d2c290375df513265f4e795a81c6c6bfd2a70889a309d8e2e58f32f25f42a12d"
+        },
+        "b": {
+          "masterSha256": "5f7a688d0c0dff4e1bc7b9ae70470b8fe2afe69ecafd75397755e6668dc7eb5e",
+          "reportSha256": "be7fc6f0a671f9aa9a1d3f6348e8e058f3d92a7d809f1d67e7133c7d988c3362",
+          "runId": "run-track-5f7a688d0c0dff4e1bc7-5f7a688d0c0d-a268a5c-3af088d8",
+          "sectionSource": "songformer",
+          "vocalSha256": "a77dbcca245661811aac355a0671e4726352dff29648999849b394a22b89d3fc",
+          "manifestSha256": "4af150271ea6054c470d2ce357175a4ede138763605e0554b124a9841ff5140d"
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "a303196d5d5b17544fcf23b04dc93cb334192c13eee63533bdf63b4eab56854b",
+        "continuousSourcePcmSha256": "a303196d5d5b17544fcf23b04dc93cb334192c13eee63533bdf63b4eab56854b",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-02-aMaster.wav",
+          "sha256": "e56f8fa898a4440cf1627a06df96393b3bf5c924bd9596adddef161ae64a8ef0",
+          "bytes": 3254672,
+          "duration": 9.22501133786848,
+          "frames": 406823,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.8441286087036133
+        },
+        "aVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-02-aVocal.wav",
+          "sha256": "e0698f4b9c8989137739826fbb85341f17b3cd02d092cb8a4879bbe6b28a8fe5",
+          "bytes": 3254672,
+          "duration": 9.22501133786848,
+          "frames": 406823,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.003082275390625
+        },
+        "bEntryMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-02-bEntryMaster.wav",
+          "sha256": "5c427cfea13146d63279990568428842d00571ada86dff07a122ab62321d7206",
+          "bytes": 1843472,
+          "duration": 5.225011337868481,
+          "frames": 230423,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.030519723892212
+        },
+        "bEntryVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-02-bEntryVocal.wav",
+          "sha256": "94e1963a7aec1d09ad53d009511051850cf9607255c4f8107df31817cb21835e",
+          "bytes": 1843472,
+          "duration": 5.225011337868481,
+          "frames": 230423,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.947784423828125
+        },
+        "bBodyMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-02-bBodyMaster.wav",
+          "sha256": "72532ba750b1fe1600ea322208559b67700114e0e3dfd5b4eee52de61db51d7c",
+          "bytes": 2822480,
+          "duration": 7.999977324263039,
+          "frames": 352799,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0407196283340454
+        },
+        "bBodyVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-02-bBodyVocal.wav",
+          "sha256": "41e0575d96be57c39122fe3eecdb69d91d1e8f1d460b76434d9d0431750cbf05",
+          "bytes": 2822480,
+          "duration": 7.999977324263039,
+          "frames": 352799,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.944000244140625
+        }
+      },
+      "boundary": {
+        "aSection": {
+          "start": 271.331,
+          "end": 285.611,
+          "label": "inst"
+        },
+        "bSection": {
+          "start": 10.8,
+          "end": 52.442,
+          "label": "verse"
+        },
+        "aDownbeat": 285.61,
+        "aObservedBar": {
+          "index": 136,
+          "start": 285.61,
+          "lastBeat": 286.94,
+          "end": 287.39,
+          "beats": [
+            285.61,
+            286.05,
+            286.5,
+            286.94
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "aAnchorPolicy": "frozen raw downbeat within65ms of valid observed bar; offset recorded, no cue shift",
+        "bDownbeat": 10.82,
+        "aBoundaryDistance": 0.0009999999999763531,
+        "bBoundaryDistance": 0.019999999999999574,
+        "bBars": [
+          {
+            "index": 0,
+            "start": 10.82,
+            "lastBeat": 12.794,
+            "end": 13.444,
+            "beats": [
+              10.82,
+              11.494,
+              12.144,
+              12.794
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          {
+            "index": 1,
+            "start": 13.444,
+            "lastBeat": 15.395,
+            "end": 16.045,
+            "beats": [
+              13.444,
+              14.095,
+              14.745,
+              15.395
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          }
+        ],
+        "voicePolicy": "original-linear-fades",
+        "sectionTruth": "model-candidate",
+        "aGridSource": {
+          "reportId": "5c2656e7dd40ab16ef1fafc8582fcee78f24b4254b01feb7d5338b4ef46df91b",
+          "reportSha256": "0cacebefd784905b95fa3200944ab1c8039370bd74b0869c2c7bb91a8759d4af",
+          "masterSha256": "f73c75305b8a88de4dfb66ff61805d98c7955cbce4e69111132785996b6468cb",
+          "vocalSha256": "18ce7a0d9d513c1e6da4e83e885e6676f0a6a0494192b82078eca87a76db70d9"
+        },
+        "bGridSource": {
+          "reportId": "ba6a5d5e4fd4d11d4d5ca38f8b1765182e22c66c8944dbf32fb53e7c7bc12952",
+          "reportSha256": "be7fc6f0a671f9aa9a1d3f6348e8e058f3d92a7d809f1d67e7133c7d988c3362",
+          "masterSha256": "5f7a688d0c0dff4e1bc7b9ae70470b8fe2afe69ecafd75397755e6668dc7eb5e",
+          "vocalSha256": "a77dbcca245661811aac355a0671e4726352dff29648999849b394a22b89d3fc"
+        },
+        "protection": "A: padded300ms VAD union existing RMS/tail phrases through entire reference overlap; B: raw VAD union tail phrases, no mid-phrase entry"
+      },
+      "cutEdgeSeconds": 0.005,
+      "protectionCounts": {
+        "aProtected": 74,
+        "bProtected": 11
+      },
+      "planExcerpt": {
+        "id": "big-step-cut:track-f73c75305b8a88de4dfb:track-5f7a688d0c0dff4e1bc7:section-native-10.82:285.61",
+        "from": "track-f73c75305b8a88de4dfb",
+        "to": "track-5f7a688d0c0dff4e1bc7",
+        "start": 285.61,
+        "end": 290.83500000000004,
+        "duration": 5.225000000000001,
+        "rate": 1,
+        "window": {
+          "id": "section-native-10.82",
+          "start": 10.82,
+          "end": 16.045,
+          "bars": 2,
+          "role": "verse",
+          "energy": 0.8716886124401914,
+          "variants": {}
+        },
+        "restore": 289.9526470588236,
+        "aVocal": 0,
+        "bVocal": 1,
+        "midDuck": false,
+        "gridError": 0,
+        "aEnergy": 0.6974864593301435,
+        "bEnergy": 0.8716886124401914
+      },
+      "eqExcerpt": {
+        "version": "v30-eq-only-v1",
+        "a": [
+          {
+            "t": 0,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.24880952380952387,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.49761904761904774,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.7464285714285717,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.9952380952380955,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.2440476190476193,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.4928571428571433,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.7416666666666671,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.990476190476191,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.2392857142857148,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.4880952380952386,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.736904761904763,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.9857142857142867,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.23452380952381,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.4833333333333343,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.7321428571428585,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.980952380952382,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.229761904761905,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.4785714285714295,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.727380952380954,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.976190476190477,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 5.225000000000001,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          }
+        ],
+        "b": [
+          {
+            "t": 0,
+            "low": -7,
+            "mid": 0,
+            "high": 1.2
+          },
+          {
+            "t": 0.24880952380952387,
+            "low": -7.446318766595944,
+            "mid": 0,
+            "high": 1.0467582011770167
+          },
+          {
+            "t": 0.49761904761904774,
+            "low": -7.823081410259564,
+            "mid": 0,
+            "high": 0.42648748754135113
+          },
+          {
+            "t": 0.7464285714285717,
+            "low": -7.076652838830992,
+            "mid": 0,
+            "high": -0.26938775510204094
+          },
+          {
+            "t": 0.9952380952380955,
+            "low": -7,
+            "mid": 0,
+            "high": -0.17980927325596907
+          },
+          {
+            "t": 1.2440476190476193,
+            "low": -7.746428571428572,
+            "mid": 0,
+            "high": 0.5666192981726024
+          },
+          {
+            "t": 1.4928571428571433,
+            "low": -8.492857142857144,
+            "mid": 0,
+            "high": 0.4269304419668082
+          },
+          {
+            "t": 1.7416666666666671,
+            "low": -8.770281695777527,
+            "mid": 0,
+            "high": -0.31949812946176326
+          },
+          {
+            "t": 1.990476190476191,
+            "low": -8.023853124348955,
+            "mid": 0,
+            "high": -1.0659267008903348
+          },
+          {
+            "t": 2.2392857142857148,
+            "low": -7.277424552920383,
+            "mid": 0,
+            "high": -0.7123613437181051
+          },
+          {
+            "t": 2.4880952380952386,
+            "low": -8.023853124348955,
+            "mid": 0,
+            "high": -1.4587899151466766
+          },
+          {
+            "t": 2.736904761904763,
+            "low": -8.770281695777527,
+            "mid": 0,
+            "high": -1.7931972789115644
+          },
+          {
+            "t": 2.9857142857142867,
+            "low": -9.014114491223395,
+            "mid": 0,
+            "high": -1.194907503386941
+          },
+          {
+            "t": 3.23452380952381,
+            "low": -8.267685919794825,
+            "mid": 0,
+            "high": -1.1747606978624112
+          },
+          {
+            "t": 3.4833333333333343,
+            "low": -7.521257348366253,
+            "mid": 0,
+            "high": -1.466666666666667
+          },
+          {
+            "t": 3.7321428571428585,
+            "low": -8.17461485497782,
+            "mid": 0,
+            "high": -0.7202380952380942
+          },
+          {
+            "t": 3.980952380952382,
+            "low": -8.522687827389703,
+            "mid": 0,
+            "high": 0.026190476190475875
+          },
+          {
+            "t": 4.229761904761905,
+            "low": -8.44411772554572,
+            "mid": 0,
+            "high": 0.6813707790672158
+          },
+          {
+            "t": 4.4785714285714295,
+            "low": -8.369402032796497,
+            "mid": 0,
+            "high": 0.1108105691272101
+          },
+          {
+            "t": 4.727380952380954,
+            "low": -7.8518043589206785,
+            "mid": 0,
+            "high": 0.4036052368378924
+          },
+          {
+            "t": 4.976190476190477,
+            "low": -7.324863889589462,
+            "mid": 0,
+            "high": 1.0364330603017988
+          },
+          {
+            "t": 5.225000000000001,
+            "low": -7,
+            "mid": 0,
+            "high": 1.2
+          }
+        ]
+      },
+      "eqCanonicalSnapshotSha256": "0db86d4a4a007a14e063afec957cc74392b3f755ee10231cdc521defcf26b036"
+    },
+    {
+      "id": "big-step-cut-03",
+      "aTitle": "Shoot Your Shot",
+      "bTitle": "Prayer Vox feat. Vivian Chen ~infused by Caccini 「Ave Maria」~",
+      "bpm": [
+        130,
+        93.9
+      ],
+      "pre": 4,
+      "post": 8,
+      "planSha256": "ba21bef4aac9f805857ebfaa627568b917904e888e73117c9aa01f0d6fdd7267",
+      "sourceVerification": {
+        "a": {
+          "masterSha256": "441fc43b35110f9b50f1862b6e05b5eb8789619da0e06072efe199663c9df097",
+          "reportSha256": "8c173b0a521e1bbb3c6d2c9dafa5c0f7c714d75e8b170f6e29335f7e8468464a",
+          "runId": "run-track-441fc43b35110f9b50f1-441fc43b3511-a268a5c-79536fbd",
+          "sectionSource": "songformer",
+          "vocalSha256": "33d9a34e4dfafaabfd9408149a965abd0e5b0f5e70e02510a9e3f2dfc56fbf7f",
+          "manifestSha256": "67396dba7079f4afebed5f2651c6807c63a3d26fc23b12f2b81bc0853ad0e150"
+        },
+        "b": {
+          "masterSha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+          "reportSha256": "e034fbc162d0e47acf40915cfba723e5006ee2027a8723985acbbbe9b335ccb8",
+          "runId": "run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04",
+          "sectionSource": "songformer",
+          "vocalSha256": "abdc686f4a5a8705a7d9dca470ba4a191b3ff01fce01de8825d7fce797824642",
+          "manifestSha256": "a63ffc03c080e7ef46242bc9ec95d5b288bffc1ae19b0a5a660f69cbf84c1b41"
+        }
+      },
+      "nativeContinuityAudit": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "b7400b9f9f48699bc249b6f1bf610d389e3324564c95cc0c65755c4b7f5e44cf",
+        "continuousSourcePcmSha256": "b7400b9f9f48699bc249b6f1bf610d389e3324564c95cc0c65755c4b7f5e44cf",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      },
+      "assets": {
+        "aMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-03-aMaster.wav",
+          "sha256": "0505745e7c45c914b3a54c8ce10fe27492f38cacbd9e761319291b9aad6ea91a",
+          "bytes": 3213392,
+          "duration": 9.108004535147392,
+          "frames": 401663,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0291649103164673
+        },
+        "aVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-03-aVocal.wav",
+          "sha256": "d02cdc7d821b113972e4fa4c1f691e091d5f22f1963b82ca8afc5b91b14e4996",
+          "bytes": 3213392,
+          "duration": 9.108004535147392,
+          "frames": 401663,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.3529052734375
+        },
+        "bEntryMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-03-bEntryMaster.wav",
+          "sha256": "5ba991de1bc9f106f591a1dafbcec0b44a9f20f007e592b3b3e4158938a7f4b6",
+          "bytes": 1802184,
+          "duration": 5.1079818594104305,
+          "frames": 225262,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0387743711471558
+        },
+        "bEntryVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-03-bEntryVocal.wav",
+          "sha256": "7129967e54a03d798150c597ef7e9b340f49bb38559a5fad4adaf704dbe2b6ea",
+          "bytes": 1802184,
+          "duration": 5.1079818594104305,
+          "frames": 225262,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.800994873046875
+        },
+        "bBodyMaster": {
+          "url": "/big-step-cut-audio/big-step-cut-03-bBodyMaster.wav",
+          "sha256": "8bf43552880348069821e6f05d968a40c3c75ed13362b6c453310bf9a13641f4",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 1.0402933359146118
+        },
+        "bBodyVocal": {
+          "url": "/big-step-cut-audio/big-step-cut-03-bBodyVocal.wav",
+          "sha256": "95a22cfd03896ca62f66d8dd0086b7b142a9dae0dbf148994e8d73e214456716",
+          "bytes": 2822488,
+          "duration": 8.0,
+          "frames": 352800,
+          "sampleRate": 44100,
+          "channels": 2,
+          "peak": 0.9901123046875
+        }
+      },
+      "boundary": {
+        "aSection": {
+          "start": 225.009,
+          "end": 239.53,
+          "label": "inst"
+        },
+        "bSection": {
+          "start": 143.166,
+          "end": 163.447,
+          "label": "chorus"
+        },
+        "aDownbeat": 239.52,
+        "aObservedBar": {
+          "index": 134,
+          "start": 239.51,
+          "lastBeat": 240.89,
+          "end": 241.36,
+          "beats": [
+            239.51,
+            239.97,
+            240.43,
+            240.89
+          ],
+          "valid": true,
+          "reason": "four_observed_beats"
+        },
+        "aAnchorPolicy": "frozen raw downbeat within65ms of valid observed bar; offset recorded, no cue shift",
+        "bDownbeat": 143.186,
+        "aBoundaryDistance": 0.009999999999990905,
+        "bBoundaryDistance": 0.020000000000010232,
+        "bBars": [
+          {
+            "index": 48,
+            "start": 143.186,
+            "lastBeat": 145.102,
+            "end": 145.74,
+            "beats": [
+              143.186,
+              143.824,
+              144.463,
+              145.102
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          {
+            "index": 49,
+            "start": 145.74,
+            "lastBeat": 147.656,
+            "end": 148.294,
+            "beats": [
+              145.74,
+              146.379,
+              147.017,
+              147.656
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          }
+        ],
+        "voicePolicy": "original-linear-fades",
+        "sectionTruth": "model-candidate",
+        "aGridSource": {
+          "reportId": "82e436be91024dbe1ee1bf896707f8ec5dba385cac0392a26df513682311e02b",
+          "reportSha256": "8c173b0a521e1bbb3c6d2c9dafa5c0f7c714d75e8b170f6e29335f7e8468464a",
+          "masterSha256": "441fc43b35110f9b50f1862b6e05b5eb8789619da0e06072efe199663c9df097",
+          "vocalSha256": "33d9a34e4dfafaabfd9408149a965abd0e5b0f5e70e02510a9e3f2dfc56fbf7f"
+        },
+        "bGridSource": {
+          "reportId": "68cd1a1a5d0914e10bef54a7b9ae1541725418431b49d6e23e4a1167bfcff7dc",
+          "reportSha256": "e034fbc162d0e47acf40915cfba723e5006ee2027a8723985acbbbe9b335ccb8",
+          "masterSha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+          "vocalSha256": "abdc686f4a5a8705a7d9dca470ba4a191b3ff01fce01de8825d7fce797824642"
+        },
+        "protection": "A: padded300ms VAD union existing RMS/tail phrases through entire reference overlap; B: raw VAD union tail phrases, no mid-phrase entry"
+      },
+      "cutEdgeSeconds": 0.005,
+      "protectionCounts": {
+        "aProtected": 89,
+        "bProtected": 25
+      },
+      "planExcerpt": {
+        "id": "big-step-cut:track-441fc43b35110f9b50f1:track-074b5867a7993833d698:section-native-143.186:239.52",
+        "from": "track-441fc43b35110f9b50f1",
+        "to": "track-074b5867a7993833d698",
+        "start": 239.52,
+        "end": 244.62800000000001,
+        "duration": 5.108000000000004,
+        "rate": 1,
+        "window": {
+          "id": "section-native-143.186",
+          "start": 143.186,
+          "end": 148.294,
+          "bars": 2,
+          "role": "chorus",
+          "energy": 0.8889387235708696,
+          "variants": {}
+        },
+        "restore": 243.70492307692308,
+        "aVocal": 0,
+        "bVocal": 0,
+        "midDuck": false,
+        "gridError": 0,
+        "aEnergy": 0.5532276820673451,
+        "bEnergy": 0.8889387235708696
+      },
+      "eqExcerpt": {
+        "version": "v30-eq-only-v1",
+        "a": [
+          {
+            "t": 0,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.24323809523809542,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.48647619047619084,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.7297142857142863,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 0.9729523809523817,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.2161904761904772,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.4594285714285726,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.702666666666668,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 1.9459047619047634,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.189142857142859,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.4323809523809543,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.67561904761905,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 2.9188571428571453,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.1620952380952407,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.405333333333336,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.6485714285714317,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 3.8918095238095267,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.135047619047622,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.378285714285718,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.621523809523813,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 4.864761904761909,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          },
+          {
+            "t": 5.108000000000004,
+            "low": -9,
+            "mid": 0,
+            "high": -1.4
+          }
+        ],
+        "b": [
+          {
+            "t": 0,
+            "low": -7,
+            "mid": 0,
+            "high": 1.2
+          },
+          {
+            "t": 0.24323809523809542,
+            "low": -7.229591911862499,
+            "mid": 0,
+            "high": 1.2
+          },
+          {
+            "t": 0.48647619047619084,
+            "low": -7.257838549038229,
+            "mid": 0,
+            "high": 1.0067930912016887
+          },
+          {
+            "t": 0.7297142857142863,
+            "low": -7.176199809029849,
+            "mid": 0,
+            "high": 0.8502289108768863
+          },
+          {
+            "t": 0.9729523809523817,
+            "low": -7.267450926183292,
+            "mid": 0,
+            "high": 0.20711383312899556
+          },
+          {
+            "t": 1.2161904761904772,
+            "low": -7.53353673438917,
+            "mid": 0,
+            "high": 0.936828118843282
+          },
+          {
+            "t": 1.4594285714285726,
+            "low": -8.263251020103457,
+            "mid": 0,
+            "high": 1.0275896592887017
+          },
+          {
+            "t": 1.702666666666668,
+            "low": -7.999449657539182,
+            "mid": 0,
+            "high": 0.2978753735744153
+          },
+          {
+            "t": 1.9459047619047634,
+            "low": -7.371400859284902,
+            "mid": 0,
+            "high": -0.43183891213987047
+          },
+          {
+            "t": 2.189142857142859,
+            "low": -8.101115144999188,
+            "mid": 0,
+            "high": 0.18164729512019728
+          },
+          {
+            "t": 2.4323809523809543,
+            "low": -8.830829430713475,
+            "mid": 0,
+            "high": 0.9113615808344837
+          },
+          {
+            "t": 2.67561904761905,
+            "low": -8.531921614572124,
+            "mid": 0,
+            "high": 0.18164729512019728
+          },
+          {
+            "t": 2.9188571428571453,
+            "low": -7.802207328857837,
+            "mid": 0,
+            "high": -0.5480669905940891
+          },
+          {
+            "t": 3.1620952380952407,
+            "low": -7.805550543816679,
+            "mid": 0,
+            "high": 0.18164729512019728
+          },
+          {
+            "t": 3.405333333333336,
+            "low": -7.993248525768641,
+            "mid": 0,
+            "high": 0.3859609545082562
+          },
+          {
+            "t": 3.6485714285714317,
+            "low": -8.315601294397176,
+            "mid": 0,
+            "high": -0.34375333120603024
+          },
+          {
+            "t": 3.8918095238095267,
+            "low": -7.990661842483359,
+            "mid": 0,
+            "high": 0.38596095450825485
+          },
+          {
+            "t": 4.135047619047622,
+            "low": -7.807542931361419,
+            "mid": 0,
+            "high": 1.1156752402225414
+          },
+          {
+            "t": 4.378285714285718,
+            "low": -7.479867625367828,
+            "mid": 0,
+            "high": 0.6925431295964363
+          },
+          {
+            "t": 4.621523809523813,
+            "low": -7.258497918175262,
+            "mid": 0,
+            "high": 0.16598639455782327
+          },
+          {
+            "t": 4.864761904761909,
+            "low": -7.177288511805323,
+            "mid": 0,
+            "high": 0.8957006802721097
+          },
+          {
+            "t": 5.108000000000004,
+            "low": -7,
+            "mid": 0,
+            "high": 1.2
+          }
+        ]
+      },
+      "eqCanonicalSnapshotSha256": "08664304c14c5382d0260b4662e5dcfb08cb99cb6cdc0d48a5f4908608bdacc8"
+    }
+  ],
+  "selection": {
+    "candidateWindows": 1925,
+    "distinctPairs": 3,
+    "sourceTracks": 6,
+    "selection": "sort eligible candidates by summed raw/model section boundary distance then BPM-ratio distance then titles/start; greedy first3 with no shared track, frozen before audio",
+    "cohortGate": "abs BPM gap>=20; symmetric nearest1:1 deviation>=18%; relative deviation from2or0.5>=10%; exploratory gates only",
+    "cuePolicy": "NEW distant native-speed pairs. Both arms share A section-end/B section-start candidates and exact sources. Reference begins fade there; treatment exchanges accompaniment there. Original voice curves/EQ unchanged.",
+    "limitation": "Sections/downbeats are source-bound model candidates, not listener-confirmed semantic/groove truth. VAD plus RMS protects detected singing/rap; cannot certify every lyric or remove source separation bleed.",
+    "snapshotHashes": [
+      {
+        "id": "track-6bcba4d577699a35104c",
+        "sha256": "4eaf71b03caf3ccb99a0631d70d441b616b8352e4ef7bddba91a162051ae91c0"
+      },
+      {
+        "id": "track-79b8034c69bfb4de05c8",
+        "sha256": "ccebaded50eb5855c56a71d74c09ccaa487e99eb94e5b3e1e79e8768494cf5c8"
+      },
+      {
+        "id": "track-f73c75305b8a88de4dfb",
+        "sha256": "c5f4f2ac249b7a436845f78004a46e941aaf0013022cfb2d9e60a212cbcb75a7"
+      },
+      {
+        "id": "track-5f7a688d0c0dff4e1bc7",
+        "sha256": "122c9d78a857c0ef859247abc30f3cb06c6c72e64f3a7ad4ee6401c5390de723"
+      },
+      {
+        "id": "track-441fc43b35110f9b50f1",
+        "sha256": "b6ab502c0fbbbba2b01bc3157d3ef8b163334a2cb7b7559d154ce599ac169d90"
+      },
+      {
+        "id": "track-074b5867a7993833d698",
+        "sha256": "4653cf8a84e4d961806656f822747326bda1cefbe6fb9b18cd907c5f2b4a53bb"
+      }
+    ]
+  },
+  "sourceAudit": [
+    {
+      "id": "big-step-cut-01",
+      "aVoiceProtectedHorizonMeasuredRmsDbfs": -66.25615148344436,
+      "aVoicePeak": 0.0035400390625,
+      "aRawAnchor": 120.01,
+      "aObservedDownbeat": 120.01,
+      "aAnchorOffset": 0.0,
+      "nativeContinuity": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "17d1ab8129f2bb4aa69a331a1c40eba5b447399e704494a46704a58e89271c4d",
+        "continuousSourcePcmSha256": "17d1ab8129f2bb4aa69a331a1c40eba5b447399e704494a46704a58e89271c4d",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      }
+    },
+    {
+      "id": "big-step-cut-02",
+      "aVoiceProtectedHorizonMeasuredRmsDbfs": -75.52867264860764,
+      "aVoicePeak": 0.002593994140625,
+      "aRawAnchor": 285.61,
+      "aObservedDownbeat": 285.61,
+      "aAnchorOffset": 0.0,
+      "nativeContinuity": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "a303196d5d5b17544fcf23b04dc93cb334192c13eee63533bdf63b4eab56854b",
+        "continuousSourcePcmSha256": "a303196d5d5b17544fcf23b04dc93cb334192c13eee63533bdf63b4eab56854b",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      }
+    },
+    {
+      "id": "big-step-cut-03",
+      "aVoiceProtectedHorizonMeasuredRmsDbfs": -62.493195491994726,
+      "aVoicePeak": 0.02252197265625,
+      "aRawAnchor": 239.52,
+      "aObservedDownbeat": 239.51,
+      "aAnchorOffset": 0.010000000000019327,
+      "nativeContinuity": {
+        "directNativeNoAtempo": true,
+        "absoluteSourceClock": true,
+        "adjacentCombinedSourceMaxError": 0.0,
+        "joinedPcmSha256": "b7400b9f9f48699bc249b6f1bf610d389e3324564c95cc0c65755c4b7f5e44cf",
+        "continuousSourcePcmSha256": "b7400b9f9f48699bc249b6f1bf610d389e3324564c95cc0c65755c4b7f5e44cf",
+        "rendererSha256": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457"
+      }
+    }
+  ],
+  "browser": {
+    "schema": "harbeat.big-step-cut-browser-audit.v1",
+    "practiceRoundId": "bcbe3f9a-826e-4e3a-8e6a-dfbe6f0b97b7",
+    "formalRoundId": "dd90ba44-c146-4163-b1e1-6449830fe25e",
+    "practiceExportSha256": "86d751adf53fde3960d9b1c6de04587512f19e914a0ef84cf00fde351ee6e5f4",
+    "formalExportSha256": "51f56788af6bf766bf868f8f628df4741106765c0fdbfb1a9f19a5aa7005dcd7",
+    "completedArms": 6,
+    "observations": 36,
+    "renderMarkersOnTime": true,
+    "playFailures": 0,
+    "immediateCancelRequests": 1,
+    "earlyVoteSnapshot": {
+      "choice": "tie",
+      "at": "2026-10-19T07:03:24.282Z",
+      "heard": {}
+    },
+    "practiceArchived": true,
+    "reloadedFormalBlank": true,
+    "consoleErrorsAndWarnings": [],
+    "cases": [
+      {
+        "id": "big-step-cut-01",
+        "arms": [
+          {
+            "mode": "relay",
+            "letter": "A",
+            "sessionId": "big-step-cut-1792393404549-1",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 4666,
+                "observedFrame": 4736,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 180846,
+                "observedFrame": 180864,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 181066,
+                "observedFrame": 181120,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 181287,
+                "observedFrame": 181376,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 337621,
+                "observedFrame": 337664,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 690421,
+                "observedFrame": 690432,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.9312744140625
+          },
+          {
+            "mode": "natural",
+            "letter": "B",
+            "sessionId": "big-step-cut-1792393512342-5",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 4705594,
+                "observedFrame": 4705664,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 4881774,
+                "observedFrame": 4881792,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 4881994,
+                "observedFrame": 4882048,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 4882214,
+                "observedFrame": 4882304,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 5038549,
+                "observedFrame": 5038592,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 5391349,
+                "observedFrame": 5391360,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.8726876378059387
+          }
+        ]
+      },
+      {
+        "id": "big-step-cut-02",
+        "arms": [
+          {
+            "mode": "relay",
+            "letter": "B",
+            "sessionId": "big-step-cut-1792393605781-7",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 8814138,
+                "observedFrame": 8814208,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 8990318,
+                "observedFrame": 8990336,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 8990538,
+                "observedFrame": 8990592,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 8990759,
+                "observedFrame": 8990848,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 9220961,
+                "observedFrame": 9220992,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 9573761,
+                "observedFrame": 9573888,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.821357250213623
+          },
+          {
+            "mode": "natural",
+            "letter": "A",
+            "sessionId": "big-step-cut-1792393744644-8",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 14920122,
+                "observedFrame": 14920192,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 15096302,
+                "observedFrame": 15096320,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 15096522,
+                "observedFrame": 15096576,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 15096743,
+                "observedFrame": 15096832,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 15326945,
+                "observedFrame": 15326976,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 15679745,
+                "observedFrame": 15679872,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.7650192975997925
+          }
+        ]
+      },
+      {
+        "id": "big-step-cut-03",
+        "arms": [
+          {
+            "mode": "natural",
+            "letter": "A",
+            "sessionId": "big-step-cut-1792393850098-10",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 19561786,
+                "observedFrame": 19561856,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 19737966,
+                "observedFrame": 19737984,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 19738186,
+                "observedFrame": 19738240,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 19738407,
+                "observedFrame": 19738496,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 19963449,
+                "observedFrame": 19963520,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 20316249,
+                "observedFrame": 20316288,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 1,
+            "maximumObservedPeak": 0.778099536895752
+          },
+          {
+            "mode": "relay",
+            "letter": "B",
+            "sessionId": "big-step-cut-1792393904927-11",
+            "markers": [
+              {
+                "name": "试听开始",
+                "frame": 21961146,
+                "observedFrame": 21961216,
+                "late": 0
+              },
+              {
+                "name": "位置 1",
+                "frame": 22137326,
+                "observedFrame": 22137344,
+                "late": 0
+              },
+              {
+                "name": "位置 2",
+                "frame": 22137546,
+                "observedFrame": 22137600,
+                "late": 0
+              },
+              {
+                "name": "位置 3",
+                "frame": 22137767,
+                "observedFrame": 22137856,
+                "late": 0
+              },
+              {
+                "name": "位置 4",
+                "frame": 22362809,
+                "observedFrame": 22362880,
+                "late": 0
+              },
+              {
+                "name": "试听结束",
+                "frame": 22715609,
+                "observedFrame": 22715648,
+                "late": 0
+              }
+            ],
+            "minimumLimiterGain": 0.9844744099801663,
+            "maximumObservedPeak": 0.9599999785423279
+          }
+        ]
+      }
+    ],
+    "limitation": "Audio-thread observation does not measure speaker latency or subjective quality. Practice votes excluded; listener has not evaluated this round."
+  },
+  "tests": {
+    "frontendScoped": 26,
+    "frontendRelated": 147,
+    "frontendSkipped": 1,
+    "skippedReason": "vocal-overlap optional corpus test; live source-bound cases separately rendered and verified",
+    "python": 15,
+    "typecheck": "passed",
+    "standaloneBuild": "passed; existing Browserslist age advisory only",
+    "independentReview": "two P2 findings fixed; reviewer rechecked with no remaining important findings"
+  },
+  "playback": {
+    "reference": "Original linear accompaniment crossfade at common cue; original linear voice gains",
+    "treatment": "5ms A accompaniment descent ending at sharedpre=4s;5ms B accompaniment ascent starting there",
+    "voiceAlgebra": "master*bed+actualVocal*(originalVoice-bed), matched original EQ on both paths",
+    "sampleClock": "Both source endpoints rounded to absolute source frames;3 Bentry/body joins bit-exact",
+    "output": "identical0.76 graph scale, existing5mslookahead limiter, common0.7 output; no arm normalization",
+    "limiterObservation": "Case03short had minimum0.98447440998 (~0.136dB reduction); other5arms1.0. Same protection chain; minor peak-dependent loudness/shape difference remains part of playback and is not evidence of smoothness."
+  },
+  "sourceFiles": {
+    "scripts/explore_big_step_cut.py": "8f176840500eeeb5e6e1b10adba928ea0d3c4d61f260a9c3b1ab7b09c8638da7",
+    "scripts/prepare_big_step_cut.ts": "09e7216fb33071826b21e02e16d4f71159f0a26242eb8c482e149e42f2d28c93",
+    "scripts/package_big_step_cut.py": "6d0d9fdf57a53c3278b10e25de8abae31946b4e5b71eeedd51d2ff84964bb891",
+    "scripts/render_half_double_sources.py": "2f2179df562b6de3d32d9cac8115e2709f4b5b36c91194e1bf4a3c60bbfd8457",
+    "web/src/big-step-cut/policy.ts": "8f9a54bb6ad2634bc7bee1bb4550078dc674a6b7707c514c98fb316b79023ef5",
+    "web/src/big-step-cut/graph.ts": "13b2992e3cf883aad8947b159f1901505e62c55fa509560f6f45a4e42ef6ad2b",
+    "web/src/big-step-cut/transport.ts": "f4a4cee341695a53d1e744bb680e4a89707c05dcb04ac823757dbc7802019d91",
+    "web/public/vocal-echo-clock.js": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5"
+  },
+  "workFiles": {
+    "frozen-cues.json": "17d42f29392a11f12df957549a9965c285b37cacfbc7a6bb8576cc6162822b7b",
+    "selection.json": "2e1a78b2b7999b07d791ff459167e3c7312703d478aff20de14b611d6ac2855f",
+    "selection-bound.json": "b59aefdf2d220c6c408468c36d363777c40eab10a944468fefd6f6227bc5f6b2",
+    "tracks.json": "e9698210afbf35a17e90d189b93825a56a12608cb8ed888d9e3b8dbc509e901b",
+    "preparation-identity.json": "7cf8519c6d1fac04b39092ac6e9bf07d9470b68cb970b88728dcb08251537923",
+    "source-audit.json": "3280338d45246536570f5f4d11138a18cb4cd137c362faa8c4cfe2ca5ab8a3cd",
+    "browser-audit.json": "945265f4b1e8bfe80bdbde0197486f32a19571da9f05b638a3dedf6deaa2ef59",
+    "browser-practice.json": "86d751adf53fde3960d9b1c6de04587512f19e914a0ef84cf00fde351ee6e5f4",
+    "browser-formal.json": "51f56788af6bf766bf868f8f628df4741106765c0fdbfb1a9f19a5aa7005dcd7",
+    "big-step-cut.png": "065980d6e3dd0256e688c63b4461d94bf2794f1a5a804e01a2574b00cd8b1fa8"
+  },
+  "limitations": [
+    "3distinct pairs/6tracks; model section/downbeat and VAD/RMS proxies remain provisional. This tests accompaniment cut, not instantaneous full-mix vocal cut, extra effects or general genre rules.",
+    "Model boundary distances do not certify semantic phrasing or naturalness. Case03 frozen A raw anchor239.520 is10msaftervalidated observed bar239.510, belowexisting65msgridtolerance;offsetrecorded, cueunchanged.",
+    "Three different tracks per side, one listener pending; no objective quality claim, genre rule, production enablement or combination validated.",
+    "Aquiet VAD/RMS proxies supported by measured vocalstemprotected-horizonRMS -66.26/-75.53/-62.49dBFS; residual separation bleed not guaranteed absent."
+  ],
+  "preservedUnrelatedDirtyFiles": 14,
+  "fullFrozenPlans": "work/big-step-cut-20261019/pack.json (project workspace), exact fullpack SHA above; planExcerpt/eqExcerpt are summaries, not inputs to planSha256."
+}

@@ -1,0 +1,24 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import {requireBoundVocals} from '../web/src/vocal-overlap/planner'
+import {buildV30Eq} from '../web/src/v30/eq'
+import {vocalPresence,energyAt} from '../web/src/realtime/planner'
+import {evaluateEvidence} from '../web/src/realtime/evidence'
+import {validateBoundary} from '../web/src/big-step-cut/policy'
+const root=path.resolve(process.argv[2]),details=path.resolve(process.argv[3]),read=(p:string)=>JSON.parse(fs.readFileSync(p,'utf8')),digest=(s:string|Buffer)=>crypto.createHash('sha256').update(s).digest('hex')
+const tracks=fs.readdirSync(details).filter(f=>f.endsWith('.json')).map(f=>read(path.join(details,f)).track),rows=read(path.join(root,'frozen-cues.json')),selected:any[]=[],cases:any[]=[]
+for(const [i,row] of rows.entries()){
+ const a=tracks.find(t=>t.id===row.aid),b=tracks.find(t=>t.id===row.bid);requireBoundVocals(a);requireBoundVocals(b)
+ if(!a.bars.includes(row.start)||!a.sections.some((s:any)=>JSON.stringify(s)===JSON.stringify(row.aSection))||!b.sections.some((s:any)=>JSON.stringify(s)===JSON.stringify(row.bSection)))throw Error('frozen section or observed downbeat changed')
+ const bi=b.alignment.bars.findIndex((x:any)=>x.start===row.bEntry),bars=b.alignment.bars.slice(bi,bi+2)
+ const window={id:`section-native-${row.bEntry}`,start:row.bEntry,end:row.bEnd,bars:2,role:row.bSection.label,energy:energyAt(b,row.bEntry,row.bEnd),variants:{}}
+ const aVocal=vocalPresence(a.vocals,row.start,row.end),bVocal=vocalPresence(b.vocals,window.start,window.end),evidence=evaluateEvidence(a,b,window,row.start,{kind:'next'});if(!evidence.accepted)throw Error(evidence.reason)
+ const plan:any={id:`big-step-cut:${a.id}:${b.id}:${window.id}:${row.start}`,from:a.id,to:b.id,start:row.start,end:row.end,duration:row.duration,rate:1,window,restore:row.end-Math.min(row.duration,120/a.bpm),aVocal,bVocal,midDuck:aVocal*row.duration>=.5&&aVocal>=.05&&bVocal*row.duration>=.5&&bVocal>=.05,gridError:0,aEnergy:energyAt(a,row.start,row.end),bEnergy:window.energy,evidence}
+ plan.v30Eq=buildV30Eq(a,b,plan)
+ const boundary={aSection:row.aSection,bSection:row.bSection,aDownbeat:row.start,aObservedBar:[...a.alignment.bars].sort((x:any,y:any)=>Math.abs(x.start-row.start)-Math.abs(y.start-row.start))[0],aAnchorPolicy:'frozen raw downbeat within65ms of valid observed bar; offset recorded, no cue shift',bDownbeat:row.bEntry,aBoundaryDistance:row.aBoundaryDistance,bBoundaryDistance:row.bBoundaryDistance,bBars:bars,aProtected:[...a.vocals.map(([s,e]:number[])=>[s-.3,e+.3]),...a.alignment.phrases.map((x:any)=>[x.start,x.tailEnd])],bProtected:[...b.vocals,...b.alignment.phrases.map((x:any)=>[x.start,x.tailEnd])],voicePolicy:'original-linear-fades',sectionTruth:'model-candidate',aGridSource:a.alignment.source,bGridSource:b.alignment.source,protection:'A: padded300ms VAD union existing RMS/tail phrases through entire reference overlap; B: raw VAD union tail phrases, no mid-phrase entry'}
+ const c={id:'big-step-cut-'+String(i+1).padStart(2,'0'),aTitle:a.title,bTitle:b.title,bpm:[a.bpm,b.bpm],pre:4,post:8,cutEdgeSeconds:.005,baselineBass:'reference',plan,planSha256:digest(JSON.stringify(plan)),boundary,features:{rawBpmRatio:row.ratio,shortExchangeClipSecond:4,referenceOverlapSeconds:row.duration,sectionBoundaryStatus:'model candidate within150ms of observed downbeat; unverified semantic boundary'},sourceVerification:{}}
+ validateBoundary(c);cases.push(c);for(const t of [a,b])if(!selected.some(x=>x.id===t.id))selected.push(t)
+}
+const audit={candidateWindows:read(path.join(root,'exploration.json')).length,distinctPairs:3,sourceTracks:selected.length,selection:'sort eligible candidates by summed raw/model section boundary distance then BPM-ratio distance then titles/start; greedy first3 with no shared track, frozen before audio',cohortGate:'abs BPM gap>=20; symmetric nearest1:1 deviation>=18%; relative deviation from2or0.5>=10%; exploratory gates only',cuePolicy:'NEW distant native-speed pairs. Both arms share A section-end/B section-start candidates and exact sources. Reference begins fade there; treatment exchanges accompaniment there. Original voice curves/EQ unchanged.',limitation:'Sections/downbeats are source-bound model candidates, not listener-confirmed semantic/groove truth. VAD plus RMS protects detected singing/rap; cannot certify every lyric or remove source separation bleed.',snapshotHashes:selected.map(t=>({id:t.id,sha256:digest(JSON.stringify(t))}))}
+fs.writeFileSync(path.join(root,'selection.json'),JSON.stringify({schema:'harbeat.big-step-cut-selection.v1',cases,tracks:selected.map(t=>({id:t.id,title:t.title,reportId:t.reportId,provenance:t.provenance})),audit},null,2)+'\n');fs.writeFileSync(path.join(root,'tracks.json'),JSON.stringify(selected,null,2)+'\n');console.log(cases.map(c=>({a:c.aTitle,b:c.bTitle,bpm:c.bpm,point:c.plan.start,bEntry:c.plan.window.start,eq:c.plan.v30Eq})))

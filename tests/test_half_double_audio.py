@@ -47,3 +47,10 @@ def test_local_wsola_preserves_tonal_pitch_including_anti_phase_stereo():
  sr=8000;t=np.arange(sr*4)/sr;a=np.sin(2*np.pi*220*t)*.3;pcm=np.column_stack([a,-a,a*.2,-a*.2]).astype('float32');out=warp_shared(pcm,sr,[0,1,2,3,4],[0,1.04,1.99,3.03,4]);v=out[sr:-sr,0];spectrum=abs(np.fft.rfft(v*np.hanning(len(v))));freq=np.fft.rfftfreq(len(v),1/sr)[np.argmax(spectrum)]
  assert abs(freq-220)<=1
  assert np.sqrt(np.mean(v*v))>.9*np.sqrt(np.mean(a[sr:-sr]**2))
+
+def test_native_fractional_cues_share_the_same_absolute_boundary_frame(tmp_path):
+ import soundfile as sf
+ from scripts.render_half_double_sources import native_layers
+ sr=44100;rng=np.random.default_rng(8);x=rng.normal(0,.1,(sr,2)).astype('float32');p=tmp_path/'fractional.wav';sf.write(p,x,sr,subtype='FLOAT')
+ entry=native_layers([p],.006,.008,1);body=native_layers([p],.014,.01,1)
+ joined=np.concatenate([entry,body]);np.testing.assert_array_equal(joined,x[round(.006*sr):round(.024*sr)])
