@@ -2,7 +2,7 @@
   "schema": "harbeat.half-double-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5204/half-double.html",
-  "scope": "Standalone endpoint-preserving2:1/1:2local phase correction prepared; listener choices pending",
+  "scope": "Local2:1/1:2phase-correction listener review complete:1treatment/2tie, no large-tempo-conversion claim",
   "selectionSha256": "f0f0863dc7d8d310118fe9da9064604b9bde9e8c6246070a46479c7bb458053e",
   "packSha256": "77d2c1875add422a3ffd7582935039dd3cfea763b1712147644f5bd92e6d3018",
   "cases": [
@@ -2302,5 +2302,372 @@
   "screenshot": "/Users/jihaobi/Documents/New project/work/half-double-20261019/half-double.png",
   "productionChanged": false,
   "combinationsEnabled": false,
-  "completeFrozenPlanLocation": "/Users/jihaobi/Documents/New project/work/half-double-20261019/pack.json (full original plans, preprocessing/EQ evidence and assets; exact packSHA256 above)"
+  "completeFrozenPlanLocation": "/Users/jihaobi/Documents/New project/work/half-double-20261019/pack.json (full original plans, preprocessing/EQ evidence and assets; exact packSHA256 above)",
+  "listenerFeedback": {
+    "schema": "harbeat.half-double-choice-analysis.v1",
+    "date": "2026-10-19",
+    "roundId": "60c67024-df70-4422-8670-8c7e4ed79005",
+    "feedbackSha256": "cf1450bfe2bc2308dbca86c816e48229f36f1beeb86e765c5acef763903fe486",
+    "counts": {
+      "tie": 2,
+      "relay": 1
+    },
+    "cases": [
+      {
+        "id": "half-double-01",
+        "pair": [
+          "Old Town Road",
+          "Let Me Be Your Fantasy - Original Mix"
+        ],
+        "bpm": [
+          68.2,
+          136
+        ],
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-19T06:20:43.687Z",
+          "heard": {
+            "B": "2026-10-19T06:20:25.167Z"
+          }
+        },
+        "currentChoice": "tie",
+        "preferredMethod": "tie",
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:20:27.050Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:20:31.055Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:20:31.520Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:20:34.623Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:20:37.722Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:20:38.160Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          "relay": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:19:54.507Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:19:58.507Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:19:58.976Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:20:02.080Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:20:05.178Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:20:05.616Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:20:05.936Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:20:09.936Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:20:10.410Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:20:13.509Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:20:16.603Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:20:17.050Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T06:20:25.045Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        },
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection"
+      },
+      {
+        "id": "half-double-02",
+        "pair": [
+          "Old Town Road",
+          "I Like"
+        ],
+        "bpm": [
+          68.2,
+          136
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-19T06:21:15.454Z",
+          "heard": {}
+        },
+        "currentChoice": "A",
+        "preferredMethod": "relay",
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:21:03.466Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:21:07.472Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:21:07.941Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:21:11.039Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:21:14.138Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:21:14.576Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          "relay": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:20:47.994Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:20:52.000Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:20:52.469Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:20:55.568Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:20:58.667Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:20:59.109Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        },
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection"
+      },
+      {
+        "id": "half-double-03",
+        "pair": [
+          "What is Love？",
+          "Lazarus"
+        ],
+        "bpm": [
+          166.7,
+          85.4
+        ],
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-19T06:21:55.988Z",
+          "heard": {
+            "B": "2026-10-19T06:21:37.646Z"
+          }
+        },
+        "currentChoice": "tie",
+        "preferredMethod": "tie",
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": true,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:21:19.914Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:21:23.914Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:21:24.656Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:21:26.757Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:21:28.874Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:21:29.573Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "试听结束",
+                "at": "2026-10-19T06:21:37.573Z",
+                "lateFrames": 0
+              }
+            ]
+          },
+          "relay": {
+            "nativeTakeoverCovered": true,
+            "finishedBeforeVote": false,
+            "markers": [
+              {
+                "name": "试听开始",
+                "at": "2026-10-19T06:21:38.351Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 1",
+                "at": "2026-10-19T06:21:42.352Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 2",
+                "at": "2026-10-19T06:21:43.092Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 3",
+                "at": "2026-10-19T06:21:45.194Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 4",
+                "at": "2026-10-19T06:21:47.312Z",
+                "lateFrames": 0
+              },
+              {
+                "name": "位置 5",
+                "at": "2026-10-19T06:21:48.015Z",
+                "lateFrames": 0
+              }
+            ]
+          }
+        },
+        "scope": "endpoint-preserving local2:1/1:2phase correction; not constant tempo/phrase reselection"
+      }
+    ],
+    "practiceExcluded": [
+      "2b405f12-a1e0-4032-8ea2-341028f1b763"
+    ],
+    "conclusion": "OldTownRoad→ILike local correction preferred; two other pairs tie. Both core transitions covered before every initial vote. One listener/3pairs with repeatedA. Case-level benefit, no universal trigger.",
+    "limits": [
+      "Endpoint-preserving40–60ms nominal local correction inside already near2:1or1:2pairs; not large actual tempo conversion or semantic phrase reselection.",
+      "No symptoms/notes/reveals or formal failures. Do not infer why one pair benefited or absence of artifacts.",
+      "Complete original post-native playback varied before initial vote; core transition markers covered in every arm.",
+      "No full-track echo-out, brake/spinback, distant-style cut, tempo ramp or combination was tested."
+    ]
+  },
+  "listenerAnalysisSha256": "6fdb149820d0e9e206e5e59b3561a75e32c9b7d150da5f10bab6b5f1fa660c80"
 }
