@@ -7,9 +7,11 @@ The catalogue will contain: technique and exact tested variant; broad use contex
 Remaining review queue:
 
 1. Source-reviewed single phrase retrigger5207:1listener tie, unassigned unnatural-voice symptom; no demonstrated improvement. Repeated loops/word-level chops/live hotkeys remain distinct until actually tested.
-2. Low-frequency EQ handoff timing5208(current), keeping cues and vocals fixed. Blend-duration trials are separate and require a later explicit choice to vary source cues/overlap.
-3. Semantic phrase-length mapping for near half/double relation if source evidence supports it; local phase correction is already tested.
-4. Planned multi-song role recombination as its own arrangement trial.
+2. Low-frequency EQ handoff timing5208:2ties/1earlier, no symptoms/notes, timing preference only; original cues and vocals fixed. Blend-duration trials are separate and require a later explicit choice to vary source cues/overlap.
+3. Semantic phrase-length mapping deferred: frozen ratio material has acoustic phrase/raw-grid/model-section evidence, no human-confirmed semantic phrase spans. Local phase correction is already tested; do not silently move fixed cues.
+4. Third-track one-bar drum addition5209(current):narrow additive multi-source arrangement trial; full multi-role mashup remains unverified.
 5. Distant-tempo echo/brake/scratch/arranged stop variants remain low/deferred per user, explicitly labelled as untested rather than silently counted complete.
 
 Do not expand this into every possible filter/effect setting. Archive source-ineligible/skipped material, collect the listener's case outcomes, and close each defined experiment before another. Final catalogue can be complete as an evidence inventory while clearly retaining deferred/unverified methods. Actual combinations wait until that inventory is reviewed.
+
+After5209listener review, assemble the requested catalogue for the current fixed-cue core queue. Preserve deferred/unverified variants in explicit rows; do not invent more parameter rounds or label the whole DJ technique space complete. The catalogue precedes any combined-effect trial.

@@ -2,7 +2,7 @@
   "schema": "harbeat.low-handoff-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5208/low-handoff.html",
-  "status": "Three pairs prepared; formal listener preferences pending",
+  "status": "Listener review complete:2ties/1earlier, timing preference only",
   "selectionSha256": "fb7c87c7f9cc7aa9a2d496023a250d3d891df4f90efa6a1e47c5c76afaf4cc42",
   "packSha256": "c5e71e4dac722a2bc58edf80b76965429f36452d64c6b5abd25ec74da30d0952",
   "sourcePackSha256": "ff81f14a7e4aff7020e13336d2bb9f10510e9f911e4429d36a6cec80636c147f",
@@ -1307,5 +1307,493 @@
     "Inherited cached source time-stretch/edges are shared; no native bit-exact continuity claim.",
     "No automatic production strategy or effect combinations enabled."
   ],
-  "workEvidence": "/Users/jihaobi/Documents/New project/work/low-handoff-20261019"
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/low-handoff-20261019",
+  "listenerReview": {
+    "roundId": "0495998c-3a1e-436f-9352-e0229c0844f0",
+    "practice": false,
+    "results": [
+      {
+        "id": "low-handoff-01",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "finalChoice": "tie",
+        "resolved": "tie",
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-19T11:54:12.106Z",
+          "heard": {
+            "B": "2026-10-19T11:52:21.227Z"
+          }
+        },
+        "votes": [
+          {
+            "choice": "A",
+            "at": "2026-10-19T11:54:12.106Z",
+            "afterReveal": false,
+            "heard": {
+              "B": "2026-10-19T11:52:21.227Z"
+            },
+            "resolved": "relay"
+          },
+          {
+            "choice": "tie",
+            "at": "2026-10-19T11:54:13.207Z",
+            "afterReveal": false,
+            "heard": {
+              "B": "2026-10-19T11:52:21.227Z"
+            },
+            "resolved": "tie"
+          }
+        ],
+        "heardAtExport": {
+          "B": "2026-10-19T11:52:21.227Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "beforeVoteMarkers": [
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:51:46.262Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:51:50.268Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:51:52.226Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:51:52.721Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:51:58.161Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:52:01.222Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:52:05.218Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:52:07.185Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:52:07.676Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:52:13.116Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听结束",
+            "wallTime": "2026-10-19T11:52:21.115Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:53:28.962Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:53:32.992Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:53:34.951Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:53:35.445Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:53:40.885Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:53:45.093Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:53:49.088Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:53:55.002Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:53:55.493Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:53:56.987Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:53:57.802Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:54:01.797Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:54:03.760Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:54:04.256Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:54:09.696Z"
+          }
+        ]
+      },
+      {
+        "id": "low-handoff-02",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "finalChoice": "tie",
+        "resolved": "tie",
+        "firstBlindChoice": {
+          "choice": "tie",
+          "at": "2026-10-19T11:55:48.155Z",
+          "heard": {
+            "A": "2026-10-19T11:54:32.906Z",
+            "B": "2026-10-19T11:54:52.745Z"
+          }
+        },
+        "votes": [
+          {
+            "choice": "tie",
+            "at": "2026-10-19T11:55:48.155Z",
+            "afterReveal": false,
+            "heard": {
+              "A": "2026-10-19T11:54:32.906Z",
+              "B": "2026-10-19T11:54:52.745Z"
+            },
+            "resolved": "tie"
+          }
+        ],
+        "heardAtExport": {
+          "A": "2026-10-19T11:54:32.906Z",
+          "B": "2026-10-19T11:54:52.745Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "beforeVoteMarkers": [
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:54:16.837Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:54:20.837Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:54:22.864Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:54:23.360Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:54:24.806Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "试听结束",
+            "wallTime": "2026-10-19T11:54:32.805Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:54:36.661Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:54:40.666Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:54:40.709Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:54:41.205Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:54:44.629Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听结束",
+            "wallTime": "2026-10-19T11:54:52.634Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:55:16.650Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:55:20.650Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:55:20.692Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:55:21.194Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:55:24.618Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:55:28.873Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:55:32.869Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:55:32.917Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:55:33.413Z"
+          },
+          {
+            "letter": "B",
+            "mode": "natural",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:55:36.842Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:55:38.473Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:55:42.474Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:55:44.495Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:55:44.996Z"
+          },
+          {
+            "letter": "A",
+            "mode": "relay",
+            "name": "位置 4",
+            "wallTime": "2026-10-19T11:55:46.442Z"
+          }
+        ]
+      },
+      {
+        "id": "low-handoff-03",
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "finalChoice": "A",
+        "resolved": "natural",
+        "firstBlindChoice": {
+          "choice": "A",
+          "at": "2026-10-19T11:56:19.622Z",
+          "heard": {}
+        },
+        "votes": [
+          {
+            "choice": "A",
+            "at": "2026-10-19T11:56:19.622Z",
+            "afterReveal": false,
+            "heard": {},
+            "resolved": "natural"
+          }
+        ],
+        "heardAtExport": {
+          "A": "2026-10-19T11:56:28.504Z"
+        },
+        "symptoms": [],
+        "notes": "",
+        "beforeVoteMarkers": [
+          {
+            "letter": "B",
+            "mode": "relay",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:55:52.756Z"
+          },
+          {
+            "letter": "B",
+            "mode": "relay",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:55:56.757Z"
+          },
+          {
+            "letter": "B",
+            "mode": "relay",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:56:04.340Z"
+          },
+          {
+            "letter": "B",
+            "mode": "relay",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:56:04.975Z"
+          },
+          {
+            "letter": "A",
+            "mode": "natural",
+            "name": "试听开始",
+            "wallTime": "2026-10-19T11:56:06.255Z"
+          },
+          {
+            "letter": "A",
+            "mode": "natural",
+            "name": "位置 1",
+            "wallTime": "2026-10-19T11:56:10.261Z"
+          },
+          {
+            "letter": "A",
+            "mode": "natural",
+            "name": "位置 2",
+            "wallTime": "2026-10-19T11:56:10.261Z"
+          },
+          {
+            "letter": "A",
+            "mode": "natural",
+            "name": "位置 3",
+            "wallTime": "2026-10-19T11:56:10.895Z"
+          }
+        ]
+      }
+    ],
+    "count": {
+      "tie": 2,
+      "earlier": 1,
+      "later": 0
+    },
+    "interpretation": "Case01initiallater changed to tie without reveal. Case02tie with both complete before vote. Case03earlier, both exchange-end markers heard before vote, neither nativebody marker yet; only earlier completed after vote. No symptoms/notes; no causal genre rule or comparison to untouched original."
+  }
 }
