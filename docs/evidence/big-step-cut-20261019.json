@@ -2,7 +2,7 @@
   "schema": "harbeat.big-step-cut-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5205/big-step-cut.html",
-  "status": "Prepared;6browser practice arms complete; formal listener choices pending",
+  "status": "Listener reviewed:3neither; distant-tempo work low/deferred, other methods remain untested",
   "packSha256": "491b6184d603d8ffa272980a54c7c648da415611afc4f593249b0761881feeb5",
   "selectionSha256": "38212152dd9bceb6746103dcede9f1c9d4b006b8549eb9e789447375ea60193e",
   "cases": [
@@ -1809,5 +1809,166 @@
     "Aquiet VAD/RMS proxies supported by measured vocalstemprotected-horizonRMS -66.26/-75.53/-62.49dBFS; residual separation bleed not guaranteed absent."
   ],
   "preservedUnrelatedDirtyFiles": 14,
-  "fullFrozenPlans": "work/big-step-cut-20261019/pack.json (project workspace), exact fullpack SHA above; planExcerpt/eqExcerpt are summaries, not inputs to planSha256."
+  "fullFrozenPlans": "work/big-step-cut-20261019/pack.json (project workspace), exact fullpack SHA above; planExcerpt/eqExcerpt are summaries, not inputs to planSha256.",
+  "listenerReview": {
+    "roundId": "dd90ba44-c146-4163-b1e1-6449830fe25e",
+    "practice": false,
+    "cases": [
+      {
+        "id": "big-step-cut-01",
+        "pair": [
+          "GRILLZ (feat. Ilir808)",
+          "I Like"
+        ],
+        "bpm": [
+          98,
+          136
+        ],
+        "choice": "none",
+        "preferred": "none",
+        "firstBlindChoice": {
+          "choice": "none",
+          "at": "2026-10-19T07:23:21.790Z",
+          "heard": {}
+        },
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "relay": {
+            "letter": "A",
+            "started": true,
+            "complete": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3"
+            ],
+            "lastPosition": 6.1577777777777785
+          },
+          "natural": {
+            "letter": "B",
+            "started": true,
+            "complete": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ],
+            "lastPosition": 7.658367346938776
+          }
+        }
+      },
+      {
+        "id": "big-step-cut-02",
+        "pair": [
+          "Let Me Be Your Fantasy - Original Mix",
+          "Playback (feat. Ine)"
+        ],
+        "bpm": [
+          136,
+          91.9
+        ],
+        "choice": "none",
+        "preferred": "none",
+        "firstBlindChoice": {
+          "choice": "none",
+          "at": "2026-10-19T07:23:45.073Z",
+          "heard": {}
+        },
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "letter": "A",
+            "started": true,
+            "complete": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ],
+            "lastPosition": 10.871428571428574
+          },
+          "relay": {
+            "letter": "B",
+            "started": true,
+            "complete": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3"
+            ],
+            "lastPosition": 0
+          }
+        }
+      },
+      {
+        "id": "big-step-cut-03",
+        "pair": [
+          "Shoot Your Shot",
+          "Prayer Vox feat. Vivian Chen ~infused by Caccini 「Ave Maria」~"
+        ],
+        "bpm": [
+          130,
+          93.9
+        ],
+        "choice": "none",
+        "preferred": "none",
+        "firstBlindChoice": {
+          "choice": "none",
+          "at": "2026-10-19T07:24:36.641Z",
+          "heard": {
+            "A": "2026-10-19T07:24:15.048Z"
+          }
+        },
+        "symptoms": [],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "letter": "A",
+            "started": true,
+            "complete": true,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4",
+              "试听结束"
+            ],
+            "lastPosition": 17.108000000000004
+          },
+          "relay": {
+            "letter": "B",
+            "started": true,
+            "complete": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3"
+            ],
+            "lastPosition": 6.523492063492064
+          }
+        }
+      }
+    ],
+    "failures": [],
+    "userOverall": "BPM跨度太大其实会非常难混；若无更合适方案可降低优先级，先做其他尚未独立测试手法",
+    "interpretation": "All3votedneither, both shortexchange/pre+5ms and referencefadeendpoint were covered. Shortarms didnot reachBnativebodyorfulloriginalvoicefade endpoint, so this is not3fullycompletedarmcomparisons. No symptom/notes, no inferred cause. Defer distanttempo per overalluserfeedback; do not generalize to all transition methods.",
+    "exportSha256": "25379fe0306389ff56fe5fa3eac714846198e579131365aefdc5beb20d694c39"
+  }
 }
