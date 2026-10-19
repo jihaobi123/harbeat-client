@@ -2,7 +2,7 @@
   "schema": "harbeat.melody-filter-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5206/melody-filter.html",
-  "status": "Six current-parameter browser practice arms passed; blank formal listener round awaits choices",
+  "status": "Listener review complete:2filter/1original; fixed-pair benefit only",
   "selectionSha256": "084314f86700d852e7d048a60d39dbb08bdeb5781a251cfd02d8c0ba65c4bbe5",
   "packSha256": "91379b278146423968f048de6112a378f0e031da065f0d397c2a41aa3dccb8fe",
   "sourcePackSha256": "27c276fb300839c5782be81ca19d005ebd9238c4df60fe810de00956d801fb62",
@@ -1544,5 +1544,164 @@
     "Before-Q-unit-fix practice is excluded and archived. No listener preference has been filled for new formal round.",
     "Long-blend duration/lowfrequency timing, semantic half/double phrase mapping, vocalchop/loops/hotcue, multi-song arrangements and genuine distanttempoexit variants remain separate future work; no compound technique activated."
   ],
-  "preexistingDirtyFilesPreserved": 14
+  "preexistingDirtyFilesPreserved": 14,
+  "listenerReview": {
+    "roundId": "967c093a-f440-4eb6-9a52-03cd99ce51e5",
+    "practice": false,
+    "cases": [
+      {
+        "id": "melody-filter-01",
+        "pair": [
+          "Meant To Be",
+          "HIPHOP"
+        ],
+        "choice": "B",
+        "preferred": "relay",
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T08:19:34.998Z",
+          "heard": {}
+        },
+        "symptoms": [
+          "stem-bleed"
+        ],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "letter": "A",
+            "completed": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ]
+          },
+          "relay": {
+            "letter": "B",
+            "completed": false,
+            "markers": [
+              "试听开始",
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ]
+          }
+        },
+        "choiceProvenance": "browser UI"
+      },
+      {
+        "id": "melody-filter-02",
+        "pair": [
+          "Attention",
+          "HIPHOP"
+        ],
+        "choice": "B",
+        "preferred": "relay",
+        "mapping": {
+          "A": "natural",
+          "B": "relay"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T08:20:32.964Z",
+          "heard": {}
+        },
+        "symptoms": [
+          "beat-clearer"
+        ],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "natural": {
+            "letter": "A",
+            "completed": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ]
+          },
+          "relay": {
+            "letter": "B",
+            "completed": false,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4"
+            ]
+          }
+        },
+        "choiceProvenance": "browser UI"
+      },
+      {
+        "id": "melody-filter-03",
+        "pair": [
+          "All Falls Down",
+          "GRILLZ (feat. Ilir808)"
+        ],
+        "choice": "B",
+        "preferred": "natural",
+        "mapping": {
+          "A": "relay",
+          "B": "natural"
+        },
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-19T08:27:04.548Z",
+          "heard": {
+            "B": "2026-10-19T08:21:05.539Z",
+            "A": "2026-10-19T08:21:28.739Z"
+          }
+        },
+        "symptoms": [
+          "beat-clearer"
+        ],
+        "notes": "",
+        "revealedAt": null,
+        "coverageBeforeVote": {
+          "relay": {
+            "letter": "A",
+            "completed": true,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4",
+              "试听结束"
+            ]
+          },
+          "natural": {
+            "letter": "B",
+            "completed": true,
+            "markers": [
+              "试听开始",
+              "位置 1",
+              "位置 2",
+              "位置 3",
+              "位置 4",
+              "试听结束"
+            ]
+          }
+        },
+        "choiceProvenance": "Human async answer B; assistant recorded through visible UI"
+      }
+    ],
+    "failures": [],
+    "exportSha256": "3ea0248c990cae79675e51a16b99c177fa427869f07d956cfc890b06981bd3e6",
+    "interpretation": "Cases01/02filter preferred;case03original via human async B answer recorded through visible UI.Bothcorefilterandnativehandoffmarkerscoveredbeforeallinitialvotes;onlycase03fullarmscompletebeforevote.Case01stembleedcheckboxhasnoarm attribution;case02/03cleanercheckboxalsohasnoarm attribution.Nogeneratedtriggeroruniversalqualityclaim."
+  }
 }
