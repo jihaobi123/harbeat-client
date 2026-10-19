@@ -111,3 +111,6 @@ After5205all3neither and user request to defer distanttempo, next standalone is 
 
 
 2026-10-19: Prepared5207 source-reviewed vocal one-shot, Doin It / Talgo only; two fixed-cue source-ineligible skips. No formal cue approval or listener preference yet. See docs/evidence/vocal-retrigger-20261019.json and docs/mixing-catalogue-completion-plan.md. Word chopping, repeated loops and live hotkeys remain distinct unverified variants.
+
+
+2026-10-19:5207 formal listener tie; cut review complete, unnatural voice symptom has no arm attribution. Both takeover markers heard before vote; no demonstrated one-shot benefit from one pair. Next5208 tests earlier/later timing of identical low-frequency EQ handoff on three original5197pairs. Original cues/speed/voice/EQ/mid-high retained; no untouched reference, no combination. Longer-blend trials require separate cue-duration scope and remain deferred while fixed cues are required.

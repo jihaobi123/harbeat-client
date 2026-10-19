@@ -6,8 +6,8 @@ The catalogue will contain: technique and exact tested variant; broad use contex
 
 Remaining review queue:
 
-1. Source-reviewed single phrase retrigger5207(current). Repeated loops/word-level chops/live hotkeys remain distinct until actually tested.
-2. Long-blend duration and low-frequency handoff timing as separate parameter trials.
+1. Source-reviewed single phrase retrigger5207:1listener tie, unassigned unnatural-voice symptom; no demonstrated improvement. Repeated loops/word-level chops/live hotkeys remain distinct until actually tested.
+2. Low-frequency EQ handoff timing5208(current), keeping cues and vocals fixed. Blend-duration trials are separate and require a later explicit choice to vary source cues/overlap.
 3. Semantic phrase-length mapping for near half/double relation if source evidence supports it; local phase correction is already tested.
 4. Planned multi-song role recombination as its own arrangement trial.
 5. Distant-tempo echo/brake/scratch/arranged stop variants remain low/deferred per user, explicitly labelled as untested rather than silently counted complete.

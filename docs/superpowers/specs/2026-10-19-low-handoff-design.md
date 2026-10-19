@@ -1,0 +1,11 @@
+# Low-frequency handoff timing
+
+Continue the authorized independent-method queue after5207 listener tie. Reuse the three5197 reference pairs, native source cues, fixed speed, total duration, original master/voice fade, mid/high EQ, and source schedule. Do not lengthen blends because that would change the fixed source cues. Compare identical140Hz low-shelf18dB cuts with a one-beat exchange, placed at the first complete measured Abar inside the overlap versus the final measured Abar. Same estimated one-beat ramp60/A_BPM, same cut depth and filter; only timing differs. These are timing variants, not an original-versus-enhancement trial.
+
+Preserve the original vocal EQ and envelope using aligned master/vocal sources: EQoriginal(M) through extra low shelf + EQoriginal(V) dry minus EQoriginal(V) through identical extra low shelf = lowfiltered instrumental residual + original vocal. All branches share original fade, wet/dry schedule and original EQ. Both arms schedule six original buffers. Shared graph gain0.36/output0.7/limiter, no normalization. No bass replacement, melody yield, loop, echo or repeated voice.
+
+For each frozen pair, require at least two distinct raw measured bars fully inside unchanged overlap, lastbar end within65ms of original Aexit, ramp contained in each bar, finite source-bound metadata. Skip unsupported pairs. Recheck original report/manifest/master/vocal/bass NAS hashes and cached clip hashes/frame lengths. Cached source-edge/time-stretch behavior is inherited and identical; no semantic phrase or bit-exact native continuity claim.
+
+Standalone5208 page: blinded earlier/later mapping, practice isolation, early preference, immutable first-vote/heard snapshots, arm-specific playback logs/render onset+end, export/history/reload. Formal blank after QA. Symptoms are not arm-attributed unless listener specifies. One three-pair timing trial cannot establish a universal trigger or prove EQ exchange improves on original.
+
+Startup safety: explicitly mute the bus, gain envelopes and original-vocal correction before automation; wet0/dry1 and Bbodyedge0. Fractional sample rounding must not expose default gain1. A dedicated unchanged-output clock adds raw input peak/frame diagnostics. Initial .60/.36 practice records with the startup transient are archived and excluded; final source-bound pack is replayed after the fix.

@@ -2,7 +2,7 @@
   "schema": "harbeat.vocal-retrigger-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5207/vocal-retrigger.html",
-  "status": "One candidate prepared; human source cut review and listener preference pending",
+  "status": "Listener review complete:1tie; no demonstrated one-shot benefit",
   "selectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33",
   "packSha256": "ee197445b6e61159044ac5e8eb17fd7df264c475931cce763e995f08fd6a929b",
   "sourceSelectionSha256": "57dba13629e9792f7e85aecb5c820ada93fa4a33b98a3893c35e87d365b711ce",
@@ -421,5 +421,148 @@
     "Inherited cached atempo and source edges are shared, no native bit-exact continuity claim.",
     "No automatic online strategy or technique combinations enabled."
   ],
-  "workEvidence": "/Users/jihaobi/Documents/New project/work/vocal-retrigger-20261019"
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/vocal-retrigger-20261019",
+  "listenerReview": {
+    "roundId": "a8144449-58a9-4f81-8913-0eb139aa87af",
+    "practice": false,
+    "choice": "tie",
+    "mapping": {
+      "A": "natural",
+      "B": "relay"
+    },
+    "cueReview": {
+      "status": "complete",
+      "sourceSelectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33",
+      "revisions": [
+        {
+          "status": "complete",
+          "at": "2026-10-19T09:35:03.866Z",
+          "sourceSelectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33"
+        }
+      ],
+      "listens": [
+        {
+          "kind": "context",
+          "at": "2026-10-19T09:34:40.656Z"
+        },
+        {
+          "kind": "context",
+          "at": "2026-10-19T09:34:51.568Z"
+        },
+        {
+          "kind": "sample",
+          "at": "2026-10-19T09:34:56.564Z"
+        },
+        {
+          "kind": "context",
+          "at": "2026-10-19T09:35:01.831Z"
+        }
+      ],
+      "at": "2026-10-19T09:35:03.866Z"
+    },
+    "firstBlindChoice": {
+      "choice": "tie",
+      "at": "2026-10-19T09:35:39.986Z",
+      "heard": {},
+      "cueReview": {
+        "status": "complete",
+        "sourceSelectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33",
+        "revisions": [
+          {
+            "status": "complete",
+            "at": "2026-10-19T09:35:03.866Z",
+            "sourceSelectionSha256": "0e44349347f502adc9e571090f51056ed1e094ff3862abef2e6fe4832d38dc33"
+          }
+        ],
+        "listens": [
+          {
+            "kind": "context",
+            "at": "2026-10-19T09:34:40.656Z"
+          },
+          {
+            "kind": "context",
+            "at": "2026-10-19T09:34:51.568Z"
+          },
+          {
+            "kind": "sample",
+            "at": "2026-10-19T09:34:56.564Z"
+          },
+          {
+            "kind": "context",
+            "at": "2026-10-19T09:35:01.831Z"
+          }
+        ],
+        "at": "2026-10-19T09:35:03.866Z"
+      }
+    },
+    "symptoms": [
+      "voice-cut"
+    ],
+    "notes": "",
+    "beforeVoteRenderMarkers": [
+      {
+        "letter": "B",
+        "mode": "relay",
+        "name": "试听开始",
+        "wallTime": "2026-10-19T09:35:06.653Z"
+      },
+      {
+        "letter": "B",
+        "mode": "relay",
+        "name": "位置 1",
+        "wallTime": "2026-10-19T09:35:10.653Z"
+      },
+      {
+        "letter": "B",
+        "mode": "relay",
+        "name": "位置 2",
+        "wallTime": "2026-10-19T09:35:16.781Z"
+      },
+      {
+        "letter": "B",
+        "mode": "relay",
+        "name": "位置 3",
+        "wallTime": "2026-10-19T09:35:18.551Z"
+      },
+      {
+        "letter": "B",
+        "mode": "relay",
+        "name": "位置 4",
+        "wallTime": "2026-10-19T09:35:20.802Z"
+      },
+      {
+        "letter": "A",
+        "mode": "natural",
+        "name": "试听开始",
+        "wallTime": "2026-10-19T09:35:26.477Z"
+      },
+      {
+        "letter": "A",
+        "mode": "natural",
+        "name": "位置 1",
+        "wallTime": "2026-10-19T09:35:30.477Z"
+      },
+      {
+        "letter": "A",
+        "mode": "natural",
+        "name": "位置 2",
+        "wallTime": "2026-10-19T09:35:36.599Z"
+      },
+      {
+        "letter": "A",
+        "mode": "natural",
+        "name": "位置 3",
+        "wallTime": "2026-10-19T09:35:38.375Z"
+      }
+    ],
+    "finishedAfterVote": [
+      "A"
+    ],
+    "interpretation": "One tie. Both core takeover markers before vote; replay finished in B before vote. A position4/end occurred after vote, B stopped0.264sec before end. Voice-cut checkbox labelled unnatural voice, not attributed to an arm. No demonstrated benefit or universal failure.",
+    "limitations": [
+      "Only one eligible pair; no general suitability conclusion.",
+      "Both core handoffs before vote; A full replay-equivalent window marker after vote, B replay end before vote.",
+      "voice-cut is a legacy symptom ID displayed as unnatural voice, not a claim of cut syllables; no arm specified."
+    ]
+  }
 }
