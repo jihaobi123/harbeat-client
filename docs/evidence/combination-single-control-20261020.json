@@ -2,7 +2,7 @@
   "schema": "harbeat.combination-single-control-evidence.v1",
   "date": "2026-10-20",
   "url": "http://127.0.0.1:5212/combination-single-control.html",
-  "status": "Six browser practice arms complete;blank formal two-pair round delivered, awaiting listener",
+  "status": "Formal feedback archived: Attention combined, Nevada filter-only; preserve conditional pair-specific decisions",
   "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
   "packSha256": "1c3c602b4a7ee1491acd9d56c1ea377758c7217155cac1593f7dca48225a4b5c",
   "parentAudit": [
@@ -167,7 +167,151 @@
     "productionBuild": "passed",
     "independentReview": "combination_review approved;18 scoped tests independently rerun,12 cache SHA matched,8 frozen fields equal"
   },
-  "listenerResults": null,
+  "listenerResults": {
+    "schema": "harbeat.combination-single-control-listener-analysis.v1",
+    "roundId": "023e5152-7736-4fea-845e-9e3147fd4851",
+    "practice": false,
+    "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+    "rawFeedbackPath": "/Users/jihaobi/Documents/New project/work/combination-single-control-20261020/user-feedback-20261020.json",
+    "rawFeedbackSha256": "6e131e70fb27d4e15f652e4599ddbc5e8b9485c2783e27b02a79d446a4192f7e",
+    "exportedAt": "2026-10-20T04:05:24.721Z",
+    "practiceRoundsExcluded": [
+      "eafb32d5-5f8d-400c-8205-691f064c1f9a"
+    ],
+    "cases": [
+      {
+        "caseId": "single-control-01",
+        "aTitle": "Attention",
+        "bTitle": "HIPHOP",
+        "singleTechnique": "filter",
+        "mapping": {
+          "A": "single",
+          "B": "combined",
+          "C": "original"
+        },
+        "finalChoice": "B",
+        "resolvedChoice": "combined",
+        "resolvedLabel": "贝斯交接＋滤波",
+        "votes": [
+          {
+            "choice": "B",
+            "at": "2026-10-20T03:59:16.398Z",
+            "afterReveal": false,
+            "heard": {
+              "C": "2026-10-20T03:58:05.701Z",
+              "B": "2026-10-20T03:58:37.701Z",
+              "A": "2026-10-20T03:59:00.101Z"
+            },
+            "resolvedChoice": "combined"
+          }
+        ],
+        "firstBlindChoice": {
+          "choice": "B",
+          "at": "2026-10-20T03:59:16.398Z",
+          "heard": {
+            "C": "2026-10-20T03:58:05.701Z",
+            "B": "2026-10-20T03:58:37.701Z",
+            "A": "2026-10-20T03:59:00.101Z"
+          }
+        },
+        "revealedAt": null,
+        "symptoms": [
+          "bed-switch-obvious",
+          "voice-cut"
+        ],
+        "symptomLetters": [
+          "A"
+        ],
+        "symptomModes": [
+          "single"
+        ],
+        "notes": "",
+        "heardAtExport": {
+          "C": "2026-10-20T03:58:05.701Z",
+          "B": "2026-10-20T03:58:37.701Z",
+          "A": "2026-10-20T03:59:00.101Z"
+        },
+        "allThreeCompleteBeforeInitial": true,
+        "firstNativeHandoffObservationBeforeInitial": {
+          "A": "2026-10-20T03:58:52.008Z",
+          "B": "2026-10-20T03:58:29.576Z",
+          "C": "2026-10-20T03:57:57.635Z"
+        },
+        "allThreeCoreBeforeInitial": true,
+        "completePlays": 4,
+        "failures": [],
+        "minimumObservedLimiterGain": 1,
+        "maximumObservedPeak": 0.6627880334854126
+      },
+      {
+        "caseId": "single-control-02",
+        "aTitle": "Nevada",
+        "bTitle": "SOMETHING AIN'T RIGHT",
+        "singleTechnique": "filter",
+        "mapping": {
+          "A": "original",
+          "B": "combined",
+          "C": "single"
+        },
+        "finalChoice": "C",
+        "resolvedChoice": "single",
+        "resolvedLabel": "仅滤波",
+        "votes": [
+          {
+            "choice": "C",
+            "at": "2026-10-20T04:04:42.230Z",
+            "afterReveal": false,
+            "heard": {
+              "B": "2026-10-20T04:00:11.061Z"
+            },
+            "resolvedChoice": "single"
+          }
+        ],
+        "firstBlindChoice": {
+          "choice": "C",
+          "at": "2026-10-20T04:04:42.230Z",
+          "heard": {
+            "B": "2026-10-20T04:00:11.061Z"
+          }
+        },
+        "revealedAt": null,
+        "symptoms": [
+          "beat-worse",
+          "voice-cut"
+        ],
+        "symptomLetters": [
+          "A"
+        ],
+        "symptomModes": [
+          "original"
+        ],
+        "notes": "",
+        "heardAtExport": {
+          "B": "2026-10-20T04:00:11.061Z",
+          "C": "2026-10-20T04:04:48.021Z"
+        },
+        "allThreeCompleteBeforeInitial": false,
+        "firstNativeHandoffObservationBeforeInitial": {
+          "A": "2026-10-20T03:59:44.211Z",
+          "B": "2026-10-20T04:00:02.989Z",
+          "C": "2026-10-20T04:04:39.903Z"
+        },
+        "allThreeCoreBeforeInitial": true,
+        "completePlays": 3,
+        "failures": [],
+        "minimumObservedLimiterGain": 1,
+        "maximumObservedPeak": 0.6790072917938232
+      }
+    ],
+    "counts": {
+      "combined": 1,
+      "singleFilter": 1,
+      "original": 0,
+      "tie": 0,
+      "none": 0
+    },
+    "interpretation": "Attention again selected bass+filter, now versus filter-only; across prior bass comparison and current filter comparison, repeated within-pair conditional support over either tested single,not a simultaneous four-arm ranking. Nevada selected filter-only over combo; prior combo preferred over bass is not contradicted since filter-only was absent. All six arms covered native handoff before initial choices; only Attention had all three complete before initial. Nevada filter completed5.791s after vote,original stopped1.068s before clip end;no claim all complete. No vote changes/reveals/failures. Symptoms assigned only to specific stated letters;causes not proven. Two repeated pairs,one listener,no universal trigger or cross-round score ranking."
+  },
   "scope": "Two repeated pairs supplement missing filter-only single reference;not new songs/new technique/generalization evidence. Original frozen cues,rate,EQ,voice conflict and curves;no production activation.",
   "browserAudit": {
     "schema": "harbeat.combination-single-control-browser-audit.v1",
@@ -189,5 +333,6 @@
     "screenshot": "/Users/jihaobi/Documents/New project/work/combination-single-control-20261020/combination-single-control.jpg",
     "practiceExportSha256": "161ed787fbc2aaf7073877ceb8d988bcefd0505a89bdb2c22916912cafce391c",
     "formalExportSha256": "d2a140353b3374f66ef39f7695b6afbf80a224b79ecfc91fea7df07d7da49e49"
-  }
+  },
+  "listenerAnalysisSha256": "49995135158c322937700f01bc9eddf2776748a19aa24356a836c4abd99e2ddd"
 }

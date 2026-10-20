@@ -2,8 +2,8 @@
   "schema": "harbeat.mixing-catalogue-evidence.v1",
   "date": "2026-10-19",
   "cataloguePath": "docs/stems-mixing-catalogue-20261019.md",
-  "catalogueSha256": "8074e468b0c5343f3e4401ee0cb4f45f81f533bb5486a868366b99542b5e0140",
-  "scope": "Fixed-cue inventory plus two pair-specific bass+filter preferences; filter-only reference supplementation pending. Not universal DJ-technique validation; no production activation.",
+  "catalogueSha256": "e8f4e0bbeef8a3e617b5397d9aef91ee16ee2421c9a15ed9c23dea9de2b7b91b",
+  "scope": "Fixed-cue inventory and combination supplement: Attention favors bass+filter, Nevada favors filter-only. Two repeated pairs;no universal selection rule or production activation.",
   "sourceAnalyses": [
     {
       "path": "/Users/jihaobi/Documents/New project/work/bass-generalization-20261017/user-choice-analysis.json",
@@ -165,6 +165,12 @@
       "sha256": "66160b7bae0d09d2bbfac00b57d25224662a160102e25fbad2ecd7e5dfea9721",
       "roundId": "7def330d-3804-49b9-8105-4686bfc6d66d",
       "interpretation": "Combined selected, relative-only caveat; symptoms assigned to original; all core before initial,all complete at export."
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/combination-single-control-20261020/user-choice-analysis-20261020.json",
+      "sha256": "49995135158c322937700f01bc9eddf2776748a19aa24356a836c4abd99e2ddd",
+      "roundId": "023e5152-7736-4fea-845e-9e3147fd4851",
+      "interpretation": "Formal two-pair supplement: one combined,one filter-only;all native handoffs before initial votes,only Attention all clips complete before initial."
     }
   ],
   "qualitativeConversationFeedback": [
