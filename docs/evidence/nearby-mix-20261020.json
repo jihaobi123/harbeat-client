@@ -1,0 +1,183 @@
+{
+  "schema": "harbeat.nearby-mix-verification.v1",
+  "date": "2026-10-20",
+  "baseCommit": "978df49191450a602f1b473b31f630a687585a8d",
+  "branch": "codex/nearby-mix-20261020",
+  "production": "https://8.136.120.255/listen/smart/",
+  "deployment": {
+    "web": "/srv/harbeat-listen/metric-mix/releases/web-nearby-20261020-r2",
+    "previousWeb": "/srv/harbeat-listen/metric-mix/releases/v1-b42d5d5a488d-r2/web/dist-metric-mix",
+    "backendUnchanged": true,
+    "bundle": "metric-mix-CNi5nQbd.js",
+    "sha256": "539a89ac9983053b79acee342f8f30b5d0c751f7b6f28859f385f6687b4c4760"
+  },
+  "tests": {
+    "typescriptPassed": 835,
+    "typescriptSkipped": 12,
+    "typescriptCheck": "passed",
+    "focusedPassed": 16,
+    "review": "passed; arm cancellation regression fixed before deployment"
+  },
+  "warmOnline": {
+    "sessionSha256": "56075df37e9074828db09c97b52bb4e983bae84027fe42ea74f454d307fc2395",
+    "request": {
+      "kind": "nearby_request",
+      "at": "2026-10-20T13:15:38.847Z",
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "sourcePosition": 23.880725623582762
+    },
+    "candidate": {
+      "kind": "nearby_candidate",
+      "at": "2026-10-20T13:15:38.848Z",
+      "sourcePosition": 23.880725623582762,
+      "start": 37.02143537414966,
+      "end": 46.173,
+      "leadSeconds": 40,
+      "reused": true
+    },
+    "armed": {
+      "kind": "nearby_armed",
+      "at": "2026-10-20T13:15:38.891Z",
+      "sourcePosition": 23.924263038548744,
+      "start": 37.02143537414966,
+      "method": "original"
+    },
+    "requestToArmMs": 44.0,
+    "trackStartsAfterRequest": 0,
+    "observations": [
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T13:15:51.992Z",
+        "name": "交接开始",
+        "frame": 6620721,
+        "planId": "a318781b4f9c8cd385e585a6b54e0e85d2d4bc5489a086a227ad8c9164bb0d04",
+        "requestId": "original",
+        "observedFrame": 6620800,
+        "quantumStart": 6620672,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      },
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T13:16:01.144Z",
+        "name": "B正文接管",
+        "frame": 7024305,
+        "planId": "a318781b4f9c8cd385e585a6b54e0e85d2d4bc5489a086a227ad8c9164bb0d04",
+        "requestId": "original",
+        "observedFrame": 7024384,
+        "quantumStart": 7024256,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      }
+    ],
+    "handoff": {
+      "kind": "handoff_complete",
+      "at": "2026-10-20T13:16:01.163Z",
+      "context": 159.2975963718821,
+      "track": "track-d2d58531421de0eb9690",
+      "sourceOffset": 81.57629705215422,
+      "method": "original"
+    }
+  },
+  "coldLocal": {
+    "source": "UI-exported HarBeat-指标混音记录 (3).json",
+    "explicitSeekBeforeRequest": 53.5,
+    "chosenCue": 101.02821768707483,
+    "completedTo": "HIPHOP",
+    "audioObservations": 2,
+    "late": 0,
+    "note": "Test fixture positioning uses seek before the request; no seek or track restart after the request."
+  },
+  "limitations": [
+    "40 seconds is a provisional cold preparation allowance, not a latency guarantee",
+    "Reuse a valid prepared cue before the cold-preparation allowance, avoiding a later fresh render.",
+    "A missed request retries at most three candidates and then leaves A playing",
+    "No new hard cuts, pitch/tempo thresholds, vocal rules or effects were introduced"
+  ],
+  "warmFinalOnline": {
+    "sessionSha256": "2bb79a998ea88fd9e2c67bb641a6e286e7ef734e29a547ae8914c605d93571d7",
+    "bundle": "metric-mix-CNi5nQbd.js",
+    "events": [
+      {
+        "kind": "nearby_request",
+        "at": "2026-10-20T13:24:03.530Z",
+        "from": "track-642bd1ac0da727a3b53b",
+        "to": "track-d2d58531421de0eb9690",
+        "sourcePosition": 4.776507936507937
+      },
+      {
+        "kind": "nearby_candidate",
+        "at": "2026-10-20T13:24:03.530Z",
+        "sourcePosition": 4.779410430839002,
+        "start": 37.02143537414966,
+        "end": 46.173,
+        "leadSeconds": 40,
+        "reused": true
+      },
+      {
+        "kind": "nearby_armed",
+        "at": "2026-10-20T13:24:03.569Z",
+        "sourcePosition": 4.820045351473923,
+        "start": 37.02143537414966,
+        "method": "original"
+      }
+    ],
+    "requestToArmMs": 39.0,
+    "observations": [
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T13:24:35.770Z",
+        "name": "交接开始",
+        "frame": 1641009,
+        "planId": "a318781b4f9c8cd385e585a6b54e0e85d2d4bc5489a086a227ad8c9164bb0d04",
+        "requestId": "original",
+        "observedFrame": 1641088,
+        "quantumStart": 1640960,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      },
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T13:24:44.922Z",
+        "name": "B正文接管",
+        "frame": 2044593,
+        "planId": "a318781b4f9c8cd385e585a6b54e0e85d2d4bc5489a086a227ad8c9164bb0d04",
+        "requestId": "original",
+        "observedFrame": 2044672,
+        "quantumStart": 2044544,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      }
+    ],
+    "handoff": {
+      "kind": "handoff_complete",
+      "at": "2026-10-20T13:24:44.978Z",
+      "context": 46.419591836734696,
+      "track": "track-d2d58531421de0eb9690",
+      "sourceOffset": 81.61693197278912,
+      "method": "original"
+    },
+    "trackStartsAfterRequest": 0
+  },
+  "screenshot": {
+    "file": "docs/evidence/nearby-mix-ui-20261020.jpg",
+    "sha256": "ef381758d99127fceae2f5639f641937d84fc3f766e49cd0db1243bea7f1e0a2"
+  }
+}

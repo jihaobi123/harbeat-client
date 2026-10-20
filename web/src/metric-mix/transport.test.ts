@@ -28,3 +28,11 @@ it('cancelling an audition load cannot arm an older plan over a newly started sa
 it('preloads audition assets before starting its four-second source clock on a slow network',async()=>{
  await p.initialize();let release!:(v:any)=>void;heldFor='/mix';held=new Promise(r=>release=r);const work=p.audition(result,'original',track('a'),track('b'));for(let i=0;i<12;i++)await Promise.resolve();expect(p.current).toBe(null);(p.ctx as unknown as Ctx).currentTime=100;release({duration:30});held=null;await work;expect(p.transition?.at).toBeCloseTo(104.12)
 })
+it('external cancellation during arm loading cannot schedule a late transition',async()=>{
+ await p.start(track('a'));let release!:(v:any)=>void;held=new Promise(r=>release=r)
+ const controller=new AbortController(),work=p.arm(result,'original',track('b'),controller.signal)
+ const outcome=work.then(()=>null,error=>error)
+ controller.abort();release({duration:30})
+ await outcome;expect(p.transition).toBe(null);expect(p.logs.some(x=>x.kind==='plan_scheduled')).toBe(false)
+ expect(p.current?.id).toBe('a')
+})

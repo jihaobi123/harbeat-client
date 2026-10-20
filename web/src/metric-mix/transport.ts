@@ -30,13 +30,15 @@ export class MetricTransport{
   this.clear();const rev=this.revision;this.busy=true;this.paused=false;this.load=new AbortController();this.changed()
   try{await this.initialize();const segment=nativeSegment(track,offset),buffer=await this.cache.load(segment.asset,this.load.signal);if(rev!==this.revision||this.dead)return false;await this.ctx.resume();if(rev!==this.revision||this.dead)return false;const at=this.ctx.currentTime+.12;this.active=this.stream(track,offset,at,buffer);this.status='正在播放原曲';this.log('track_start',{track:track.id,offset,contextStart:at});this.pins();return true}finally{if(rev===this.revision){this.busy=false;this.changed()}}
  }
- async arm(result:Prepared,method:Method,b:Track){
+ async arm(result:Prepared,method:Method,b:Track,signal?:AbortSignal){
+  signal?.throwIfAborted()
   const a=this.active;if(!a||b.id!==result.plan.to||!canArm(result.plan,a.track.id,this.position)||this.transition)throw Error('这个接点已过或正在交接，请重新准备')
   if(!result.decision.methods[method]?.eligible||!result.assets[method])throw Error('该方案未通过本轮条件检查')
-  const rev=this.revision;this.busy=true;this.load=new AbortController();this.changed()
+  const rev=this.revision;this.busy=true;this.load=new AbortController();const load=this.load,cancel=()=>load.abort(signal?.reason);signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();this.changed()
   try{
-   const [buffer,body]=await Promise.all([this.cache.load(result.assets[method]!,this.load.signal),this.cache.load(nativeSegment(b,result.plan.bEnd).asset,this.load.signal)])
+   const [buffer,body]=await Promise.all([this.cache.load(result.assets[method]!,load.signal),this.cache.load(nativeSegment(b,result.plan.bEnd).asset,load.signal)])
    if(rev!==this.revision||this.dead)return
+   load.signal.throwIfAborted()
    if(!canArm(result.plan,a.track.id,this.position))throw Error('准备完成时接点已经过去，请重新准备')
    const at=contextForSource(a.at,a.offset,result.plan.start),end=at+result.plan.duration
    // One clock: original A -> rendered overlap -> native B at its frozen endpoint.
@@ -44,7 +46,7 @@ export class MetricTransport{
    a.gain.gain.setValueAtTime(.60,at);a.gain.gain.linearRampToValueAtTime(0,at+.004)
    src.onended=()=>{src.disconnect();edge.disconnect();if(this.mixSource===src)this.mixSource=null};src.start(at);this.nodes.push(edge);this.mixSource=src;this.transition={result,method,b,at,end};this.stream(b,result.plan.bEnd,end,body,true)
    const events=[{name:'交接开始',frame:Math.round(at*this.ctx.sampleRate)},{name:'B正文接管',frame:Math.round(end*this.ctx.sampleRate)}].map(e=>({...e,planId:result.id,requestId:method}));this.monitor.port.postMessage({kind:'arm',events});this.log('plan_scheduled',{method,plan:result.plan,policyVersion:result.policyVersion,codeVersion:result.codeVersion,decision:result.decision,metrics:result.metrics,asset:result.assets[method],at,end});this.status='已安排 '+result.decision.methods[method].name;this.pins()
-  }finally{if(rev===this.revision){this.busy=false;this.changed()}}
+  }finally{signal?.removeEventListener('abort',cancel);load.abort();if(rev===this.revision){this.busy=false;this.changed()}}
  }
  async audition(result:Prepared,method:Method,a:Track,b:Track){
   const asset=result.assets[method];if(!asset||!result.decision.methods[method]?.eligible||result.plan.from!==a.id||result.plan.to!==b.id)throw Error('试听方案与歌曲不一致')
