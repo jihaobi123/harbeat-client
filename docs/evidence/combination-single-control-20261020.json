@@ -1,0 +1,193 @@
+{
+  "schema": "harbeat.combination-single-control-evidence.v1",
+  "date": "2026-10-20",
+  "url": "http://127.0.0.1:5212/combination-single-control.html",
+  "status": "Six browser practice arms complete;blank formal two-pair round delivered, awaiting listener",
+  "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+  "packSha256": "1c3c602b4a7ee1491acd9d56c1ea377758c7217155cac1593f7dca48225a4b5c",
+  "parentAudit": [
+    {
+      "id": "single-control-01",
+      "parentPackPath": "/Users/jihaobi/Documents/New project/work/combination-step-one-20261019/pack.json",
+      "parentPackSha256": "c79a6fd7005535bd17308ed56d798db6f2b25af0a48fbc8d2482afb486810ce8",
+      "parentSelectionSha256": "95e531c3b8d3b264efc731f7629b2499069af3b82e19eb65d319b8a70617638f",
+      "parentCaseId": "combination-01",
+      "assetsByteIdentical": true,
+      "planTimingFilterVocalConflictUnchanged": true
+    },
+    {
+      "id": "single-control-02",
+      "parentPackPath": "/Users/jihaobi/Documents/New project/work/combination-neighbors-20261020/pack.json",
+      "parentPackSha256": "da7a8a5f3e76dbede906da1203a48c802b804b6ed6a10eba43d8d2323b4a2416",
+      "parentSelectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
+      "parentCaseId": "combination-neighbor-01",
+      "assetsByteIdentical": true,
+      "planTimingFilterVocalConflictUnchanged": true
+    }
+  ],
+  "preparationIdentityPath": "/Users/jihaobi/Documents/New project/work/combination-single-control-20261020/preparation-identity.json",
+  "drumParentComparison": {
+    "comparison": {
+      "aMaster": {
+        "bassSha": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "drumSha": "4e18787877a97f93215bcacbd80fd3dfc40ebddbcd5bd98c719c571e573607c4",
+        "maxSampleDifference": 0.0
+      },
+      "bEntryMaster": {
+        "bassSha": "8eb64462020817ec0f23e39825b292d7467be618d6f439ff54ad4b7b75144ddf",
+        "drumSha": "1854d8c5b7825bbcd887b60664d0747a381d391e9aae5ff7b55f22c5b5ababed",
+        "maxSampleDifference": 1.7530052661895752
+      },
+      "bBodyMaster": {
+        "bassSha": "f63370f1a0fe2bb87b851337f146c3e35746168cecd69874004f285be7894798",
+        "drumSha": "173e67010349c43ebf6dc4991aadbcaaa90eda0f5e81d84b356abfc60cabb4e5",
+        "maxSampleDifference": 1.700631022453308
+      }
+    },
+    "decision": "Do not borrow B drums: their parent master differs from exact frozen bass rendering. Source-ineligible deferred;not listening failure."
+  },
+  "offlineAudioAudit": {
+    "schema": "harbeat.combination-single-control-offline-audit.v1",
+    "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+    "pass": true,
+    "reports": [
+      {
+        "caseId": "single-control-01",
+        "aTitle": "Attention",
+        "bTitle": "HIPHOP",
+        "schema": "harbeat.combination-offline-audit.v1",
+        "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+        "sampleRate": 44100,
+        "frames": 981295,
+        "at": 1,
+        "total": 21.15156462585034,
+        "pass": true,
+        "measures": {
+          "originalVsLegacyPlain": 0,
+          "singleVsFilterOnly": 0,
+          "combinedVsPreviousCombined": 1.1920928955078125e-07,
+          "addedDifferenceVsOnlyBass": 1.1920928955078125e-07,
+          "beforeBassOriginalVsCombined": 0,
+          "postHandoffAllSame": 0,
+          "originalVsSingle": 0.025495832785964012,
+          "singleVsCombined": 0.15004748106002808
+        },
+        "stats": {
+          "original": {
+            "peak": 0.6627880334854126,
+            "rms": 0.1698929930330743
+          },
+          "single": {
+            "peak": 0.6627880334854126,
+            "rms": 0.1698867692455679
+          },
+          "combined": {
+            "peak": 0.658833920955658,
+            "rms": 0.1712304496871014
+          },
+          "plain-reference": {
+            "peak": 0.6627880334854126,
+            "rms": 0.1698929930330743
+          },
+          "filter-reference": {
+            "peak": 0.6627880334854126,
+            "rms": 0.1698867692455679
+          },
+          "bass-reference": {
+            "peak": 0.6588339805603027,
+            "rms": 0.17123529435932264
+          },
+          "previous-combined": {
+            "peak": 0.6588339805603027,
+            "rms": 0.17123044968997908
+          }
+        },
+        "scope": "Real OfflineAudioContext, pre-limiter graph; equal0.60headroom; no perceived loudness matching or subjective judgement."
+      },
+      {
+        "caseId": "single-control-02",
+        "aTitle": "Nevada",
+        "bTitle": "SOMETHING AIN'T RIGHT",
+        "schema": "harbeat.combination-offline-audit.v1",
+        "selectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+        "sampleRate": 44100,
+        "frames": 916398,
+        "at": 1,
+        "total": 19.68,
+        "pass": true,
+        "measures": {
+          "originalVsLegacyPlain": 0,
+          "singleVsFilterOnly": 5.960464477539063e-08,
+          "combinedVsPreviousCombined": 1.1920928955078125e-07,
+          "addedDifferenceVsOnlyBass": 1.1920928955078125e-07,
+          "beforeBassOriginalVsCombined": 0,
+          "postHandoffAllSame": 0,
+          "originalVsSingle": 0.019060276448726654,
+          "singleVsCombined": 0.28912901133298874
+        },
+        "stats": {
+          "original": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320837065521866
+          },
+          "single": {
+            "peak": 0.6790072917938232,
+            "rms": 0.2032091900965429
+          },
+          "combined": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320303765682207
+          },
+          "plain-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320837065521866
+          },
+          "filter-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320919009888413
+          },
+          "bass-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320188856779958
+          },
+          "previous-combined": {
+            "peak": 0.6790072917938232,
+            "rms": 0.203203037657552
+          }
+        },
+        "scope": "Real OfflineAudioContext, pre-limiter graph; equal0.60headroom; no perceived loudness matching or subjective judgement."
+      }
+    ]
+  },
+  "offlineAuditInterpretation": "Real OfflineAudioContext. Same unchanged graph source, explicit legacy bass semantics versus new filter single. Previous-combined is current graph with legacy mode parameter,not independent frozen old executable. Unit policy identity + no graph code diff support original/combined preservation. Max difference1.20e-7 float precision; new combined-single equals bass-only correction; native body identical. No perceived loudness matching.",
+  "validation": {
+    "vitest": 32,
+    "pythonPackager": 2,
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "independentReview": "combination_review approved;18 scoped tests independently rerun,12 cache SHA matched,8 frozen fields equal"
+  },
+  "listenerResults": null,
+  "scope": "Two repeated pairs supplement missing filter-only single reference;not new songs/new technique/generalization evidence. Original frozen cues,rate,EQ,voice conflict and curves;no production activation.",
+  "browserAudit": {
+    "schema": "harbeat.combination-single-control-browser-audit.v1",
+    "practiceRoundId": "eafb32d5-5f8d-400c-8205-691f064c1f9a",
+    "practiceExcluded": true,
+    "formalRoundId": "023e5152-7736-4fea-845e-9e3147fd4851",
+    "formalBlankAtDelivery": true,
+    "formalSelectionSha256": "0ca6860dcdeb4689fd08c5100555e559a97d62c2414f1d2eb708c805ef9f9e22",
+    "completePlays": 6,
+    "renderStarted": 6,
+    "failures": [],
+    "renderMarkers": 54,
+    "lateMarkers": 0,
+    "minimumObservedLimiterGain": 1,
+    "maximumObservedPeak": 0.6790072917938232,
+    "earlyVoteTest": true,
+    "reloadRetainedBothCasesHeard": true,
+    "consoleErrorsOrWarnings": [],
+    "screenshot": "/Users/jihaobi/Documents/New project/work/combination-single-control-20261020/combination-single-control.jpg",
+    "practiceExportSha256": "161ed787fbc2aaf7073877ceb8d988bcefd0505a89bdb2c22916912cafce391c",
+    "formalExportSha256": "d2a140353b3374f66ef39f7695b6afbf80a224b79ecfc91fea7df07d7da49e49"
+  }
+}

@@ -2,7 +2,7 @@
   "schema": "harbeat.combination-neighbors-evidence.v1",
   "date": "2026-10-20",
   "url": "http://127.0.0.1:5211/combination-neighbors.html",
-  "status": "One source-eligible fixed pair prepared; blank formal listener round awaits choice",
+  "status": "Formal listener selected combined with relative-only caveat; all arms complete by export",
   "selectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
   "packSha256": "da7a8a5f3e76dbede906da1203a48c802b804b6ed6a10eba43d8d2323b4a2416",
   "predeclaredCandidates": 3,
@@ -784,7 +784,64 @@
     "viteBuild": "pass; existing informational Browserslist-age notice",
     "independentReview": "Passed; source-detail equality and actual eligible scope clarified. No material blocker."
   },
-  "listenerResults": null,
+  "listenerResults": {
+    "schema": "harbeat.combination-neighbors-listener-analysis.v1",
+    "feedbackSha256": "8f381515f6b5518fefd59ce2bdcd007c0d6f5b726850a6e8c775d7a02162a30e",
+    "roundId": "7def330d-3804-49b9-8105-4686bfc6d66d",
+    "practice": false,
+    "selectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
+    "caseId": "combination-neighbor-01",
+    "mapping": {
+      "A": "original",
+      "B": "combined",
+      "C": "single"
+    },
+    "votes": [
+      {
+        "choice": "B",
+        "at": "2026-10-20T03:38:02.621Z",
+        "afterReveal": false,
+        "heard": {
+          "C": "2026-10-20T03:36:05.408Z",
+          "A": "2026-10-20T03:37:42.448Z"
+        }
+      }
+    ],
+    "choice": "B",
+    "resolvedChoice": "combined",
+    "firstBlindChoice": {
+      "choice": "B",
+      "at": "2026-10-20T03:38:02.621Z",
+      "heard": {
+        "C": "2026-10-20T03:36:05.408Z",
+        "A": "2026-10-20T03:37:42.448Z"
+      }
+    },
+    "heardAtExport": {
+      "C": "2026-10-20T03:36:05.408Z",
+      "A": "2026-10-20T03:37:42.448Z",
+      "B": "2026-10-20T03:38:04.127Z"
+    },
+    "symptoms": [
+      "beat-worse",
+      "stem-bleed"
+    ],
+    "symptomLetters": [
+      "A"
+    ],
+    "symptomModes": [
+      "original"
+    ],
+    "notes": "b只是相对较好",
+    "revealedAt": "2026-10-20T03:38:40.105Z",
+    "formalFailures": [],
+    "interpretation": "Combination selected with explicit relative-only caveat. Beat-worse and bleed assigned to original. All three complete by export; combined first finished1.506s after first vote; use rendered marker coverage, not claim all complete before vote. Two pairs total selected combination across separate rounds; not general effectiveness or winner over untested filter-only single.",
+    "firstNativeHandoffObservationBeforeInitialVote": {
+      "A": "2026-10-20T03:37:00.073Z",
+      "B": "2026-10-20T03:36:45.775Z",
+      "C": "2026-10-20T03:35:57.294Z"
+    }
+  },
   "productionActivation": false,
   "subjectiveSoundQualityJudgedByAgent": false,
   "limits": [

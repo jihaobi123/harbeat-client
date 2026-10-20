@@ -134,3 +134,8 @@ User authorized original/preferred-single/single-plus-one trial.5210Attention→
 ### Combination listener feedback and source-gated replication2026-10-20
 
 5210formal7d8afe74-0307-4bff-ab90-9fddfdabc9fb:firstB=combined after all3complete,no reveal or symptoms/notes. One positive anchor. Continue same bass+filter on previously bass-preferred candidates before third effects. PredeclaredNevada/LoveNote/Ampersand, fresh NAS6track manifest/master/bass/vocal/report bindings and3Aother sources. Nevada cached A master/bass exact0; LoveNote/Ampersand6channel-atempo1probes differ from frozen4channel caches, source-ineligible skips. Minimal LoveNote reproduction4channel fresh/cached0,6channel differs1.87528. Preserve original controls and2e-7gate; quarantine unreferenced caches, no subjective failure claims.5211includes onlyNevada/SOMETHING1pair/6files, original/samebass/bass+sameHP.3Python/58relatedVitest/tsc/build/independent review passed. Offline isolated filter increment<2e-6,posthandoffexact0;3livepasses/27ontime,noerrors/minlimiter1. Blank formal7def330d-3804-49b9-8105-4686bfc6d66dawaits user;practice844cd101-75ea-47ef-bba4-44d1312e648aexcluded. Evidence:docs/evidence/combination-neighbors-20261020.json.No productionactivation.
+
+
+### 2026-10-20 组合复测收齐与补充参照
+
+5211 Nevada 选组合，备注仅相对较好；原版被标记节拍更乱、串音明显，组合初选前已覆盖原接管但在投票后1.506秒完整结束。分析与原始记录归档，练习排除。自然鼓组 B 渲染与贝斯参照不一致，延后该组合。先补齐5212两组原版／只滤波／滤波加原贝斯的对照，原素材和其余规则不变。32项Vitest、2项素材包校验、类型／构建、真实离线音频与独立审查通过；浏览器六版完整实播通过，54关键标记准时、无失败或观察到限幅降益；刷新、导出和空白正式轮已核验。详见 `2026-10-20-combination-single-control.md` 及本轮证据。

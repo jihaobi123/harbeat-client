@@ -2,7 +2,7 @@ import {AudioCache,AudioBufferPool} from '../realtime/cache'
 import {combinationPlan,type Mode} from './policy'
 import type {Asset,Plan} from '../realtime/planner'
 import {makeCombinationGraph} from './graph'
-export type CombinationCase={id:string;aTitle:string;bTitle:string;pre:number;post:number;filter:any;timing:import('../bass-swap/policy').Timing;plan:Plan;planSha256:string;bpm:[number,number];assets:Record<string,Asset>;sourceVerification:unknown;features:any}
+export type CombinationCase={singleTechnique?:'bass'|'filter';id:string;aTitle:string;bTitle:string;pre:number;post:number;filter:any;timing:import('../bass-swap/policy').Timing;plan:Plan;planSha256:string;bpm:[number,number];assets:Record<string,Asset>;sourceVerification:unknown;features:any}
 export type State={status:'idle'|'loading'|'playing'|'complete'|'error';message:string;position:number;caseId:string;mode:Mode;roundId?:string;letter?:string}
 const assetKeys=['aMaster','aOther','aBass','bEntryMaster','bEntryBass','bBodyMaster'] as const
 function validateCase(c:CombinationCase){
@@ -65,7 +65,7 @@ export class CombinationPlayer{
    const ctx=this.ctx!;if(ctx.state!=='running')throw Error('音频暂未启动，请再次点击试听重试');const at=this.at=ctx.currentTime+.1,end=c.pre+c.plan.duration;this.total=end+c.post
    const policy=combinationPlan(c,mode)
    const graph=makeCombinationGraph(ctx,this.monitor!,decoded,c,mode,at);this.nodes.push(...graph.nodes);this.sources.push(...graph.sources)
-   this.log('combination_started',{plan:c.plan,planSha256:c.planSha256,treatment:policy,filter:c.filter,eq:c.plan.v30Eq,audioContextState:ctx.state,actualStartContext:at,filterStartContext:at+policy.start,nativeHandoffContext:at+end,total:this.total,assets:c.assets,sourceVerification:c.sourceVerification,referenceRendering:'Frozen5190master/bass clips plus same-source5206Aother clip. Original reference master/voice/other gains and EQ unchanged. Single=original bass handoff;combined adds only fixed other highpass. Stem bleed may affect residual voice.'})
+   this.log('combination_started',{plan:c.plan,planSha256:c.planSha256,treatment:policy,filter:c.filter,eq:c.plan.v30Eq,audioContextState:ctx.state,actualStartContext:at,filterStartContext:at+policy.start,nativeHandoffContext:at+end,total:this.total,assets:c.assets,sourceVerification:c.sourceVerification,singleTechnique:c.singleTechnique??'bass',referenceRendering:'Frozen master/bass plus source-aligned Aother. Original reference master/voice/other gains, cuts and EQ unchanged. Single technique explicitly recorded; combined=bass+filter. Common0.60graph/0.7output; stem bleed may affect residual voice.'})
    const markers=[{t:0,name:'试听开始'},{t:c.pre,name:'位置 1'},{t:c.pre+c.timing.duckStart,name:'位置 2'},{t:c.pre+c.timing.swapStart,name:'位置 3'},{t:c.pre+c.timing.swapEnd,name:'位置 4'},{t:policy.start,name:'位置 5'},{t:(policy.start+end)/2,name:'位置 6'},{t:end,name:'位置 7'},{t:this.total,name:'试听结束'}]
    this.onset={revision:token,frame:Math.round(at*ctx.sampleRate),requestedAt:Date.now()}
    this.monitor!.port.postMessage({kind:'arm',events:markers.map(({t,name})=>({planId:String(token),name,frame:Math.round((at+t)*ctx.sampleRate)}))})
