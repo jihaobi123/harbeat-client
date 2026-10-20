@@ -1,0 +1,4 @@
+import type {Asset,Track} from '../realtime/planner'
+export type Method='original'|'bass'|'filter'|'yield'|'vocal'|'bass_filter'
+export type Prepared={schema:string;id:string;status:'ready';policyVersion:string;codeVersion:string;plan:{from:string;to:string;start:number;end:number;duration:number;rate:number;bStart:number;bEnd:number;beatErrorMs:number;windowId:string};metrics:{bassOverlap:number|null;otherOverlap:number|null;bassDifference:number|null;otherDifference:number|null;vocalSafe:boolean;vocalBenefit:number;definitions:Record<string,string>};decision:{recommended:Method;explanation:string;policy:Record<string,unknown>;limitations:string[];methods:Record<Method,{name:string;eligible:boolean;score:number|null;reason:string;processingCost:number;levelPenalty:number}>};assets:Partial<Record<Method,Asset>>;sourceProof:unknown;stats:Record<string,unknown>}
+export type PlayingTransition={result:Prepared;method:Method;b:Track;at:number;end:number}

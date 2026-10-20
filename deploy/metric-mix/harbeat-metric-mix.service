@@ -1,0 +1,26 @@
+[Unit]
+Description=HarBeat metric mix cloud gateway
+After=network-online.target tailscaled.service
+Wants=network-online.target
+[Service]
+Type=simple
+WorkingDirectory=/srv/harbeat-listen/metric-mix/code
+ExecStart=/srv/harbeat-listen/metric-mix/venv/bin/uvicorn metric_mix.gateway:app --host 127.0.0.1 --port 8791 --workers 1 --limit-concurrency 24
+Environment=METRIC_MIX_ROOT=/srv/harbeat-listen/metric-mix
+Environment=LISTEN_SITE_ROOT=/srv/harbeat-listen
+Environment=LISTEN_PUBLIC_ORIGIN=https://8.136.120.255
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+CPUQuota=75%
+MemoryMax=800M
+UMask=0022
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/harbeat-listen/metric-mix
+[Install]
+WantedBy=multi-user.target
