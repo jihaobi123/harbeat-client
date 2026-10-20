@@ -2,8 +2,8 @@
   "schema": "harbeat.mixing-catalogue-evidence.v1",
   "date": "2026-10-19",
   "cataloguePath": "docs/stems-mixing-catalogue-20261019.md",
-  "catalogueSha256": "02cf23b0644442b4fe1203c380d329364f42625f2f2d29a6d4c1ad1f667927ed",
-  "scope": "Current fixed-cue experiment inventory; not exhaustive validation of all DJ techniques. No combinations or production activation.",
+  "catalogueSha256": "ca401d4483635d6aff2cb1dd2fedf9023bc3530c4032a570a5777e049edf31f9",
+  "scope": "Fixed-cue independent inventory plus first controlled combination feedback; eligible-pair replication pending. Not exhaustive DJ-technique validation; no production activation.",
   "sourceAnalyses": [
     {
       "path": "/Users/jihaobi/Documents/New project/work/bass-generalization-20261017/user-choice-analysis.json",
@@ -153,6 +153,12 @@
       "sha256": "57f3ec26350fc79a4defa639fa49adb594261b12edf43bdbdeff97d3784eb9c8",
       "roundId": "a8144449-58a9-4f81-8913-0eb139aa87af",
       "interpretation": "See catalogue for exact scope, sample reuse and exposure limits"
+    },
+    {
+      "path": "/Users/jihaobi/Documents/New project/work/combination-step-one-20261019/user-choice-analysis-20261020.json",
+      "sha256": "7b4b04f79f6cb8b8668d067375b3da7cb82678332ffc136100c8dfa9f06054a5",
+      "roundId": "7d8afe74-0307-4bff-ab90-9fddfdabc9fb",
+      "interpretation": "First combination anchor positive; all3complete before first blind vote. Replication pending,2source-ineligible skips distinct from listening failures."
     }
   ],
   "qualitativeConversationFeedback": [
@@ -207,5 +213,6 @@
     "Early votes allowed; some core/native-body exposure incomplete.",
     "No unified perceived-loudness matching or validated automatic eligibility thresholds.",
     "Symptoms lacking arm attribution are not assigned to treatment."
-  ]
+  ],
+  "updatedOn": "2026-10-20"
 }

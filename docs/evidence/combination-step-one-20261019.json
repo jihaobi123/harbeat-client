@@ -2,7 +2,7 @@
   "schema": "harbeat.combination-step-one-evidence.v1",
   "date": "2026-10-19",
   "url": "http://127.0.0.1:5210/combination-step-one.html",
-  "status": "Prepared and verified; blank formal listener round awaiting preferences",
+  "status": "Formal listener review complete2026-10-20:combined selected after all3full clips",
   "selectionSha256": "95e531c3b8d3b264efc731f7629b2499069af3b82e19eb65d319b8a70617638f",
   "packSha256": "c79a6fd7005535bd17308ed56d798db6f2b25af0a48fbc8d2482afb486810ce8",
   "case": {
@@ -399,7 +399,54 @@
     "viteBuild": "pass; informational stale Browserslist database notice only",
     "review": "Independent review: no material blockers. Stale source/eight-asset wording corrected to final six assets."
   },
-  "formalListenerResults": null,
+  "formalListenerResults": {
+    "schema": "harbeat.combination-choice-analysis.v1",
+    "roundId": "7d8afe74-0307-4bff-ab90-9fddfdabc9fb",
+    "selectionSha256": "95e531c3b8d3b264efc731f7629b2499069af3b82e19eb65d319b8a70617638f",
+    "practice": false,
+    "caseId": "combination-01",
+    "aTitle": "Attention",
+    "bTitle": "HIPHOP",
+    "mapping": {
+      "A": "single",
+      "B": "combined",
+      "C": "original"
+    },
+    "preferredMethod": "combined",
+    "firstBlindChoice": {
+      "choice": "B",
+      "at": "2026-10-20T03:03:46.752Z",
+      "heard": {
+        "C": "2026-10-20T03:01:22.335Z",
+        "B": "2026-10-20T03:02:18.094Z",
+        "A": "2026-10-20T03:02:40.015Z"
+      }
+    },
+    "votes": [
+      {
+        "choice": "B",
+        "at": "2026-10-20T03:03:46.752Z",
+        "afterReveal": false,
+        "heard": {
+          "C": "2026-10-20T03:01:22.335Z",
+          "B": "2026-10-20T03:02:18.094Z",
+          "A": "2026-10-20T03:02:40.015Z"
+        }
+      }
+    ],
+    "allThreeCompletedBeforeFirstVote": true,
+    "heard": {
+      "C": "2026-10-20T03:01:22.335Z",
+      "B": "2026-10-20T03:02:18.094Z",
+      "A": "2026-10-20T03:02:40.015Z"
+    },
+    "symptoms": [],
+    "notes": "",
+    "revealBeforeVote": false,
+    "feedbackPath": "/Users/jihaobi/Documents/New project/work/combination-step-one-20261019/user-feedback-20261020.json",
+    "feedbackSha256": "6b4cac6c0399c72f17f974ea14ff63fecd6af18bae7e68b73a3a8167e6b239b7",
+    "interpretation": "One positive combination case; no causal symptom or generalization claim. Replicate bass+filter on other previously bass-preferred pairs before stacking a third technique."
+  },
   "productionActivation": false,
   "subjectiveSoundQualityJudgedByAgent": false,
   "limits": [

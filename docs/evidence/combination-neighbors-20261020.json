@@ -1,0 +1,812 @@
+{
+  "schema": "harbeat.combination-neighbors-evidence.v1",
+  "date": "2026-10-20",
+  "url": "http://127.0.0.1:5211/combination-neighbors.html",
+  "status": "One source-eligible fixed pair prepared; blank formal listener round awaits choice",
+  "selectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
+  "packSha256": "da7a8a5f3e76dbede906da1203a48c802b804b6ed6a10eba43d8d2323b4a2416",
+  "predeclaredCandidates": 3,
+  "eligiblePairs": 1,
+  "eligibleTracks": 2,
+  "freshNasSourceTracksChecked": 6,
+  "candidateAudit": [
+    {
+      "id": "combination-neighbor-01",
+      "parentCaseId": "coverage-edm",
+      "parentPackSha256": "9eeae172eef933fb92f0d24151c13c0f7b426a113d0a2532c44ae89eb779bcc6",
+      "aProbeDecodedDifference": {
+        "aMaster": 0.0,
+        "aBass": 0.0
+      },
+      "otherRms": 0.18791892197168858,
+      "eligible": true,
+      "originalPlanVoiceTimingAssetsUnchanged": true
+    },
+    {
+      "id": "combination-neighbor-02",
+      "parentCaseId": "coverage-jazz",
+      "parentPackSha256": "9eeae172eef933fb92f0d24151c13c0f7b426a113d0a2532c44ae89eb779bcc6",
+      "aProbeDecodedDifference": {
+        "aMaster": 1.875281572341919,
+        "aBass": 0.9147167205810547
+      },
+      "otherRms": 0.09204088879762087,
+      "eligible": false,
+      "reason": "New6channel-atempo1Aprobe differs from frozen4channel parent; not a valid one-variable cached-reference comparison. Skip, not a listening failure."
+    },
+    {
+      "id": "combination-neighbor-03",
+      "parentCaseId": "neighbor-jazz-2",
+      "parentPackSha256": "287ebcca917063500adb145a70d18c190f8fd34ad6b72e992801bded12b87699",
+      "aProbeDecodedDifference": {
+        "aMaster": 1.121835470199585,
+        "aBass": 0.017656922340393066
+      },
+      "otherRms": 0.2513407517515296,
+      "eligible": false,
+      "reason": "New6channel-atempo1Aprobe differs from frozen4channel parent; not a valid one-variable cached-reference comparison. Skip, not a listening failure."
+    }
+  ],
+  "sourceAlignmentInvestigation": {
+    "frozenFourVsFreshFourMaxDifference": 0.0,
+    "frozenFourVsFreshSixMaxDifference": 1.875281572341919,
+    "conclusion": "Fresh4channel master exactly reproduces frozen4channel parent; adding other as a third stereo pair changes atempo1output. Six-channel newother cannot be asserted aligned to unchanged legacy cache."
+  },
+  "preparationIdentity": {
+    "frozenInputSha256": "b94357943a8ee79889fcd5880a5a182e814f8baad0da51f8090f15cbd2985f5c",
+    "freshSourceProofSha256": "158ea1926a0c540af29ef62cef1f62dcb416e530e795d13b6c9d7ee103f9336c",
+    "packagerSha256": "2f7c6a02818d631dc9808feead81c4d7b33585388f0663bfd0372e7d2a4edb83",
+    "playbackSourceSha256": {
+      "src/combination-step-one/CombinationLab.tsx": "815ef84a5c694036702b77c2cefb404ef6398f176ea211da20d6854baa2b2522",
+      "src/combination-step-one/audit.ts": "e8144f7e57b6de8fcfb3365a62d4819fce7e34408fb2387ffc032501f27b1d6a",
+      "src/combination-step-one/graph.ts": "43916f2ea634455dacccad4c1214310f80940a76fdff9210ed2940957ae6322a",
+      "src/combination-step-one/legacy-reference.ts": "0886a3ef3c51144a2ad0eb7674c8941f98bce4c454de277f177b318868c80d62",
+      "src/combination-step-one/main.tsx": "661f64e8cd6de1e9c1b6f7177d8b2d52824cf73cbb5ed980a6029e86c587956d",
+      "src/combination-step-one/policy.ts": "174799e00d2d7f309b766f23b584ae5b12443febfc03375741d66f421f2526af",
+      "src/combination-step-one/rounds.ts": "ab0f0b37c67d89af73f2c5f194b2242e4eda0f33c27dfac303b608c8c4d8b182",
+      "src/combination-step-one/style.css": "487c32b9bce24c62092e7e5d2e25c276e9adb1eeb5a86cb84077de06ca9b852a",
+      "src/combination-step-one/transport.ts": "8dbe1af40f077c85862efe1fc788492d1abbd14c44566db6bda6dcf3dabb88f9",
+      "src/combination-neighbors/CombinationNeighborsLab.tsx": "dc0964823f86d4eb0a08ae06fe649d04f7cb88b231758a49c46465d2c53d85c5",
+      "src/combination-neighbors/audit.ts": "308f5e7a42be9e30739915f995012b8beb9b8215fa0fe8c44a651ead88e092f0",
+      "src/combination-neighbors/main.tsx": "c13ad9279c3ddf4345ca96ddb5e9a5be3f421e779b030386f4c4a14b3a3d31e5",
+      "src/combination-neighbors/style.css": "a5f26b4266fc74005fde976ad5395c0f378600b6b95457039f3cd81a074348a0",
+      "src/bass-swap/policy.ts": "92b972267b7177bb545ec8d801e4e7d6b5a38ba70bd02f0592b8c2a00452f570",
+      "src/melody-filter/policy.ts": "3bb64c2eb6792493de87c783fd2ab84c35f9bbcecb260d92a85cc5308c866f39",
+      "src/vocal-bridge/automation.ts": "a957be05ab5b74277baf5867a87b25e3e8db4ec7a86fe56f08e14afa13a83dd9",
+      "src/v30/eq.ts": "837cafaa4d17a29db8e69093b70ba65961a5e6beddd0aa2c289c9aaaf697ca37",
+      "src/melody-overlap/policy.ts": "f2b3150d30286ddde2bfc0513ef344c91913fd374bb1e5a8ca273d74d53ca3e8",
+      "public/vocal-echo-clock.js": "5d17384d3bf688ce93cd03b7e1de4b547a9b7173a578790675cb0cf716e3cfe5"
+    },
+    "cases": [
+      {
+        "id": "combination-neighbor-01",
+        "planSha256": "a1d51f30490f3cb1cb357e69f92e8d672468dde2a203fd0dc5f29de196d49ba8",
+        "timing": {
+          "duckStart": 3.819999999999993,
+          "swapStart": 5.260000000000019,
+          "swapEnd": 5.740000000000009
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 185.84,
+          "sourceBar": {
+            "index": 87,
+            "start": 185.84,
+            "lastBeat": 187.3,
+            "end": 187.78,
+            "beats": [
+              185.84,
+              186.34,
+              186.82,
+              187.3
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "d55efa0b73352a049a9e88937901df2a8009f0d45d3bc05e527b1360bda656bf",
+            "reportSha256": "04feee8e585a2ec81a287ce68fb726515564c67c4acd09239dfb7caaa3dcc953",
+            "masterSha256": "aab34351ca8529caf4f243c13c5e62cea10178bab9a057f996235b4015decf54",
+            "vocalSha256": "0c5d1237664d5312a23536efc8521bb7bd2b13d0f57354544e6064d6b6921f9b"
+          },
+          "endOffsetFromObservedBar": 0.0
+        },
+        "assets": {
+          "aMaster": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-aMaster.wav",
+            "sha256": "0044c8ae4a4ae4ee04c9823e9d5e0fdacde2bda69ec032bc7df4c88ae8737849",
+            "bytes": 4120818,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0903717279434204
+          },
+          "aBass": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-aBass.flac",
+            "sha256": "329463bebd77933ad3149cabb04d664818d16ae705e1f29c952a430c342822cb",
+            "bytes": 1837564,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.35849297046661377
+          },
+          "bEntryMaster": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-bEntryMaster.wav",
+            "sha256": "9c97987e25d07302de225acbed76bd48461c1ac58c4c2a76f423f8c593acb641",
+            "bytes": 2709618,
+            "duration": 7.68,
+            "frames": 338688,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.1125621795654297
+          },
+          "bEntryBass": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-bEntryBass.flac",
+            "sha256": "349818992ad4970453869f148fb5eea51b495e47a3136fff25a2632a7d25904d",
+            "bytes": 1099794,
+            "duration": 7.68,
+            "frames": 338688,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.989438533782959
+          },
+          "bBodyMaster": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-bBodyMaster.wav",
+            "sha256": "d0a90054407641691c07073b93da36be3a80d22e0c978e6efcb3fac9adac37a8",
+            "bytes": 2822514,
+            "duration": 8.0,
+            "frames": 352800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.131678819656372
+          },
+          "aOther": {
+            "url": "/combination-neighbors-audio/combination-neighbor-01-aOther.flac",
+            "sha256": "51bdb430edb0509b03393ee079d804b439fa72d0e4c5e6f4fa77133eeb9e4bdb",
+            "bytes": 2606963,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.8634731769561768
+          }
+        }
+      }
+    ]
+  },
+  "freshSourceProof": {
+    "schema": "harbeat.combination-neighbor-source-check.v1",
+    "frozenInputSha256": "b94357943a8ee79889fcd5880a5a182e814f8baad0da51f8090f15cbd2985f5c",
+    "sourceTracks": 6,
+    "cases": [
+      {
+        "parentCaseId": "coverage-edm",
+        "bindings": {
+          "a": {
+            "trackId": "track-aab34351ca8529caf4f2",
+            "runId": "run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76",
+            "manifestSha256": "bde69d3063ea1deb14a2a2eeeaf511933e8dda273ad5474d9fcee832ded28978",
+            "report": {
+              "reportId": "d55efa0b73352a049a9e88937901df2a8009f0d45d3bc05e527b1360bda656bf",
+              "reportSha256": "04feee8e585a2ec81a287ce68fb726515564c67c4acd09239dfb7caaa3dcc953",
+              "masterSha256": "aab34351ca8529caf4f243c13c5e62cea10178bab9a057f996235b4015decf54",
+              "vocalSha256": "0c5d1237664d5312a23536efc8521bb7bd2b13d0f57354544e6064d6b6921f9b"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "audio/mpeg",
+                "duration_ms": 208562,
+                "sample_rate_hz": 44100,
+                "sha256": "aab34351ca8529caf4f243c13c5e62cea10178bab9a057f996235b4015decf54",
+                "size_bytes": 15492942,
+                "storage_key": "published/tracks/track-aab34351ca8529caf4f2/runs/run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76/audio/master.mp3"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 208562,
+                "sample_rate_hz": 44100,
+                "sha256": "b83f118f359dc1f61636f775505bd1dc08cce6050498e230d7e982574a474427",
+                "size_bytes": 36790316,
+                "storage_key": "published/tracks/track-aab34351ca8529caf4f2/runs/run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 208562,
+                "sample_rate_hz": 44100,
+                "sha256": "0c5d1237664d5312a23536efc8521bb7bd2b13d0f57354544e6064d6b6921f9b",
+                "size_bytes": 36790316,
+                "storage_key": "published/tracks/track-aab34351ca8529caf4f2/runs/run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76/audio/stems/vocals.wav"
+              },
+              "other": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 208562,
+                "sample_rate_hz": 44100,
+                "sha256": "2bd47db464bfdd6befdfc734dab650966ce2d467d3c66ab65e0f634696cf871f",
+                "size_bytes": 36790316,
+                "storage_key": "published/tracks/track-aab34351ca8529caf4f2/runs/run-track-aab34351ca8529caf4f2-aab34351ca85-a268a5c-049e5f76/audio/stems/other.wav"
+              }
+            }
+          },
+          "b": {
+            "trackId": "track-ec77d16b9f1c0372f326",
+            "runId": "run-track-ec77d16b9f1c0372f326-ec77d16b9f1c-a268a5c-ee2a05ea",
+            "manifestSha256": "d21b5088f77fbcbf3c93340bda651f40b1a5de69a4324c8457f2ece660fa5a61",
+            "report": {
+              "reportId": "26f60af7575df21d79d21d7beb59b74e1744d64992bdd2b25aecada0cfaba782",
+              "reportSha256": "f8387914c6de4f36e969bf15385d25b073aa68e8dc6eba59d7e5e77f0f58f0b6",
+              "masterSha256": "ec77d16b9f1c0372f32608aa535f06d2b9739ba574e909c20d6d58c3514e11a1",
+              "vocalSha256": "290092583b662bdc802e464fa6222f0f55ac6e5a972fe1971e7404f4801fec38"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "audio/mpeg",
+                "duration_ms": 190667,
+                "sample_rate_hz": 44100,
+                "sha256": "ec77d16b9f1c0372f32608aa535f06d2b9739ba574e909c20d6d58c3514e11a1",
+                "size_bytes": 19277413,
+                "storage_key": "published/tracks/track-ec77d16b9f1c0372f326/runs/run-track-ec77d16b9f1c0372f326-ec77d16b9f1c-a268a5c-ee2a05ea/audio/master.mp3"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 190667,
+                "sample_rate_hz": 44100,
+                "sha256": "d7d28353d03c271f2ec70eb233d69a1032a904b284e80cc61cba5174074d3ba7",
+                "size_bytes": 33633644,
+                "storage_key": "published/tracks/track-ec77d16b9f1c0372f326/runs/run-track-ec77d16b9f1c0372f326-ec77d16b9f1c-a268a5c-ee2a05ea/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 190667,
+                "sample_rate_hz": 44100,
+                "sha256": "290092583b662bdc802e464fa6222f0f55ac6e5a972fe1971e7404f4801fec38",
+                "size_bytes": 33633644,
+                "storage_key": "published/tracks/track-ec77d16b9f1c0372f326/runs/run-track-ec77d16b9f1c0372f326-ec77d16b9f1c-a268a5c-ee2a05ea/audio/stems/vocals.wav"
+              }
+            }
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 185.84,
+          "sourceBar": {
+            "index": 87,
+            "start": 185.84,
+            "lastBeat": 187.3,
+            "end": 187.78,
+            "beats": [
+              185.84,
+              186.34,
+              186.82,
+              187.3
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "d55efa0b73352a049a9e88937901df2a8009f0d45d3bc05e527b1360bda656bf",
+            "reportSha256": "04feee8e585a2ec81a287ce68fb726515564c67c4acd09239dfb7caaa3dcc953",
+            "masterSha256": "aab34351ca8529caf4f243c13c5e62cea10178bab9a057f996235b4015decf54",
+            "vocalSha256": "0c5d1237664d5312a23536efc8521bb7bd2b13d0f57354544e6064d6b6921f9b"
+          },
+          "endOffsetFromObservedBar": 0.0
+        },
+        "probes": {
+          "aProbeMaster": {
+            "url": "/melody-audio/neighbor-01-aProbeMaster.wav",
+            "sha256": "0044c8ae4a4ae4ee04c9823e9d5e0fdacde2bda69ec032bc7df4c88ae8737849",
+            "bytes": 4120818,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0903717279434204
+          },
+          "aProbeBass": {
+            "url": "/melody-audio/neighbor-01-aProbeBass.flac",
+            "sha256": "329463bebd77933ad3149cabb04d664818d16ae705e1f29c952a430c342822cb",
+            "bytes": 1837564,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.35849297046661377
+          },
+          "aOther": {
+            "url": "/melody-audio/neighbor-01-aOther.flac",
+            "sha256": "51bdb430edb0509b03393ee079d804b439fa72d0e4c5e6f4fa77133eeb9e4bdb",
+            "bytes": 2606963,
+            "duration": 11.68,
+            "frames": 515088,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.8634731769561768
+          }
+        }
+      },
+      {
+        "parentCaseId": "coverage-jazz",
+        "bindings": {
+          "a": {
+            "trackId": "track-1f5e732a369cc1becc27",
+            "runId": "run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d",
+            "manifestSha256": "b29535b682d88db67103ffd01a69ea169f681ccf38c7e3dc1d1e51f9abd2a460",
+            "report": {
+              "reportId": "b2583baff6c2139f042ced4f842d36cea4a7306b9a9658455263a3cf00b4b7a7",
+              "reportSha256": "ee0b7488b5b2da3017367ff8d16681efce4b3a13dc658d79036d77a2eccb4ab4",
+              "masterSha256": "1f5e732a369cc1becc273b4587ae50abbec5d5dee185fcf35db7aedca62f8f15",
+              "vocalSha256": "aa57d95a178790c34704efe9507f53c6bab239aebfaf744b54f9e5f2e80c0d77"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "audio/mpeg",
+                "duration_ms": 261564,
+                "sample_rate_hz": 44100,
+                "sha256": "1f5e732a369cc1becc273b4587ae50abbec5d5dee185fcf35db7aedca62f8f15",
+                "size_bytes": 10464697,
+                "storage_key": "published/tracks/track-1f5e732a369cc1becc27/runs/run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d/audio/master.mp3"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 261564,
+                "sample_rate_hz": 44100,
+                "sha256": "bf56515a80a73d2cd240bb3dd739d0998c389f29cf19d2fc130ec6b189e65467",
+                "size_bytes": 46139948,
+                "storage_key": "published/tracks/track-1f5e732a369cc1becc27/runs/run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 261564,
+                "sample_rate_hz": 44100,
+                "sha256": "aa57d95a178790c34704efe9507f53c6bab239aebfaf744b54f9e5f2e80c0d77",
+                "size_bytes": 46139948,
+                "storage_key": "published/tracks/track-1f5e732a369cc1becc27/runs/run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d/audio/stems/vocals.wav"
+              },
+              "other": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 261564,
+                "sample_rate_hz": 44100,
+                "sha256": "76726c592d1148b6493591a25ba50ae71d8eddf7a596c823bfc3edcd6b6832c9",
+                "size_bytes": 46139948,
+                "storage_key": "published/tracks/track-1f5e732a369cc1becc27/runs/run-track-1f5e732a369cc1becc27-1f5e732a369c-a268a5c-3e5aee1d/audio/stems/other.wav"
+              }
+            }
+          },
+          "b": {
+            "trackId": "track-800c87e20dd333ab44b4",
+            "runId": "run-track-800c87e20dd333ab44b4-800c87e20dd3-a268a5c-77dd857c",
+            "manifestSha256": "145afa50fb793db4eaa5e57ce23489f1691caa3a9516ab60848cd8d1f373804d",
+            "report": {
+              "reportId": "3c7f6c4b7a570e3c3e49054004a727243cbf502391f88b4728f2ad7e8d59f806",
+              "reportSha256": "1c30b4b0cdf8242ea5be089ab4575845d4527fb2290b0e257e02f24ddaceffce",
+              "masterSha256": "800c87e20dd333ab44b48aace7ddf657eb5c070e8a1bcce5071d6ec0985e297c",
+              "vocalSha256": "b1c373601f7febf7cf18622e80d11b3f632fd433f7cc88aab79f69680f7191fa"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "application/octet-stream",
+                "duration_ms": 175693,
+                "sample_rate_hz": 44100,
+                "sha256": "800c87e20dd333ab44b48aace7ddf657eb5c070e8a1bcce5071d6ec0985e297c",
+                "size_bytes": 2812301,
+                "storage_key": "published/tracks/track-800c87e20dd333ab44b4/runs/run-track-800c87e20dd333ab44b4-800c87e20dd3-a268a5c-77dd857c/audio/master.audio"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 175693,
+                "sample_rate_hz": 44100,
+                "sha256": "c6d027db5b24a79692fbb1f7d14e5dee4efee5b7ec47964e777e891a30aec784",
+                "size_bytes": 30992348,
+                "storage_key": "published/tracks/track-800c87e20dd333ab44b4/runs/run-track-800c87e20dd333ab44b4-800c87e20dd3-a268a5c-77dd857c/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 175693,
+                "sample_rate_hz": 44100,
+                "sha256": "b1c373601f7febf7cf18622e80d11b3f632fd433f7cc88aab79f69680f7191fa",
+                "size_bytes": 30992348,
+                "storage_key": "published/tracks/track-800c87e20dd333ab44b4/runs/run-track-800c87e20dd333ab44b4-800c87e20dd3-a268a5c-77dd857c/audio/stems/vocals.wav"
+              }
+            }
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 211.24,
+          "sourceBar": {
+            "index": 71,
+            "start": 211.24,
+            "lastBeat": 213.24,
+            "end": 213.91,
+            "beats": [
+              211.24,
+              211.9,
+              212.58,
+              213.24
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "b2583baff6c2139f042ced4f842d36cea4a7306b9a9658455263a3cf00b4b7a7",
+            "reportSha256": "ee0b7488b5b2da3017367ff8d16681efce4b3a13dc658d79036d77a2eccb4ab4",
+            "masterSha256": "1f5e732a369cc1becc273b4587ae50abbec5d5dee185fcf35db7aedca62f8f15",
+            "vocalSha256": "aa57d95a178790c34704efe9507f53c6bab239aebfaf744b54f9e5f2e80c0d77"
+          },
+          "endOffsetFromObservedBar": 0.0
+        },
+        "probes": {
+          "aProbeMaster": {
+            "url": "/melody-audio/neighbor-02-aProbeMaster.wav",
+            "sha256": "36804c297c4d08ac45996653323ba00d31128ecec907ef0cafb8ba3d30240100",
+            "bytes": 5174514,
+            "duration": 14.666666666666666,
+            "frames": 646800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 1.0265558958053589
+          },
+          "aProbeBass": {
+            "url": "/melody-audio/neighbor-02-aProbeBass.flac",
+            "sha256": "0292596a958e89c7e414d69024057d3b0451966375816f25a337b10131b8f8ea",
+            "bytes": 1907267,
+            "duration": 14.666666666666666,
+            "frames": 646800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.5450541973114014
+          },
+          "aOther": {
+            "url": "/melody-audio/neighbor-02-aOther.flac",
+            "sha256": "547c3ca9e6cfaf97b890024796fe45e6d42284b9e405fbc4dd432f1d9bf01f71",
+            "bytes": 2527103,
+            "duration": 14.666666666666666,
+            "frames": 646800,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.6585898399353027
+          }
+        }
+      },
+      {
+        "parentCaseId": "neighbor-jazz-2",
+        "bindings": {
+          "a": {
+            "trackId": "track-8728534e623361f35870",
+            "runId": "run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a",
+            "manifestSha256": "804c89997abdf992c08e48e9d9a29b3a8df82f0c8e37907aa039a96553c863a1",
+            "report": {
+              "reportId": "572a5fb134d6dabacb57400c173aa057df65308a702fadd73ba57d95bca5c7f5",
+              "reportSha256": "842203ed89e951b0e575014d57ef7abd9551665c94bad0eaea0e190b13ac09a0",
+              "masterSha256": "8728534e623361f3587005b72c0c698507f715ffe2f585e074c4a0d6a9dc5d10",
+              "vocalSha256": "3760882350aaf1cfb6a6bf2dc079308855faaf1e890e668541cfc4733ae7ef27"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "audio/mpeg",
+                "duration_ms": 277130,
+                "sample_rate_hz": 44100,
+                "sha256": "8728534e623361f3587005b72c0c698507f715ffe2f585e074c4a0d6a9dc5d10",
+                "size_bytes": 11087456,
+                "storage_key": "published/tracks/track-8728534e623361f35870/runs/run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a/audio/master.mp3"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 277130,
+                "sample_rate_hz": 44100,
+                "sha256": "4e23826fce0bad929f11827eb65b458dd754330465bb45c7969228f09b86449f",
+                "size_bytes": 48885804,
+                "storage_key": "published/tracks/track-8728534e623361f35870/runs/run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 277130,
+                "sample_rate_hz": 44100,
+                "sha256": "3760882350aaf1cfb6a6bf2dc079308855faaf1e890e668541cfc4733ae7ef27",
+                "size_bytes": 48885804,
+                "storage_key": "published/tracks/track-8728534e623361f35870/runs/run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a/audio/stems/vocals.wav"
+              },
+              "other": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 277130,
+                "sample_rate_hz": 44100,
+                "sha256": "836a7289a05d2b7963ad598dde1b01b82e6719213555f4a0aba95f5e77adfbf8",
+                "size_bytes": 48885804,
+                "storage_key": "published/tracks/track-8728534e623361f35870/runs/run-track-8728534e623361f35870-8728534e6233-a268a5c-efa4e96a/audio/stems/other.wav"
+              }
+            }
+          },
+          "b": {
+            "trackId": "track-074b5867a7993833d698",
+            "runId": "run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04",
+            "manifestSha256": "a63ffc03c080e7ef46242bc9ec95d5b288bffc1ae19b0a5a660f69cbf84c1b41",
+            "report": {
+              "reportId": "68cd1a1a5d0914e10bef54a7b9ae1541725418431b49d6e23e4a1167bfcff7dc",
+              "reportSha256": "e034fbc162d0e47acf40915cfba723e5006ee2027a8723985acbbbe9b335ccb8",
+              "masterSha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+              "vocalSha256": "abdc686f4a5a8705a7d9dca470ba4a191b3ff01fce01de8825d7fce797824642"
+            },
+            "assets": {
+              "master": {
+                "channels": 2,
+                "content_type": "audio/mpeg",
+                "duration_ms": 252240,
+                "sample_rate_hz": 44100,
+                "sha256": "074b5867a7993833d698bc24ec882c86cdfd4a6c5bb56eaa81a35928cba1910d",
+                "size_bytes": 12578401,
+                "storage_key": "published/tracks/track-074b5867a7993833d698/runs/run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04/audio/master.mp3"
+              },
+              "bass": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 252240,
+                "sample_rate_hz": 44100,
+                "sha256": "6f27ca8b57340f466d13bcf6fe469bafbd574e1bcf8c2231865e27e4c1af5f06",
+                "size_bytes": 44495180,
+                "storage_key": "published/tracks/track-074b5867a7993833d698/runs/run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04/audio/stems/bass.wav"
+              },
+              "vocals": {
+                "channels": 2,
+                "content_type": "audio/x-wav",
+                "duration_ms": 252240,
+                "sample_rate_hz": 44100,
+                "sha256": "abdc686f4a5a8705a7d9dca470ba4a191b3ff01fce01de8825d7fce797824642",
+                "size_bytes": 44495180,
+                "storage_key": "published/tracks/track-074b5867a7993833d698/runs/run-track-074b5867a7993833d698-074b5867a799-a268a5c-389c8b04/audio/stems/vocals.wav"
+              }
+            }
+          }
+        },
+        "filter": {
+          "type": "highpass",
+          "startHz": 20,
+          "endHz": 1800,
+          "Q": 0.7071067811865476,
+          "edgeSeconds": 0.02,
+          "sourceStart": 252.75,
+          "sourceBar": {
+            "index": 95,
+            "start": 252.75,
+            "lastBeat": 254.59,
+            "end": 255.2,
+            "beats": [
+              252.75,
+              253.37,
+              253.98,
+              254.59
+            ],
+            "valid": true,
+            "reason": "four_observed_beats"
+          },
+          "gridSource": {
+            "reportId": "572a5fb134d6dabacb57400c173aa057df65308a702fadd73ba57d95bca5c7f5",
+            "reportSha256": "842203ed89e951b0e575014d57ef7abd9551665c94bad0eaea0e190b13ac09a0",
+            "masterSha256": "8728534e623361f3587005b72c0c698507f715ffe2f585e074c4a0d6a9dc5d10",
+            "vocalSha256": "3760882350aaf1cfb6a6bf2dc079308855faaf1e890e668541cfc4733ae7ef27"
+          },
+          "endOffsetFromObservedBar": 0.0
+        },
+        "probes": {
+          "aProbeMaster": {
+            "url": "/melody-audio/neighbor-03-aProbeMaster.flac",
+            "sha256": "533804cf34e3787ecc22cc856225a53f59e7776ad6e63edfd12cdb74b461807d",
+            "bytes": 2660339,
+            "duration": 13.795918367346939,
+            "frames": 608400,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.8906511664390564
+          },
+          "aProbeBass": {
+            "url": "/melody-audio/neighbor-03-aProbeBass.flac",
+            "sha256": "e5a0fcaf3a1a558c5f9e2189e80988f90349a499cef249acaee77fa5b4c2a7b7",
+            "bytes": 1854582,
+            "duration": 13.795918367346939,
+            "frames": 608400,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.43834733963012695
+          },
+          "aOther": {
+            "url": "/melody-audio/neighbor-03-aOther.flac",
+            "sha256": "898a3dfcf75b096feaeabaad87556623955048769f4724b0e2185c32336f7fdf",
+            "bytes": 2405994,
+            "duration": 13.795918367346939,
+            "frames": 608400,
+            "sampleRate": 44100,
+            "channels": 2,
+            "peak": 0.9251332879066467
+          }
+        }
+      }
+    ]
+  },
+  "browser": {
+    "formalRoundId": "7def330d-3804-49b9-8105-4686bfc6d66d",
+    "formalBlankAfterReload": true,
+    "excludedPracticeRoundId": "844cd101-75ea-47ef-bba4-44d1312e648a",
+    "completePasses": [
+      {
+        "mode": "combined",
+        "letter": "A",
+        "sessionId": "combination-1792466754712-1",
+        "markers": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.6790072917938232,
+        "completedAt": "2026-10-20T03:26:14.844Z"
+      },
+      {
+        "mode": "original",
+        "letter": "B",
+        "sessionId": "combination-1792466820748-2",
+        "markers": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.6790072917938232,
+        "completedAt": "2026-10-20T03:27:20.764Z"
+      },
+      {
+        "mode": "single",
+        "letter": "C",
+        "sessionId": "combination-1792466883475-3",
+        "markers": 9,
+        "late": 0,
+        "minimumLimiterGain": 1,
+        "peak": 0.6790072917938232,
+        "completedAt": "2026-10-20T03:28:23.484Z"
+      }
+    ],
+    "completeMarkers": 27,
+    "failed": 0,
+    "earlyVoteVerified": true,
+    "consoleErrorsWarnings": [],
+    "separateDatabaseAndPackFrom5210": true,
+    "screenshot": "/Users/jihaobi/Documents/New project/work/combination-neighbors-20261020/combination-neighbors.jpg"
+  },
+  "offlineAudioAudit": {
+    "schema": "harbeat.combination-neighbors-offline-audit.v1",
+    "selectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
+    "pass": true,
+    "reports": [
+      {
+        "caseId": "combination-neighbor-01",
+        "aTitle": "Nevada",
+        "bTitle": "SOMETHING AIN'T RIGHT",
+        "schema": "harbeat.combination-offline-audit.v1",
+        "selectionSha256": "0bc861bd7274899bc9f52c6e681fba972b65700e3a521693285d1905bee6ce07",
+        "sampleRate": 44100,
+        "frames": 916398,
+        "at": 1,
+        "total": 19.68,
+        "pass": true,
+        "measures": {
+          "originalVsLegacyPlain": 0,
+          "singleVsLegacyBass": 5.960464477539063e-08,
+          "addedDifferenceVsOnlyFilter": 1.1920928955078125e-07,
+          "beforeFilterSingleVsCombined": 5.960464477539063e-08,
+          "postHandoffAllSame": 0,
+          "originalVsSingle": 0.28912901133298874,
+          "singleVsCombined": 0.01906028389930725
+        },
+        "stats": {
+          "original": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320837065521866
+          },
+          "single": {
+            "peak": 0.6790072917938232,
+            "rms": 0.2032018885674911
+          },
+          "combined": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320303765851622
+          },
+          "plain-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320837065521866
+          },
+          "filter-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.20320919009880772
+          },
+          "bass-reference": {
+            "peak": 0.6790072917938232,
+            "rms": 0.2032018885685641
+          }
+        },
+        "scope": "Real OfflineAudioContext, pre-limiter graph; equal0.60headroom; no perceived loudness matching or subjective judgement."
+      }
+    ]
+  },
+  "firstCombinationFeedback": {
+    "evidence": "docs/evidence/combination-step-one-20261019.json",
+    "roundId": "7d8afe74-0307-4bff-ab90-9fddfdabc9fb",
+    "pair": [
+      "Attention",
+      "HIPHOP"
+    ],
+    "preferred": "combined",
+    "allThreeCompletedBeforeFirstBlindVote": true,
+    "symptoms": [],
+    "notes": ""
+  },
+  "arms": {
+    "original": "All original cached source clocks,master/vocal gain andEQ",
+    "single": "Same previously preferred independent bass handoff",
+    "combined": "Same bass handoff plus only fixed Aother20to1800Hz final-barHP"
+  },
+  "controls": {
+    "originalPlansVocalConflictAndBassTimingUnchanged": true,
+    "cachedMasterAndBassBytesUnchanged": true,
+    "aOtherParentMasterAndBassDecodedDifference": 0,
+    "newThirdTechnique": false,
+    "commonGraphGain": 0.6,
+    "commonOutputGain": 0.7,
+    "perArmNormalization": false
+  },
+  "tests": {
+    "python": 3,
+    "scopedVitest": 16,
+    "relatedVitestIncludingScoped": 58,
+    "typescript": "pass",
+    "viteBuild": "pass; existing informational Browserslist-age notice",
+    "independentReview": "Passed; source-detail equality and actual eligible scope clarified. No material blocker."
+  },
+  "listenerResults": null,
+  "productionActivation": false,
+  "subjectiveSoundQualityJudgedByAgent": false,
+  "limits": [
+    "One reused previously bass-preferred new pair; not a universal combination rule.",
+    "LoveNote and Ampersand are source-alignment skips,not listening failures; parent references were neither replaced nor tolerance relaxed.",
+    "No perceived-loudness matching; stem bleed and inherited cached WSOLA/source joins remain limits.",
+    "Original voice/conflict rules unchanged,not newly certified semantic lyric boundaries.",
+    "Browser automation completion wait briefly timed out in the harness; playback itself reported no failure. A later control timeout reset the tool session; page persistence recovered and formal blank state/export reverified."
+  ],
+  "workEvidence": "/Users/jihaobi/Documents/New project/work/combination-neighbors-20261020",
+  "artifactHashes": {
+    "frozen-input.json": "b94357943a8ee79889fcd5880a5a182e814f8baad0da51f8090f15cbd2985f5c",
+    "source-check.json": "158ea1926a0c540af29ef62cef1f62dcb416e530e795d13b6c9d7ee103f9336c",
+    "asset-audit.json": "edd84928371d199beccfb5bfd5285aeaf39d9779b0635709bfa9eefe879ed531",
+    "pack.json": "da7a8a5f3e76dbede906da1203a48c802b804b6ed6a10eba43d8d2323b4a2416",
+    "preparation-identity.json": "816331904bb2ca2f58c9d50e37e8b001037e46f579b5ad64e7cda8a238b410fd",
+    "offline-audit.json": "0ac269ebbf6e86e656c3624da6908c976ba5a44e37645923f091ae4951bcd7da",
+    "browser-practice.json": "416cc47b85739b374852cfe184d857c0280bbcca34949619da401845b7b8fb7b",
+    "browser-formal.json": "ecded9b214da50f87197255f6a2370ae8bb572f61e93eee8b611b6c7029ec13c",
+    "browser-audit.json": "bbb6d946462274f5ffaa21a26f55773e696debdacab66bed5cd8df9bc4817889",
+    "atempo-layout-investigation.json": "e5a42a54967c6f0a8d4227c850b1bd588fd9a54861bdb2baea6ab273932d3a3f",
+    "combination-neighbors.jpg": "bed94a410faddf72c4741064d2f0a85f2e1354a3b835acd30041171c1cd3dc2a",
+    "protected-dirty.json": "e23b7981863a5388f5d930a5a5e67a3bdfe95b46c709aa6173ae4ac02b0e3f24"
+  }
+}
