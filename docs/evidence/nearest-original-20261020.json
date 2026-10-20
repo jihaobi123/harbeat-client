@@ -1,0 +1,325 @@
+{
+  "schema": "harbeat.nearest-original-verification.v1",
+  "date": "2026-10-20",
+  "baseCommit": "8ff00b7c",
+  "branch": "codex/nearby-mix-20261020",
+  "policy": "nearest-qualified-start with ready same-cue stems, otherwise browser-v3-original-v1",
+  "production": "https://8.136.120.255/listen/smart/",
+  "deployment": {
+    "release": "web-nearest-original-20261020-r2",
+    "bundle": "metric-mix-Cs6QfnU-.js",
+    "sha256": "8376da4cbfd3ae29a0b22836545fe76d4935ba17ab90f24a58d15bfd9dd58608",
+    "backendUnchanged": true
+  },
+  "tests": {
+    "typescriptPassed": 839,
+    "typescriptSkipped": 12,
+    "typecheck": "passed",
+    "build": "passed",
+    "review": "passed; cross-duration ordering regression fixed"
+  },
+  "local": {
+    "sessionSha256": "c50c53fddbdde88e5a2cd754c7607b6cc56b1a4b211057127f442cfe2b5514f7",
+    "request": {
+      "kind": "nearby_request",
+      "at": "2026-10-20T14:29:36.091Z",
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "sourcePosition": 8.845804988662131
+    },
+    "candidate": {
+      "kind": "nearby_candidate",
+      "at": "2026-10-20T14:29:36.105Z",
+      "sourcePosition": 8.85451247165533,
+      "start": 27.88443537414966,
+      "end": 37.036,
+      "reused": false,
+      "policy": "nearest-qualified-start"
+    },
+    "armed": {
+      "kind": "nearby_armed",
+      "at": "2026-10-20T14:29:36.179Z",
+      "sourcePosition": 8.929977324263039,
+      "start": 27.88443537414966,
+      "method": "original"
+    },
+    "waitUntilMixSeconds": 19.03863038548753,
+    "postRequestTrackStarts": 0,
+    "observations": [
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:29:55.130Z",
+        "name": "交接开始",
+        "frame": 1245876,
+        "planId": "b5c633ea9b8cf5653b70af30d12560bc6f2e236acd18cf84e9ffd872eed3ab3c",
+        "requestId": "original",
+        "observedFrame": 1245952,
+        "quantumStart": 1245824,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      },
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:30:04.287Z",
+        "name": "B正文接管",
+        "frame": 1649460,
+        "planId": "b5c633ea9b8cf5653b70af30d12560bc6f2e236acd18cf84e9ffd872eed3ab3c",
+        "requestId": "original",
+        "observedFrame": 1649536,
+        "quantumStart": 1649408,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      }
+    ],
+    "handoff": {
+      "kind": "handoff_complete",
+      "at": "2026-10-20T14:30:04.335Z",
+      "context": 37.45088435374149,
+      "track": "track-d2d58531421de0eb9690",
+      "sourceOffset": 81.6081723356009,
+      "method": "original"
+    },
+    "plan": {
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "windowId": "w28-4",
+      "start": 27.88443537414966,
+      "end": 37.036,
+      "duration": 9.151564625850341,
+      "rate": 0.9899937500000003,
+      "bStart": 72.5,
+      "bEnd": 81.56,
+      "beatErrorMs": 25.401657649791076
+    },
+    "renderStats": {
+      "peak": 0.6035746335983276
+    },
+    "renderSha256": "b5c633ea9b8cf5653b70af30d12560bc6f2e236acd18cf84e9ffd872eed3ab3c",
+    "policy": "browser-v3-original-v1"
+  },
+  "localMidtrack": {
+    "sessionSha256": "8db2b22b4f0b5e4599c4269b86eb635ada485328b1017e2d7482b53916bd91fa",
+    "request": {
+      "kind": "nearby_request",
+      "at": "2026-10-20T14:31:44.988Z",
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "sourcePosition": 58.53773242630385
+    },
+    "candidate": {
+      "kind": "nearby_candidate",
+      "at": "2026-10-20T14:31:45.004Z",
+      "sourcePosition": 58.55514739229025,
+      "start": 59.89343537414966,
+      "end": 69.045,
+      "reused": false,
+      "policy": "nearest-qualified-start"
+    },
+    "armed": {
+      "kind": "nearby_armed",
+      "at": "2026-10-20T14:31:45.109Z",
+      "sourcePosition": 58.66253968253967,
+      "start": 59.89343537414966,
+      "method": "original"
+    },
+    "waitUntilMixSeconds": 1.3557029478458134,
+    "postRequestTrackStarts": 0,
+    "observations": [],
+    "handoff": null,
+    "plan": {
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "windowId": "w28-4",
+      "start": 59.89343537414966,
+      "end": 69.045,
+      "duration": 9.151564625850341,
+      "rate": 0.9899937500000003,
+      "bStart": 72.5,
+      "bEnd": 81.56,
+      "beatErrorMs": 15.036541708397522
+    },
+    "renderStats": {
+      "peak": 0.6183521747589111
+    },
+    "renderSha256": "bf3d4888275f7faa95901ef4142222003b2e205de74b8c914fd837e4a67ddc12",
+    "policy": "browser-v3-original-v1"
+  },
+  "onlineR1": {
+    "sessionSha256": "b4b248f623e0fc7aac9486c738b295d8fd4784387127dd9b075328a30419ab31",
+    "request": {
+      "kind": "nearby_request",
+      "at": "2026-10-20T14:39:05.299Z",
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "sourcePosition": 58.45646258503402
+    },
+    "candidate": {
+      "kind": "nearby_candidate",
+      "at": "2026-10-20T14:39:05.313Z",
+      "sourcePosition": 58.46807256235827,
+      "start": 59.89343537414966,
+      "end": 69.045,
+      "reused": false,
+      "policy": "nearest-qualified-start"
+    },
+    "armed": {
+      "kind": "nearby_armed",
+      "at": "2026-10-20T14:39:05.401Z",
+      "sourcePosition": 58.55804988662132,
+      "start": 59.89343537414966,
+      "method": "original"
+    },
+    "waitUntilMixSeconds": 1.436972789115643,
+    "postRequestTrackStarts": 0,
+    "observations": [
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:39:06.738Z",
+        "name": "交接开始",
+        "frame": 546954,
+        "planId": "bf3d4888275f7faa95901ef4142222003b2e205de74b8c914fd837e4a67ddc12",
+        "requestId": "original",
+        "observedFrame": 547072,
+        "quantumStart": 546944,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      },
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:39:15.890Z",
+        "name": "B正文接管",
+        "frame": 950538,
+        "planId": "bf3d4888275f7faa95901ef4142222003b2e205de74b8c914fd837e4a67ddc12",
+        "requestId": "original",
+        "observedFrame": 950656,
+        "quantumStart": 950528,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      }
+    ],
+    "handoff": {
+      "kind": "handoff_complete",
+      "at": "2026-10-20T14:39:15.958Z",
+      "context": 21.620680272108842,
+      "track": "track-d2d58531421de0eb9690",
+      "sourceOffset": 81.62651927437642,
+      "method": "original"
+    },
+    "plan": {
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "windowId": "w28-4",
+      "start": 59.89343537414966,
+      "end": 69.045,
+      "duration": 9.151564625850341,
+      "rate": 0.9899937500000003,
+      "bStart": 72.5,
+      "bEnd": 81.56,
+      "beatErrorMs": 15.036541708397522
+    },
+    "renderStats": {
+      "peak": 0.6183521747589111
+    },
+    "renderSha256": "bf3d4888275f7faa95901ef4142222003b2e205de74b8c914fd837e4a67ddc12",
+    "policy": "browser-v3-original-v1",
+    "observedRequests": [
+      {
+        "method": "GET",
+        "url": "https://8.136.120.255/listen/media/f09fd474d25a9ccc41b47217548d64a1c3514979a28704b47df1e4a8c50d562d.flac?sha256=f09fd474d25a9ccc41b47217548d64a1c3514979a28704b47df1e4a8c50d562d"
+      },
+      {
+        "method": "GET",
+        "url": "blob:https://8.136.120.255/ad093d13-f957-4098-bc74-53f36177490b"
+      },
+      {
+        "method": "GET",
+        "url": "https://8.136.120.255/listen/smart/assets/oswald-latin-500-normal-B-eyT0Dw.woff2"
+      }
+    ],
+    "cloudRenderJobPosts": 0
+  },
+  "limitations": [
+    "R1 and final R2 both completed real browser handoffs; R2 updates the local-result vocal explanation",
+    "timing evidence is AudioContext/render quantum timing, not device latency or subjective sound quality",
+    "no physical Android phone connected"
+  ],
+  "onlineFinal": {
+    "sessionSha256": "bb267497d8bbb1045d1fa83d7f289003c455d50cc9e250623cba1d9324034e32",
+    "bundle": "metric-mix-Cs6QfnU-.js",
+    "request": {
+      "kind": "nearby_request",
+      "at": "2026-10-20T14:42:02.788Z",
+      "from": "track-642bd1ac0da727a3b53b",
+      "to": "track-d2d58531421de0eb9690",
+      "sourcePosition": 53.5
+    },
+    "armed": {
+      "kind": "nearby_armed",
+      "at": "2026-10-20T14:42:02.874Z",
+      "sourcePosition": 53.52512471655329,
+      "start": 55.31843537414966,
+      "method": "original"
+    },
+    "waitUntilMixSeconds": 1.818435374149658,
+    "observations": [
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:42:04.670Z",
+        "name": "交接开始",
+        "frame": 1065197,
+        "planId": "8698fd9c8ea6daa5254c19b046f2a75b459b278c55e46095d38e01fdfed31587",
+        "requestId": "original",
+        "observedFrame": 1065216,
+        "quantumStart": 1065088,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      },
+      {
+        "kind": "audio_observation",
+        "at": "2026-10-20T14:42:13.822Z",
+        "name": "B正文接管",
+        "frame": 1468781,
+        "planId": "8698fd9c8ea6daa5254c19b046f2a75b459b278c55e46095d38e01fdfed31587",
+        "requestId": "original",
+        "observedFrame": 1468800,
+        "quantumStart": 1468672,
+        "quantumFrames": 128,
+        "late": 0,
+        "limiterDelayFrames": 221,
+        "peak": 0.6000000238418579,
+        "limiterGainAtObservation": 1,
+        "sessionMinimumLimiterGain": 1
+      }
+    ],
+    "handoff": {
+      "kind": "handoff_complete",
+      "at": "2026-10-20T14:42:13.895Z",
+      "context": 33.378684807256235,
+      "track": "track-d2d58531421de0eb9690",
+      "sourceOffset": 81.63299319727892,
+      "method": "original"
+    },
+    "postRequestTrackStarts": 0,
+    "vocalExplanation": "沿用原选点的人声检查；本次未生成独立人声退出方案"
+  }
+}

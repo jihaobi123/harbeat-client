@@ -1,6 +1,6 @@
 import {afterEach,expect,it,vi} from 'vitest'
 import {qualityTrack} from '../continuous/qualityFixture'
-import {mixNearby} from './nearby'
+import {mixNearby,nearbyPlan} from './nearby'
 const makeResult=(a:any,b:any,p:any)=>({schema:'harbeat.metric-mix-result.v1',id:p.id,status:'ready',plan:{from:a.id,to:b.id,start:p.start,end:p.end,duration:p.duration,rate:p.rate,bStart:p.window.start,bEnd:p.window.end,windowId:p.window.id},decision:{recommended:'original',methods:{original:{eligible:true}}},assets:{original:{url:'render/'+p.id}}}) as any
 function setup(){
  const a=qualityTrack('a'),b=qualityTrack('b')
@@ -24,7 +24,7 @@ it('replaces an expired prepared cue instead of replaying it or requiring anothe
  expect(s.player.arm.mock.calls[0][0].id).not.toBe('old')
 })
 it('reuses an already prepared nearby cue without a second cloud job',async()=>{
- const s=setup(),result=makeResult(s.a,s.b,{id:'ready',start:18,end:26,duration:8,rate:1,window:s.b.windows[0]})
+ const s=setup(),result=makeResult(s.a,s.b,{id:'ready',start:12,end:20,duration:8,rate:1,window:s.b.windows[0]})
  await mixNearby({...s,ready:{result,method:'original'}})
  expect(s.prepare).not.toHaveBeenCalled();expect(s.player.arm).toHaveBeenCalledWith(result,'original',s.b,expect.any(AbortSignal))
 })
@@ -47,13 +47,24 @@ it('rejects missing local beat evidence without submitting a cloud job or hard c
  expect(s.prepare).not.toHaveBeenCalled();expect(s.player.arm).not.toHaveBeenCalled()
 })
 
-it('reserves measured cold preparation time while still using the nearby planner',async()=>{
+it('a cut request cannot discard the closest legal cue by reserving forty seconds',async()=>{
  const s=setup();await mixNearby({...s,leadSeconds:40})
- expect(s.player.arm.mock.calls[0][0].plan.start).toBeGreaterThanOrEqual(50)
- expect(s.player.start).not.toHaveBeenCalled()
+ expect(s.player.arm.mock.calls[0][0].plan.start).toBeLessThanOrEqual(14)
 })
-it('reuses a ready cue earlier than any new cold-prepared candidate',async()=>{
- const s=setup(),result=makeResult(s.a,s.b,{id:'ready-sooner',start:45,end:53,duration:8,rate:1,window:s.b.windows[0]})
+it('a later prepared render cannot bypass a closer legal baseline cue',async()=>{
+ const s=setup(),result=makeResult(s.a,s.b,{id:'late-ready',start:45,end:53,duration:8,rate:1,window:s.b.windows[0]})
  await mixNearby({...s,leadSeconds:40,ready:{result,method:'original'}})
- expect(s.prepare).not.toHaveBeenCalled();expect(s.player.arm.mock.calls[0][0].id).toBe('ready-sooner')
+ expect(s.player.arm.mock.calls[0][0].id).not.toBe('late-ready')
+ expect(s.player.arm.mock.calls[0][0].plan.start).toBeLessThanOrEqual(14)
+})
+
+it('compares start times across different overlap lengths before choosing a cue',()=>{
+ const a=qualityTrack('a'),b=qualityTrack('b')
+ for(const t of [a,b]){t.bpm=60;t.bars=Array.from({length:20},(_,i)=>i*4);t.alignment!.bars=t.bars.map((start,i)=>({index:i,start,end:start+4,lastBeat:start+3,beats:[0,1,2,3].map(x=>start+x),valid:true}))}
+ for(const start of [16,20])a.alignment!.bars.find(r=>r.start===start)!.beats[1]+=.2
+ for(let i=0;i<8;i++){const aa=a.alignment!.bars.find(r=>r.start===12+i*4)!,bb=b.alignment!.bars.find(r=>r.start===8+i*4)!;bb.beats=aa.beats.map(x=>x-aa.start+bb.start)}
+ for(let i=0;i<2;i++){const aa=a.alignment!.bars.find(r=>r.start===16+i*4)!,bb=b.alignment!.bars[i];bb.beats=aa.beats.map(x=>x-aa.start+bb.start)}
+ b.windows=[{...b.windows[0],id:'short',start:0,end:8,bars:2,variants:{a:{url:'short',sha256:'s',duration:8,rate:1,bytes:1}}},{...b.windows[0],id:'long',start:8,end:40,bars:8,variants:{a:{url:'long',sha256:'l',duration:32,rate:1,bytes:1}}}]
+ const result=nearbyPlan(a,b,10)
+ expect(result?.start).toBe(12);expect(result?.window.id).toBe('long')
 })

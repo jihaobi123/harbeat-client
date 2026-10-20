@@ -63,3 +63,10 @@ it('cancelling one coalesced waiter does not cancel another owner of that load',
  const rejected=expect(abandoned).rejects.toMatchObject({name:'AbortError'});controller.abort();release()
  await rejected;expect((await retained).duration).toBe(10);expect(cache.ready.has(asset.url)).toBe(true);cache.dispose()
 })
+it('verified local WAVs retain their exact blob URL and skip persistent cache',async()=>{
+ const fetcher=vi.fn(async(_url?:unknown)=>new Response(body)),disk=vi.fn(async()=>({match:async()=>undefined,keys:async()=>[],put:async()=>{}}))
+ vi.stubGlobal('fetch',fetcher);vi.stubGlobal('caches',{open:disk})
+ const cache=new AudioCache(ctx(),base,()=>{}),local={...asset,url:'blob:https://example.test/local-wave'}
+ await cache.load(local)
+ expect(String(fetcher.mock.calls[0][0])).toBe(local.url);expect(disk).not.toHaveBeenCalled();cache.dispose()
+})

@@ -11,14 +11,13 @@ function wait<T>(operation:Promise<T>,signal:AbortSignal){return new Promise<T>(
  signal.addEventListener('abort',abort,{once:true});operation.then(x=>{cleanup();resolve(x)},e=>{cleanup();reject(e)});if(signal.aborted)abort()
 })}
 const expired=()=>Object.assign(Error('准备期间接点已过，重新寻找后续接点'),{code:'cue_expired'})
-/** Search the nearest short horizon first, retaining the existing planner's
- * quality ranking, bound vocal evidence, local beat gate and dynamic EQ. */
-export function nearbyPlan(a:Track,b:Track,position:number,excluded=new Set<string>(),leadSeconds=12){
- const compatible={...b,windows:b.windows.filter(w=>{const v=w.variants[a.id];return v&&v.rate>=.95&&v.rate<=1.05&&v.duration>=1&&v.duration<=32&&[2,4,8].includes(w.bars)})}
- for(const budget of [18,30,60]){
-  const search=planContinuous(a,[compatible],position+leadSeconds,{kind:'next',targetId:b.id},new Set(),budget,false)
-  for(const plan of search.candidates){if(excluded.has(plan.id))continue;try{return {...plan,v30Eq:buildV30Eq(a,b,plan)}}catch{excluded.add(plan.id)}}
- }
+/** Keep every existing gate, then prefer the closest upcoming start. Compare
+ * each existing entry window; do not substitute automatic late-song ranking. */
+export function nearbyPlan(a:Track,b:Track,position:number,excluded=new Set<string>()){
+ const windows=b.windows.filter(w=>{const v=w.variants[a.id];return v&&v.rate>=.95&&v.rate<=1.05&&v.duration>=1&&v.duration<=32&&[2,4,8].includes(w.bars)})
+ const candidates=windows.flatMap(w=>planContinuous(a,[{...b,windows:[w]}],position+.25,{kind:'next',targetId:b.id},new Set(),60,false).candidates)
+  candidates.sort((x,y)=>x.start-y.start||y.score-x.score||x.id.localeCompare(y.id))
+  for(const plan of candidates){if(excluded.has(plan.id))continue;try{return {...plan,v30Eq:buildV30Eq(a,b,plan)}}catch{excluded.add(plan.id)}}
  return null
 }
 /** One explicit live request: no restart, seek or audition. A missed candidate
@@ -27,22 +26,22 @@ export async function mixNearby(o:NearbyOptions){
  const {player:p,a,b,signal}=o,excluded=new Set<string>()
  const valid=()=>{signal.throwIfAborted();if(p.current?.id!==a.id||!p.playing)throw new DOMException('播放状态已变化，已取消这次混入','AbortError')}
  p.logs.push({kind:'nearby_request',at:new Date().toISOString(),from:a.id,to:b.id,sourcePosition:p.position})
- let lead=o.leadSeconds??12
  let lastError:unknown=Error('附近没有通过拍点、人声和速度检查的接点，请换歌或稍后再试')
  for(let attempt=0;attempt<3;attempt++){
   valid()
-  const cached=attempt===0&&o.ready&&o.ready.result.plan.from===a.id&&o.ready.result.plan.to===b.id&&canArm(o.ready.result.plan,a.id,p.position)&&o.ready.result.plan.start<=p.position+lead?o.ready:null
-  const plan=cached?null:nearbyPlan(a,b,p.position,excluded,lead)
-  if(!cached&&!plan)throw lastError
-  const requestedAt=p.position,cue=cached?.result.plan??plan!,controller=new AbortController(),cancel=()=>controller.abort(signal.reason)
-  p.logs.push({kind:'nearby_candidate',at:new Date().toISOString(),sourcePosition:p.position,start:cue.start,end:cue.end,leadSeconds:lead,reused:!!cached})
+  const plan=nearbyPlan(a,b,p.position,excluded)
+  if(!plan)throw lastError
+  const r=o.ready?.result
+  const cached=attempt===0&&r&&r.plan.from===a.id&&r.plan.to===b.id&&r.plan.windowId===plan.window.id&&Math.abs(r.plan.start-plan.start)<.002&&Math.abs(r.plan.end-plan.end)<.002&&canArm(r.plan,a.id,p.position)?o.ready:null
+  const cue=cached?.result.plan??plan,controller=new AbortController(),cancel=()=>controller.abort(signal.reason)
+  p.logs.push({kind:'nearby_candidate',at:new Date().toISOString(),sourcePosition:p.position,start:cue.start,end:cue.end,reused:!!cached,policy:'nearest-qualified-start'})
   signal.addEventListener('abort',cancel,{once:true});if(signal.aborted)cancel()
   const timer=setInterval(()=>{
    if(p.current?.id!==a.id||!p.playing)controller.abort(new DOMException('已取消这次混入','AbortError'))
    else if(!canArm(cue,p.current.id,p.position))controller.abort(expired())
   },100)
   try{
-   o.onStatus?.(cached?'正在装入已准备好的交接':'已找到附近接点，当前歌曲继续播放，正在准备交接…')
+   o.onStatus?.(cached?'正在装入已准备好的交接':'已找到最近合格接点，正在装入原渐混素材…')
    const result=cached?.result??await wait(o.prepare(plan!,controller.signal),controller.signal)
    valid();controller.signal.throwIfAborted()
    if(result.plan.from!==a.id||result.plan.to!==b.id||Math.abs(result.plan.start-cue.start)>.002)throw Error('交接结果与本次歌曲和接点不一致')
@@ -58,9 +57,8 @@ export async function mixNearby(o:NearbyOptions){
    return {result,method}
   }catch(e){
    valid();if((e as Error).name==='AbortError')throw e
-   if((e as {code?:string}).code==='cue_expired')lead=Math.max(lead,Math.min(90,(p.position-requestedAt)*2+5))
    p.logs.push({kind:'nearby_candidate_failed',at:new Date().toISOString(),sourcePosition:p.position,start:cue.start,reason:(e as Error).message})
-   lastError=e;if(plan)excluded.add(plan.id)
+   lastError=e;excluded.add(plan.id)
    o.onStatus?.('这个接点未能及时准备，正在寻找后续可用接点…')
   }finally{clearInterval(timer);signal.removeEventListener('abort',cancel);controller.abort()}
  }

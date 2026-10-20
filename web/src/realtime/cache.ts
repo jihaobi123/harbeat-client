@@ -22,6 +22,7 @@ export class AudioBufferPool{
  }
 }
 export class AudioCache{
+ private localUrls:string[]=[]
  private loading=new Map<string,{promise:Promise<AudioBuffer>;controller:AbortController;users:number}>()
  protected=new Set<string>();disposed=false
  readonly pool:AudioBufferPool
@@ -54,9 +55,16 @@ export class AudioCache{
    shared.promise.then(buffer=>finish(null,buffer),error=>finish(error))
   })
  }
+ async localWav(bytes:ArrayBuffer,duration:number,signal?:AbortSignal):Promise<Asset>{
+  signal?.throwIfAborted();if(this.disposed)throw Error('播放器已关闭')
+  const sha256=await fingerprint(bytes);signal?.throwIfAborted()
+  const url=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'})),asset={url,sha256,duration,bytes:bytes.byteLength}
+  this.localUrls.push(url);while(this.localUrls.length>4)URL.revokeObjectURL(this.localUrls.shift()!)
+  try{await this.load(asset,signal);return asset}catch(e){URL.revokeObjectURL(url);this.localUrls=this.localUrls.filter(u=>u!==url);throw e}
+ }
  private async fetch(asset:Asset,identity:string,controller:AbortController){
-  const url=new URL(asset.url,this.base);url.searchParams.set('sha256',asset.sha256)
-  let cached=await readEncoded(url.href)
+  const url=new URL(asset.url,this.base),local=url.protocol==='blob:';if(!local)url.searchParams.set('sha256',asset.sha256)
+  let cached=local?null:await readEncoded(url.href)
   if(cached&&await fingerprint(cached)!==asset.sha256){await deleteEncoded(url.href);cached=null}
   if(this.disposed)throw new Error('播放器已关闭')
   controller.signal.throwIfAborted()
@@ -76,7 +84,7 @@ export class AudioCache{
   if(bytes.byteLength>64*1024*1024)throw new Error('素材超过本次内存限制')
   const hash=await fingerprint(bytes)
   if(hash!==asset.sha256)throw new Error('音频校验失败，请刷新素材版本')
-  if(!cached)void storeEncoded(url.href,bytes).catch(()=>{})
+  if(!cached&&!local)void storeEncoded(url.href,bytes).catch(()=>{})
   if(this.disposed)throw new Error('播放器已关闭')
   this.progress('正在解码并核对音频…');const buffer=await this.ctx.decodeAudioData(bytes)
   if(this.disposed)throw new Error('播放器已关闭')
@@ -84,5 +92,5 @@ export class AudioCache{
   controller.signal.throwIfAborted()
   const installed=this.pool.put(asset.url,identity,buffer);this.progress('素材已就绪');return installed
  }
- dispose(){this.disposed=true;for(const work of this.loading.values())work.controller.abort();this.protected.clear();this.pool.owners.delete(this)}
+ dispose(){this.disposed=true;for(const url of this.localUrls)URL.revokeObjectURL(url);this.localUrls=[];for(const work of this.loading.values())work.controller.abort();this.protected.clear();this.pool.owners.delete(this)}
 }
