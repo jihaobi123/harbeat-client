@@ -1,0 +1,22 @@
+[Unit]
+Description=HarBeat source-bound device execution preparation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/srv/harbeat-listen/execution-code
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m analysis_platform.execution_publisher
+Restart=on-failure
+RestartSec=15
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/harbeat-listen/execution-state
+
+[Install]
+WantedBy=multi-user.target
