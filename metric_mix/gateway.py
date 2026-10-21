@@ -110,3 +110,8 @@ def get_job(job_id:str):
  path=state_path(job_id)
  if not path.is_file():raise HTTPException(404,'交接记录已过期，请重新准备')
  return json.loads(path.read_text())
+
+# JSON strategies have their own bounded queue and state. Existing /jobs stays
+# compatible for old auditions and clients requesting rendered assets.
+from .plan_gateway import PlanService,install_plan_routes
+install_plan_routes(app,PlanService(ROOT/'plans',ORIGIN,lambda data:trusted_request(data)))
