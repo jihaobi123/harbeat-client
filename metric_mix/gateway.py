@@ -1,29 +1,34 @@
 """Bounded public render requests over the already-public listening library."""
-import concurrent.futures,hashlib,json,os,pathlib,re,shutil,subprocess,threading,time
+import concurrent.futures,hashlib,json,math,os,pathlib,re,shutil,subprocess,threading,time
 from fastapi import FastAPI,HTTPException,Request
 from fastapi.responses import JSONResponse
+from analysis_platform.execution_cohort import ExecutionCohort,execution_index
 from .policy import POLICY
 from .prepare import validated_plan,sha,worker_version
 ROOT=pathlib.Path(os.environ.get('METRIC_MIX_ROOT','/srv/harbeat-listen/metric-mix'))
 SITE=pathlib.Path(os.environ.get('LISTEN_SITE_ROOT','/srv/harbeat-listen'))
 ORIGIN=os.environ.get('LISTEN_PUBLIC_ORIGIN','https://8.136.120.255')
 REMOTE='mark@100.87.142.21';REMOTE_CODE='/home/mark/harbeat-metric-mix';REMOTE_PY='/home/mark/harbeat-analysis-venv/bin/python'
-CODE_VERSION=worker_version()
+PLAN_CODE_VERSION=worker_version()
+legacy_code=os.environ.get('HARBEAT_LEGACY_CODE_ROOT')
+CODE_VERSION=worker_version(pathlib.Path(legacy_code)/'metric_mix') if legacy_code else PLAN_CODE_VERSION
 app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None);executor=concurrent.futures.ThreadPoolExecutor(max_workers=1);slots=threading.BoundedSemaphore(3);lock=threading.Lock();active=set();last_post={}
 
 def identifier(x):
  if not isinstance(x,str) or not re.fullmatch('[A-Za-z0-9_-]{1,160}',x):raise ValueError('歌曲标识无效')
  return x
 
-def trusted_request(data,site=SITE):
+def trusted_request(data,site=SITE,*,cohort=None):
  if not isinstance(data,dict) or set(data)-{'from','to','windowId','start'}:raise ValueError('请求只能包含曲目、窗口和接点')
  a_id,b_id=identifier(data.get('from')),identifier(data.get('to'))
  if a_id==b_id:raise ValueError('请选择不同的下一首')
  release=(site/'current').resolve();index=json.loads((release/'library.json').read_text());rows={x['id']:x for x in index['tracks']};ready={x['id'] for x in index['tracks'] if x['playStatus']=='ready' and x['mixStatus']=='ready'}
  if index.get('schema')!='harbeat.continuous-library.v1' or len(rows)!=len(index['tracks']):raise ValueError('曲库索引无效')
- if a_id not in ready or b_id not in ready:raise ValueError('歌曲尚未准备好混音')
  tracks=[]
  for tid in [a_id,b_id]:
+  if cohort is not None and tid in cohort.tracks:
+   tracks.append(cohort.detail(tid));continue
+  if tid not in ready:raise ValueError('歌曲尚未准备好混音')
   detail=rows[tid].get('detailUrl','')
   if not isinstance(detail,str) or not re.fullmatch(r'(?:catalog/[A-Za-z0-9_-]{1,160}/)?details/'+re.escape(tid)+r'\.json',detail):raise ValueError('曲库资料路径无效')
   file=(release/detail).resolve()
@@ -31,10 +36,18 @@ def trusted_request(data,site=SITE):
   t=json.loads(file.read_text())['track']
   if t['id']!=tid:raise ValueError('曲库身份不一致')
   tracks.append(t)
+ if cohort is not None and (a_id in cohort.tracks or b_id in cohort.tracks):
+  a,b=tracks
+  window=next((w for w in b['windows'] if w['id']==data.get('windowId')),None)
+  if window is not None and a_id not in window['variants'] and window['bars'] in (2,4):
+   # Mirror DeviceEntryCache for this approved source catalog. The existing
+   # validator still checks tempo, exact cue geometry and source-bound bars.
+   exact=window['bars']*240/a['bpm']
+   window['variants'][a_id]={'duration':math.floor(exact*44100+.5)/44100,'rate':(window['end']-window['start'])/exact}
  p=validated_plan(*tracks,data.get('windowId'),data.get('start'))
  # Bound transport size while retaining full source-bound vocal and grid evidence.
  a,b=tracks;a['windows']=[];b['windows']=[{**w,'variants':{a_id:w['variants'][a_id]}} for w in b['windows'] if w['id']==p['windowId']]
- job={'a':a,'b':b,'windowId':p['windowId'],'start':p['start'],'codeVersion':CODE_VERSION};job_id=hashlib.sha256(json.dumps(job,sort_keys=True,separators=(',',':')).encode()).hexdigest();job['jobId']=job_id;return job
+ job={'a':a,'b':b,'windowId':p['windowId'],'start':p['start'],'codeVersion':PLAN_CODE_VERSION if cohort is not None else CODE_VERSION};job_id=hashlib.sha256(json.dumps(job,sort_keys=True,separators=(',',':')).encode()).hexdigest();job['jobId']=job_id;return job
 
 def atomic(path,data):
  path.parent.mkdir(parents=True,exist_ok=True);temp=path.with_suffix('.part');temp.write_text(json.dumps(data,ensure_ascii=False,separators=(',',':')));os.replace(temp,path)
@@ -114,4 +127,15 @@ def get_job(job_id:str):
 # JSON strategies have their own bounded queue and state. Existing /jobs stays
 # compatible for old auditions and clients requesting rendered assets.
 from .plan_gateway import PlanService,install_plan_routes
-install_plan_routes(app,PlanService(ROOT/'plans',ORIGIN,lambda data:trusted_request(data)))
+def active_cohort():
+ return ExecutionCohort(SITE/'cohort-current')
+
+@app.get('/execution-index')
+def get_execution_index():
+ base=SITE/'execution-current'
+ try:return active_cohort().merged_index(base)
+ except (ValueError,KeyError,TypeError,OSError):
+  return execution_index(base)
+
+install_plan_routes(app,PlanService(ROOT/'plans',ORIGIN,
+    lambda data:trusted_request(data,cohort=active_cohort()),cohort=active_cohort))

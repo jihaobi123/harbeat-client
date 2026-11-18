@@ -72,10 +72,10 @@ def validated_plan(a,b,window_id,start):
  last,prev=aa[-1],aa[-2];p={'from':a['id'],'to':b['id'],'windowId':window_id,'start':start,'end':end,'duration':d,'rate':rate,'bStart':w['start'],'bEnd':w['end'],'lastBarStart':last['start']-start,'bassTiming':{'duckStart':prev['start']-start,'swapStart':prev['beats'][3]-start,'swapEnd':last['start']-start},'restore':d-min(d,120/a['bpm']),'beatErrorMs':err*1000,'vocalExit':None,'vocalBenefit':0}
  p['eq']=eq_controls(a,b,p);return p
 
-def source_assets(t,nas,reports):
+def source_assets(t,nas,reports,*,manifest_report=False,decoded_master=None):
  p=t['provenance'];tid=t['id'];run=p['runId']
  if not all(re.fullmatch('[A-Za-z0-9_-]{1,160}',x) for x in [tid,run]):raise ValueError('源标识无效')
- folder=nas/'published/tracks'/tid/'runs'/run;mf=folder/'manifest.json';m=json.loads(mf.read_text());success=json.loads((folder/'_SUCCESS.json').read_text());rp=reports/(t['reportId']+'.json')
+ folder=nas/'published/tracks'/tid/'runs'/run;mf=folder/'manifest.json';m=json.loads(mf.read_text());success=json.loads((folder/'_SUCCESS.json').read_text());rp=mf if manifest_report else reports/(t['reportId']+'.json')
  if sha(mf)!=success['manifest_sha256'] or sha(rp)!=p['reportSha256'] or m['track_id']!=tid or m['analysis_run_id']!=run or m['assets']['master']['sha256']!=p['masterSha256'] or m['assets']['stems']['vocals']['sha256']!=p['vocalSha256']:raise ValueError('NAS来源或报告指纹不一致')
  assets={'master':m['assets']['master'],**m['assets']['stems']};paths={};proof={}
  for key in ['master','bass','other','drums','vocals']:
@@ -85,8 +85,15 @@ def source_assets(t,nas,reports):
    continue
   path=(nas/v['storage_key']).resolve()
   if nas.resolve() not in path.parents or not path.is_file() or sha(path)!=v['sha256']:raise ValueError('NAS音频指纹不一致')
+  if key=='master' and decoded_master is not None and path.suffix.lower()=='.mp3':
+   # Use the complete gapless decode. VBR container duration estimates need
+   # not equal the decoded sample count of the approved playback master.
+   subprocess.run(['ffmpeg','-nostdin','-v','error','-i',str(path),'-map','0:a:0',
+                   '-c:a','pcm_f32le',str(decoded_master)],check=True,timeout=90)
+   path=decoded_master
   info=sf.info(path)
   if info.channels!=2 or abs(info.duration-t['duration'])>.05:raise ValueError('原曲与分轨时长或声道不一致')
+  if key=='master' and decoded_master is not None and abs(info.duration-t['duration'])>1/SR:raise ValueError('已发布原曲的采样位置不一致')
   paths[key]=path;proof[key]={'sha256':v['sha256'],'duration':info.duration,'sampleRate':info.samplerate,'channels':info.channels}
  return paths,{'trackId':tid,'runId':run,'manifestSha256':sha(mf),'reportSha256':p['reportSha256'],'assets':proof}
 

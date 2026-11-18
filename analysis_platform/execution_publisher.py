@@ -50,7 +50,7 @@ def compact_catalog(source,destination):
     return bindings
 
 
-def ready_track(track,entry,bindings,objects,profiles,*,verify_objects=True):
+def ready_track(track,entry,bindings,objects,profiles,*,verify_objects=True,allow_float_wav=False):
     def finite(value):return isinstance(value,(int,float)) and not isinstance(value,bool) and math.isfinite(value)
     tid=entry['trackId'];source=bindings.get(tid,{})
     if track.get('schema')!='harbeat.execution-track.v1' or track.get('trackId')!=tid:raise ValueError('track schema mismatch')
@@ -82,7 +82,8 @@ def ready_track(track,entry,bindings,objects,profiles,*,verify_objects=True):
         if not 1<=len(stem.get('segments',[]))<=512:raise ValueError('invalid segment count')
         for segment in stem.get('segments',[]):
             asset=segment['asset'];checksum=asset['sha256']
-            if not HASH.fullmatch(checksum) or asset['url']!='/listen/execution-media/'+checksum+'.flac':raise ValueError('unsafe object URL')
+            suffix='.wav' if allow_float_wav and asset['url'].endswith('.wav') else '.flac'
+            if not HASH.fullmatch(checksum) or asset['url']!='/listen/execution-media/'+checksum+suffix:raise ValueError('unsafe object URL')
             if not finite(segment.get('start')) or not finite(segment.get('end')) or abs(segment['start']-cursor)>1/track['sampleRate'] or segment['end']<=cursor:raise ValueError('noncontiguous source timeline')
             first,last=segment.get('startFrame'),segment.get('endFrame')
             if isinstance(first,bool) or isinstance(last,bool) or not isinstance(first,int) or not isinstance(last,int) or first!=sample_cursor or not first<last<=frames:raise ValueError('invalid segment sample bounds')
@@ -90,7 +91,7 @@ def ready_track(track,entry,bindings,objects,profiles,*,verify_objects=True):
             if abs(segment['start']-first/sr)>1/sr or abs(segment['end']-last/sr)>1/sr or count>32*sr:raise ValueError('invalid segment source mapping')
             if asset.get('sampleRate')!=sr or asset.get('channels')!=2 or asset.get('frames')!=count or not finite(asset.get('duration')) or abs(asset['duration']-count/sr)>1/sr:raise ValueError('asset sample grid mismatch')
             if isinstance(asset.get('bytes'),bool) or not isinstance(asset.get('bytes'),int) or not 1<=asset['bytes']<=64*1024**2:raise ValueError('invalid asset size')
-            cursor=segment['end'];path=objects/(checksum+'.flac')
+            cursor=segment['end'];path=objects/(checksum+suffix)
             sample_cursor=last;current_grid.append((first,last))
             if verify_objects and (not path.is_file() or path.stat().st_size!=asset['bytes'] or sha(path)!=checksum):raise ValueError('missing or corrupt execution object')
             total+=asset['bytes']

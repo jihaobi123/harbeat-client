@@ -50,6 +50,10 @@ class JetsonPlanBoundaryTests(unittest.TestCase):
             root=pathlib.Path(temp)
             production=cli_input(job,a,b,plan,{'master':'a-source'},{'master':'b-source'},proof,proof,root)
             self.assertNotIn('prelude',production)
+            job['stemTimelineVersion']='stem-timeline-v1'
+            self.assertEqual(cli_input(job,a,b,plan,{'master':'a-source'},{'master':'b-source'},proof,proof,root)['stemTimelineVersion'],'stem-timeline-v1')
+            job['stemTimelineVersion']='stem-timeline-v2'
+            self.assertEqual(cli_input(job,a,b,plan,{'master':'a-source'},{'master':'b-source'},proof,proof,root)['stemTimelineVersion'],'stem-timeline-v2')
             data=cli_input(job,a,b,plan,{'master':'a-source'},{'master':'b-source'},proof,proof,root,include_body=True)
             self.assertEqual(data['pcm']['a']['start'],8)
             self.assertEqual(data['pcm']['b']['start'],8)
@@ -153,7 +157,7 @@ class JetsonPlanBoundaryTests(unittest.TestCase):
                 for side in data['pcm'].values():
                     paths.extend(side['files'].values())
                 self.assertTrue(all(pathlib.Path(path).is_file() for path in paths))
-                result={'schema':'harbeat.jetson-mix-plan.v1','id':job['jobId'],'algorithmSha256':engine,'sourceProof':data['sourceProof']}
+                result={'schema':'harbeat.jetson-mix-plan.v1','analysisVersion':'jetson-decision-v1','id':job['jobId'],'algorithmSha256':engine,'sourceProof':data['sourceProof']}
                 return SimpleNamespace(stdout=json.dumps(result).encode())
             source=lambda track,*_:({'master':'verified-source'},{'trackId':track['id']})
             with patch('analysis_platform.jetson_plan.source_assets',side_effect=source),patch('analysis_platform.jetson_plan.profile_proof',side_effect=lambda t,p,r:p),patch('analysis_platform.jetson_plan.read_segment',side_effect=lambda path,start,duration:np.zeros((round(duration*44100),2),np.float32)),patch('analysis_platform.jetson_plan.subprocess.run',side_effect=invoke):

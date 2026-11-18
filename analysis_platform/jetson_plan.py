@@ -15,6 +15,8 @@ import tempfile
 
 import numpy as np
 from metric_mix.prepare import validated_plan,source_assets,read_segment,sha,worker_version,local_bars
+from .execution_cohort import ExecutionCohort,execution_index
+from .cohort_source_cache import cache_run
 
 SCHEMA='harbeat.jetson-plan-input.v1'
 STEMS=('master','bass','other','drums','vocals')
@@ -90,6 +92,9 @@ def cli_input(job,a,b,plan,source_a,source_b,proof_a,proof_b,folder,*,include_bo
           'sourceProof':{'a':proof_a,'b':proof_b},
           'pcm':{'a':pcm_window(folder,'a',source_a,plan['start'],plan['duration']),
                  'b':pcm_window(folder,'b',source_b,plan['bStart'],(plan['duration']+.008)*plan['rate']+padding)}}
+    if job.get('stemTimelineVersion') is not None:
+        if job['stemTimelineVersion'] not in ('stem-timeline-v1','stem-timeline-v2'):raise ValueError('unsupported stem timeline version')
+        data['stemTimelineVersion']=job['stemTimelineVersion']
     if include_body:
         body_path=folder/'b-body.f32le'
         write_pcm(body_path,source_b['master'],plan['bEnd'],8.)
@@ -116,8 +121,9 @@ def prepare_plan(job,*,nas=pathlib.Path('/mnt/nas/harbeat/preprocess'),
                  cli=None,node=None,execution_root=None,audition_output=None,audition_single_method=None):
     if audition_single_method is not None and (audition_output is None or audition_single_method not in ('bass','filter','yield','vocal')):
         raise ValueError('single-method override is restricted to an internal audition')
-    if not isinstance(job,dict) or set(job)-{'a','b','windowId','start','codeVersion','runnerVersion','plannerSha256','jobId','executionBindings'}:
+    if not isinstance(job,dict) or set(job)-{'a','b','windowId','start','codeVersion','runnerVersion','plannerSha256','jobId','executionBindings','stemTimelineVersion'}:
         raise ValueError('invalid fixed planning request')
+    if 'stemTimelineVersion' in job and job['stemTimelineVersion'] not in ('stem-timeline-v1','stem-timeline-v2'):raise ValueError('unsupported stem timeline version')
     if job.get('codeVersion')!=worker_version() or job.get('runnerVersion')!=plan_runner_version():
         raise ValueError('planner worker version mismatch')
     if not HASH.fullmatch(str(job.get('plannerSha256',''))) or not HASH.fullmatch(str(job.get('jobId',''))):raise ValueError('planner engine or job version missing')
@@ -128,17 +134,43 @@ def prepare_plan(job,*,nas=pathlib.Path('/mnt/nas/harbeat/preprocess'),
     cli=pathlib.Path(cli or os.environ.get('HARBEAT_PLAN_CLI','/home/mark/harbeat-device-execution/jetson-plan.cjs'))
     if not cli.is_file() or cli.stat().st_size>8*1024*1024 or sha(cli)!=job['plannerSha256']:
         raise ValueError('planner engine version mismatch')
-    source_a,proof_a=source_assets(a,pathlib.Path(nas),pathlib.Path(reports))
-    source_b,proof_b=source_assets(b,pathlib.Path(nas),pathlib.Path(reports))
+    cohort=ExecutionCohort(pathlib.Path(__file__).resolve().parents[1]/'approved-execution-cohort') if execution_root is None else None
     execution_root=pathlib.Path(execution_root or os.environ.get('HARBEAT_PLAN_EXECUTION_ROOT','/mnt/nas/harbeat/preprocess/device-execution-v1'))
-    proof_a=profile_proof(a,proof_a,execution_root);proof_b=profile_proof(b,proof_b,execution_root)
-    if job.get('executionBindings')!={'a':proof_a,'b':proof_b}:
-        # Only an explicitly internal legacy audition can omit cloud bindings.
-        # Production must match the profiles that keyed the cloud request.
-        if audition_output is None or 'executionBindings' in job:
-            raise ValueError('execution binding changed before planning')
-    with tempfile.TemporaryDirectory(prefix='harbeat-json-plan-') as temp:
-        data=cli_input(job,a,b,plan,source_a,source_b,proof_a,proof_b,pathlib.Path(temp),include_body=audition_output is not None)
+    extra={row['trackId']:row for row in execution_index(cohort.execution)['tracks']} if cohort and cohort.tracks else {}
+    with tempfile.TemporaryDirectory(prefix='harbeat-json-plan-',dir='/dev/shm' if any(t['id'] in extra for t in (a,b)) else None) as temp:
+        folder=pathlib.Path(temp)
+        sources={};proofs={}
+        for side,track in (('a',a),('b',b)):
+            tid=track['id'];entry=extra.get(tid,{});binding=job.get('executionBindings',{}).get(side,{})
+            approved=(cohort and tid in cohort.tracks and entry.get('assetsReady') is True
+                      and entry['profile']['sha256']==binding.get('profileSha256'))
+            bassment=approved and cohort.tracks[tid].get('referenceSet')=='bassmentfm'
+            source_nas=(pathlib.Path('/mnt/nas/harbeat/experiments/hiphop-set-20261107/preprocess-mixed-20261108')
+                        if bassment else pathlib.Path(nas))
+            if approved:
+                decoded=folder/(side+'-master.wav')
+                try:
+                    cache=cache_run(track,entry,source_nas)
+                except (OSError,ValueError,KeyError):
+                    cache=source_nas
+                try:
+                    sources[side],raw_proof=source_assets(track,cache,pathlib.Path(reports),
+                        manifest_report=bassment,decoded_master=decoded)
+                except (OSError,ValueError,KeyError,subprocess.SubprocessError):
+                    if cache==source_nas:
+                        raise
+                    decoded.unlink(missing_ok=True)
+                    sources[side],raw_proof=source_assets(track,source_nas,pathlib.Path(reports),
+                        manifest_report=bassment,decoded_master=decoded)
+            else:
+                sources[side],raw_proof=source_assets(track,source_nas,pathlib.Path(reports))
+            proofs[side]=profile_proof(track,raw_proof,cohort.execution if approved else execution_root)
+        proof_a,proof_b=proofs['a'],proofs['b']
+        if job.get('executionBindings')!=proofs:
+            # Only an explicitly internal legacy audition can omit cloud bindings.
+            if audition_output is None or 'executionBindings' in job:
+                raise ValueError('execution binding changed before planning')
+        data=cli_input(job,a,b,plan,sources['a'],sources['b'],proof_a,proof_b,folder,include_body=audition_output is not None)
         if audition_single_method is not None:data['auditionSingleMethod']=audition_single_method
         command=[node or os.environ.get('HARBEAT_PLAN_NODE',DEFAULT_NODE),str(cli)]
         if audition_output is not None:command+=['--audition-output',str(audition_output)]
@@ -147,6 +179,7 @@ def prepare_plan(job,*,nas=pathlib.Path('/mnt/nas/harbeat/preprocess'),
         value=json.loads(result.stdout)
         if not isinstance(value,dict):raise ValueError('planner result is not an object')
         if value.get('schema')!='harbeat.jetson-mix-plan.v1' or value.get('id')!=job['jobId'] or value.get('algorithmSha256')!=job['plannerSha256'] or value.get('sourceProof')!={'a':proof_a,'b':proof_b}:raise ValueError('planner output identity mismatch')
+        if value.get('analysisVersion')!=('jetson-decision-v3' if job.get('stemTimelineVersion')=='stem-timeline-v2' else 'jetson-decision-v2' if job.get('stemTimelineVersion') else 'jetson-decision-v1'):raise ValueError('planner output timeline mode mismatch')
         return value
 
 

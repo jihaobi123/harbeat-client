@@ -53,6 +53,30 @@ class TrustedLibraryPathTest(unittest.TestCase):
    rows[0]['detailUrl']='../private.json';(release/'library.json').write_text(json.dumps({'schema':'harbeat.continuous-library.v1','tracks':rows}))
    with self.assertRaises(ValueError):trusted_request({'from':a['id'],'to':b['id'],'windowId':'w','start':4},site)
 
+ def test_approved_native_cohort_derives_only_the_existing_validated_cue(self):
+  import tempfile,pathlib,json
+  from analysis_platform.execution_cohort import ExecutionCohort
+  from metric_mix.gateway import trusted_request
+  with tempfile.TemporaryDirectory() as temp:
+   site=pathlib.Path(temp);release=site/'current';cohort=site/'cohort-current'/'catalog'
+   release.mkdir();(cohort/'details').mkdir(parents=True)
+   a,b=CueValidationTest().tracks()
+   rows=[]
+   for i,t in enumerate((a,b)):
+    t['id']='track-'+str(i+1)*20
+    t['preprocessing']['vocalActivity']['source']['track_id']=t['id']
+    (cohort/'details'/(t['id']+'.json')).write_text(json.dumps({'track':t}))
+    rows.append({'id':t['id'],'bpm':t['bpm'],'duration':t['duration'],'playStatus':'ready','mixStatus':'ready'})
+   b['windows'][0]['variants']={}
+   (cohort/'details'/(b['id']+'.json')).write_text(json.dumps({'track':b}))
+   schema='harbeat.continuous-library.v1'
+   (release/'library.json').write_text(json.dumps({'schema':schema,'tracks':[]}))
+   (cohort/'library.json').write_text(json.dumps({'schema':schema,'executionPolicy':'device-native-windows-v1','tracks':rows}))
+   source=ExecutionCohort(cohort.parent);request={'from':a['id'],'to':b['id'],'windowId':'w','start':4}
+   self.assertEqual(trusted_request(request,site,cohort=source)['b']['windows'][0]['variants'][a['id']],{'duration':8,'rate':1})
+   for changed in ({'start':4.2},{'windowId':'missing'},{'from':'track-'+'a'*20},{'rate':1.1}):
+    with self.assertRaises(ValueError):trusted_request({**request,**changed},site,cohort=source)
+
 class WorkerVersionTest(unittest.TestCase):
  def test_os_metadata_is_not_mistaken_for_executable_python(self):
   import tempfile,pathlib

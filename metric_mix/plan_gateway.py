@@ -12,6 +12,7 @@ import threading
 import time
 from fastapi import HTTPException,Request
 from fastapi.responses import JSONResponse
+from analysis_platform.execution_cohort import execution_index
 from analysis_platform.jetson_plan import plan_runner_version,profile_proof
 from .prepare import validated_plan,worker_version
 
@@ -45,9 +46,12 @@ def public_tree(value,depth=0):
 def validate_result(value,job):
     required={'schema','id','status','producer','analysisVersion','algorithmSha256','plan','sourceProof',
               'controls','metrics','decision','eq','restore','requiredStems','analysisSha256'}
-    if (not isinstance(value,dict) or not required<=set(value) or set(value)-required-{'drumPrelude'}
+    timeline=job.get('stemTimelineVersion') in ('stem-timeline-v1','stem-timeline-v2')
+    version='jetson-decision-v3' if job.get('stemTimelineVersion')=='stem-timeline-v2' else 'jetson-decision-v2' if timeline else 'jetson-decision-v1'
+    if (not isinstance(value,dict) or not required<=set(value) or set(value)-required-{'drumPrelude','stemArrangement'}
         or value.get('schema')!='harbeat.jetson-mix-plan.v1' or value.get('id')!=job['jobId'] or value.get('status')!='ready'
-        or value.get('producer')!='jetson' or value.get('analysisVersion')!='jetson-decision-v1'
+        or value.get('producer')!='jetson' or value.get('analysisVersion')!=version
+        or ('stemArrangement' in value)!=timeline
         or value.get('algorithmSha256')!=job['plannerSha256'] or not HASH.fullmatch(str(value.get('analysisSha256','')))):
         raise ValueError('planner result version mismatch')
     expected=validated_plan(job['a'],job['b'],job['windowId'],job['start'])
@@ -75,17 +79,93 @@ def validate_result(value,job):
         or any(stem not in ('master','bass','other','drums','vocals') for stem in value['requiredStems'])
         or value['decision'].get('methods',{}).get('original',{}).get('eligible') is not True):raise ValueError('planner strategy missing approved fallback')
     if type(value['restore']) not in (int,float) or not expected['start']<=value['restore']<=expected['end']:raise ValueError('planner restore out of bounds')
+    if timeline:validate_arrangement(value['stemArrangement'],expected['duration'],value['requiredStems'],calibrated=version=='jetson-decision-v3')
     public_tree(value)
     if len(json.dumps(value,separators=(',',':'),allow_nan=False).encode())>MAX_STATE_BYTES:raise ValueError('planner result too large')
     return value
 
 
+def validate_arrangement(value,duration,required,calibrated=False):
+    def numeric(n):return type(n) in (int,float) and math.isfinite(n)
+    def fail():raise ValueError('planner stem timeline invalid')
+    roles={'drums','bass','other','vocals'}
+    if (not isinstance(value,dict) or value.get('schema')!='harbeat.stem-arrangement.v1'
+        or value.get('method')!='stem-handover' or type(value.get('eligible')) is not bool
+        or type(value.get('recommended')) is not bool or not isinstance(value.get('reason'),str)
+        or not isinstance(value.get('requiredStems'),list)):fail()
+    if not value['eligible']:
+        if value['recommended'] or value.get('score') is not None or value.get('timeline') is not None or value.get('evidence') is not None or value['requiredStems']:fail()
+        return
+    if (not numeric(value.get('score')) or not 65<=value['score']<=100 or len(value['requiredStems'])!=4
+        or set(value['requiredStems'])!=roles or not roles<=set(required)):fail()
+    t=value.get('timeline',{})
+    if not isinstance(t,dict) or t.get('schema')!='harbeat.stem-timeline.v1' or t.get('clock')!='transition-start' or t.get('duration')!=duration:fail()
+    for side in ('a','b'):
+        if not isinstance(t.get(side),dict) or set(t[side])!=roles:fail()
+        for curve in t[side].values():
+            if not isinstance(curve,list) or not 2<=len(curve)<=32:fail()
+            previous=None
+            for point in curve:
+                if not isinstance(point,list) or len(point)!=2 or not all(numeric(x) for x in point) or not 0<=point[0]<=duration or not 0<=point[1]<=1:fail()
+                if previous and (point[0]<=previous[0] or abs(point[1]-previous[1])/(point[0]-previous[0])>20.000001):fail()
+                previous=point
+            if curve[0]!=[0,int(side=='a')] or curve[-1]!=[duration,int(side=='b')]:fail()
+    def at(curve,time):
+        for a,b in zip(curve,curve[1:]):
+            if a[0]<=time<=b[0]:return a[1]+(b[1]-a[1])*(time-a[0])/(b[0]-a[0])
+        return curve[-1][1]
+    for role in roles:
+        for time in {point[0] for side in ('a','b') for point in t[side][role]}:
+            if at(t['a'][role],time)+at(t['b'][role],time)>1.000001:fail()
+    e=value.get('evidence',{})
+    if not isinstance(e,dict):fail()
+    for field in ('baseline','processed'):
+        if not isinstance(e.get(field),dict) or any(not numeric(e[field].get(r)) or not 0<=e[field][r]<=1 for r in roles):fail()
+    h=e.get('headroom',{})
+    if (e['processed']['vocals']>.01 or not numeric(e.get('improvement')) or not .08<=e['improvement']<=4
+        or not isinstance(h,dict) or any(not numeric(h.get(k)) for k in ('peak','baselinePeak','riseDb'))
+        or not 0<=h['peak']<=.95 or h['baselinePeak']<0 or h['riseDb']>3 or h.get('eqApplied') is not True or h.get('outputScale')!=.76):fail()
+    reconstruction=e.get('reconstruction')
+    if not isinstance(reconstruction,dict):fail()
+    for side in ('a','b'):
+        r=reconstruction.get(side)
+        if not isinstance(r,dict):fail()
+        for x in (r,r.get('boundary')):
+            if (not isinstance(x,dict) or not numeric(x.get('errorRatio')) or not 0<=x['errorRatio']<=.25
+                or not numeric(x.get('levelDeltaDb')) or abs(x['levelDeltaDb'])>1.5):fail()
+
+    if calibrated:
+        gains=value.get('sourceGains',{});q=e.get('sourceCalibration',{})
+        if (not isinstance(gains,dict) or set(gains)!={'a','b'} or not isinstance(q,dict) or q.get('mode')!='common-linear-gain-v1'
+            or not isinstance(q.get('gains'),dict) or not isinstance(q.get('rawReconstruction'),dict)):fail()
+        for side in ('a','b'):
+            raw=q.get('rawReconstruction',{}).get(side,{})
+            if (not numeric(gains[side]) or not .5<=gains[side]<=2 or q.get('gains',{}).get(side)!=gains[side]
+                or not isinstance(raw,dict) or not numeric(raw.get('errorRatio')) or not numeric(raw.get('levelDeltaDb'))):fail()
+    elif 'sourceGains' in value or 'sourceCalibration' in e:fail()
+    c=e.get('compatibility',{})
+    if (not isinstance(c,dict) or c.get('pass') is not True or not numeric(c.get('pitchedRisk'))
+        or not 0<=c['pitchedRisk']<=1 or c.get('maximumPitchedRisk')!=.35
+        or not numeric(c.get('drumOverlapSeconds')) or not 0<=c['drumOverlapSeconds']<=duration+.001
+        or not numeric(c.get('drumOverlapLimit')) or not 0<c['drumOverlapLimit']<=2
+        or c.get('drumEvidence') not in ('observed','limited','not-overlapping')):fail()
+    if (any(not numeric(c.get(k)) or not 0<=c[k]<=duration+.001 for k in ('pitchedOverlapSeconds','incompatiblePitchedSeconds'))
+        or c['incompatiblePitchedSeconds']>c['pitchedOverlapSeconds']+.001
+        or c['incompatiblePitchedSeconds']>c['drumOverlapLimit']):fail()
+    if c['drumEvidence']=='observed':
+        if (not numeric(c.get('drumDensityRatio')) or c['drumDensityRatio']<1
+            or not numeric(c.get('drumOnsetAgreement')) or not 0<=c['drumOnsetAgreement']<=1):fail()
+    elif c.get('drumDensityRatio') is not None or c.get('drumOnsetAgreement') is not None:fail()
+    if c['drumOverlapSeconds']>c['drumOverlapLimit'] and (c['drumEvidence']!='observed' or c['drumDensityRatio']>2.5 or c['drumOnsetAgreement']<.5):fail()
+
+
 class PlanService:
-    def __init__(self,root,origin,trusted_request,*,planner_sha256=None,executor=None):
+    def __init__(self,root,origin,trusted_request,*,planner_sha256=None,executor=None,cohort=None):
         self.root=pathlib.Path(root);self.origin=origin;self.trusted_request=trusted_request
         self.planner_sha256=planner_sha256 if planner_sha256 is not None else os.environ.get('HARBEAT_PLAN_ENGINE_SHA256','')
         self.executor=executor or concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.slots=threading.BoundedSemaphore(3);self.lock=threading.Lock();self.active=set()
+        self.cohort=cohort
 
     def path(self,identity):return self.root/'state'/(identity+'.json')
     def job_path(self,identity):return self.root/'private'/(identity+'.job.json')
@@ -94,16 +174,17 @@ class PlanService:
         # Bind the job identity to the currently published execution profiles,
         # even when the master/report did not change during republication.
         root=pathlib.Path(os.environ.get('HARBEAT_PLAN_CLOUD_EXECUTION_ROOT','/srv/harbeat-listen/execution-current'))
-        index=root/'index.json'
-        if not index.is_file() or index.stat().st_size>8*1024*1024:raise ValueError('execution index unavailable')
-        value=json.loads(index.read_bytes())
-        rows=value.get('tracks',[]) if isinstance(value,dict) else []
-        if (not isinstance(value,dict) or value.get('schema')!='harbeat.execution-library.v1'
-            or not isinstance(rows,list) or len(rows)>5000 or any(not isinstance(row,dict) for row in rows)):
-            raise ValueError('execution index invalid')
+        rows=execution_index(root)['tracks']
+        cohort=self.cohort() if self.cohort is not None else None
+        supplemental=execution_index(cohort.execution)['tracks'] if cohort and any(
+            track['id'] in cohort.tracks for track in tracks.values()) else []
         bindings={}
         for side,track in tracks.items():
             entries=[row for row in rows if row.get('trackId')==track['id']]
+            source_root=root
+            if cohort and track['id'] in cohort.tracks and not any(row.get('assetsReady') for row in entries):
+                entries=[row for row in supplemental if row.get('trackId')==track['id'] and row.get('assetsReady') is True]
+                source_root=cohort.execution
             if len(entries)!=1:raise ValueError('execution profile unavailable')
             entry=entries[0];provenance=track['provenance'];stems=entry.get('stemSha256',{})
             if (entry.get('runId')!=provenance['runId'] or entry.get('sourceSha256')!=provenance['masterSha256']
@@ -115,11 +196,15 @@ class PlanService:
             proof={'runId':entry['runId'],'reportSha256':entry['reportSha256'],'manifestSha256':entry['manifestSha256'],
                 'assets':{'master':{'sha256':entry['sourceSha256']},
                     **{stem:{'sha256':stems[stem]} for stem in ('drums','bass','other','vocals')}}}
-            bindings[side]=profile_proof(track,proof,root)
+            bindings[side]=profile_proof(track,proof,source_root)
         return bindings
 
     def job(self,data):
-        base=self.trusted_request(data);base.pop('jobId',None)
+        if not isinstance(data,dict):raise ValueError('invalid planning request')
+        request=dict(data);timeline=request.pop('stemTimelineVersion',None)
+        if 'stemTimelineVersion' in data and timeline not in ('stem-timeline-v1','stem-timeline-v2'):raise ValueError('unsupported stem timeline version')
+        base=self.trusted_request(request);base.pop('jobId',None)
+        if timeline is not None:base['stemTimelineVersion']=timeline
         base.update(runnerVersion=plan_runner_version(),plannerSha256=self.planner_sha256,
                     executionBindings=self.execution_bindings({side:base[side] for side in ('a','b')}))
         raw=json.dumps(base,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
@@ -157,7 +242,7 @@ class PlanService:
         try:
             atomic(self.path(identity),{'id':identity,'status':'running','message':'正在核验声部并计算设备执行方案','createdAt':time.time()})
             value=validate_result(self.remote(job),job)
-            current=self.job({'from':job['a']['id'],'to':job['b']['id'],'windowId':job['windowId'],'start':job['start']})
+            current=self.job({'from':job['a']['id'],'to':job['b']['id'],'windowId':job['windowId'],'start':job['start'],**({'stemTimelineVersion':job['stemTimelineVersion']} if 'stemTimelineVersion' in job else {})})
             if current['jobId']!=identity:raise ValueError('source revision changed during planning')
             atomic(self.path(identity),value)
         except Exception as error:
@@ -229,7 +314,7 @@ def install_plan_routes(app,service):
                 job=json.loads(private.read_text())
                 if job.get('plannerSha256')!=service.planner_sha256:raise ValueError('expired planning engine')
                 validate_result(value,job)
-                current=service.job({'from':job['a']['id'],'to':job['b']['id'],'windowId':job['windowId'],'start':job['start']})
+                current=service.job({'from':job['a']['id'],'to':job['b']['id'],'windowId':job['windowId'],'start':job['start'],**({'stemTimelineVersion':job['stemTimelineVersion']} if 'stemTimelineVersion' in job else {})})
                 if current['jobId']!=identity:raise ValueError('source changed after planning')
             elif (set(value)!={'id','status','message','createdAt'} or value.get('id')!=identity
                   or value.get('status') not in ('queued','running','failed')):raise ValueError('invalid planning state')

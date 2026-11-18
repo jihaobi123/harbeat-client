@@ -60,6 +60,83 @@ class PlanGatewayTests(unittest.TestCase):
             'reportSha256':row['reportSha256'],'vocalSha256':row['stemSha256']['vocals'],
             'manifestSha256':row['manifestSha256'],'profileSha256':row['profile']['sha256'],'stemSha256':row['stemSha256']}
 
+    def test_timeline_mode_has_separate_identity_and_keeps_legacy_requests_unchanged(self):
+        old=self.service.job(self.request)
+        new=self.service.job({**self.request,'stemTimelineVersion':'stem-timeline-v1'})
+        self.assertNotEqual(old['jobId'],new['jobId'])
+        self.assertNotIn('stemTimelineVersion',old)
+        self.assertEqual(new['stemTimelineVersion'],'stem-timeline-v1')
+        from metric_mix.plan_gateway import validate_result
+        value=self.result(new)
+        with self.assertRaises(ValueError):validate_result(value,new)
+        value['analysisVersion']='jetson-decision-v2'
+        value['stemArrangement']={'schema':'harbeat.stem-arrangement.v1','method':'stem-handover','eligible':False,
+            'recommended':False,'score':None,'timeline':None,'evidence':None,'requiredStems':[],'reason':'no verified benefit'}
+        self.assertEqual(validate_result(value,new),value)
+        with self.assertRaises(ValueError):validate_result(value,old)
+
+    def test_timeline_queued_run_get_and_cached_post_keep_the_same_identity(self):
+        body={**self.request,'stemTimelineVersion':'stem-timeline-v1'}
+        response=self.client.post('/plans',json=body,headers=self.headers)
+        identity=response.json()['id'];fn,args=self.executor.tasks.pop();value=self.result(args[0])
+        value.update(analysisVersion='jetson-decision-v2',stemArrangement={
+            'schema':'harbeat.stem-arrangement.v1','method':'stem-handover','eligible':False,
+            'recommended':False,'score':None,'timeline':None,'evidence':None,'requiredStems':[],'reason':'no verified benefit'})
+        with patch.object(self.service,'remote',return_value=value):fn(*args)
+        ready=self.client.get('/plans/'+identity)
+        self.assertEqual(ready.status_code,200,ready.text)
+        self.assertEqual(ready.json()['status'],'ready',ready.text)
+        again=self.client.post('/plans',json=body,headers=self.headers)
+        self.assertEqual(again.status_code,200,again.text)
+        self.assertEqual(again.json(),ready.json())
+        self.assertEqual(self.executor.tasks,[])
+
+    def test_eligible_timeline_requires_processed_compatibility_and_local_reconstruction(self):
+        from metric_mix.plan_gateway import validate_arrangement
+        roles=('bass','drums','other','vocals');d=8
+        value={'schema':'harbeat.stem-arrangement.v1','method':'stem-handover','eligible':True,'recommended':True,
+            'score':80,'reason':'verified','requiredStems':list(roles),'timeline':{
+                'schema':'harbeat.stem-timeline.v1','clock':'transition-start','duration':d,
+                'a':{r:[[0,1],[2,1],[3,0],[d,0]] for r in roles},
+                'b':{r:[[0,0],[3,0],[4,1],[d,1]] for r in roles}},'evidence':{
+                'baseline':{r:.5 for r in roles},'processed':{r:0 for r in roles},'improvement':.2,
+                'headroom':{'peak':.5,'baselinePeak':.5,'riseDb':0,'eqApplied':True,'outputScale':.76},
+                'reconstruction':{s:{'errorRatio':.01,'levelDeltaDb':0,'boundary':{'errorRatio':.01,'levelDeltaDb':0}} for s in ('a','b')},
+                'compatibility':{'pass':True,'pitchedRisk':.1,'pitchedOverlapSeconds':.2,'incompatiblePitchedSeconds':0,'maximumPitchedRisk':.35,'drumOverlapSeconds':0,
+                    'drumOverlapLimit':.27,'drumEvidence':'not-overlapping','drumDensityRatio':None,'drumOnsetAgreement':None}}}
+        validate_arrangement(value,d,list(roles))
+        calibrated=copy.deepcopy(value);calibrated['sourceGains']={'a':1.18,'b':1.17}
+        calibrated['evidence']['sourceCalibration']={'mode':'common-linear-gain-v1','gains':calibrated['sourceGains'],
+            'rawReconstruction':copy.deepcopy(value['evidence']['reconstruction'])}
+        validate_arrangement(calibrated,d,list(roles),calibrated=True)
+        with self.assertRaises(ValueError):validate_arrangement(calibrated,d,list(roles))
+        calibrated['sourceGains']['a']=3
+        with self.assertRaises(ValueError):validate_arrangement(calibrated,d,list(roles),calibrated=True)
+        for mutation in ('boundary','compatibility','overlap','eq'):
+            bad=copy.deepcopy(value)
+            if mutation=='boundary':bad['evidence']['reconstruction']['a']['boundary']['errorRatio']=.8
+            if mutation=='compatibility':bad['evidence']['compatibility'].update(pitchedRisk=.8,pitchedOverlapSeconds=2,incompatiblePitchedSeconds=2)
+            if mutation=='overlap':bad['timeline']['b']['bass']=[[0,0],[1,1],[d,1]]
+            if mutation=='eq':bad['evidence']['headroom'].pop('eqApplied')
+            with self.assertRaises(ValueError,msg=mutation):validate_arrangement(bad,d,list(roles))
+
+    def test_calibrated_mode_is_distinct_and_finishes_as_v3(self):
+        old=self.service.job({**self.request,'stemTimelineVersion':'stem-timeline-v1'})
+        body={**self.request,'stemTimelineVersion':'stem-timeline-v2'}
+        response=self.client.post('/plans',json=body,headers=self.headers)
+        identity=response.json()['id'];self.assertNotEqual(identity,old['jobId']);fn,args=self.executor.tasks.pop()
+        value=self.result(args[0]);value.update(analysisVersion='jetson-decision-v3',stemArrangement={
+            'schema':'harbeat.stem-arrangement.v1','method':'stem-handover','eligible':False,
+            'recommended':False,'score':None,'timeline':None,'evidence':None,'requiredStems':[],'reason':'no verified benefit'})
+        with patch.object(self.service,'remote',return_value=value):fn(*args)
+        ready=self.client.get('/plans/'+identity);self.assertEqual(ready.status_code,200,ready.text)
+        self.assertEqual(ready.json()['analysisVersion'],'jetson-decision-v3')
+
+    def test_timeline_requests_cannot_supply_controls_or_an_unknown_version(self):
+        for extra in ({'stemTimelineVersion':'arbitrary'}, {'stemTimelineVersion':'stem-timeline-v1','timeline':{}}, {'stemTimelineVersion':True}):
+            self.assertEqual(self.client.post('/plans',json={**self.request,**extra},headers=self.headers).status_code,422)
+        self.assertEqual(self.client.post('/plans',json={**self.request,'stemTimelineVersion':'stem-timeline-v1'},headers={'Origin':'https://wrong.test'}).status_code,403)
+
     def test_profile_republication_expires_cached_approval_and_enqueues_new_identity(self):
         response=self.client.post('/plans',json=self.request,headers=self.headers)
         identity=response.json()['id'];fn,args=self.executor.tasks.pop()
